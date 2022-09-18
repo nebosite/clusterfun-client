@@ -1,0 +1,9 @@
+.devOnlyBox {
+    display: inline-flex;
+    border: 5px ridge rgba(170, 50, 220, .6);
+    /* 
+    background: yellow;
+    font-size: 30px;
+    cursor: pointer; */
+}
+

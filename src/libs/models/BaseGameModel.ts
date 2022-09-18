@@ -1,0 +1,423 @@
+import { ISessionHelper } from "libs";
+import { ITelemetryLogger } from "libs/telemetry/TelemetryLogger";
+import { IStorage } from "libs/storage/StorageHelper";
+import { observable } from "mobx";
+import { EventThing } from "libs/messaging/EventThing";
+import BruteForceSerializer, { ITypeHelper } from "libs/storage/BruteForceSerializer";
+import { ClusterFunMessageBase, ClusterFunReceiptAckMessage, ClusterFunMessageConstructor } from "libs/comms"
+import { BaseAnimationController } from "libs/Animation/AnimationController";
+import { ClusterFunGameProps } from "libs/components/GameChooser";
+
+const GAMESTATE_LABEL = "game_state";
+const STASH_LABEL = "__stash_game_state";
+
+export enum GeneralGameState 
+{
+    Unknown = "Unknown",
+    Paused = "Paused",
+    GameOver = "GameOver",
+    Destroyed = "Destroyed"
+}
+// -------------------------------------------------------------------
+// get the saved game if available or create a new one
+// -------------------------------------------------------------------
+export function instantiateGame<T extends BaseGameModel>(
+    gameTypeName: string,
+    gameProps: ClusterFunGameProps,
+    typeHelper: ITypeHelper)
+{
+
+    const serializer = createSerializer(typeHelper);
+    let returnMe: T = null;
+    try {
+        //console.info(`Attempting to load game data for ${gameTypeName}`)
+        const savedDataJson = gameProps.storage.get(GAMESTATE_LABEL);
+        if(savedDataJson) {
+            const savedData = serializer.parse<T>(savedDataJson);
+            if(savedData.gameState !== GeneralGameState.Destroyed)
+            {
+                console.log("Found a saved game.  Resuming ...")
+                returnMe = savedData;
+                returnMe.reconstitute();
+                
+            }
+        }      
+        else {
+            console.log(`Saved game state was 'destroyed'.  Going with new game.`)
+        } 
+    }
+    catch(err) 
+    {
+        gameProps.logger.logEvent("Error", "Failed Game Restore", (err as any).message )
+        console.log("getSavedGame: Could not retore game because: " + err);
+    }
+    if(!returnMe) {
+        console.log(`constructing ${gameTypeName}`)
+        returnMe = typeHelper.constructType(gameTypeName) as T;
+        if(!returnMe) throw Error(`Unable to construct ${gameTypeName}`)
+    }
+
+    returnMe.serializer = serializer;
+    return returnMe;
+}
+
+// -------------------------------------------------------------------
+// Create a serializer
+// -------------------------------------------------------------------
+function createSerializer(typeHelper: ITypeHelper)
+{
+    const deepTypeHelper = {
+        constructType(typeName: string) {
+            const output = typeHelper.constructType(typeName);
+            if(!output) {
+                throw Error(`Could not construct type: ${typeName}`)
+            }
+            return output;
+        },
+        shouldStringify(typeName: string, propertyName: string, object: any)
+        {
+            if(object === undefined || object === null) return false;
+
+            // Some of the state on the base game model should not get serialized since
+            // it is transitory information
+            if(object instanceof BaseGameModel)
+            {
+                switch(propertyName)
+                {
+                    case "_scheduledEvents":
+                    case "_events":
+                    case "_ticker":
+                    case "_isCheckpointing":
+                    case "_lastCheckpointTime":
+                    case "logger":
+                    case "onTick":
+                    case "serializer":
+                    case "session":
+                    case "storage":
+                        return false;
+                }
+
+            }
+            
+            return typeHelper.shouldStringify(typeName, propertyName, object);
+        } ,
+        reconstitute(typeName: string, propertyName: string, rehydratedObject: any)
+        {
+            return typeHelper.reconstitute(typeName, propertyName, rehydratedObject);
+        }
+     
+    }
+    return new BruteForceSerializer(deepTypeHelper);
+}
+
+// -------------------------------------------------------------------
+// Handle basic operations for any game instance, client or presenter
+// -------------------------------------------------------------------
+export abstract class BaseGameModel  {
+    name: string;
+    @observable public gameTime_ms: number = 0;
+    fastRunMultiplier = 32.0;
+    tickInterval_ms = 33;
+    checkpointInternvalMin_ms = 500;  // Don't try to save checkpoints more frequently than this
+
+    @observable private _gameState: string = GeneralGameState.Unknown;
+    get gameState() {return this._gameState}
+    set gameState(value: string) {
+        if(value === GeneralGameState.Unknown) {
+            throw Error("Attempting to set game state to 'unknown'")
+        }
+        console.log(`${this.name} state setting to ${value}`)
+        if(this._gameState === GeneralGameState.Destroyed) {
+            console.log(`WEIRD: Attempted to set detroyed ${this.name} to ${value}`)
+        }
+        else {
+            this._gameState = value;
+            this.devFast = false;
+            this.invokeEvent(value);
+            this.saveCheckpoint();            
+        }
+    }
+
+
+    get roomId() {return this.session.roomId;}
+    // Pause the game in development mode
+    @observable _devPause = false;
+    public get devPause() { return this._devPause;}
+    public set devPause(value: boolean) { this._devPause = value; }
+
+    // Turbo game speed in development mode 
+    @observable _devFast = false;
+    public get devFast() { return this._devFast;}
+    public set devFast(value: boolean) { this._devFast = value; }
+
+    protected session: ISessionHelper;
+    protected logger: ITelemetryLogger;
+    protected storage: IStorage;
+
+    public onTick = new EventThing<number>("BaseGameModel");
+    private _scheduledEvents: Map<number, Array<() => void>>;
+
+    //private _deserializeHelper: (propertyName: string, data: any) => any
+    private _events = new Map<string, EventThing<any>>();
+    private _ticker: NodeJS.Timeout;
+    serializer: BruteForceSerializer
+    private _isCheckpointing = false;
+    private _lastCheckpointTime = 0;
+
+    // -------------------------------------------------------------------
+    // ctor
+    //
+    // deserializeHelper - use this for special serialization.  It transforms
+    //                      data into the correct form (e.g. when serializing
+    //                      to a class with functions).  Return null for items
+    //                      that should not be deserialized.
+    // -------------------------------------------------------------------
+    constructor(
+        name: string,
+        sessionHelper: ISessionHelper, 
+        logger: ITelemetryLogger, 
+        storage: IStorage
+        )
+    {
+        this.name = name;
+        this.logger = logger;
+        this.session = sessionHelper;
+        this.storage = storage;
+
+        this._scheduledEvents = new Map<number, Array<() => void>>();
+        this.session.addClosedListener(code => this.onSessionClosed(code));
+   
+        // Set up a regular ticker to drive scheduled events and animations
+        let timeOfLastTick = Date.now();
+        this._ticker = setInterval(() => {
+            const now = Date.now();
+            this.tick(now - timeOfLastTick);
+            timeOfLastTick = now;
+        }, this.tickInterval_ms );
+
+        this.logger.logPageView(name);
+    }
+
+    // This method is called after loading a saved game from memory.  Here is 
+    // where to hook up stuff the serialize couldn't get back
+    abstract reconstitute():void
+
+    // -------------------------------------------------------------------
+    //  quitApp
+    // -------------------------------------------------------------------
+    quitApp = () => {
+        console.log("Quitting the app")
+        this.gameState = GeneralGameState.Destroyed;
+        clearInterval(this._ticker);
+        this.storage.clear();
+    }
+
+    // -------------------------------------------------------------------
+    // onSessionClosed
+    // -------------------------------------------------------------------
+    protected onSessionClosed(code: number) {
+        console.log("Session was closed with code: " + code);
+        const CLOSECODE_PAGEREFRESH = 1001
+        const CLOSECODE_PLEASERETRY = 1013
+
+        // The game is really over only if the server is shutting us down
+        if (code !== CLOSECODE_PAGEREFRESH 
+            && code !== CLOSECODE_PLEASERETRY) {
+            this.clearCheckpoint();
+            this.quitApp();
+        } else {
+            this.saveCheckpoint();
+        }
+    }
+
+    // -------------------------------------------------------------------
+    //  subscribe to an event
+    // -------------------------------------------------------------------
+    subscribe(event: string, subscriptionId: string, callback: (...args: any[])=>void) {
+        if(!this._events.has(event)) {
+            this._events.set(event, new EventThing<any>(this.name));
+        }
+
+        this._events.get(event).subscribe(subscriptionId, callback);
+    }
+
+    // -------------------------------------------------------------------
+    // addMessageListener - register a listening for a specific clusterfun
+    // message type.
+    // -------------------------------------------------------------------
+    addMessageListener<P, M extends ClusterFunMessageBase>(
+        messageClass: ClusterFunMessageConstructor<P, M>, 
+        name: string, 
+        listener: (message: M) => unknown) {
+        this.session.addListener(messageClass, name, listener);
+    }
+
+    // -------------------------------------------------------------------
+    // invokeEvent - force an event to trigger
+    // -------------------------------------------------------------------
+    invokeEvent(event: string, ...args: any[]) {
+        return new Promise<void>(resolve => {
+            setTimeout(() => {
+                this._events.get(event)?.invoke(...args);
+                resolve();
+            },1)            
+        })
+    }
+
+    // -------------------------------------------------------------------
+    // export class properties to JSON in storage
+    // -------------------------------------------------------------------
+    saveCheckpoint() {
+        if(this.gameState === GeneralGameState.Destroyed) return;
+
+        if(this.serializer && !this._isCheckpointing)
+        {
+            this._isCheckpointing = true;
+            const timeSinceLastCheckpoint = Date.now() - this._lastCheckpointTime;
+            let delay = this.checkpointInternvalMin_ms - timeSinceLastCheckpoint;
+            if(delay < 0) delay = 0;
+
+
+            setTimeout(()=> {
+                const jsonToSave = this.serializer.stringify(this);
+                //console.log(`Saving checkpoint (${jsonToSave.length} bytes)`)
+                if(this.gameState !== GeneralGameState.Destroyed) {
+                    this.storage.set(GAMESTATE_LABEL, jsonToSave)
+                }
+                this._isCheckpointing = false;
+                this._lastCheckpointTime = Date.now();
+            },delay);
+        }
+    }
+
+    // -------------------------------------------------------------------
+    // clearCheckpoint
+    // -------------------------------------------------------------------
+    clearCheckpoint() {
+        this.storage.set(GAMESTATE_LABEL, null)
+    }
+
+    // -------------------------------------------------------------------
+    // put the checkpoint in a place where we can pull it back if needed
+    // THis is for clients that accidentally disconnect.  On reconnet,
+    // they will unstash the checkpoint
+    // -------------------------------------------------------------------
+    stashCheckpoint() {
+
+        const checkpoint = this.storage.get(GAMESTATE_LABEL)
+        if(checkpoint) {
+            console.log("************** STASHING  " + this.session.personalId)
+            this.storage.set(STASH_LABEL, checkpoint);
+            this.storage.set(GAMESTATE_LABEL, null);
+        }
+    }
+
+    // -------------------------------------------------------------------
+    // restore the checkpoint from the stash if it exists
+    // -------------------------------------------------------------------
+    unStashCheckpoint() {
+
+        const checkpoint = this.storage.get(STASH_LABEL)
+        if(checkpoint) {
+            console.log("************** UNSTASHING  " + this.session.personalId)
+            this.storage.set(GAMESTATE_LABEL, checkpoint);
+            this.storage.set(STASH_LABEL, null);
+        }
+    }
+
+    private _animationCurrentId = 0;
+    // -------------------------------------------------------------------
+    // registerAnimation
+    // -------------------------------------------------------------------
+    public registerAnimation = (controller: BaseAnimationController) => {
+        const tag = `anim${this._animationCurrentId++}`;
+        this.onTick.subscribe(tag, (t) => {
+            controller.handleFrame(t)
+            if(controller.sequenceFinished && controller.animationsFinished) this.onTick.unsubscribe(tag);
+        });  
+    }
+    
+    // -------------------------------------------------------------------
+    // tick
+    // -------------------------------------------------------------------
+    public tick = (milliseconds: number) => {
+        if(this.devPause || this.gameState === GeneralGameState.Paused)  return;
+
+        if(this.gameState === GeneralGameState.Destroyed) 
+        {
+            clearInterval(this._ticker);
+            return;
+        } 
+
+        const adjustedInterval = milliseconds * (this.devFast ? this.fastRunMultiplier : 1.0);
+        this.gameTime_ms += adjustedInterval;
+
+        // gather up events that should have been triggered
+        const scheduledTimesPassed = [];    
+        for (const scheduledTime of this._scheduledEvents.keys()) {
+            if (this.gameTime_ms > scheduledTime) {
+                scheduledTimesPassed.push(scheduledTime);
+            }
+        }
+        scheduledTimesPassed.sort((a, b) => a - b);
+
+        // harvest passed events from the event queue
+        const eventsToRun = [];
+        for (const scheduledTime of scheduledTimesPassed) {
+            for (const event of this._scheduledEvents.get(scheduledTime)) {
+                eventsToRun.push(event);
+            }
+            this._scheduledEvents.delete(scheduledTime);
+        }
+
+        eventsToRun.forEach(e => e());
+
+        this.onTick.invoke(this.gameTime_ms);
+    }
+
+    // -------------------------------------------------------------------
+    // acknowledge a message
+    // ------------------------------------------------------------------- 
+    ackMessage(message: ClusterFunMessageBase) {
+        this.session.sendMessage(message.sender, new ClusterFunReceiptAckMessage({
+            sender: this.session.personalId,
+            ackedMessageId: message.messageId
+        }))
+    }
+
+    // -------------------------------------------------------------------
+    // scheduleEvent
+    // -------------------------------------------------------------------
+    protected scheduleEvent(time: number, event: () => void) {
+        if (!this._scheduledEvents.has(time)) {
+            this._scheduledEvents.set(time, new Array<() => void>());
+        }
+        this._scheduledEvents.get(time).push(event);
+    }
+
+    // -------------------------------------------------------------------
+    //  randomInt
+    // -------------------------------------------------------------------
+    randomInt(max: number)
+    {
+        return Math.floor(Math.random() * max);
+    }
+
+    // -------------------------------------------------------------------
+    //  randomDouble
+    // -------------------------------------------------------------------
+    randomDouble(max: number)
+    {
+        return Math.random() * max;
+    }
+
+    // -------------------------------------------------------------------
+    //  randomItem
+    // -------------------------------------------------------------------
+    randomItem<T>(items: T[])
+    {
+        return items[this.randomInt(items.length)]
+    }
+    
+
+}

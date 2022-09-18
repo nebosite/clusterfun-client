@@ -1,0 +1,9 @@
+.sliderControl {
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+}
+
+.sliderChild {
+    position: absolute;
+}

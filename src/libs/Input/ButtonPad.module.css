@@ -1,0 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@500&display=swap');
+
+
+
+.controlRow {
+    display: flex;
+    flex-wrap: nowrap;
+  }
+
+.controlButton {
+    background-color: white;
+    width: 220px;
+    height: 220px;
+    border-radius: 50px;
+    margin: 30px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 150px;
+}

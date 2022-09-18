@@ -1,0 +1,249 @@
+@import url('https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet');
+
+
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+
+
+.errorMessage {
+    color: red;
+}
+
+/* Lobby Formating */
+.divRow {
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+.lobby {
+    background: url("../../lobby/assets/images/background1.png") center center/cover no-repeat;  
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    position: relative;
+}
+
+.logo{
+    align-self: center;
+    justify-self: flex-start;
+    display: flex;
+    justify-content: center;
+    margin-top: 50px;
+    margin-bottom: 30px;
+    background: var(--background-color);
+    border-radius: 60px;
+    /* box-shadow: 5px 4px 4px; */
+    z-index: 1;
+    /* animation: animateLogo 2s forwards infinite ease-in-out; */
+}
+
+.img{
+    height: 300px;
+    width: auto;
+    border-radius: 60px;
+    border: #dddddd 10px solid;
+    /* animation: animateLogo 2s forwards infinite ease-in-out; */
+}
+
+.input_background input {
+    padding: 3rem;
+    font-size: 200%;
+    text-align: center;
+    width: 100%;
+    align-self: center;
+    background: #3333;
+    z-index: 1;
+    color: white;
+}
+
+.input_background input:focus {
+    background: #111a;
+    
+}
+
+  
+.input_background {
+    border-radius: 60px;
+    /* box-shadow: 4px 4px 5px; */
+    font-size: 200%;
+    text-align: center;
+    width: 70%;
+    align-self: center;
+    border-top: white 10px solid;
+    border-left: white 10px solid;
+    border-right: white 10px solid;
+    z-index: 2;
+}
+
+
+.room_code {
+    border-top-left-radius: 60px;
+    border-top-right-radius: 60px;
+    border-bottom:white 10px solid;
+    outline: none;
+}
+
+.nickname {
+    border-bottom-right-radius: 60px;
+    border-bottom-left-radius: 60px;
+    border-bottom:white 10px solid;
+    outline: none;
+}
+
+.container input::placeholder {
+    color: white;
+    text-align: center;
+    font-family: Arial, Helvetica, sans-serif;
+    z-index: 3;
+}
+
+.container button:active {
+}
+  
+.bottom_text {
+    font-style: italic;
+    margin-bottom: 10rem;
+    z-index: 2;
+    color: white;
+}
+  
+.version {
+    align-self: flex-end;
+    font-style: italic;
+    position: fixed;
+    bottom: 0;
+    color: white;
+}
+
+/* Text Boxes */
+
+.container {
+    font-size: 300%;
+    font-family: Arial, Helvetica, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 10px;
+  }
+
+/* Lobby Button */
+.joinButton {
+    padding: 1rem;
+    margin-top: 3rem;
+    background: #ED854B;
+    color: white;
+    border-radius: 60px;
+    border: 4px solid white;
+    outline: none;
+    font-size: 150%;
+    width: 50%;
+    z-index: 3;
+}
+
+.lobby .joinButton:disabled {
+  background-color: red;
+}
+
+/* Presenter Functions */
+  
+  .gmMenu {
+    background: url("../../lobby/assets/images/background1.png") center center/cover no-repeat;  
+    height: 1080px;
+    font-family: Arial, Helvetica, sans-serif;
+
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+  
+  .gmContainer {
+    border: 3px white solid;
+    border-radius: 20%;
+    z-index: 1;
+    margin-bottom: 5px;
+    background: var(--background-color);
+  }
+
+  .gmContainer img {
+    height: 75px;
+    width: auto;
+  }
+  
+  .gmTitle {
+    width: 100%;
+    padding: 10px 0px;
+    text-align: center;
+    background: rgba(255, 255, 255, .70);
+    color: #000000;
+    font-family: 'Russo One', Helvetica, sans-serif;
+    font-weight: bold;
+    font-size: 2rem;
+    margin-bottom: 10px;
+    z-index: 1;
+    border: 2px solid white;
+    border-left-style: none;
+    border-right-style: none;
+  }
+  
+  .btnMenu {
+    width: 100%;
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    list-style: none;
+  }
+  
+  .gmButton {
+    height: 150px;
+    width: auto;
+    border-radius: 50%;
+    animation: gmButton 2s forwards infinite ease-in-out;
+    position: relative;
+    border: 2px white solid;
+  }
+  
+  /* @keyframes gmButton {
+    0% {
+      transform: rotate(30deg);
+    }
+  
+    50% {
+      transform: rotate(-30deg);
+    }
+  
+    100%{
+      transform: rotate(30deg);
+    }
+  } */
+  
+
+/* Presenter top menu */
+
+.new_game_menu {
+    list-style: none;
+    display: flex;
+}
+
+.joinGameButton {
+    font-size: 120%;  
+    padding: 20px;
+    margin-top: 50px;
+    opacity: .99;
+}
+.gameLogoLabel {
+    color: black;
+    font-size: 30px;
+    text-align: center;
+    width:100%;
+}

@@ -1,3 +1,9 @@
+#extra folders
+deployme
+deploy_candidate
+.VSCodeCounter
+build
+
 # Logs
 logs
 *.log
@@ -102,3 +108,7 @@ dist
 
 # TernJS port file
 .tern-port
+
+
+#Misc files
+~*.xlsx
