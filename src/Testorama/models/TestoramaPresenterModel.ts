@@ -104,6 +104,7 @@ export class TestoramaPresenterModel extends ClusterfunPresenterModel<TestoramaP
         storage: IStorage)
     {
         super("Testorama", sessionHelper, logger, storage);
+        console.log(`Constructing TestoramaPresenterModel ${this.gameState}`)
 
         sessionHelper.addListener(TestoramaPlayerActionMessage, "answer", this.handlePlayerAction);
 
@@ -179,7 +180,7 @@ export class TestoramaPresenterModel extends ClusterfunPresenterModel<TestoramaP
 
         this.players.forEach((p,i) => {
             p.status = TestoramaPlayerStatus.WaitingForStart;
-            p.pendingMessage = null;
+            p.pendingMessage = undefined;
             p.message = "";
             p.colorStyle = "white";
             p.x = .1;
@@ -225,7 +226,7 @@ export class TestoramaPresenterModel extends ClusterfunPresenterModel<TestoramaP
                 break;
         }
 
-        player.pendingMessage = null;
+        player.pendingMessage = undefined;
 
         this.saveCheckpoint();
     }

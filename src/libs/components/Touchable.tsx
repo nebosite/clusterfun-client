@@ -102,6 +102,7 @@ interface TouchableProps {
     onDragStart?: (ev: TouchableDragStartEvent) => void
     onDrag?: (ev: TouchableDragEvent) => void
     onDragEnd?: (ev: TouchableDragEndEvent) => void
+    children: React.ReactNode;
 }
 
 @observer

@@ -10,7 +10,7 @@ import { SoundPlayOptions } from "./MediaHelper";
 export class SoundHelper
 {
     sounds = new Map<string, AudioBuffer >();
-    context: AudioContext
+    context?: AudioContext
 
     initialization: Promise<void>
 
@@ -38,16 +38,17 @@ export class SoundHelper
         
             // Decode asynchronously
             request.onload = () => {
-            this.context.decodeAudioData(
-                request.response, 
-                (buffer: AudioBuffer ) => { 
-                    this.sounds.set(soundName, buffer)
-                    resolve()
-                }, 
-                (error: any) => {
-                    console.error(`ERROR loading sound: ${soundName}: ${error}`)
-                    reject(error);
-                });
+                this.context?.decodeAudioData(
+                    request.response, 
+                    (buffer: AudioBuffer ) => { 
+                        this.sounds.set(soundName, buffer)
+                        resolve()
+                    }, 
+                    (error: any) => {
+                        console.error(`ERROR loading sound: ${soundName}: ${error}`)
+                        reject(error);
+                    }
+                );
             }
             request.onerror = (err) => {
                 console.error(`ERROR loading sound: ${soundName}: ${err}`)
@@ -63,6 +64,7 @@ export class SoundHelper
     // ----------------------------------------------------------------------------------------
     async play(soundName: string, options?: SoundPlayOptions)
     {
+        if(!this.context) return;
         await this.initialization
         if(!options) options = {} as SoundPlayOptions;
 

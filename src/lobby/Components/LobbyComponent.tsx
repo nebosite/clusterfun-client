@@ -8,7 +8,8 @@ import { UINormalizer } from "libs";
 import classNames from "classnames";
 import { GLOBALS } from "index";
 import LobbyAssets from "lobby/assets/LobbyAssets";
-const styles = require('./LobbyComponent.module.css');
+import styles from './LobbyComponent.module.css';
+
 
 // -------------------------------------------------------------------
 // LobbyComponent
@@ -37,7 +38,7 @@ export default class LobbyComponent
     // -------------------------------------------------------------------
     handleJoinGameClick() {
         //console.log("Attempting to join room " + this.props.lobbyModel.roomId);
-        this.props.lobbyModel.joinGame();
+        this.props.lobbyModel?.joinGame();
     }
 
     // -------------------------------------------------------------------
@@ -45,7 +46,7 @@ export default class LobbyComponent
     // -------------------------------------------------------------------
     startGameClick(gameName: string) {
         //console.log("Attempting to start " + gameName);
-        this.props.lobbyModel.startGame(gameName);
+        this.props.lobbyModel?.startGame(gameName);
     }
 
     // -------------------------------------------------------------------
@@ -53,6 +54,8 @@ export default class LobbyComponent
     // -------------------------------------------------------------------
     render() {
         const { lobbyModel, uiProperties } = this.props;
+        if(!lobbyModel) return <div>NO LOBBY MODEL???</div>;
+        
         const isPortrait = uiProperties.containerHeight > uiProperties.containerWidth;
         let displayMode = lobbyModel.userChosenMode;
         if(displayMode === LobbyMode.Unchosen){

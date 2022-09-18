@@ -20,7 +20,7 @@ export class UrlSettings
         let bareLocation = window.location.href;
         const querySpot = bareLocation.indexOf("?");
         if(querySpot > -1) bareLocation = bareLocation.substr(0,querySpot);
-        window.history.pushState(null,null, `${bareLocation}?${this.search.toString()}`);
+        window.history.pushState(null, "", `${bareLocation}?${this.search.toString()}`);
     }
 
     clear()

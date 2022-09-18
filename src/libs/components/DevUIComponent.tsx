@@ -5,6 +5,7 @@ import DevOnly from "./DevOnly";
 export interface DevUIOptions {
     context?: {devFast: boolean, devPause: boolean}
     style?: CSSProperties
+    children: React.ReactNode;
 }
 @observer
 export default class DevUI 
@@ -14,6 +15,7 @@ export default class DevUI
     // -------------------------------------------------------------------
     render() {
         const {context} = this.props;
+        if(!context) return null;
         return <DevOnly style={{paddingLeft: "150x", background: "black", ...this.props.style}}>
                     <button 
                         style={{marginRight: "20px", padding: "5px", marginLeft: "20px", background: (context.devFast ? "yellow" : "darkGray")}}

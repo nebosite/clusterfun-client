@@ -1,58 +1,39 @@
 {
-  "name": "@clusterfun/lobby",
-  "version": "0.7.03",
+  "name": "clusterfun-client",
+  "version": "0.1.0",
   "private": true,
+  "dependencies": {
+    "@streamparser/json": "^0.0.8",
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.11.59",
+    "@types/react": "^18.0.20",
+    "@types/react-dom": "^18.0.6",
+    "classnames": "^2.3.2",
+    "mobx": "^6.6.2",
+    "mobx-react": "^7.5.3",
+    "react": "^18.2.0",
+    "react-device-detect": "^2.2.2",
+    "react-dom": "^18.2.0",
+    "react-ga4": "^1.4.1",
+    "react-scripts": "5.0.1",
+    "typescript": "^4.8.3",
+    "web-vitals": "^2.1.4"
+  },
   "scripts": {
     "start": "env-cmd -f .env.dev react-scripts start",
     "startlocal": "env-cmd -f .env.local react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test --watchAll=false --passWithNoTests",
     "eject": "react-scripts eject",
-    "watch": "title Lobby Watcher && node scripts/watch.js",
-    "analyze": "source-map-explorer 'build/static/js/*.js'"
+    "watch": "title Lobby Watcher && node scripts/watch.js"
   },
-  "dependencies": {
-    "@streamparser/json": "^0.0.8",
-    "@types/chai": "^4.3.3",
-    "classnames": "^2.2.6",
-    "eslint-webpack-plugin": "^3.2.0",
-    "mobx": "^6.6.2",
-    "mobx-react": "^7.5.3",
-    "moment": "^2.29.1",
-    "react": "^17.0.2",
-    "react-device-detect": "^1.17.0",
-    "react-dnd": "^13.1.1",
-    "react-dnd-html5-backend": "^12.1.1",
-    "react-dom": "^17.0.2",
-    "react-ga": "^3.0.0",
-    "react-ga4": "^1.4.1",
-    "react-icons": "^4.3.1",
-    "react-router-dom": "^5.1.2",
-    "react-scripts": "^5.0.1",
-    "typescript": "3.7.2"
-  },
-  "devDependencies": {
-    "@types/classnames": "^2.2.9",
-    "@types/enzyme": "^3.10.3",
-    "@types/jest": "^27.0.3",
-    "@types/jquery": "^3.5.5",
-    "@types/lodash": "^4.14.148",
-    "@types/node": "12.12.7",
-    "@types/react": "16.9.11",
-    "@types/react-dom": "16.9.4",
-    "chai": "^4.3.6",
-    "customize-cra": "^1.0.0",
-    "env-cmd": "^10.1.0",
-    "enzyme": "^3.10.0",
-    "react-app-rewire-yaml": "^1.1.0",
-    "source-map-explorer": "^2.5.2",
-    "yarn": "^1.22.10"
-  },
-  "jest": {
-    "collectCoverageFrom": [
-      "src/**/*.{ts,tsx}",
-      "!<rootDir>/node_modules/",
-      "!<rootDir>/src/modules/home/index.tsx"
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
     ]
   },
   "browserslist": {
@@ -66,5 +47,10 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.3",
+    "chai": "^4.3.6",
+    "env-cmd": "^10.1.0"
   }
 }

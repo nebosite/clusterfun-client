@@ -1,12 +1,11 @@
 {
   "compilerOptions": {
     "baseUrl": "src",
+    "target": "es5",
     "lib": [
       "dom",
       "dom.iterable",
-      "esnext",
-      "es6",
-      "es2015"
+      "esnext"
     ],
     "allowJs": true,
     "skipLibCheck": true,
@@ -14,23 +13,16 @@
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "esnext",
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "strictNullChecks": false,
-    "jsx": "react",
+    "jsx": "react-jsx",
     "experimentalDecorators": true,
-    "declaration": true,
-    "downlevelIteration": true,
     "emitDecoratorMetadata": true,
-    "module": "esnext",
-    "noUnusedLocals": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "sourceMap": true,
-    "target": "es5",
-    "noFallthroughCasesInSwitch": true
+    "downlevelIteration": true
   },
   "include": [
     "types/**/*.d.ts",

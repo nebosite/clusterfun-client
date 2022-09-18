@@ -23,10 +23,10 @@ export class EventThing<T>
 
     invoke(...args: T[])
     {
-        for(let callMe of this.subscribers)
+        for(let callMe of this.subscribers.values())
         {
             //console.log(`invoke: ${this.name}: ${callMe[0]}` )
-            callMe[1](...args);
+            callMe(...args);
         }
     }
 }

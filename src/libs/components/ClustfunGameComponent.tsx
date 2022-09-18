@@ -8,6 +8,11 @@ import { ITypeHelper } from "libs/storage/BruteForceSerializer";
 import { Provider } from "mobx-react";
 import React from "react";
 
+
+class DummyComponent extends React.Component<{ appModel?: any, uiProperties: UIProperties }>
+{
+    render() { return <div>DUMDUMDUM</div>}
+}
 // -------------------------------------------------------------------
 // Main Game Page
 // -------------------------------------------------------------------
@@ -15,12 +20,12 @@ export default class ClusterfunGameComponent
 extends React.Component<ClusterFunGameProps>
 {
 
-    appModel: BaseGameModel;
-    UI: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>;
+    appModel?: BaseGameModel;
+    UI: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }> = DummyComponent;
 
     init(
-        importPresenter: ()=> React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>,
-        importClient: ()=> React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>,
+        presenterType: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>,
+        clientType: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>,
         derivedPresenterTypeHelper: ( sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper,
         derivedClientTypeHelper: ( sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper
     )
@@ -35,15 +40,16 @@ extends React.Component<ClusterFunGameProps>
             serverCall
             );
 
+
         if(gameProperties.role === "presenter")
         {
-            this.UI = importPresenter();
+            this.UI = presenterType;
             this.appModel = instantiateGame(
                 `${gameProperties.gameName}PresenterModel`, 
                 this.props, 
                 getPresenterTypeHelper( derivedPresenterTypeHelper(sessionHelper, this.props)))
         } else {
-            this.UI = importClient();
+            this.UI = clientType;
             this.appModel = instantiateGame(
                 `${gameProperties.gameName}ClientModel`, 
                 this.props, 

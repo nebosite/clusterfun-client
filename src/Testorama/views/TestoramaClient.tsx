@@ -31,8 +31,8 @@ class GameScreen extends React.Component<{appModel?: TestoramaClientModel}>
     {
         super(props);
 
-        props.appModel.onTick.subscribe("animate", (e) => this.animateFrame(e))
-        this.canvasDomId = "PlayCanvas" + this.props.appModel.playerId;
+        props.appModel!.onTick.subscribe("animate", (e) => this.animateFrame(e))
+        this.canvasDomId = "PlayCanvas" + this.props.appModel!.playerId;
     }
 
     // -------------------------------------------------------------------
@@ -49,7 +49,7 @@ class GameScreen extends React.Component<{appModel?: TestoramaClientModel}>
     componentDidUpdate()
     {
         const canvas = document.getElementById(this.canvasDomId) as HTMLCanvasElement; 
-        this.canvasContext = canvas.getContext("2d");
+        this.canvasContext = canvas.getContext("2d") ?? undefined;
         this.w = canvas.width; 
         this.h = canvas.height;
     }
@@ -59,7 +59,7 @@ class GameScreen extends React.Component<{appModel?: TestoramaClientModel}>
     // -------------------------------------------------------------------
     animateFrame = (elapsed_ms: number) => {
         const {appModel} = this.props;
-        if(appModel.gameState !== TestoramaClientState.Playing) return;
+        if(appModel?.gameState !== TestoramaClientState.Playing) return;
         if(!this.canvasContext) return;
 
         // Clear canvas
@@ -79,20 +79,21 @@ class GameScreen extends React.Component<{appModel?: TestoramaClientModel}>
     handleClick(x: number, y:number)
     {
         const {appModel} = this.props;
-        appModel.ballData.x = x;
-        appModel.ballData.y = y;   
-        appModel.doTap(x,y)     
+        appModel!.ballData.x = x;
+        appModel!.ballData.y = y;   
+        appModel!.doTap(x,y)     
     }
 
     // -------------------------------------------------------------------
     // render
     // ------------------------------------------------------------------- 
     render() {
-        const {appModel} = this.props;  
+        const {appModel} = this.props;
+        if (!appModel) return <div>NO APPMODEL</div>; 
 
         return (
             <div>
-                <h4>{appModel.playerName}</h4>
+                <h4>{appModel!.playerName}</h4>
 
                 <div>
                     Tap the screen to set dot position   
@@ -102,8 +103,8 @@ class GameScreen extends React.Component<{appModel?: TestoramaClientModel}>
                             width={800} height={800}
                             onClick={(x,y) => this.handleClick(x,y)} />
                     </div>
-                    <button className={styles.clientButton} onClick={()=>this.props.appModel.doColorChange()}>Change Colors</button>
-                    <button className={styles.clientButton} onClick={()=>this.props.appModel.doMessage()}>Say Something</button>
+                    <button className={styles.clientButton} onClick={()=>this.props.appModel!.doColorChange()}>Change Colors</button>
+                    <button className={styles.clientButton} onClick={()=>this.props.appModel!.doMessage()}>Say Something</button>
                 </div>      
             </div>
         );
@@ -138,11 +139,11 @@ export default class Client
     // Do something to alert the user if the game state changed
     // ------------------------------------------------------------------- 
     alertUser() {
-        const {appModel} = this.props;  
-        if(appModel.gameState !== this.lastState) { 
+        const {appModel} = this.props;
+        if(appModel!.gameState !== this.lastState) { 
             SafeBrowser.vibrate([50,50,50,50]);
         }
-        this.lastState = appModel.gameState as string;
+        this.lastState = appModel!.gameState as string;
     }
 
 
@@ -152,7 +153,9 @@ export default class Client
     private renderSubScreen() {
         const {appModel} = this.props;
 
-        switch(appModel.gameState) {
+        console.log(`RENDERING WITH GAME STATE: ${appModel?.gameState}`)
+
+        switch(appModel!.gameState) {
             case GeneralClientState.WaitingToStart:
                 return (<React.Fragment>
                     <div className={styles.wait_text}>
@@ -169,13 +172,13 @@ export default class Client
                 return (
                     <React.Fragment>
                     <p>Game is over, thanks for playing!</p>
-                    <div><button onClick={()=>this.props.appModel.quitApp()}>Quit</button></div>
+                    <div><button onClick={()=>this.props.appModel!.quitApp()}>Quit</button></div>
                     </React.Fragment>
                 );
             case GeneralClientState.JoinError:
                 return (
                     <React.Fragment>
-                    <p>Could not join the game because: {this.props.appModel.joinError}</p>
+                    <p>Could not join the game because: {this.props.appModel!.joinError}</p>
                     </React.Fragment>
                 );
 
@@ -199,8 +202,8 @@ export default class Client
                     <div className={styles.gameclient}>
                         <div className={classNames(styles.divRow, styles.topbar)}>
                             <span className={classNames(styles.gametitle)}>Testorama</span> 
-                            <span>{appModel.playerName}</span>
-                            <button className={classNames(styles.quitbutton)} onClick={()=>appModel.quitApp()}>X</button>
+                            <span>{appModel?.playerName}</span>
+                            <button className={classNames(styles.quitbutton)} onClick={()=>appModel?.quitApp()}>X</button>
                         </div>
                         <div style={{margin: "100px"}}>
                             <ErrorBoundary>

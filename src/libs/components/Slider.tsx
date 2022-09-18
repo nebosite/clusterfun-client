@@ -6,7 +6,7 @@ import styles from './Slider.module.css';
 import Touchable, { TouchableDragStartEvent, TouchableDragEvent, TouchableDragEndEvent } from "./Touchable";
 
 
-export interface SliderDriftEvent {
+export interface SliderDriftEventParameters {
     momentum: {x:number, y: number}
     delta: {x:number, y: number}
     offset: {x:number, y: number}
@@ -22,9 +22,10 @@ export interface SliderProps
     contentHeight: number
     dragStartDistance?: number
     startLocation?: Vector2
-    onDrift?: (ev: SliderDriftEvent) => void
+    onDrift?: (ev: SliderDriftEventParameters) => void
     onDragStart?: () => void;
     onDragEnd?: () => void;
+    children: React.ReactNode;
 }
 
 class SliderState {
@@ -77,7 +78,9 @@ export default class Slider extends React.Component<SliderProps>
 
         const onDragStart = (ev: TouchableDragStartEvent) => {
             this.touching = true;
-            this.props.onDragStart();
+            if(this.props.onDragStart) {
+                this.props.onDragStart();
+            }
         }
 
         const onDrag = (ev: TouchableDragEvent) => {
@@ -92,7 +95,9 @@ export default class Slider extends React.Component<SliderProps>
         const onDragEnd = (ev: TouchableDragEndEvent) => {
             this.touching = false;
             const animationRate_fps = 30;
-            this.props.onDragEnd();
+            if(this.props.onDragEnd) {
+                this.props.onDragEnd();
+            }
            
             const momentum = {
                 x: ev.momentum.x / animationRate_fps, 

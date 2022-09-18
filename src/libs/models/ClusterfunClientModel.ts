@@ -2,7 +2,7 @@ import { ClusterFunJoinAckMessage, ClusterFunGameOverMessage, ClusterFunTerminat
 import { ISessionHelper, ITelemetryLogger } from "libs";
 import { ITypeHelper } from "libs/storage/BruteForceSerializer";
 import { IStorage } from "libs/storage/StorageHelper";
-import { observable } from "mobx";
+import { makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 
 export enum GeneralClientState {
@@ -43,6 +43,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     constructor(name: string, sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage)
     {
         super(name, sessionHelper, logger, storage);
+        makeObservable(this);
         this._playerName = playerName;
 
         sessionHelper.addListener(ClusterFunJoinAckMessage, playerName, this.handleJoinAckMessage);

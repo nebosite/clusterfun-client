@@ -59,7 +59,6 @@ export default class LobbyMainPage
             containerId: `LobbyContainer_${lobbyModel.id}`
         }
 
-        //console.log("Rendering lobby state: " + lobbyModel.lobbyState)
         try {
             switch(lobbyModel.lobbyState)
             {
@@ -67,7 +66,7 @@ export default class LobbyMainPage
                     innerChild = <LobbyComponent uiProperties={uiProperties}/>;
                     break;
                 case LobbyState.ReadyToPlay:
-                    innerChild = getGameComponent(lobbyModel.gameProperties.gameName, lobbyModel.getGameConfig(uiProperties))
+                    innerChild = getGameComponent(lobbyModel.gameProperties!.gameName, lobbyModel.getGameConfig(uiProperties))
                     break;
             }
         }

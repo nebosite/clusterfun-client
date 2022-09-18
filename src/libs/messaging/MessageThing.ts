@@ -18,7 +18,7 @@ export interface IMessageThing {
 // -------------------------------------------------------------------
 export class WebSocketMessageThing implements IMessageThing {
     personalId: string;
-    personalSecret: string;
+    personalSecret: string = "";
     isOpen: boolean = false;
     isClosed: boolean = false;
     closeCode: number = 0;
@@ -91,7 +91,7 @@ export class WebSocketMessageThing implements IMessageThing {
 // -------------------------------------------------------------------
 export class LocalMessageThing implements IMessageThing {
     personalId: string;
-    personalSecret: string;
+    personalSecret: string = "there is no queen of england";
     get isOpen() { return true; }
     get isClosed() { return false; }
     get closeCode() { return 0; }
@@ -117,7 +117,7 @@ export class LocalMessageThing implements IMessageThing {
         if(!this._listeners.has(eventName)) {
             this._listeners.set(eventName, [])
         }
-        this._listeners.get(eventName).push( handler);
+        this._listeners.get(eventName)!.push( handler);
     }
 
     // -------------------------------------------------------------------

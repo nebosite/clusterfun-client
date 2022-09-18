@@ -1,8 +1,9 @@
 import ClusterFunMessageHeader from "../message_parts/ClusterFunMessageHeader";
 import { ClusterFunMessageConstructor } from "./ClusterFunMessageConstructor";
 import { RawMessagePacket } from "../message_parts/RawMessagePacket";
+import { JSONParser } from '@streamparser/json';
 
-import { JsonParser } from '@streamparser/json';
+
 import { ClusterFunMessageBase } from "../ClusterFunMessage";
 
 /**
@@ -120,8 +121,10 @@ export default class ClusterFunSerializer {
      * Error if the message does not have a registered type
      */
     deserialize<_P, M extends ClusterFunMessageBase>(input: string): M {
+        // TODO: If we want to do React.PropTypes payload validation,
+        // this is where it would go
         if(!this.validationWarningCount++) {
-            console.warn("Payload validation has not been implemented");
+            // console.warn("Payload validation has not been implemented");
         }
         return this.deserializeAssumingValidPayload(input);
     }
@@ -185,12 +188,11 @@ export default class ClusterFunSerializer {
         // but is not asynchronous. As such, we can use it synchronously here
         // to return both raw message parts.
 
-        const parser = new JsonParser();
+        const parser = new JSONParser({ stringBufferSize: undefined, separator: "", paths: ['$'] });
         let header: ClusterFunMessageHeader | undefined;
         let payload: unknown | undefined = undefined;
 
-        parser.onValue = (value: any, _key: string, _parent: object, stack: object[]) => {
-            if (stack.length > 0) return;
+        parser.onValue = (value: any) => {
             if (header === undefined) header = value;
             else if (payload === undefined) payload = value;
             else throw new Error("Too many parts encountered");

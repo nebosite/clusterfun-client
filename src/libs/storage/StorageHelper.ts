@@ -16,7 +16,7 @@ export function getStorage(id: string) : IStorage
 export interface IStorage {
 
     set: (name: string, value: string) => void
-    get: (name: string) => string;
+    get: (name: string) => string | undefined | null;
     clear: () => void
 }
 
@@ -26,10 +26,10 @@ export interface IStorage {
 export interface IStorageAccessor
 {
     setItem: (name: string, value: string) => void;
-    getItem: (name: string) => string;
+    getItem: (name: string) => string | undefined | null;
     removeItem: (name: string) => void;
     length: number;
-    key: (index: number) => string;
+    key: (index: number) => string | null;
 }
 
 // -------------------------------------------------------------------
@@ -64,7 +64,7 @@ export class ClientStorage implements IStorageAccessor
 // -------------------------------------------------------------------
 class SessionStorage implements IStorage {
     private _id: string;
-    private _cache = new Map<string, string>();
+    private _cache = new Map<string, string | undefined | null>();
     private _accessor: IStorageAccessor;
 
     // -------------------------------------------------------------------

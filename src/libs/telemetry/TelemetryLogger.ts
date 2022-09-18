@@ -17,8 +17,6 @@ export interface ITelemetryLoggerFactory {
 // TelemetryBag - Factory for telemetry loggers 
 // -------------------------------------------------------------------
 export class TelemetryLoggerFactory {
-    trackingId: string;
-
     trackingIds: TrackingInfo[]
     private _initializedTrackingIds = new Map<string, string>();
 

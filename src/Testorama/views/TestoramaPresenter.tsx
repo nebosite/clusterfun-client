@@ -21,6 +21,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: TestoramaPresent
     // -------------------------------------------------------------------
     render() {
         const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>;
 
         return (
             <div>
@@ -54,7 +55,7 @@ class PausedGamePage  extends React.Component<{appModel?: TestoramaPresenterMode
     // resumeGame
     // -------------------------------------------------------------------
     private resumeGame = () => {
-        this.props.appModel.resumeGame();
+        this.props.appModel?.resumeGame();
     }
  
     // -------------------------------------------------------------------
@@ -62,6 +63,7 @@ class PausedGamePage  extends React.Component<{appModel?: TestoramaPresenterMode
     // -------------------------------------------------------------------
     render() {
         const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>;
         return (
             <div>
                 <p>Testorama is paused</p>
@@ -82,7 +84,7 @@ class PausedGamePage  extends React.Component<{appModel?: TestoramaPresenterMode
 
 class PlayStartAnimationController  extends BaseAnimationController {
     @observable announceText = " ";
-    @observable textLocation: string | null;
+    @observable textLocation: string | null = null;
     @observable showStatus: boolean = false;
     
     constructor(onFinish: ()=> void) {      
@@ -114,10 +116,10 @@ class PlayStartAnimationController  extends BaseAnimationController {
     constructor(props: Readonly<{ appModel?: TestoramaPresenterModel, media: MediaHelper }>) {
         super(props);
         this._playStartAnimation = new  PlayStartAnimationController(()=>{});
-        props.appModel.registerAnimation(this._playStartAnimation);
+        props.appModel!.registerAnimation(this._playStartAnimation);
 
-        props.appModel.onTick.subscribe("animate", (e) => this.animateFrame(e)) 
-        props.appModel.subscribe("ColorChange", "presenterColorChange", () => {
+        props.appModel!.onTick.subscribe("animate", (e) => this.animateFrame(e)) 
+        props.appModel!.subscribe("ColorChange", "presenterColorChange", () => {
             props.media.playSound(TestoramaAssets.sounds.ding)
         })
     }
@@ -129,12 +131,14 @@ class PlayStartAnimationController  extends BaseAnimationController {
         const canvas = document.getElementById("presenterGameCanvas") as HTMLCanvasElement;
         if(!canvas) return;
         const context = canvas.getContext("2d");
+        if (!context) return;
+
         context.fillStyle = "#888888";
         const w = canvas.width;
         const h = canvas.height;
         context.fillRect(0,0,w,h);
 
-        this.props.appModel.players.forEach(p=>
+        this.props.appModel?.players.forEach(p=>
             {
                 const px = p.x * h;
                 const py = p.y * h * .9 + h * 0.05;
@@ -153,11 +157,12 @@ class PlayStartAnimationController  extends BaseAnimationController {
     // -------------------------------------------------------------------
     render() {
         const {appModel}= this.props;
+        if (!appModel) return <div>NO APP MODEL</div>;
         return (
             <div>
                 {this._playStartAnimation.showStatus 
                     ? <div>Playing round {appModel.currentRound}.  Seconds left: {appModel.secondsLeftInStage}</div>
-                    : <div style={{paddingLeft: this._playStartAnimation.textLocation}}>&nbsp;{this._playStartAnimation.announceText}</div>
+                    : <div style={{paddingLeft: this._playStartAnimation.textLocation ?? "0px"}}>&nbsp;{this._playStartAnimation.announceText}</div>
                 }
                 <div className={styles.gameCanvasFrame} >
                     <canvas className={styles.gameCanvas} width="1200px" height="700px" id="presenterGameCanvas" />
@@ -174,6 +179,8 @@ class PlayStartAnimationController  extends BaseAnimationController {
     // -------------------------------------------------------------------
     render() {
         const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>;
+
         return (
             <div>
                 <div>End of round {appModel.currentRound}</div>
@@ -218,17 +225,17 @@ extends React.Component<{appModel?: TestoramaPresenterModel, uiProperties: UIPro
         const sfxVolume = 1.0;       
 
         let timeAlertLoaded = false;
-        appModel.onTick.subscribe("Timer Watcher", ()=>{
-            if(appModel.secondsLeftInStage > 10) timeAlertLoaded = true; 
-            if( (appModel.gameState === TestoramaGameState.Playing)
+        appModel?.onTick.subscribe("Timer Watcher", ()=>{
+            if(appModel!.secondsLeftInStage > 10) timeAlertLoaded = true; 
+            if( (appModel!.gameState === TestoramaGameState.Playing)
                 && timeAlertLoaded 
-                && appModel.secondsLeftInStage <= 10) {
+                && appModel!.secondsLeftInStage <= 10) {
                 timeAlertLoaded = false 
                 this.media.repeatSound("ding.wav", 5, 100);
             }
         })
-        appModel.subscribe(PresenterGameEvent.PlayerJoined,     "play joined sound", ()=> this.media.playSound(TestoramaAssets.sounds.hello, {volume: sfxVolume * .2}));
-        appModel.subscribe(TestoramaGameEvent.ResponseReceived,  "play response received sound", ()=> this.media.playSound(TestoramaAssets.sounds.response, {volume: sfxVolume}));
+        appModel?.subscribe(PresenterGameEvent.PlayerJoined,     "play joined sound", ()=> this.media.playSound(TestoramaAssets.sounds.hello, {volume: sfxVolume * .2}));
+        appModel?.subscribe(TestoramaGameEvent.ResponseReceived,  "play response received sound", ()=> this.media.playSound(TestoramaAssets.sounds.response, {volume: sfxVolume}));
 
     }
 
@@ -263,6 +270,7 @@ extends React.Component<{appModel?: TestoramaPresenterModel, uiProperties: UIPro
     // -------------------------------------------------------------------
     private renderFrame() {
         const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>;
         return (
             <div className={classNames(styles.divRow)}>
                 <button className={classNames(styles.button)} 
@@ -277,7 +285,7 @@ extends React.Component<{appModel?: TestoramaPresenterModel, uiProperties: UIPro
                         Pause
                 </button>
                 <div className={classNames(styles.roomCode)}>Room Code: {appModel.roomId}</div>
-                <DevUI context={appModel} />
+                <DevUI context={appModel} children={<div></div>} />
                 <div style={{marginLeft: "50px"}}>v{TestoramaVersion}</div>
             </div>)
     }

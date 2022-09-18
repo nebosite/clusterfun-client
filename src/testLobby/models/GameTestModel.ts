@@ -37,7 +37,7 @@ export class GameTestModel {
     @observable _presenterSize: number = 0;
     get presenterSize() {return this._presenterSize;}
     set presenterSize(value: number) { this._presenterSize = value; this.saveState()}
-    @observable gameName: string;
+    @observable gameName: string = "";
     clientModels = observable(new Array<LobbyModel>())
     joinCount = 0;
 
@@ -94,7 +94,7 @@ export class GameTestModel {
             serverCall: this.serverCall,
             storage: getStorage(`test_client_${clientNumber}`),
             telemetryFactory: this._loggerFactory,
-            onGameEnded : null,
+            onGameEnded : () => {},
         }
         return dependencies;
     }
@@ -107,7 +107,7 @@ export class GameTestModel {
             const newThing = new LocalMessageThing( this._roomInhabitants, name, id )
             this._cachedMessageThings.set( id, newThing)
         }
-        return this._cachedMessageThings.get(id);
+        return this._cachedMessageThings.get(id)!;
     }
 
 
@@ -146,7 +146,7 @@ export class GameTestModel {
             }       
             this.joinCount++;
     
-            this._roomInhabitants.get(gameProperties.presenterId).receiveMessage(
+            this._roomInhabitants.get(gameProperties.presenterId)?.receiveMessage(
                 this._serializer.serialize(
                     gameProperties.presenterId, 
                     gameProperties.personalId, 

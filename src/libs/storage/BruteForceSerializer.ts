@@ -56,7 +56,7 @@ export default class BruteForceSerializer
     // JSON serializer.  We do this by accounting for references and removing type
     // specific junk. 
     //-------------------------------------------------------------------------------
-    private normalize(normalizeMe: any, path: string, lookup: Map<object, number> = null)
+    private normalize(normalizeMe: any, path: string, lookup: Map<object, number> | undefined = undefined)
     {
         if(normalizeMe === null) return null;
         if(lookup && lookup.size > this.maxObjects) {

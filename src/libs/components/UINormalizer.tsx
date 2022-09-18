@@ -20,10 +20,10 @@ interface UINormalizerProps {
 export class UINormalizer 
 extends React.Component<UINormalizerProps> {
 
-    translateX: number;
-    translateY: number;
-    yOvershoot: number;
-    scale: number;
+    translateX: number = 0;
+    translateY: number = 0;
+    yOvershoot: number = 0;
+    scale: number = 1;
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------

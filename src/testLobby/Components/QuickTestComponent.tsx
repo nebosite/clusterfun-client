@@ -1,10 +1,13 @@
 import React from "react";
 import { observer } from "mobx-react";
-import Slider, { SliderDriftEvent } from "libs/components/Slider";
-import { observable } from "mobx";
+import Slider, { SliderDriftEventParameters } from "libs/components/Slider";
+import { makeObservable } from "mobx";
 
 class QuickState {
-    @observable drift: SliderDriftEvent
+    drift = makeObservable({momentum: {x:0, y: 0},
+        delta: {x:0, y: 0},
+        offset: {x:0, y: 0} });
+    
 }
 
 // -------------------------------------------------------------------
@@ -18,7 +21,7 @@ class QuickState {
     // -------------------------------------------------------------------
     render() {
 
-        const onDrift = (ev: SliderDriftEvent) => {
+        const onDrift = (ev: SliderDriftEventParameters) => {
             this.st.drift = ev;
         }
 

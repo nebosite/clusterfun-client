@@ -1,5 +1,6 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import * as ReactDOM from "react-dom";
+import {createRoot} from 'react-dom/client'
 import { LobbyModel } from "lobby/models/LobbyModel";
 import { WebSocketMessageThing, TelemetryLoggerFactory, MockTelemetryLoggerFactory } from "libs";
 import { getStorage } from "libs/storage/StorageHelper";
@@ -9,8 +10,12 @@ import { GameTestModel } from "testLobby/models/GameTestModel";
 import QuickTestComponent from "testLobby/Components/QuickTestComponent";
 import {isMobile} from 'react-device-detect';
 import { GameInstanceProperties } from "libs/config/GameInstanceProperties";
+import 'index.css'
+import { googleTrackingIds } from "secrets";
 
 const packageInfo = require("../package.json");
+const rootContainer = document.getElementById('root') as HTMLElement;
+const root = createRoot(rootContainer);
 
 export class GLOBALS {
     static Version = packageInfo.version;
@@ -60,17 +65,14 @@ async function serverCall<T>(url: string, payload: any | undefined) {
 
 // Get the google analitics measurement ID from :  https://analytics.google.com/analytics/web/#/a169765098p268496630/admin/streams/table/2416371752
 
-const telemetryFactory=  new TelemetryLoggerFactory([]);
+const telemetryFactory=  new TelemetryLoggerFactory(googleTrackingIds);
 
 const quickTest = process.env.REACT_APP_QUICKTEST ?? false;
 // -------------------------------------------------------------------
 // Development: Render test Lobby
 // -------------------------------------------------------------------
 if (quickTest) {
-    ReactDOM.render(
-        <QuickTestComponent />,
-        document.getElementById("root")
-      );        
+    root.render( <QuickTestComponent /> );        
 
 }
 else if (process.env.REACT_APP_DEVMODE === 'development') {
@@ -80,10 +82,7 @@ else if (process.env.REACT_APP_DEVMODE === 'development') {
         : new MockTelemetryLoggerFactory();
 
     const gameTestModel = new GameTestModel(4, getStorage("clusterfun_test"), factory);
-    ReactDOM.render(
-        <GameTestComponent gameTestModel={gameTestModel} />,
-        document.getElementById("root")
-      );        
+    root.render( <GameTestComponent gameTestModel={gameTestModel} /> );        
 }
 
 // -------------------------------------------------------------------
@@ -113,10 +112,6 @@ else {
         }
         , "mainLobby");
 
-    ReactDOM.render(
-        <LobbyMainPage lobbyModel={lobbyModel} />,
-        document.getElementById("root") 
-    );             
+
+    root.render( <LobbyMainPage lobbyModel={lobbyModel} /> );             
 }
-
-

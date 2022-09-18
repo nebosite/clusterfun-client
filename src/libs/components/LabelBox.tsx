@@ -53,7 +53,7 @@ export default class LabelBox  extends React.Component<LabelBoxProps> {
                 onMouseDown={() => this._sawMouseDown = true}
                 onMouseUp={() => { 
                     this.setState({isEditing: this._sawMouseDown, editText: this.props.text})
-                    setTimeout(() => {document.getElementById(this._id).focus()} , 30)
+                    setTimeout(() => {document.getElementById(this._id)?.focus()} , 30)
                 }}
             >
                 {this.props.text}

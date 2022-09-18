@@ -2,7 +2,8 @@ import React, { CSSProperties } from "react";
 import styles from './DevButton.module.css';
 
 export interface DevOnlyProps {
-    style?: CSSProperties
+    style?: CSSProperties;
+    children: React.ReactNode;
 }
 
 export default class DevOnly extends React.Component<DevOnlyProps>

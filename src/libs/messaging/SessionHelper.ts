@@ -64,9 +64,11 @@ export class SessionHelper implements ISessionHelper {
                 return;
             }
 
-            const listenersForMessage = this._listeners.get(message.constructor as ClusterFunMessageConstructor<unknown, ClusterFunMessageBase>);
+            const listenersForMessage = this._listeners.get(
+                message.constructor as ClusterFunMessageConstructor<unknown, ClusterFunMessageBase>);
             if (listenersForMessage) {
-                for (const listener of listenersForMessage.values()) {
+                const listenerFunctions = listenersForMessage.values()
+                for (const listener of listenerFunctions) {
                     listener(message); 
                 }
             }
@@ -105,7 +107,7 @@ export class SessionHelper implements ISessionHelper {
                     this._errorSubs.forEach(e => e(`${err}`))
                 })
         
-        return {id: message.messageId, message};
+        return {id: message.messageId, message} as IMessageReceipt;
     }
 
     // -------------------------------------------------------------------

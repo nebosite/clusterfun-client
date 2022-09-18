@@ -1,7 +1,7 @@
 import { ISessionHelper } from "libs";
 import { ITelemetryLogger } from "libs/telemetry/TelemetryLogger";
 import { IStorage } from "libs/storage/StorageHelper";
-import { observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import { EventThing } from "libs/messaging/EventThing";
 import BruteForceSerializer, { ITypeHelper } from "libs/storage/BruteForceSerializer";
 import { ClusterFunMessageBase, ClusterFunReceiptAckMessage, ClusterFunMessageConstructor } from "libs/comms"
@@ -18,6 +18,7 @@ export enum GeneralGameState
     GameOver = "GameOver",
     Destroyed = "Destroyed"
 }
+
 // -------------------------------------------------------------------
 // get the saved game if available or create a new one
 // -------------------------------------------------------------------
@@ -26,9 +27,8 @@ export function instantiateGame<T extends BaseGameModel>(
     gameProps: ClusterFunGameProps,
     typeHelper: ITypeHelper)
 {
-
     const serializer = createSerializer(typeHelper);
-    let returnMe: T = null;
+    let returnMe: T | undefined;
     try {
         //console.info(`Attempting to load game data for ${gameTypeName}`)
         const savedDataJson = gameProps.storage.get(GAMESTATE_LABEL);
@@ -37,28 +37,30 @@ export function instantiateGame<T extends BaseGameModel>(
             if(savedData.gameState !== GeneralGameState.Destroyed)
             {
                 console.log("Found a saved game.  Resuming ...")
-                returnMe = savedData;
-                returnMe.reconstitute();
-                
+                returnMe = typeHelper.constructType(gameTypeName) as T;
+                Object.assign(returnMe, savedData)
+                //returnMe = savedData;
+                returnMe.reconstitute();              
             }
+            else {
+                console.log(`Saved game state was 'destroyed'.  Going with new game.`)
+            } 
         }      
-        else {
-            console.log(`Saved game state was 'destroyed'.  Going with new game.`)
-        } 
     }
     catch(err) 
     {
         gameProps.logger.logEvent("Error", "Failed Game Restore", (err as any).message )
         console.log("getSavedGame: Could not retore game because: " + err);
     }
+
     if(!returnMe) {
-        console.log(`constructing ${gameTypeName}`)
         returnMe = typeHelper.constructType(gameTypeName) as T;
+        console.log(`Creating fresh ${gameTypeName}.  State is ${returnMe?.gameState}`)
         if(!returnMe) throw Error(`Unable to construct ${gameTypeName}`)
     }
 
     returnMe.serializer = serializer;
-    return returnMe;
+    return returnMe!;
 }
 
 // -------------------------------------------------------------------
@@ -115,7 +117,10 @@ function createSerializer(typeHelper: ITypeHelper)
 // -------------------------------------------------------------------
 export abstract class BaseGameModel  {
     name: string;
-    @observable public gameTime_ms: number = 0;
+    @observable  private _gameTime_ms = 0
+    get gameTime_ms() {return this._gameTime_ms}
+    set gameTime_ms(value) {action(()=>{this._gameTime_ms = value})()}
+    
     fastRunMultiplier = 32.0;
     tickInterval_ms = 33;
     checkpointInternvalMin_ms = 500;  // Don't try to save checkpoints more frequently than this
@@ -131,10 +136,12 @@ export abstract class BaseGameModel  {
             console.log(`WEIRD: Attempted to set detroyed ${this.name} to ${value}`)
         }
         else {
-            this._gameState = value;
-            this.devFast = false;
+            action(()=>{
+                this._gameState = value;
+                this.devFast = false;
+            })()
             this.invokeEvent(value);
-            this.saveCheckpoint();            
+            this.saveCheckpoint();       
         }
     }
 
@@ -143,12 +150,12 @@ export abstract class BaseGameModel  {
     // Pause the game in development mode
     @observable _devPause = false;
     public get devPause() { return this._devPause;}
-    public set devPause(value: boolean) { this._devPause = value; }
+    public set devPause(value: boolean) { action(()=>{this._devPause = value;})() }
 
     // Turbo game speed in development mode 
     @observable _devFast = false;
     public get devFast() { return this._devFast;}
-    public set devFast(value: boolean) { this._devFast = value; }
+    public set devFast(value: boolean) { action(()=>{this._devFast = value;})() }
 
     protected session: ISessionHelper;
     protected logger: ITelemetryLogger;
@@ -160,7 +167,7 @@ export abstract class BaseGameModel  {
     //private _deserializeHelper: (propertyName: string, data: any) => any
     private _events = new Map<string, EventThing<any>>();
     private _ticker: NodeJS.Timeout;
-    serializer: BruteForceSerializer
+    serializer?: BruteForceSerializer
     private _isCheckpointing = false;
     private _lastCheckpointTime = 0;
 
@@ -179,6 +186,7 @@ export abstract class BaseGameModel  {
         storage: IStorage
         )
     {
+        makeObservable(this);
         this.name = name;
         this.logger = logger;
         this.session = sessionHelper;
@@ -238,7 +246,7 @@ export abstract class BaseGameModel  {
             this._events.set(event, new EventThing<any>(this.name));
         }
 
-        this._events.get(event).subscribe(subscriptionId, callback);
+        this._events!.get(event)!.subscribe(subscriptionId, callback);
     }
 
     // -------------------------------------------------------------------
@@ -279,7 +287,7 @@ export abstract class BaseGameModel  {
 
 
             setTimeout(()=> {
-                const jsonToSave = this.serializer.stringify(this);
+                const jsonToSave = this.serializer!.stringify(this);
                 //console.log(`Saving checkpoint (${jsonToSave.length} bytes)`)
                 if(this.gameState !== GeneralGameState.Destroyed) {
                     this.storage.set(GAMESTATE_LABEL, jsonToSave)
@@ -294,7 +302,7 @@ export abstract class BaseGameModel  {
     // clearCheckpoint
     // -------------------------------------------------------------------
     clearCheckpoint() {
-        this.storage.set(GAMESTATE_LABEL, null)
+        this.storage.set(GAMESTATE_LABEL, "")
     }
 
     // -------------------------------------------------------------------
@@ -308,7 +316,7 @@ export abstract class BaseGameModel  {
         if(checkpoint) {
             console.log("************** STASHING  " + this.session.personalId)
             this.storage.set(STASH_LABEL, checkpoint);
-            this.storage.set(GAMESTATE_LABEL, null);
+            this.storage.set(GAMESTATE_LABEL, "");
         }
     }
 
@@ -321,7 +329,7 @@ export abstract class BaseGameModel  {
         if(checkpoint) {
             console.log("************** UNSTASHING  " + this.session.personalId)
             this.storage.set(GAMESTATE_LABEL, checkpoint);
-            this.storage.set(STASH_LABEL, null);
+            this.storage.set(STASH_LABEL, "");
         }
     }
 
@@ -364,7 +372,7 @@ export abstract class BaseGameModel  {
         // harvest passed events from the event queue
         const eventsToRun = [];
         for (const scheduledTime of scheduledTimesPassed) {
-            for (const event of this._scheduledEvents.get(scheduledTime)) {
+            for (const event of this._scheduledEvents.get(scheduledTime) ?? []) {
                 eventsToRun.push(event);
             }
             this._scheduledEvents.delete(scheduledTime);
@@ -381,7 +389,7 @@ export abstract class BaseGameModel  {
     ackMessage(message: ClusterFunMessageBase) {
         this.session.sendMessage(message.sender, new ClusterFunReceiptAckMessage({
             sender: this.session.personalId,
-            ackedMessageId: message.messageId
+            ackedMessageId: message.messageId ?? 0
         }))
     }
 
@@ -392,7 +400,7 @@ export abstract class BaseGameModel  {
         if (!this._scheduledEvents.has(time)) {
             this._scheduledEvents.set(time, new Array<() => void>());
         }
-        this._scheduledEvents.get(time).push(event);
+        this._scheduledEvents.get(time)!.push(event);
     }
 
     // -------------------------------------------------------------------

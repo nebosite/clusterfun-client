@@ -3,7 +3,7 @@ import { observer } from "mobx-react";
 import { GameTestModel } from "../models/GameTestModel";
 import LobbyMainPage from "lobby/views/LobbyMainPage";
 import { LobbyModel } from "lobby/models/LobbyModel";
-const styles = require('./GameTestComponent.module.css');
+import styles from './GameTestComponent.module.css';
 
 
 const HD_RATIO = 1080/1920;

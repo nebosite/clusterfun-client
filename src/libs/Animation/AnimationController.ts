@@ -84,7 +84,7 @@ export class BaseAnimationController
         const animationsToRemove = new Array<Animation>();
         const animate = (animation: Animation) =>
         {
-            if(animation.startTime === -1) animation.startTime = currentTime_ms;
+            if(!animation.startTime || animation.startTime === -1) animation.startTime = currentTime_ms;
             let fraction = (currentTime_ms - animation.startTime)/animation.duration_ms;
             if(fraction < 0) fraction = 0;
             if(fraction > 1.0) fraction = 1.0;
@@ -119,7 +119,7 @@ export class BaseAnimationController
     // push - add an animation or animations to the front of the queue
     // -------------------------------------------------------------------
     push(addMe: SequenceItem | SequenceItem[]) {
-        if(addMe instanceof Array) this.sequence = [].concat(addMe, this.sequence)
+        if(addMe instanceof Array) this.sequence = ([] as SequenceItem[]).concat(addMe, this.sequence)
         else this.sequence.push(addMe);
     }
 
@@ -128,7 +128,7 @@ export class BaseAnimationController
     // -------------------------------------------------------------------
     slide(duration_seconds: number, 
         action: (fraction: number) => void,
-        onFinish: ()=> void = null) {
+        onFinish: ()=> void = ()=>{}) {
         this.animations.push({
             startTime: -1,
             duration_ms: duration_seconds * 1000,

@@ -1,6 +1,6 @@
 import React from "react"
 
-export default class Row extends React.Component<{className?: string, style?: any}>
+export default class Row extends React.Component<{className?: string, style?: any, children: React.ReactNode}>
 {
     render()
     {

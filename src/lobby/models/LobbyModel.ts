@@ -63,12 +63,15 @@ export class LobbyModel {
     set roomId(value: string) {
         value = value.replace(/[^A-Z^0-9]/g, "")
         if(value.length > 4) value = value.substring(0,4);
-        this._roomId = value;
-        this.saveState()}
+        action(()=>{
+            this._roomId = value
+            this.saveState()
+        })()
+    }
 
     @observable private _lobbyState: LobbyState = LobbyState.Fresh;
     get lobbyState(): LobbyState { return this._lobbyState; }
-    set lobbyState(value: LobbyState) {this._lobbyState = value;}
+    set lobbyState(value: LobbyState) {action(()=>{this._lobbyState = value})()}
     
     @observable _userChosenMode = LobbyMode.Unchosen;
     get userChosenMode() { return this._userChosenMode}
@@ -80,26 +83,15 @@ export class LobbyModel {
     }
     onUserChoseAMode = new EventThing("User Mode Selection");
 
-    private _healthChecked = false;
-    @observable  private _health:HealthData = undefined;
-    get health() {
-        if(!this._health && !this._healthChecked) {
-            this._healthChecked = true;
-            this.getHealth(3600000)
-        }
-        return this._health
-    }
-    
-    set health(value) {action(()=>{this._health = value})()}
-    
-
-
-    @observable  private _gameProperties = observable<GameInstanceProperties>(undefined);
+    @observable  private _gameProperties = observable<GameInstanceProperties | null>([null]);
     get gameProperties() {return this._gameProperties[0]}
     set gameProperties(value) {action(()=>{this._gameProperties[0] = value})()}
     
 
-    @observable lobbyErrorMessage: string= "";
+    @observable  private _lobbyErrorMessage: string| undefined = ""
+    get lobbyErrorMessage() {return this._lobbyErrorMessage}
+    set lobbyErrorMessage(value) {action(()=>{this._lobbyErrorMessage = value})()}
+    
 
     get canJoin() { return this.playerName.trim() !== "" && this.roomId.trim() !== ""; }
 
@@ -107,7 +99,7 @@ export class LobbyModel {
     private _logger: ITelemetryLogger;
     private _serverCall: <T>(url: string, payload: any) => Promise<T>;
     private _messageThingFactory: (gameProperties: GameInstanceProperties) => IMessageThing;
-    private _onGameEnded: () => void = null;
+    private _onGameEnded: () => void
     private _storage: IStorage
     private _dependencies: ILobbyDependencies 
 
@@ -119,20 +111,12 @@ export class LobbyModel {
         makeObservable(this);
         this._dependencies = dependencies;
         this._rootKey = rootKey;
-        this.setup(dependencies);
 
-    }
-
-    // -------------------------------------------------------------------
-    // setup 
-    // -------------------------------------------------------------------
-    setup(dependencies: ILobbyDependencies) {
         let tempCount = this._instanceCount + 1;
         this._playerName = sessionStorage.getItem("clusterfun_playername") ?? "";
         this.playerId = "";
         this._roomId = sessionStorage.getItem("clusterfun_roomid") ?? "";
-        this._lobbyState = LobbyState.Fresh;
-        this.gameProperties = null;
+        this.lobbyState = LobbyState.Fresh;
         this.lobbyErrorMessage = "";
         
         this._storage = dependencies.storage;
@@ -147,26 +131,17 @@ export class LobbyModel {
 
         this._logger.logPageView("/")
     }
-    
-    //--------------------------------------------------------------------------------------
-    // getHealth
-    //--------------------------------------------------------------------------------------
-    getHealth(span: number) {
-        setTimeout(async ()=>{
-            this.health = await this._serverCall<HealthData>(`/api/am_i_healthy?span=${span}`, undefined);
-        },0)
-
-    }
 
     // -------------------------------------------------------------------
     // getGameConfig 
     // -------------------------------------------------------------------
     public getGameConfig(uiProperties: UIProperties) {
+        if(!this.gameProperties) throw Error("getGameConfig called when there were no game properties")
         return {
             uiProperties,
             gameProperties:     this.gameProperties,
             playerName:         this.playerName,
-            messageThing:       this._messageThingFactory(this.gameProperties),  
+            messageThing:       this._messageThingFactory(this.gameProperties!),  
             logger:             this.getGameLogger(),    
             storage:            this._storage,
             onGameEnded:        this.onGameEnded,
@@ -189,7 +164,7 @@ export class LobbyModel {
     // getGameLogger 
     // -------------------------------------------------------------------
     public getGameLogger() {
-        return this._telemetry.getLogger(this.gameProperties?.gameName);
+        return this._telemetry.getLogger(this.gameProperties?.gameName ?? "unknown_game");
     }
 
     // -------------------------------------------------------------------
@@ -241,14 +216,14 @@ export class LobbyModel {
                     const data = JSON.stringify(properties)
                     console.log(`Storing ${data}`)
                     sessionStorage.setItem("clusterfun_roominfo", data)
-                    this._lobbyState = LobbyState.ReadyToPlay
-                    this.lobbyErrorMessage = null;
+                    this.lobbyState = LobbyState.ReadyToPlay
+                    this.lobbyErrorMessage = undefined;
                     this.saveState();
                 })
             .catch(e => {
                 this.lobbyErrorMessage = "There was an error trying to start the game. Please try again later.";
                 console.error(e);
-                this._lobbyState = LobbyState.Fresh
+                this.lobbyState = LobbyState.Fresh
 
             })
 
@@ -280,7 +255,7 @@ export class LobbyModel {
             const stateJson = this._storage.get(LOBBY_STATE_NAME);
             if(stateJson) {
                 Object.assign(this, JSON.parse(stateJson) )
-                if(!this.gameProperties) this._lobbyState = LobbyState.Fresh;
+                if(!this.gameProperties) this.lobbyState = LobbyState.Fresh;
             }
         }
         catch(err)
@@ -302,14 +277,14 @@ export class LobbyModel {
             .then(properties =>
                 {
                     this.gameProperties = properties;
-                    this._lobbyState = LobbyState.ReadyToPlay
-                    this.lobbyErrorMessage = null;
+                    this.lobbyState = LobbyState.ReadyToPlay
+                    this.lobbyErrorMessage = undefined;
                     this.saveState();
                 })
             .catch(e => {
                 this.lobbyErrorMessage = "Unable to join that room code";
                 console.error(e);
-                this._lobbyState = LobbyState.Fresh
+                this.lobbyState = LobbyState.Fresh
             })
     }
 }

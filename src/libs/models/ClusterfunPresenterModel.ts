@@ -2,7 +2,7 @@ import { ClusterFunTerminateGameMessage, ClusterFunJoinMessage, ClusterFunQuitMe
 import { IMessageReceipt, ISessionHelper, ITelemetryLogger } from "libs";
 import { ITypeHelper } from "libs/storage/BruteForceSerializer";
 import { IStorage } from "libs/storage/StorageHelper";
-import { observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 
 // All games have these states which are managed 
@@ -22,9 +22,9 @@ export enum PresenterGameEvent {
 
 export class ClusterFunPlayer
 {
-    playerId: string;
-    @observable name: string;
-    pendingMessage: IMessageReceipt;
+    playerId: string = "";
+    @observable name: string = "";
+    pendingMessage?: IMessageReceipt = undefined;
 }
 
 // -------------------------------------------------------------------
@@ -91,7 +91,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         storage: IStorage)
     {
         super(name, sessionHelper, logger, storage);
-
+        makeObservable(this);
         this.subscribe(GeneralGameState.Destroyed, "Presenter EndGame", async () =>
         {
             if(this._fullyInitialized){
@@ -187,7 +187,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                 else {
                     const entry = this.createFreshPlayerEntry(message.name, message.sender);
                     this.logger.logEvent("Presenter", "JoinRequest", "Approve");
-                    this.players.push(entry);                
+                    action(()=>{this.players.push(entry)})();                
 
                     this.session.sendMessage(
                         message.sender,
@@ -337,7 +337,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
             if(p.pendingMessage 
                 && p.playerId === message.sender
                 && p.pendingMessage.id === message.ackedMessageId) { 
-                p.pendingMessage = null;
+                p.pendingMessage = undefined;
                 return;
             }
         }
@@ -349,7 +349,9 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     // -------------------------------------------------------------------
     async sendToPlayer(playerId: string, message:ClusterFunMessageBase) {
         const player = this.players.find(p => p.playerId === playerId);
-        player.pendingMessage = await this.session.sendMessage(playerId, message);
+        if(player) {
+            player.pendingMessage = await this.session.sendMessage(playerId, message);
+        }
     }
 
     // -------------------------------------------------------------------
