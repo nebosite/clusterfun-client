@@ -1,8 +1,8 @@
 import React from "react";
 import { observer } from "mobx-react";
 import { GameTestModel } from "../models/GameTestModel";
-import LobbyMainPage from "lobby/views/LobbyMainPage";
-import { LobbyModel } from "lobby/models/LobbyModel";
+import { LobbyMainPage } from "../../lobby/views/LobbyMainPage";
+import { LobbyModel } from "../../lobby/models/LobbyModel";
 import styles from './GameTestComponent.module.css';
 
 
@@ -65,11 +65,15 @@ const HD_RATIO = 1080/1920;
     }        
 }
 
+export interface GameTestComponentProps {
+    gameTestModel: GameTestModel
+}
+
 // -------------------------------------------------------------------
 // GameTestComponent
 // -------------------------------------------------------------------
 @observer
-export default class GameTestComponent extends React.Component<{gameTestModel: GameTestModel}> {
+export class GameTestComponent extends React.Component<GameTestComponentProps> {
 
 
     private sizeChangeHandler = () => {

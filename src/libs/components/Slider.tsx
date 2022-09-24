@@ -3,7 +3,7 @@ import { action, observable } from "mobx";
 import { observer } from "mobx-react";
 import React from "react"
 import styles from './Slider.module.css';
-import Touchable, { TouchableDragStartEvent, TouchableDragEvent, TouchableDragEndEvent } from "./Touchable";
+import  { Touchable, TouchableDragStartEvent, TouchableDragEvent, TouchableDragEndEvent } from "./Touchable";
 
 
 export interface SliderDriftEventParameters {

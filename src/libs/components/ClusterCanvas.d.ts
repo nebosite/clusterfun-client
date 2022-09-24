@@ -5,7 +5,7 @@ export interface ClusterCanvasProps {
     height: number;
     onClick?: (x: number, y: number) => void;
 }
-export default class ClusterCanvas extends React.Component<ClusterCanvasProps> {
+export class ClusterCanvas extends React.Component<ClusterCanvasProps> {
     canvasId: string;
     isMousing: boolean;
     canvasContext?: CanvasRenderingContext2D;

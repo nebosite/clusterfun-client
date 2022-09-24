@@ -6,7 +6,7 @@ export interface DevOnlyProps {
     children: React.ReactNode;
 }
 
-export default class DevOnly extends React.Component<DevOnlyProps>
+export class DevOnly extends React.Component<DevOnlyProps>
 {
     render() {
         return (process.env.REACT_APP_DEVMODE !== "development") 

@@ -4,7 +4,7 @@ import { ClusterFunMessageBase } from "../ClusterFunMessage";
 /**
  * Handles serialization and deserialization for ClusterFun messages.
  */
-export default class ClusterFunSerializer {
+export class ClusterFunSerializer {
     private typeRegistry;
     constructor();
     /**

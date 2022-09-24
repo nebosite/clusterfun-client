@@ -13,7 +13,7 @@ export interface ClusterCanvasProps
 // ClusterCanvas - mouse and scaling aware canvas component
 // -------------------------------------------------------------------
 @observer
-export default class ClusterCanvas extends React.Component<ClusterCanvasProps> 
+export class ClusterCanvas extends React.Component<ClusterCanvasProps> 
 {
     canvasId: string;
     isMousing = false;

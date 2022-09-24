@@ -12,7 +12,7 @@ let boxId = 0;
 // -------------------------------------------------------------------
 // LabelBox - dead simple editable label
 // -------------------------------------------------------------------
-export default class LabelBox  extends React.Component<LabelBoxProps> {
+export class LabelBox  extends React.Component<LabelBoxProps> {
     state: {isEditing: boolean, editText: string}
 
     _sawMouseDown = false;

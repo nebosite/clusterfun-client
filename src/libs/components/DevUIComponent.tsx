@@ -1,6 +1,6 @@
 import { observer } from "mobx-react";
 import React, { CSSProperties } from "react";
-import DevOnly from "./DevOnly";
+import { DevOnly } from "./DevOnly";
 
 export interface DevUIOptions {
     context?: {devFast: boolean, devPause: boolean}
@@ -8,7 +8,7 @@ export interface DevUIOptions {
     children: React.ReactNode;
 }
 @observer
-export default class DevUI 
+export class DevUI 
     extends React.Component<DevUIOptions> {
     // -------------------------------------------------------------------
     // render

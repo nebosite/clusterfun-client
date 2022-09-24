@@ -14,7 +14,7 @@ class QuickState {
 // -------------------------------------------------------------------
 // ClientComponent
 // -------------------------------------------------------------------
-@observer export default class QuickTestComponent extends React.Component {
+@observer export class QuickTestComponent extends React.Component {
     st = new QuickState();
 
     // -------------------------------------------------------------------

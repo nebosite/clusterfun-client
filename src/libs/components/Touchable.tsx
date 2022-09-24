@@ -106,7 +106,7 @@ interface TouchableProps {
 }
 
 @observer
-export default class Touchable extends React.Component<TouchableProps>
+export class Touchable extends React.Component<TouchableProps>
 {
     surfaceId: string;
     w: number = 100;

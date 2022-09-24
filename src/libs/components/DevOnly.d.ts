@@ -3,6 +3,6 @@ export interface DevOnlyProps {
     style?: CSSProperties;
     children: React.ReactNode;
 }
-export default class DevOnly extends React.Component<DevOnlyProps> {
+export class DevOnly extends React.Component<DevOnlyProps> {
     render(): JSX.Element | null;
 }

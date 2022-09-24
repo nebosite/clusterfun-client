@@ -7,6 +7,6 @@ export interface DevUIOptions {
     style?: CSSProperties;
     children: React.ReactNode;
 }
-export default class DevUI extends React.Component<DevUIOptions> {
+export class DevUI extends React.Component<DevUIOptions> {
     render(): JSX.Element | null;
 }

@@ -1,5 +1,5 @@
 import { observable } from "mobx";
-import { LobbyModel, ILobbyDependencies } from "lobby/models/LobbyModel";
+import { LobbyModel, ILobbyDependencies } from "../../lobby/models/LobbyModel";
 import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, ClusterFunSerializer, IMessageThing, getStorage, GameInstanceProperties, ClusterFunJoinMessage } from "../../libs";
 
 const names = [

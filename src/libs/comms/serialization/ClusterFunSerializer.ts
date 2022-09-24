@@ -1,4 +1,4 @@
-import ClusterFunMessageHeader from "../message_parts/ClusterFunMessageHeader";
+import {ClusterFunMessageHeader} from "../message_parts/ClusterFunMessageHeader";
 import { ClusterFunMessageConstructor } from "./ClusterFunMessageConstructor";
 import { RawMessagePacket } from "../message_parts/RawMessagePacket";
 import { JSONParser } from '@streamparser/json';
@@ -33,7 +33,7 @@ interface TypeRegistry {
 /**
  * Handles serialization and deserialization for ClusterFun messages.
  */
-export default class ClusterFunSerializer {
+export class ClusterFunSerializer {
     private typeRegistry: TypeRegistry;
 
     constructor() {

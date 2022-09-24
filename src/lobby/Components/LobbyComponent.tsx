@@ -3,8 +3,8 @@ import React from "react";
 import { observer, inject } from "mobx-react";
 import { LobbyMode, LobbyModel } from "../models/LobbyModel";
 import classNames from "classnames";
-import { GLOBALS } from "index";
-import LobbyAssets from "lobby/assets/LobbyAssets";
+import { GLOBALS } from '../../Globals';
+import { LobbyAssets } from "../../lobby/assets/LobbyAssets";
 import styles from './LobbyComponent.module.css';
 import { UIProperties, GameDescriptor, getGames, UINormalizer } from "../../libs";
 
@@ -14,7 +14,7 @@ import { UIProperties, GameDescriptor, getGames, UINormalizer } from "../../libs
 // -------------------------------------------------------------------
 @inject("lobbyModel")
 @observer
-export default class LobbyComponent
+export class LobbyComponent
     extends React.Component<{ lobbyModel?: LobbyModel, uiProperties: UIProperties }> {
     private _urlParams: URLSearchParams = new URLSearchParams(window.location.search);
     private _games?: GameDescriptor[]
@@ -29,7 +29,7 @@ export default class LobbyComponent
         const showTags = ["production", "beta"];
         if(showParam) showParam.split(',').forEach(p => showTags.push(p));
         this._games = getGames(showTags)
-    }
+    } 
 
     // -------------------------------------------------------------------
     // handleJoinGame

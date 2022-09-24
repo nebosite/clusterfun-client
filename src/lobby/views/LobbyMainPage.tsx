@@ -2,14 +2,14 @@
 import React from "react";
 import { observer, Provider } from "mobx-react";
 import {  LobbyState, LobbyModel } from "../models/LobbyModel";
-import LobbyComponent from "../Components/LobbyComponent";
+import { LobbyComponent } from "../Components/LobbyComponent";
 import { getGameComponent } from "../../libs";
 
 // -------------------------------------------------------------------
 // MainPage
 // -------------------------------------------------------------------
 @observer
-export default class LobbyMainPage 
+export class LobbyMainPage 
   extends React.Component<{
       lobbyModel: LobbyModel, 
       size?: () => {width: number, height: number}}, 

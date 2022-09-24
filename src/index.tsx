@@ -1,23 +1,16 @@
 import {createRoot} from 'react-dom/client'
-import { LobbyModel } from "lobby/models/LobbyModel";
-import GameTestComponent from "testLobby/Components/GameTestComponent";
-import LobbyMainPage from "lobby/views/LobbyMainPage";
-import { GameTestModel } from "testLobby/models/GameTestModel";
-import QuickTestComponent from "testLobby/Components/QuickTestComponent";
-import {isMobile} from 'react-device-detect';
-import 'index.css'
+import { LobbyModel } from "./lobby/models/LobbyModel";
+import { GameTestComponent } from "./testLobby/Components/GameTestComponent";
+import { LobbyMainPage } from "./lobby/views/LobbyMainPage";
+import { GameTestModel } from "./testLobby/models/GameTestModel";
+import { QuickTestComponent } from "./testLobby/Components/QuickTestComponent";
 import { googleTrackingIds } from "secrets";
 import { GameInstanceProperties, getStorage, MockTelemetryLoggerFactory, TelemetryLoggerFactory, WebSocketMessageThing } from './libs';
+import { GLOBALS } from 'Globals';
+import 'index.css'
 
-const packageInfo = require("../package.json");
 const rootContainer = document.getElementById('root') as HTMLElement;
 const root = createRoot(rootContainer);
-
-export class GLOBALS {
-    static Version = packageInfo.version;
-    static Title = `ClusterFun.tv ${(process.env.REACT_APP_DEVMODE === "development") ? "DEV": "" } ${GLOBALS.Version}`;
-    static IsMobile = isMobile;
-}
 
 document.title = GLOBALS.Title;
 

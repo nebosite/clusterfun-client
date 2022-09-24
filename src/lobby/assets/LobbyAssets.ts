@@ -1,6 +1,6 @@
 import mainLogo from './images/logo.png'
 import testoramaLogo from './images/Testorama.png'
-const LobbyAssets =
+export const LobbyAssets =
 {
     images: {
         logos: {
@@ -9,5 +9,3 @@ const LobbyAssets =
         }
     }
 }
-
-export default LobbyAssets
