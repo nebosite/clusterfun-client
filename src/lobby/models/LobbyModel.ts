@@ -1,8 +1,5 @@
-import { ITelemetryLogger, ITelemetryLoggerFactory } from "libs/telemetry/TelemetryLogger";
-import { IMessageThing, UIProperties } from "libs";
-import { IStorage } from "libs/storage/StorageHelper";
-import { EventThing } from "libs/messaging/EventThing";
-import { GameInstanceProperties } from "libs/config/GameInstanceProperties";
+
+import { EventThing, GameInstanceProperties, IMessageThing, IStorage, ITelemetryLogger, ITelemetryLoggerFactory, UIProperties } from "../../libs";
 import { action, makeObservable, observable } from "mobx";
 
 export enum LobbyMode 

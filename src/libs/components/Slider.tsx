@@ -1,4 +1,4 @@
-import { Vector2 } from "libs/types/Vector2";
+import { Vector2 } from "../../libs";
 import { action, observable } from "mobx";
 import { observer } from "mobx-react";
 import React from "react"
@@ -40,7 +40,7 @@ class SliderState {
 
 
 @observer
-export default class Slider extends React.Component<SliderProps>
+export class Slider extends React.Component<SliderProps>
 {
     st = new SliderState();
     touching = false;

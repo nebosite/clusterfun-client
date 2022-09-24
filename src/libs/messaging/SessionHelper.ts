@@ -1,4 +1,4 @@
-import { ClusterFunSerializer, ClusterFunMessageConstructor, ClusterFunMessageBase } from "libs/comms"
+import { ClusterFunSerializer, ClusterFunMessageConstructor, ClusterFunMessageBase } from "../../libs"
 import { IMessageThing } from './MessageThing';
 
 export interface IMessageReceipt

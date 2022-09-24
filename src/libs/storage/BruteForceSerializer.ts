@@ -25,7 +25,7 @@ export const objectDump = (thing: any, depth: number = 0) => {
     return output;
 }
 
-export default class BruteForceSerializer
+export class BruteForceSerializer
 {
     private _objectCount = 0;
     private _typeHelper: ITypeHelper;

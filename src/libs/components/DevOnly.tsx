@@ -1,5 +1,5 @@
 import React, { CSSProperties } from "react";
-import styles from './DevButton.module.css';
+import styles from './DevOnly.module.css';
 
 export interface DevOnlyProps {
     style?: CSSProperties;

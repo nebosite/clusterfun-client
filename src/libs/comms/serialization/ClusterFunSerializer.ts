@@ -113,6 +113,7 @@ export default class ClusterFunSerializer {
         });
     }
 
+    /* eslint-disable @typescript-eslint/no-unused-vars */
     /**
      * Deserialize the given message string
      * @param input The message to deserialize
@@ -128,6 +129,7 @@ export default class ClusterFunSerializer {
         }
         return this.deserializeAssumingValidPayload(input);
     }
+    /* eslint-enable @typescript-eslint/no-unused-vars */
     validationWarningCount = 0;
 
     /**

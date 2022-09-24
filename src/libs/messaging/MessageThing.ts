@@ -1,4 +1,4 @@
-import { ClusterFunSerializer } from "libs/comms"
+import { ClusterFunSerializer } from "../../libs"
 
 // -------------------------------------------------------------------
 // IMessageThing

@@ -1,7 +1,8 @@
 import React from "react";
 import { observer } from "mobx-react";
-import Slider, { SliderDriftEventParameters } from "libs/components/Slider";
 import { makeObservable } from "mobx";
+import { SliderDriftEventParameters, Slider } from "../../libs";
+
 
 class QuickState {
     drift = makeObservable({momentum: {x:0, y: 0},

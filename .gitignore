@@ -3,6 +3,7 @@ deployme
 deploy_candidate
 .VSCodeCounter
 build
+lib
 
 # Logs
 logs

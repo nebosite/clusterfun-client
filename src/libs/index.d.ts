@@ -1,6 +1,6 @@
-export * from './Animation/AnimationController'
+export * from './Animation/AnimationController';
 export * from './Browser';
-export * from './comms' ;
+export * from './comms';
 export * from './components';
 export * from './config/GameInstanceProperties';
 export * from './GameModel';

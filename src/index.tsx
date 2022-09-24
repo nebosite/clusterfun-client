@@ -1,17 +1,13 @@
-import React from "react";
-import * as ReactDOM from "react-dom";
 import {createRoot} from 'react-dom/client'
 import { LobbyModel } from "lobby/models/LobbyModel";
-import { WebSocketMessageThing, TelemetryLoggerFactory, MockTelemetryLoggerFactory } from "libs";
-import { getStorage } from "libs/storage/StorageHelper";
 import GameTestComponent from "testLobby/Components/GameTestComponent";
 import LobbyMainPage from "lobby/views/LobbyMainPage";
 import { GameTestModel } from "testLobby/models/GameTestModel";
 import QuickTestComponent from "testLobby/Components/QuickTestComponent";
 import {isMobile} from 'react-device-detect';
-import { GameInstanceProperties } from "libs/config/GameInstanceProperties";
 import 'index.css'
 import { googleTrackingIds } from "secrets";
+import { GameInstanceProperties, getStorage, MockTelemetryLoggerFactory, TelemetryLoggerFactory, WebSocketMessageThing } from './libs';
 
 const packageInfo = require("../package.json");
 const rootContainer = document.getElementById('root') as HTMLElement;

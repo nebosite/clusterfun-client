@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-useless-constructor */
 let globalMessageId = 1;
 export class ClusterFunMessageBase {
     /**

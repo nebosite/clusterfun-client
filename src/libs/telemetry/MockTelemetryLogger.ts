@@ -1,4 +1,4 @@
-import { ITelemetryLogger } from "libs/telemetry/TelemetryLogger";
+import { ITelemetryLogger } from "../../libs";
 
 
 

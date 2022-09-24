@@ -1,9 +1,6 @@
 import { observable } from "mobx";
 import { LobbyModel, ILobbyDependencies } from "lobby/models/LobbyModel";
-import { ClusterFunJoinMessage, ClusterFunSerializer } from "libs/comms";
-import { GameInstanceProperties } from "libs/config/GameInstanceProperties";
-import { LocalMessageThing, IMessageThing, ITelemetryLoggerFactory } from "libs";
-import { getStorage, IStorage } from "libs/storage/StorageHelper";
+import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, ClusterFunSerializer, IMessageThing, getStorage, GameInstanceProperties, ClusterFunJoinMessage } from "../../libs";
 
 const names = [
     // Names with weird latin characters

@@ -1,5 +1,5 @@
 import ReactGA from 'react-ga4';
-import { MockTelemetryLogger } from 'libs/telemetry/MockTelemetryLogger';
+import { MockTelemetryLogger } from '../../libs';
 
 // -------------------------------------------------------------------
 //  TrackingInfo - associates a name with unique tracking ID

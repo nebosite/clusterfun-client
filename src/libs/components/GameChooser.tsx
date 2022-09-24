@@ -1,22 +1,17 @@
+import { GameInstanceProperties, UIProperties, IMessageThing, ITelemetryLogger, IStorage } from '../../libs';
 import React from 'react';
-import { UIProperties } from 'libs';
-import { ITelemetryLogger } from 'libs/telemetry/TelemetryLogger';
-import { IMessageThing } from '../messaging/MessageThing';
-import { IStorage } from 'libs/storage/StorageHelper';
-import LobbyAssets from 'lobby/assets/LobbyAssets';
-import { GameInstanceProperties } from 'libs/config/GameInstanceProperties';
 
 export interface GameDescriptor { name: string, tags: string[], logoName: string, lazyType: React.LazyExoticComponent<any> }
 
 // Declare Games Here:
 let games: GameDescriptor[] =
     [
-        {
-            name:       "Testorama",   
-            tags:       ["production"],
-            logoName:   LobbyAssets.images.logos.Testorama,
-            lazyType:   React.lazy(() => import('../../Testorama'))
-        },
+        // {
+        //     name:       "Testorama",   
+        //     tags:       ["production"],
+        //     logoName:   LobbyAssets.images.logos.Testorama,
+        //     lazyType:   React.lazy(() => import('../../Testorama'))
+        // },
     ]
 
 // -------------------------------------------------------------------

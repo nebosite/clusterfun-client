@@ -2,13 +2,11 @@
 import React from "react";
 import { observer, inject } from "mobx-react";
 import { LobbyMode, LobbyModel } from "../models/LobbyModel";
-import { GameDescriptor, getGames } from "libs/components/GameChooser";
-import { UIProperties } from "libs/types/UIProperties";
-import { UINormalizer } from "libs";
 import classNames from "classnames";
 import { GLOBALS } from "index";
 import LobbyAssets from "lobby/assets/LobbyAssets";
 import styles from './LobbyComponent.module.css';
+import { UIProperties, GameDescriptor, getGames, UINormalizer } from "../../libs";
 
 
 // -------------------------------------------------------------------
