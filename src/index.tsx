@@ -5,9 +5,11 @@ import { LobbyMainPage } from "./lobby/views/LobbyMainPage";
 import { GameTestModel } from "./testLobby/models/GameTestModel";
 import { QuickTestComponent } from "./testLobby/Components/QuickTestComponent";
 import { googleTrackingIds } from "secrets";
-import { GameInstanceProperties, getStorage, MockTelemetryLoggerFactory, TelemetryLoggerFactory, WebSocketMessageThing } from './libs';
+import { GameDescriptor, GameInstanceProperties, getStorage, MockTelemetryLoggerFactory, TelemetryLoggerFactory, WebSocketMessageThing } from './libs';
 import { GLOBALS } from './Globals';
 import 'index.css'
+import React from 'react';
+import TestatoAssets from 'testLobby/TestGame/assets/Assets';
 
 const rootContainer = document.getElementById('root') as HTMLElement;
 const root = createRoot(rootContainer);
@@ -71,7 +73,18 @@ else if (process.env.REACT_APP_DEVMODE === 'development') {
         : new MockTelemetryLoggerFactory();
 
     const gameTestModel = new GameTestModel(4, getStorage("clusterfun_test"), factory);
-    root.render( <GameTestComponent gameTestModel={gameTestModel} /> );        
+
+    
+    const games: GameDescriptor[] = Array(10).fill(0).map((_, i) => {
+        return {
+            name: `Testato${i + 1}`,
+            logoName: TestatoAssets.images.logo,
+            tags: [],
+            lazyType: React.lazy(() => import('./testLobby/TestGame/views/GameComponent'))
+        };
+    });
+    
+    root.render( <GameTestComponent gameTestModel={gameTestModel} games={games} /> );        
 }
 
 // -------------------------------------------------------------------
@@ -101,6 +114,9 @@ else {
         }
         , "mainLobby");
 
-
-    root.render( <LobbyMainPage lobbyModel={lobbyModel} /> );             
+    // TODO: Add server loading code here along with a check to make sure empty list of games works
+    // TODO: Fill game list dynamically
+        const gamesFromServerManifest:GameDescriptor[] = []; 
+    
+    root.render( <LobbyMainPage lobbyModel={lobbyModel} games={gamesFromServerManifest}/> );             
 }

@@ -3,24 +3,27 @@ import React from "react";
 import { observer, Provider } from "mobx-react";
 import {  LobbyState, LobbyModel } from "../models/LobbyModel";
 import { LobbyComponent } from "../Components/LobbyComponent";
-import { getGameComponent } from "../../libs";
+import { GameDescriptor, getGameComponent } from "../../libs";
+
+export interface LobbyMainPageProps {
+    games: GameDescriptor[],
+    lobbyModel: LobbyModel, 
+    size?: () => {width: number, height: number}
+}
 
 // -------------------------------------------------------------------
 // MainPage
 // -------------------------------------------------------------------
 @observer
 export class LobbyMainPage 
-  extends React.Component<{
-      lobbyModel: LobbyModel, 
-      size?: () => {width: number, height: number}}, 
-      {size: {width: number, height: number}}>{
+  extends React.Component<LobbyMainPageProps, {size: {width: number, height: number}}>{
 
     getSize: () => {width: number, height: number};
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(props: Readonly<{ lobbyModel: LobbyModel; size: () => {width: number, height: number};}>)
+    constructor(props: LobbyMainPageProps)
     {
         super(props);
         if(!props.size) {
@@ -51,7 +54,7 @@ export class LobbyMainPage
     // render
     // -------------------------------------------------------------------
     render() {
-        const {lobbyModel} = this.props;
+        const {lobbyModel, games} = this.props;
         let innerChild: any;
         const uiProperties = {
             containerWidth: this.state.size.width,
@@ -63,10 +66,13 @@ export class LobbyMainPage
             switch(lobbyModel.lobbyState)
             {
                 case LobbyState.Fresh:
-                    innerChild = <LobbyComponent uiProperties={uiProperties}/>;
+                    innerChild = <LobbyComponent uiProperties={uiProperties} games={this.props.games} />;
                     break;
                 case LobbyState.ReadyToPlay:
-                    innerChild = getGameComponent(lobbyModel.gameProperties!.gameName, lobbyModel.getGameConfig(uiProperties))
+                    const gameName = lobbyModel.gameProperties!.gameName
+                    const descriptor = games.find(i => i.name === gameName)
+                    if(!descriptor) throw Error(`Could not find game '${gameName}'`)
+                    innerChild = getGameComponent(descriptor!, lobbyModel.getGameConfig(uiProperties))
                     break;
             }
         }

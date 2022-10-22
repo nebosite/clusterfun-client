@@ -21,11 +21,11 @@ export enum GeneralGameState
 // get the saved game if available or create a new one
 // -------------------------------------------------------------------
 export function instantiateGame<T extends BaseGameModel>(
-    gameTypeName: string,
     gameProps: ClusterFunGameProps,
     typeHelper: ITypeHelper)
 {
     const serializer = createSerializer(typeHelper);
+    const gameTypeName = typeHelper.rootTypeName;
     let returnMe: T | undefined;
     try {
         //console.info(`Attempting to load game data for ${gameTypeName}`)
@@ -67,6 +67,7 @@ export function instantiateGame<T extends BaseGameModel>(
 function createSerializer(typeHelper: ITypeHelper)
 {
     const deepTypeHelper = {
+        rootTypeName: "na",
         constructType(typeName: string) {
             const output = typeHelper.constructType(typeName);
             if(!output) {

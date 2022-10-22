@@ -4,7 +4,7 @@ import {
     TestatoPlayerActionMessage,
     TestatoEndOfRoundMessage, } from "./Messages";
 import { PLAYTIME_MS } from "./GameSettings";
-import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, PresenterGameState, GeneralGameState, ClusterFunGameOverMessage } from "libs";
+import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, ITypeHelper, PresenterGameState, GeneralGameState, ClusterFunGameOverMessage } from "libs";
 
 
 export enum TestatoPlayerStatus {
@@ -42,9 +42,10 @@ export enum TestatoGameEvent {
 export const getTestatoPresenterTypeHelper = (
     sessionHelper: ISessionHelper, 
     gameProps: ClusterFunGameProps
-    ) =>
+    ): ITypeHelper =>
  {
      return {
+        rootTypeName: "TestatoPresenterModel",
         constructType(typeName: string):any {
             switch(typeName)
             {

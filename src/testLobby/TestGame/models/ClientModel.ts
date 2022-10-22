@@ -1,4 +1,4 @@
-import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientState } from "libs";
+import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientState, ITypeHelper } from "libs";
 import { observable } from "mobx";
 import { TestatoEndOfRoundMessage, TestatoPlayerActionMessage, TestatoPlayRequestMessage } from "./Messages";
 
@@ -9,9 +9,10 @@ import { TestatoEndOfRoundMessage, TestatoPlayerActionMessage, TestatoPlayReques
 export const getTestatoClientTypeHelper = (
     sessionHelper: ISessionHelper, 
     gameProps: ClusterFunGameProps
-    ) =>
+    ): ITypeHelper =>
  {
      return {
+        rootTypeName: "TestatoClientModel",
         constructType(typeName: string):any {
             switch(typeName)
             {

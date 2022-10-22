@@ -220,6 +220,9 @@ export class BruteForceSerializer
 // Implement this interface to construct types for the parser
 //-------------------------------------------------------------------------------
 export interface ITypeHelper{
+    // Gives the name for the root model type that will be used to instantiate the game
+    rootTypeName: string;
+
     // This return a clean construction for the specified type
     constructType(typeName: string): object;
 

@@ -6,7 +6,7 @@ import classNames from "classnames";
 import { observable } from "mobx";
 import TestatoAssets from "../assets/Assets";
 import { TestatoVersion } from "../models/GameSettings";
-import { BaseAnimationController, MediaHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, DevUI, UINormalizer } from "libs";
+import { BaseAnimationController, MediaHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, DevUI, UINormalizer, ISessionHelper, IStorage, ITelemetryLogger } from "libs";
 import { TestatoPresenterModel, TestatoGameState, TestatoGameEvent } from "../models/PresenterModel";
 
 
@@ -201,6 +201,7 @@ class PlayStartAnimationController  extends BaseAnimationController {
 @observer
 export default class Presenter 
 extends React.Component<{appModel?: TestatoPresenterModel, uiProperties: UIProperties}> {
+    static modelClassName = "TestatoPresenterModel";
     media: MediaHelper;
 
     // -------------------------------------------------------------------

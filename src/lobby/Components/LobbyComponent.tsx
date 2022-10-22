@@ -6,7 +6,7 @@ import classNames from "classnames";
 import { GLOBALS } from '../../Globals';
 import { LobbyAssets } from "../../lobby/assets/LobbyAssets";
 import styles from './LobbyComponent.module.css';
-import { UIProperties, GameDescriptor, getGames, UINormalizer } from "../../libs";
+import { UIProperties, GameDescriptor, UINormalizer } from "../../libs";
 import TestatoAssets from "testLobby/TestGame/assets/Assets";
 
 @inject("lobbyModel")
@@ -124,6 +124,11 @@ class GameClientComponent
     }
 }
 
+interface LobbyComponentProps {
+    lobbyModel?: LobbyModel
+    uiProperties: UIProperties
+    games: GameDescriptor[]
+}
 
 // -------------------------------------------------------------------
 // LobbyComponent
@@ -131,27 +136,25 @@ class GameClientComponent
 @inject("lobbyModel")
 @observer
 export class LobbyComponent
-    extends React.Component<{ lobbyModel?: LobbyModel, uiProperties: UIProperties }> {
+    extends React.Component<LobbyComponentProps> {
     private _urlParams: URLSearchParams = new URLSearchParams(window.location.search);
-    private _games?: GameDescriptor[]
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(props: { lobbyModel?: LobbyModel, uiProperties: UIProperties })
+    constructor(props: LobbyComponentProps)
     {
         super(props);
         const showParam = this._urlParams.get("show");
         const showTags = ["production", "beta"];
         if(showParam) showParam.split(',').forEach(p => showTags.push(p));
-        this._games = getGames(showTags)
     } 
 
     // -------------------------------------------------------------------
     // render
     // -------------------------------------------------------------------
     render() {
-        const { lobbyModel, uiProperties } = this.props;
+        const { lobbyModel, uiProperties , games} = this.props;
         if(!lobbyModel) return <div>NO LOBBY MODEL???</div>;
         
         const isPortrait = uiProperties.containerHeight > uiProperties.containerWidth;
@@ -166,65 +169,6 @@ export class LobbyComponent
                 },300)
             }
         }
-
-        const games: GameDescriptor[] = [
-            {
-                name: "Testato1",
-                logoName: TestatoAssets.images.logo,
-                tags: [],
-            },
-            {
-                name: "Testato2",
-                logoName: TestatoAssets.images.logo,
-                tags: [],
-            },
-            {
-                name: "Testato3",
-                logoName: TestatoAssets.images.logo,
-                tags: [],
-            },
-            {
-                name: "Testato4",
-                logoName: TestatoAssets.images.logo,
-                tags: [],
-            },
-            {
-                name: "Testato5",
-                logoName: TestatoAssets.images.logo,
-                tags: [],
-            },
-            {
-                name: "Testato6",
-                logoName: TestatoAssets.images.logo,
-                tags: [],
-            },
-            {
-                name: "Testato7",
-                logoName: TestatoAssets.images.logo,
-                tags: [],
-            },
-            {
-                name: "Testato8",
-                logoName: TestatoAssets.images.logo,
-                tags: [],
-            },
-            {
-                name: "Testato9",
-                logoName: TestatoAssets.images.logo,
-                tags: [],
-            },
-            {
-                name: "Testato10",
-                logoName: TestatoAssets.images.logo,
-                tags: [],
-            },
-            {
-                name: "Testato11",
-                logoName: TestatoAssets.images.logo,
-                tags: [],
-            },
-
-        ]
 
         return  displayMode === LobbyMode.Presenter
             ? ( <UINormalizer uiProperties={uiProperties} virtualWidth={1920} virtualHeight={1080}>
