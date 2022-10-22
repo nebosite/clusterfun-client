@@ -7,6 +7,7 @@ import { GLOBALS } from '../../Globals';
 import { LobbyAssets } from "../../lobby/assets/LobbyAssets";
 import styles from './LobbyComponent.module.css';
 import { UIProperties, GameDescriptor, getGames, UINormalizer } from "../../libs";
+import TestatoAssets from "testLobby/TestGame/assets/Assets";
 
 @inject("lobbyModel")
 @observer
@@ -168,10 +169,61 @@ export class LobbyComponent
 
         const games: GameDescriptor[] = [
             {
-                name: "bubble",
-                logoName: "foo/bar",
+                name: "Testato1",
+                logoName: TestatoAssets.images.logo,
                 tags: [],
-            }
+            },
+            {
+                name: "Testato2",
+                logoName: TestatoAssets.images.logo,
+                tags: [],
+            },
+            {
+                name: "Testato3",
+                logoName: TestatoAssets.images.logo,
+                tags: [],
+            },
+            {
+                name: "Testato4",
+                logoName: TestatoAssets.images.logo,
+                tags: [],
+            },
+            {
+                name: "Testato5",
+                logoName: TestatoAssets.images.logo,
+                tags: [],
+            },
+            {
+                name: "Testato6",
+                logoName: TestatoAssets.images.logo,
+                tags: [],
+            },
+            {
+                name: "Testato7",
+                logoName: TestatoAssets.images.logo,
+                tags: [],
+            },
+            {
+                name: "Testato8",
+                logoName: TestatoAssets.images.logo,
+                tags: [],
+            },
+            {
+                name: "Testato9",
+                logoName: TestatoAssets.images.logo,
+                tags: [],
+            },
+            {
+                name: "Testato10",
+                logoName: TestatoAssets.images.logo,
+                tags: [],
+            },
+            {
+                name: "Testato11",
+                logoName: TestatoAssets.images.logo,
+                tags: [],
+            },
+
         ]
 
         return  displayMode === LobbyMode.Presenter
