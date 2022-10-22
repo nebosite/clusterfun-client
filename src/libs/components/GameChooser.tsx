@@ -1,7 +1,12 @@
 import { GameInstanceProperties, UIProperties, IMessageThing, ITelemetryLogger, IStorage } from '../../libs';
 import React from 'react';
 
-export interface GameDescriptor { name: string, tags: string[], logoName: string, lazyType: React.LazyExoticComponent<any> }
+export interface GameDescriptor { 
+    name: string, 
+    tags: string[], 
+    logoName: string, 
+    lazyType?: React.LazyExoticComponent<any> 
+}
 
 // Declare Games Here:
 let games: GameDescriptor[] =
@@ -45,7 +50,7 @@ export function getGames(searchTags: string[]) {
 // -------------------------------------------------------------------
 export function getGameComponent(gameName: string, config: ClusterFunGameProps) {
     const foundGame = games.find(g => g.name === gameName);
-    if (foundGame) {
+    if (foundGame && foundGame.lazyType) {
         console.log(`Creating component for ${gameName} ${config.gameProperties.role} ${config.gameProperties.personalId}`)
         return <div>
             <React.Suspense fallback="Loading...">

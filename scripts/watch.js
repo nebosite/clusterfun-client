@@ -15,6 +15,7 @@ webpackconfig.rules.push({
           eslintPath: require.resolve('eslint'),
           cache: false,
         },
+        // BUG: This does not load any more... 
         loader: require.resolve('eslint-loader'),
       },
     ],

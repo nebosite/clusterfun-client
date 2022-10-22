@@ -6,7 +6,7 @@ import { GameTestModel } from "./testLobby/models/GameTestModel";
 import { QuickTestComponent } from "./testLobby/Components/QuickTestComponent";
 import { googleTrackingIds } from "secrets";
 import { GameInstanceProperties, getStorage, MockTelemetryLoggerFactory, TelemetryLoggerFactory, WebSocketMessageThing } from './libs';
-import { GLOBALS } from 'Globals';
+import { GLOBALS } from './Globals';
 import 'index.css'
 
 const rootContainer = document.getElementById('root') as HTMLElement;
