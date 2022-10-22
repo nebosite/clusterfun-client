@@ -34,6 +34,7 @@ export class ClusterFunPlayer
 export const getPresenterTypeHelper = (derivedClassHelper: ITypeHelper) =>
  {
      return {
+        rootTypeName: derivedClassHelper.rootTypeName,
         constructType(typeName: string):any { 
             switch(typeName){
                 case "ClusterFunPlayer": return new ClusterFunPlayer();

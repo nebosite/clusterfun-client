@@ -4,6 +4,7 @@ import { GameTestModel } from "../models/GameTestModel";
 import { LobbyMainPage } from "../../lobby/views/LobbyMainPage";
 import { LobbyModel } from "../../lobby/models/LobbyModel";
 import styles from './GameTestComponent.module.css';
+import { GameDescriptor } from "libs";
 
 
 const HD_RATIO = 1080/1920;
@@ -12,7 +13,7 @@ const HD_RATIO = 1080/1920;
 // ClientComponent
 // -------------------------------------------------------------------
 @observer class ClientComponent extends React.Component<
-    {gameTestModel: GameTestModel, clientModel: LobbyModel, clientNumber: number, sizeAdjust: number}
+    {gameTestModel: GameTestModel, clientModel: LobbyModel, games: GameDescriptor[], clientNumber: number, sizeAdjust: number}
     ,{childKey: string}> {
 
     keyId = 0;
@@ -40,7 +41,7 @@ const HD_RATIO = 1080/1920;
     // render
     // -------------------------------------------------------------------
     render() {
-        const {gameTestModel, clientModel, clientNumber, sizeAdjust} = this.props;
+        const {gameTestModel, clientModel, games, clientNumber, sizeAdjust} = this.props;
 
         const width = gameTestModel.presenterSize/4.5;
 
@@ -59,6 +60,7 @@ const HD_RATIO = 1080/1920;
                     height: width * sizeAdjust}}>
                         <LobbyMainPage 
                             lobbyModel={clientModel} 
+                            games={games}
                             size={() => { return this.getClientSize(sizeAdjust)}}/> 
                 </div> 
             </div>)
@@ -67,6 +69,7 @@ const HD_RATIO = 1080/1920;
 
 export interface GameTestComponentProps {
     gameTestModel: GameTestModel
+    games: GameDescriptor[]
 }
 
 // -------------------------------------------------------------------
@@ -110,7 +113,7 @@ export class GameTestComponent extends React.Component<GameTestComponentProps> {
     // render
     // -------------------------------------------------------------------
     render() {
-        const {gameTestModel} = this.props;
+        const {gameTestModel, games} = this.props;
         if(gameTestModel.presenterSize === 0) this.updatePresenterSize(window.innerWidth);
 
         return (
@@ -123,6 +126,7 @@ export class GameTestComponent extends React.Component<GameTestComponentProps> {
                                     <ClientComponent 
                                         gameTestModel={gameTestModel} 
                                         clientModel={m}
+                                        games={games}
                                         clientNumber={index}
                                         sizeAdjust={2.2 - index *.25} />
                                 </div> )}
@@ -143,6 +147,7 @@ export class GameTestComponent extends React.Component<GameTestComponentProps> {
                 <div style={{background: "red", width: `${gameTestModel.presenterSize}px`}}>
                     <LobbyMainPage 
                         lobbyModel={gameTestModel.presenterModel} 
+                        games={games}
                         size={() => {return this.getPresenterSize()}} /> 
                 </div>
             </div>

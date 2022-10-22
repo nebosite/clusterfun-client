@@ -44,13 +44,11 @@ extends React.Component<ClusterFunGameProps>
         {
             this.UI = presenterType;
             this.appModel = instantiateGame(
-                `${gameProperties.gameName}PresenterModel`, 
                 this.props, 
                 getPresenterTypeHelper( derivedPresenterTypeHelper(sessionHelper, this.props)))
         } else {
             this.UI = clientType;
             this.appModel = instantiateGame(
-                `${gameProperties.gameName}ClientModel`, 
                 this.props, 
                 getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)))
         }

@@ -18,6 +18,7 @@ export enum GeneralClientState {
 export const getClientTypeHelper = (derivedClassHelper: ITypeHelper) =>
  {
      return {
+        rootTypeName: derivedClassHelper.rootTypeName,
         constructType(typeName: string):any 
             { return derivedClassHelper.constructType(typeName); },
         shouldStringify(typeName: string, propertyName: string, object: any):boolean 
