@@ -1,4 +1,4 @@
-import { observable } from "mobx";
+import { makeObservable, observable } from "mobx";
 import { LobbyModel, ILobbyDependencies } from "../../lobby/models/LobbyModel";
 import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, ClusterFunSerializer, IMessageThing, getStorage, GameInstanceProperties, ClusterFunJoinMessage } from "../../libs";
 
@@ -53,6 +53,8 @@ export class GameTestModel {
     // -------------------------------------------------------------------
     constructor(numberOfClients: number, storage: IStorage, loggerFactory: ITelemetryLoggerFactory)
     {
+        makeObservable(this);
+
         this._storage = storage;
         this._loggerFactory = loggerFactory;
         this._serializer = new ClusterFunSerializer();

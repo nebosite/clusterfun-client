@@ -45,6 +45,10 @@ module.exports = {
   externals: [
     "react",
     "react-dom",
+    "react-device-detect",
+    "react-ga4",
+    "mobx",
+    "mobx-react",
     "mobx-react-lite"
   ],
   resolve: {
