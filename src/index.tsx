@@ -10,6 +10,7 @@ import { GLOBALS } from './Globals';
 import 'index.css'
 import React from 'react';
 import TestatoAssets from 'testLobby/TestGame/assets/Assets';
+import { resolve } from 'node:path/win32';
 
 const rootContainer = document.getElementById('root') as HTMLElement;
 const root = createRoot(rootContainer);
@@ -116,7 +117,26 @@ else {
 
     // TODO: Add server loading code here along with a check to make sure empty list of games works
     // TODO: Fill game list dynamically
-        const gamesFromServerManifest:GameDescriptor[] = []; 
-    
-    root.render( <LobbyMainPage lobbyModel={lobbyModel} games={gamesFromServerManifest}/> );             
+    setTimeout(async() => {
+        const getGameManifest = async () => {
+            const response = await fetch("/api/game_manifest", { method: "GET" });
+            if (response.ok) {
+                const streamText = await response.text();
+                return await JSON.parse(streamText) as any[]
+            } else {
+                return []
+            }      
+        }
+        const gamesFromServerManifest:GameDescriptor[] = await getGameManifest(); 
+        gamesFromServerManifest.forEach(g => {
+            g.lazyType = React.lazy(() => import( (g as any).codeUrl))
+        })
+
+
+        console.log("MANIFEST", gamesFromServerManifest)
+
+        root.render( <LobbyMainPage lobbyModel={lobbyModel} games={gamesFromServerManifest}/> );             
+
+    },0)
+    root.render( <div>Loading stuff....</div> );     
 }

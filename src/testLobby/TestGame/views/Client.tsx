@@ -4,7 +4,7 @@ import { observer, inject } from "mobx-react";
 import { TestatoClientModel, TestatoClientState } from "../models/ClientModel";
 import styles from './Client.module.css';
 import classNames from "classnames";
-import { ClusterCanvas, UIProperties, GeneralGameState, SafeBrowser, GeneralClientState, UINormalizer, ErrorBoundary, ISessionHelper, IStorage, ITelemetryLogger } from "libs";
+import { ClusterCanvas, UIProperties, GeneralGameState, SafeBrowser, GeneralClientState, UINormalizer, ErrorBoundary} from "libs";
 
 
 // -------------------------------------------------------------------

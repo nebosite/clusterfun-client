@@ -2,6 +2,7 @@
   "name": "clusterfun-client",
   "version": "0.1.0",
   "private": false,
+  "proxy": "http://localhost:8080",
   "scripts": {
     "start": "env-cmd -f .env.dev react-scripts start",
     "startlocal": "env-cmd -f .env.local react-scripts start",
@@ -9,8 +10,8 @@
     "test": "react-scripts test --watchAll=false --passWithNoTests",
     "eject": "react-scripts eject",
     "watch": "title Lobby Watcher && node scripts/watch.js",
-    "buildlib": "webpack --config lib-webpack.config.js",
-    "watchlib": "webpack --config lib-webpack.config.js --watch"
+    "buildlib": "env-cmd -f .env.lib webpack --config lib-webpack-dev.config.js",
+    "watchlib": "webpack --config lib-webpack-dev.config.js --watch"
   },
   "eslintConfig": {
     "extends": [
