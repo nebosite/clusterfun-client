@@ -5,12 +5,10 @@ import { LobbyMainPage } from "./lobby/views/LobbyMainPage";
 import { GameTestModel } from "./testLobby/models/GameTestModel";
 import { QuickTestComponent } from "./testLobby/Components/QuickTestComponent";
 import { googleTrackingIds } from "secrets";
-import { GameDescriptor, GameInstanceProperties, getStorage, MockTelemetryLoggerFactory, TelemetryLoggerFactory, WebSocketMessageThing } from './libs';
+import { GameInstanceProperties, getStorage, MockTelemetryLoggerFactory, TelemetryLoggerFactory, WebSocketMessageThing } from './libs';
+import { GameManifestItem, allGames, GameDescriptor } from "./GameChooser"
 import { GLOBALS } from './Globals';
 import 'index.css'
-import React from 'react';
-import TestatoAssets from 'testLobby/TestGame/assets/Assets';
-import { resolve } from 'node:path/win32';
 
 const rootContainer = document.getElementById('root') as HTMLElement;
 const root = createRoot(rootContainer);
@@ -74,15 +72,11 @@ else if (process.env.REACT_APP_DEVMODE === 'development') {
         : new MockTelemetryLoggerFactory();
 
     const gameTestModel = new GameTestModel(4, getStorage("clusterfun_test"), factory);
-
     
-    const games: GameDescriptor[] = Array(10).fill(0).map((_, i) => {
-        return {
-            name: `Testato${i + 1}`,
-            logoName: TestatoAssets.images.logo,
-            tags: [],
-            lazyType: React.lazy(() => import('./testLobby/TestGame/views/GameComponent'))
-        };
+    const games: GameDescriptor[] = allGames.map((g) => {
+        const item = {...g}
+        item.tags = []
+        return item;
     });
     
     root.render( <GameTestComponent gameTestModel={gameTestModel} games={games} /> );        
@@ -127,15 +121,23 @@ else {
                 return []
             }      
         }
-        const gamesFromServerManifest:GameDescriptor[] = await getGameManifest(); 
-        gamesFromServerManifest.forEach(g => {
-            g.lazyType = React.lazy(() => import( (g as any).codeUrl))
+        const gamesFromServerManifest:GameManifestItem[] = await getGameManifest(); 
+
+        const gameList: GameDescriptor[] = []
+        gamesFromServerManifest.forEach(serverItem => {
+            const foundGame = allGames.find(g => g.name.toLowerCase() === serverItem.name.toLowerCase()) 
+            if(foundGame) {
+                const addMe = {...foundGame}
+                if(serverItem.displayName) addMe.displayName = serverItem.displayName
+                addMe.tags = serverItem.tags;
+                gameList.push(addMe);
+            }
+            else {
+                console.log(`Server specified a game I don't know about: ${serverItem.name}`)
+            }
         })
 
-
-        console.log("MANIFEST", gamesFromServerManifest)
-
-        root.render( <LobbyMainPage lobbyModel={lobbyModel} games={gamesFromServerManifest}/> );             
+        root.render( <LobbyMainPage lobbyModel={lobbyModel} games={gameList}/> );             
 
     },0)
     root.render( <div>Loading stuff....</div> );     
