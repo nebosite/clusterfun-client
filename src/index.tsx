@@ -116,9 +116,9 @@ else {
             const response = await fetch("/api/game_manifest", { method: "GET" });
             if (response.ok) {
                 const streamText = await response.text();
-                return await JSON.parse(streamText) as any[]
+                return await JSON.parse(streamText) as GameManifestItem[]
             } else {
-                return []
+                return [] as GameManifestItem[]
             }      
         }
         const gamesFromServerManifest:GameManifestItem[] = await getGameManifest(); 
