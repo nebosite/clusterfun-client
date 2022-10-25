@@ -121,21 +121,28 @@ else {
                 return []
             }      
         }
-        const gamesFromServerManifest:GameManifestItem[] = await getGameManifest(); 
 
-        const gameList: GameDescriptor[] = []
-        gamesFromServerManifest.forEach(serverItem => {
+        try {
+            var gamesFromServerManifest:GameManifestItem[] = await getGameManifest(); 
+        }
+        catch(err) {
+            root.render( <div>There was a problem trying to load clusterfun.  Please try again later. </div> );     
+            return;        
+        }
+
+        const gameList = gamesFromServerManifest.map(serverItem => {
             const foundGame = allGames.find(g => g.name.toLowerCase() === serverItem.name.toLowerCase()) 
             if(foundGame) {
                 const addMe = {...foundGame}
                 if(serverItem.displayName) addMe.displayName = serverItem.displayName
                 addMe.tags = serverItem.tags;
-                gameList.push(addMe);
+                return addMe
             }
             else {
                 console.log(`Server specified a game I don't know about: ${serverItem.name}`)
+                return undefined;
             }
-        })
+        }).filter(i => i != undefined) as GameDescriptor[]
 
         root.render( <LobbyMainPage lobbyModel={lobbyModel} games={gameList}/> );             
 
