@@ -201,7 +201,6 @@ class PlayStartAnimationController  extends BaseAnimationController {
 @observer
 export default class Presenter 
 extends React.Component<{appModel?: TestatoPresenterModel, uiProperties: UIProperties}> {
-    static modelClassName = "TestatoPresenterModel";
     media: MediaHelper;
 
     // -------------------------------------------------------------------

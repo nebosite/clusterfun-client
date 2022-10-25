@@ -114,7 +114,6 @@ class GameScreen extends React.Component<{appModel?: TestatoClientModel}>
 @observer
 export default class Client 
   extends React.Component<{appModel?: TestatoClientModel, uiProperties: UIProperties}> {
-    static modelClassName = "TestatoClientModel";
     lastState:string = GeneralGameState.Unknown;
     containerOffset = {left: 0, top: 0};
 
