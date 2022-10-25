@@ -1,7 +1,6 @@
 import {ClusterFunMessageHeader} from "../message_parts/ClusterFunMessageHeader";
 import { ClusterFunMessageConstructor } from "./ClusterFunMessageConstructor";
 import { RawMessagePacket } from "../message_parts/RawMessagePacket";
-import { JSONParser } from '@streamparser/json';
 
 
 import { ClusterFunMessageBase } from "../ClusterFunMessage";
@@ -175,7 +174,7 @@ export class ClusterFunSerializer {
             throw new SyntaxError(`Header too long: actual length ${headerString.length}, expected maximum ${MAX_HEADER_LENGTH}`);
         }
         const payloadString = JSON.stringify(input.payload);
-        return headerString + payloadString;
+        return headerString + "^" + payloadString;
     }
 
     private deserializeParts(input: string): RawMessagePacket<unknown> {
@@ -183,49 +182,17 @@ export class ClusterFunSerializer {
     }
 
     private deserializePartsInternal(input: string, includePayload: boolean): RawMessagePacket<unknown>{
-        // Use @streamparser/json to parse our concatenated JSON message.
+        const splitLocation = input.indexOf("}^{");
+        if(splitLocation < 0) throw Error("Deserialize failure: Could not find header split")
 
-        // The library is stream/calllback oriented, accepting data in chunks
-        // and allowing multiple intermediate values to be returned,
-        // but is not asynchronous. As such, we can use it synchronously here
-        // to return both raw message parts.
+        const header = JSON.parse(input.substring(0,splitLocation+1)) as ClusterFunMessageHeader
+        if(!header.r) throw Error("Message header missing receiver")
+        if(!header.s) throw Error("Message header missing sender")
+        if(!header.t) throw Error("Message header missing type")
+        const payload = includePayload 
+            ? JSON.parse(input.substring(splitLocation+2))
+            : null
 
-        const parser = new JSONParser({ stringBufferSize: undefined, separator: "", paths: ['$'] });
-        let header: ClusterFunMessageHeader | undefined;
-        let payload: unknown | undefined = undefined;
-
-        parser.onValue = (value: any) => {
-            if (header === undefined) header = value;
-            else if (payload === undefined) payload = value;
-            else throw new Error("Too many parts encountered");
-        }
-
-        try {
-            parser.write(input);
-        } catch (e) {
-            // Ignore parser errors - these come up when we provide partial strings for
-            // header-only deserialization. Our inability to get the header and payload
-            // should catch these later.
-            if (!(e instanceof Error) || !(e.message.match(/Unexpected "." at position/))) {
-                throw e;
-            }
-        }
-
-        if (!header) {
-            throw new SyntaxError("Header not provided, or header too long");
-        } else {
-            if (!("r" in header)
-                || !("s" in header)
-                || !("t" in header)) {
-                    throw new SyntaxError("Header not specified correctly")
-                }
-        }
-        if (!includePayload) {
-            payload = null;
-        }
-        if (payload === undefined) {
-            throw new SyntaxError("Payload not provided");
-        }
         return {
             header,
             payload
