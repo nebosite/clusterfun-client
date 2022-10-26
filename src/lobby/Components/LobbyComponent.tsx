@@ -7,7 +7,6 @@ import { GLOBALS } from '../../Globals';
 import { LobbyAssets } from "../../lobby/assets/LobbyAssets";
 import styles from './LobbyComponent.module.css';
 import { UIProperties, GameDescriptor, UINormalizer } from "../../libs";
-import TestatoAssets from "testLobby/TestGame/assets/Assets";
 
 @inject("lobbyModel")
 @observer

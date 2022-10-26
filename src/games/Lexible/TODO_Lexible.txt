@@ -41,8 +41,8 @@ TODO
     
     [ ] Git it working
         [x] Check that games really do get segregated into different bundles
-        [ ] Clients starting with "Unknown CLIENT STATE Gathering"
-        [ ] Make loading page prettier
+        [x] Clients starting with "Unknown CLIENT STATE Gathering"
+        [x] Make loading page prettier
         [ ] Client: clicking on first letter does not show available words
         [ ] Check messaging/updates - the clients seem to be exactly one message behind the presenter
 

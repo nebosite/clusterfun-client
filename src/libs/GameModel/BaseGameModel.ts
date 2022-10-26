@@ -20,42 +20,15 @@ export enum GeneralGameState
 // -------------------------------------------------------------------
 // get the saved game if available or create a new one
 // -------------------------------------------------------------------
-export function instantiateGame<T extends BaseGameModel>(
-    gameProps: ClusterFunGameProps,
-    typeHelper: ITypeHelper)
+export function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper)
 {
     const serializer = createSerializer(typeHelper);
     const gameTypeName = typeHelper.rootTypeName;
     let returnMe: T | undefined;
-    try {
-        //console.info(`Attempting to load game data for ${gameTypeName}`)
-        const savedDataJson = gameProps.storage.get(GAMESTATE_LABEL);
-        if(savedDataJson) {
-            const savedData = serializer.parse<T>(savedDataJson);
-            if(savedData.gameState !== GeneralGameState.Destroyed)
-            {
-                console.log("Found a saved game.  Resuming ...")
-                returnMe = typeHelper.constructType(gameTypeName) as T;
-                Object.assign(returnMe, savedData)
-                //returnMe = savedData;
-                returnMe.reconstitute();              
-            }
-            else {
-                console.log(`Saved game state was 'destroyed'.  Going with new game.`)
-            } 
-        }      
-    }
-    catch(err) 
-    {
-        gameProps.logger.logEvent("Error", "Failed Game Restore", (err as any).message )
-        console.log("getSavedGame: Could not retore game because: " + err);
-    }
 
-    if(!returnMe) {
-        returnMe = typeHelper.constructType(gameTypeName) as T;
-        console.log(`Creating fresh ${gameTypeName}.  State is ${returnMe?.gameState}`)
-        if(!returnMe) throw Error(`Unable to construct ${gameTypeName}`)
-    }
+    returnMe = typeHelper.constructType(gameTypeName) as T;
+    console.log(`Creating fresh ${gameTypeName}.  State is ${returnMe?.gameState}`)
+    if(!returnMe) throw Error(`Unable to construct ${gameTypeName}`)
 
     returnMe.serializer = serializer;
     return returnMe!;
@@ -144,7 +117,6 @@ export abstract class BaseGameModel  {
         }
     }
 
-
     get roomId() {return this.session.roomId;}
     // Pause the game in development mode
     @observable _devPause = false;
@@ -204,6 +176,35 @@ export abstract class BaseGameModel  {
 
         this.logger.logPageView(name);
     }
+
+    // -------------------------------------------------------------------
+    // get the saved game if available or create a new one
+    // -------------------------------------------------------------------
+    tryLoadOldGame(gameProps: ClusterFunGameProps)
+    {
+        if(!this.serializer) throw Error("No serializer in tryLoadOldGame")
+        try {
+            const savedDataJson = gameProps.storage.get(GAMESTATE_LABEL);
+            if(savedDataJson) {
+                const savedData = this.serializer.parse<BaseGameModel>(savedDataJson);
+                if(savedData.gameState !== GeneralGameState.Destroyed)
+                {
+                    console.log("Found a saved game.  Resuming ...")
+                    Object.assign(this, savedData)
+                    this.reconstitute();              
+                }
+                else {
+                    console.log(`Saved game state was 'destroyed'.  Going with new game.`)
+                } 
+            }      
+        }
+        catch(err) 
+        {
+            gameProps.logger.logEvent("Error", "Failed Game Restore", (err as any).message )
+            console.log("getSavedGame: Could not retore game because: " + err);
+        }
+    }
+
 
     // This method is called after loading a saved game from memory.  Here is 
     // where to hook up stuff the serialize couldn't get back
