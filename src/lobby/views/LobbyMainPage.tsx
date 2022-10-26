@@ -83,7 +83,7 @@ export class LobbyMainPage
 
         return (
             <Provider lobbyModel={lobbyModel}>
-                <div className={`lobby`} key={lobbyModel.id}>
+                <div style={{width:"100%", height:"100%"}} key={lobbyModel.id}>
                     {innerChild}
                 </div>                  
             </Provider>
