@@ -1,13 +1,9 @@
 import { action, observable } from "mobx";
-import { ClusterFunGameProps, ISessionHelper } from "libs";
-import { ITelemetryLogger } from "libs/telemetry/TelemetryLogger";
-import { IStorage } from "libs/storage/StorageHelper";
 import { LetterSelectData, LexibleEndOfRoundMessage, LexibleFailedWordMessage, LexiblePlayerAction, LexiblePlayerActionMessage, LexiblePlayRequestMessage, LexibleScoredWordMessage, LexibleWordHintMessage, PlayBoard, WordSubmissionData } from "./LexibleMessages";
-import { GeneralClientState, ClusterfunClientModel } from "../../../libs";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { LetterGridModel } from "./LetterGridModel";
 import { LexibleGameEvent } from "./LexiblePresenterModel";
-import { Vector2 } from "libs/types/Vector2";
+import { ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientState, ITypeHelper } from "libs";
 
 
 // -------------------------------------------------------------------
@@ -16,9 +12,10 @@ import { Vector2 } from "libs/types/Vector2";
 export const getLexibleClientTypeHelper = (
     sessionHelper: ISessionHelper, 
     gameProps: ClusterFunGameProps
-    ) =>
+    ): ITypeHelper =>
  {
      return {
+        rootTypeName: "LexibleClientModel",
         constructType(typeName: string):any {
             switch(typeName)
             {
@@ -66,7 +63,6 @@ export enum LexibleClientState {
 // Client data and logic
 // -------------------------------------------------------------------
 export class LexibleClientModel extends ClusterfunClientModel  {
-
     @observable theGrid = new LetterGridModel();
     @observable letterChain = observable(new Array<LetterBlockModel>())
     @observable myTeam = "_";
@@ -97,6 +93,14 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         sessionHelper.addListener(LexibleScoredWordMessage, playerName, this.handleScoredWordMessage);
         sessionHelper.addListener(LexibleFailedWordMessage, playerName, this.handleFailedWordMessage);
         sessionHelper.addListener(LexibleWordHintMessage, playerName, this.handleWordHintMessage);
+    }
+
+    // -------------------------------------------------------------------
+    //  
+    // -------------------------------------------------------------------
+    assignClientStateFromServerState(serverState: string): void {
+        // TODO: This likely requires more sophisticated state transition behavior
+        this.gameState = serverState;
     }
 
     // -------------------------------------------------------------------
@@ -261,7 +265,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     // sendAction 
     // -------------------------------------------------------------------
-    protected sendAction(action: LexiblePlayerAction, actionData: LetterSelectData | WordSubmissionData = null) {
+    protected sendAction(action: LexiblePlayerAction, actionData: LetterSelectData | WordSubmissionData) {
         const message = new LexiblePlayerActionMessage(
             {
                 sender: this.session.personalId,

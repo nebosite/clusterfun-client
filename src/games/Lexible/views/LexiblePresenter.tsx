@@ -1,16 +1,14 @@
 // App Navigation handled here
 import React from "react";
 import { observer, inject } from "mobx-react";
-import { DevUI, GeneralGameState, PresenterGameEvent, PresenterGameState, Row, UINormalizer, UIProperties } from "libs";
 import styles from './LexiblePresenter.module.css';
 import classNames from "classnames";
-import { MediaHelper } from "libs/Media/MediaHelper";
 import LexibleAssets from "../assets/LexibleAssets";
 import { LexibleVersion } from "../models/LexibleGameSettings";
 import { LetterBlockModel } from "../models/LetterBlockModel";
 import LetterBlock from "./LetterBlock";
-import { SpeechHelper } from "libs/Media/SpeechHelper";
 import { LexiblePresenterModel, MapSize, LexibleGameEvent, LexiblePlayer, LexibleGameState } from "../models/LexiblePresenterModel";
+import { Row, MediaHelper, SpeechHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, UINormalizer, DevUI } from "libs";
 
 @inject("appModel") @observer
 class GameSettings  extends React.Component<{appModel?: LexiblePresenterModel}> {
@@ -19,6 +17,7 @@ class GameSettings  extends React.Component<{appModel?: LexiblePresenterModel}> 
     // -------------------------------------------------------------------
     render() {
         const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
 
         const handleStartFromTeamAreaChange = () => {
             appModel.startFromTeamArea = !appModel.startFromTeamArea
@@ -73,6 +72,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenter
     // -------------------------------------------------------------------
     render() {
         const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
 
         return (
             <div className={styles.instructionArea} >
@@ -106,7 +106,7 @@ class PausedGamePage  extends React.Component<{appModel?: LexiblePresenterModel}
     // resumeGame
     // -------------------------------------------------------------------
     private resumeGame = () => {
-        this.props.appModel.resumeGame();
+        this.props.appModel?.resumeGame();
     }
  
     // -------------------------------------------------------------------
@@ -114,6 +114,7 @@ class PausedGamePage  extends React.Component<{appModel?: LexiblePresenterModel}
     // -------------------------------------------------------------------
     render() {
         const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
         return (
             <div>
                 <p>Lexible is paused</p>
@@ -156,14 +157,14 @@ const teamBTaunts = [
         const speech = new SpeechHelper();
         //const languageFromTeam = (team: string) => team === "A" ? "Google français" : "Google UK English Male"
         const languageFromTeam = (team: string) => team === "A" ? "Microsoft Zira - English (United States)" : "Google UK English Male"
-        props.appModel.subscribe(LexibleGameEvent.WordAccepted, "say accepted word", (word: string, player: LexiblePlayer) => {
+        props.appModel!.subscribe(LexibleGameEvent.WordAccepted, "say accepted word", (word: string, player: LexiblePlayer) => {
             //props.media.playSound(LexibleAssets.sounds.ding)
             speech.speak(word, languageFromTeam(player.teamName));
         })
-        props.appModel.subscribe(LexibleGameEvent.TeamWon,  "Taunt from the winners", (team: string)=> {
+        props.appModel!.subscribe(LexibleGameEvent.TeamWon,  "Taunt from the winners", (team: string)=> {
             const taunts = team === "A" ? teamATaunts : teamBTaunts;
            
-            speech.speak(props.appModel?.randomItem(taunts), languageFromTeam(team));
+            speech.speak(props.appModel?.randomItem(taunts) ?? "", languageFromTeam(team));
         });
 
     }
@@ -176,7 +177,7 @@ const teamBTaunts = [
         const handleClick = () => {} // No need to handle block clicks from the presenter
 
         return <Row className={styles.letterRow}>
-            { row.map(b => <LetterBlock  size={1350/this.props.appModel.theGrid.width} key={b.__blockid} onClick={handleClick} context={b} />)} 
+            { row.map(b => <LetterBlock  size={1350/this.props.appModel!.theGrid.width} key={b.__blockid} onClick={handleClick} context={b} />)} 
         </Row>
     }
 
@@ -185,6 +186,7 @@ const teamBTaunts = [
     // -------------------------------------------------------------------
     renderEndOfRoundOverlay() {
         const {appModel}= this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
 
         const startNextRoundClick = () => appModel.startNextRound();
 
@@ -202,6 +204,8 @@ const teamBTaunts = [
     // -------------------------------------------------------------------
     render() {
         const {appModel}= this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
+
         return (
             <div>              
                 {
@@ -224,6 +228,8 @@ const teamBTaunts = [
     // -------------------------------------------------------------------
     render() {
         const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
+
         return (
             <div>
                 <div>End of round {appModel.currentRound}</div>
@@ -257,6 +263,7 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
         super(props);
 
         const {appModel} = this.props;
+        if (!appModel) throw new Error("No appModel provided")
 
         // Set up sound effects
         this.media = new MediaHelper();
@@ -312,11 +319,12 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
     // -------------------------------------------------------------------
     private renderFrame() {
         const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
         return (
             <div className={classNames(styles.divRow)}>
-                <MdCancel className={classNames(styles.quitButton)} 
+                <button className={classNames(styles.quitButton)} 
                     style={{marginRight: "30px"}}
-                    onClick={()=> appModel.quitApp()} />                 
+                    onClick={()=> appModel.quitApp()} />
                 <div className={classNames(styles.roomCode)}>
                     <div>Room Code:</div>
                     <div style={{fontSize: "180%", fontWeight: 800}}>{appModel.roomId}</div>
@@ -330,12 +338,13 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
     // -------------------------------------------------------------------
     render() {
         const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
 
         const renderTeam = (teamName: string) => {
             return <div>
                 <div className={styles.teamTitle}>TEAM {teamName}</div>
                 {
-                    this.props.appModel.players.filter(p => p.teamName === teamName).map(p => (
+                    this.props.appModel!.players.filter(p => p.teamName === teamName).map(p => (
                         <div className={styles.teamPlayerName} key={p.playerId}>{p.name}</div>
                     ))
                 }

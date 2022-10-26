@@ -10,7 +10,7 @@ import { GLOBALS } from './Globals';
 import 'index.css'
 import React from 'react';
 import TestatoAssets from 'testLobby/TestGame/assets/Assets';
-import { resolve } from 'node:path/win32';
+import LexibleAssets from 'games/Lexible/assets/LexibleAssets';
 
 const rootContainer = document.getElementById('root') as HTMLElement;
 const root = createRoot(rootContainer);
@@ -76,13 +76,19 @@ else if (process.env.REACT_APP_DEVMODE === 'development') {
     const gameTestModel = new GameTestModel(4, getStorage("clusterfun_test"), factory);
 
     
-    const games: GameDescriptor[] = Array(10).fill(0).map((_, i) => {
+    const games: GameDescriptor[] = Array(5).fill(0).map((_, i) => {
         return {
             name: `Testato${i + 1}`,
             logoName: TestatoAssets.images.logo,
             tags: [],
             lazyType: React.lazy(() => import('./testLobby/TestGame/views/GameComponent'))
         };
+    });
+    games.push({
+        name: "Lexible",
+        logoName: LexibleAssets.images.logo,
+        tags: [],
+        lazyType: React.lazy(() => import('./games/Lexible/views/LexibleGameComponent'))
     });
     
     root.render( <GameTestComponent gameTestModel={gameTestModel} games={games} /> );        

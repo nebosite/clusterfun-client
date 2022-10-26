@@ -11,15 +11,11 @@ import {
     LexibleScoredWordMessage,
     LexibleWordHintMessage,
     LetterChain, } from "./LexibleMessages";
-import { ClusterFunGameOverMessage, ClusterFunGameProps, ClusterFunPlayer, ClusterfunPresenterModel, 
-    GeneralGameState, ISessionHelper, PresenterGameEvent, PresenterGameState } from "libs";
-import { ITelemetryLogger } from "libs/telemetry/TelemetryLogger";
-import { IStorage } from "libs/storage/StorageHelper";
 import { PLAYTIME_MS } from "./LexibleGameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
-import { Vector2 } from "libs/types/Vector2";
+import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunPresenterModel, ITelemetryLogger, IStorage, GeneralGameState, PresenterGameEvent, PresenterGameState, ClusterFunGameOverMessage, ITypeHelper } from "libs";
 
 export enum LexiblePlayerStatus {
     Unknown = "Unknown",
@@ -68,9 +64,10 @@ export enum MapSize {
 export const getLexiblePresenterTypeHelper = (
     sessionHelper: ISessionHelper, 
     gameProps: ClusterFunGameProps
-    ) =>
+    ): ITypeHelper =>
  {
      return {
+        rootTypeName: "LexiblePresenterModel",
         constructType(typeName: string):any {
             switch(typeName)
             {
@@ -198,9 +195,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     //                    word list
     // -------------------------------------------------------------------
     private async populateWordSet() {
-        const zlibPromise = import("zlib");
-        const { compressedWordList } = await import("../assets/words");
-        const wordList = (await zlibPromise).gunzipSync(Buffer.from(compressedWordList, 'base64')).toString()
+        const { wordList } = await import("../assets/words/Collins_Scrabble_2019");
         const words = wordList.split('\n').map(w => w.trim())
         this.wordTree = WordTree.create(words);
         words.forEach(w => this.wordSet.add(w));
@@ -297,8 +292,8 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         if(this.startFromTeamArea) {
             for (let y = 0; y < newGrid.height; y++)
             {
-                newGrid.getBlock(new Vector2(0,y)).setScore(4, "A")
-                newGrid.getBlock(new Vector2(newGrid.width-1,y)).setScore(4, "B")
+                newGrid.getBlock(new Vector2(0,y))!.setScore(4, "A")
+                newGrid.getBlock(new Vector2(newGrid.width-1,y))!.setScore(4, "B")
             }
         }
         newGrid.processBlocks((block)=>{this.setBlockHandlers(block)})
@@ -364,7 +359,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
         this.players.forEach((p,i) => {
             p.status = LexiblePlayerStatus.WaitingForStart;
-            p.pendingMessage = null;
+            p.pendingMessage = undefined;
             p.message = "";
             p.colorStyle = "white";
             p.x = .1;
@@ -391,7 +386,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         if(!data?.coordinates) throw Error(`No coordinates passed to handlePlayerLetterSelect ${data.coordinates}`)
         
         const selectedBlock = this.theGrid.getBlock(data.coordinates);
-        if(data.isFirst) {
+        if(selectedBlock && data.isFirst) {
             console.log(`First selection for ${playerId} is ${selectedBlock.letter}`)
             const wordList = this.findWords(selectedBlock);
             this.sendToPlayer(playerId, new LexibleWordHintMessage({ sender: this.session.personalId, wordList }))
@@ -411,7 +406,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             // ignore blocks off the board or seleced block
             if(selectedBlocks.has(block.__blockid)) return output;
 
-            let wordSpot = parentSpot;
+            let wordSpot: WordTree | undefined = parentSpot;
             for(let i =0; i < block.letter.length; i++) {
                 wordSpot = wordSpot?.branch(block.letter[i].toUpperCase())
             }
@@ -419,7 +414,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             
             const word = wordSpot.myWord; 
             
-            if(word?.length >= 3)  {
+            if(word && (word.length >= 3))  {
                 output.push(word)
             }
 
@@ -467,7 +462,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         // figure out the places on the edge to start with
         const workRemaining = new Array<LetterBlockModel>();
         for(let y = 0; y < this.theGrid.height; y++) {
-             const block = this.theGrid.getBlock(new Vector2(startx, y))
+             const block = this.theGrid.getBlock(new Vector2(startx, y))!
              if(block.team === team) { workRemaining.push(block) }
         }
 
@@ -475,7 +470,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
         // Now recurse through the blocks and check for win
         while(workRemaining.length > 0) {
-            const currentBlock = workRemaining.pop();
+            const currentBlock = workRemaining.pop()!;
             const {x,y} = currentBlock.coordinates;
             if(currentBlock.team !== team || visited.has(currentBlock.__blockid))  continue;
 
@@ -485,10 +480,10 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 return;
             }
             
-            if(x > 0) workRemaining.push(this.theGrid.getBlock(new Vector2(x-1,y)))
-            if(x < this.theGrid.width - 1) workRemaining.push(this.theGrid.getBlock(new Vector2(x+1,y)))
-            if(y > 0) workRemaining.push(this.theGrid.getBlock(new Vector2(x, y-1)))
-            if(y < this.theGrid.height - 1) workRemaining.push(this.theGrid.getBlock(new Vector2(x, y+1)))
+            if(x > 0) workRemaining.push(this.theGrid.getBlock(new Vector2(x-1,y))!)
+            if(x < this.theGrid.width - 1) workRemaining.push(this.theGrid.getBlock(new Vector2(x+1,y))!)
+            if(y > 0) workRemaining.push(this.theGrid.getBlock(new Vector2(x, y-1))!)
+            if(y < this.theGrid.height - 1) workRemaining.push(this.theGrid.getBlock(new Vector2(x, y+1))!)
         }
     }
 
@@ -509,7 +504,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         const placedLetters: LetterChain = []
         data.letters.forEach(l => {
             const block = this.theGrid.getBlock(l.coordinates)
-            if(word.length > block.score) {
+            if(block && word.length > block.score) {
                 block.setScore( Math.max(word.length, block.score), player.teamName);  
                 placedLetters.push(l);
             }
@@ -533,17 +528,18 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     handlePlayerWordSubmit = (playerId: string, data: WordSubmissionData) => {
         if(!data) throw Error("handlePlayerWordSubmit: No data")
         const player = this.players.find(p => p.playerId === playerId);
+        if (!player) throw Error("Unknown player attempted to submit a word");
 
         let scoreTooLow = false;
         const word = data.letters.map((l,index) => {
             if(!l.coordinates) throw Error(`No coordinate on submitted letter: ${JSON.stringify(data)}`)
             const block = this.theGrid.getBlock(l.coordinates);
+            if(!block)  return "#"
             if(this.startFromTeamArea
                 && index === 0 
                 && player.teamName !== block.team) {
                     return "#"
                 }
-            if(!block)  return "#"
             // // don't allow letter for spelling unless score is hight
             // if( block.team !== player.teamName
             //     && block.score >= data.letters.length) scoreTooLow = true;

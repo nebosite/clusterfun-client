@@ -40,7 +40,8 @@ TODO
     [x] After quitting a game and sitting in the lobby,  HUGE number of Socket not ready message
     
     [ ] Git it working
-        [ ] Check that games really do get segregated into different bundles
+        [x] Check that games really do get segregated into different bundles
+        [ ] Check messaging/updates - the clients seem to be exactly one message behind the presenter
 
     [ ] Check telemetry - debug part might be wrong.
     [ ] Upgrade to latest deployment method

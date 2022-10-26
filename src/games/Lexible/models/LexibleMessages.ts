@@ -1,9 +1,10 @@
-import { ClusterFunMessageBase } from "../../../libs";
-import { Vector2 } from "libs/types/Vector2";
 
 
 // ------------------------------------------------------------------------------------------
 // LexiblePlayRequestMessage
+
+import { ClusterFunMessageBase, Vector2 } from "libs";
+
 // ------------------------------------------------------------------------------------------
 export interface PlayBoard {
     gridWidth: number
@@ -13,9 +14,9 @@ export interface PlayBoard {
 
 export class LexiblePlayRequestMessageData extends ClusterFunMessageBase
 {
-    roundNumber: number;
-    playBoard: PlayBoard;
-    teamName: string;
+    roundNumber: number = 0;
+    playBoard: PlayBoard = { gridWidth: 0, gridHeight: 0, gridData: "" };
+    teamName: string = "";
 } 
 export class LexiblePlayRequestMessage  extends LexiblePlayRequestMessageData {
     static readonly messageTypeName = "LexiblePlayRequestMessage";
@@ -29,7 +30,7 @@ export type LetterChain = {letter: string, coordinates: Vector2}[]
 // ------------------------------------------------------------------------------------------
 export class LexibleFailedWordMessageData extends ClusterFunMessageBase
 {
-    letters: LetterChain
+    letters: LetterChain = []
 }
 export class LexibleFailedWordMessage  extends LexibleFailedWordMessageData {
     static readonly messageTypeName = "LexibleFailedWordMessage";
@@ -41,7 +42,7 @@ export class LexibleFailedWordMessage  extends LexibleFailedWordMessageData {
 // ------------------------------------------------------------------------------------------
 export class LexibleWordHintMessageData extends ClusterFunMessageBase
 {
-    wordList: string[];
+    wordList: string[] = [];
 }
 export class LexibleWordHintMessage  extends LexibleWordHintMessageData {
     static readonly messageTypeName = "LexibleWordHintMessage";
@@ -50,10 +51,10 @@ export class LexibleWordHintMessage  extends LexibleWordHintMessageData {
 
 export class LexibleScoredWordMessage  extends ClusterFunMessageBase {
     static readonly messageTypeName = "LexibleScoredWordMessage";
-    scoringPlayerId: string;
-    team: string;
-    letters: LetterChain
-    score: number
+    scoringPlayerId: string = "";
+    team: string = "";
+    letters: LetterChain = []
+    score: number = 0
     
     // eslint-disable-next-line
     constructor(payload: LexibleScoredWordMessage) { super(payload); Object.assign(this, payload);  } 
@@ -65,8 +66,8 @@ export class LexibleScoredWordMessage  extends ClusterFunMessageBase {
 // ------------------------------------------------------------------------------------------
 export class LexibleEndOfRoundMessageData extends ClusterFunMessageBase
 {
-    roundNumber: number;
-    winningTeam: string;
+    roundNumber: number = 0;
+    winningTeam: string = "";
 }
 
 export class LexibleEndOfRoundMessage  extends LexibleEndOfRoundMessageData {
@@ -96,9 +97,9 @@ export interface WordSubmissionData {
 }
 export class LexiblePlayerActionMessageData extends ClusterFunMessageBase
 {
-    roundNumber: number;
-    action: LexiblePlayerAction;
-    actionData: LetterSelectData | WordSubmissionData;
+    roundNumber: number = 0;
+    action: LexiblePlayerAction = LexiblePlayerAction.WordSubmit;
+    actionData: LetterSelectData | WordSubmissionData = { letters:[] };
 }
 export class LexiblePlayerActionMessage extends LexiblePlayerActionMessageData {
     static readonly messageTypeName = "LexiblePlayerActionMessage";

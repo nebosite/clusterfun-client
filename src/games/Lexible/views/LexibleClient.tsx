@@ -2,13 +2,11 @@
 import React from "react";
 import { observer, inject } from "mobx-react";
 import { LexibleClientModel, LexibleClientState } from "../models/LexibleClientModel";
-import { UIProperties, UINormalizer, GeneralClientState, GeneralGameState } from "libs";
 import styles from './LexibleClient.module.css';
-import { ErrorBoundary } from "libs/components/ErrorBoundary";
-import { SafeBrowser } from "libs/Browser/SafeBrowser";
 import classNames from "classnames";
 import { observable } from "mobx";
 import LexibleClientGameComponent from "./LexibleClientGameComponent";
+import { UIProperties, GeneralGameState, SafeBrowser, GeneralClientState, UINormalizer, ErrorBoundary } from "libs";
 
  
 class LexibleClientUIState {
@@ -44,7 +42,9 @@ export default class Client
     // Do something to alert the user if the game state changed
     // ------------------------------------------------------------------- 
     alertUser() {
-        const {appModel} = this.props;  
+        const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
+ 
         if(appModel.gameState !== this.lastState) { 
             SafeBrowser.vibrate([50,50,50,50]);
         }
@@ -57,6 +57,7 @@ export default class Client
     // ------------------------------------------------------------------- 
     private renderSubScreen() {
         const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
 
         switch(appModel.gameState) {
             case GeneralClientState.WaitingToStart:
@@ -73,7 +74,7 @@ export default class Client
                 this.alertUser();
                 return <LexibleClientGameComponent 
                     clientId={this.props.uiProperties.containerId} 
-                    playerId={this.props.appModel.playerId}
+                    playerId={appModel.playerId}
                     mouseScale={this.uiState.mouseScale} />
             case LexibleClientState.EndOfRound:
                 this.alertUser();
@@ -82,18 +83,18 @@ export default class Client
                 return (
                     <React.Fragment>
                     <p>Game is over, thanks for playing!</p>
-                    <div><button onClick={()=>this.props.appModel.quitApp()}>Quit</button></div>
+                    <div><button onClick={()=>this.props.appModel?.quitApp()}>Quit</button></div>
                     </React.Fragment>
                 );
             case GeneralClientState.JoinError:
                 return (
                     <React.Fragment>
-                    <p style={{background: "red", color: "yellow", fontSize: "150%"}}>Could not join the game because: {this.props.appModel.joinError}</p>
+                    <p style={{background: "red", color: "yellow", fontSize: "150%"}}>Could not join the game because: {this.props.appModel?.joinError}</p>
                     </React.Fragment>
                 );
     
             default:
-                return <div>These are not the droids you are looking for...</div>          
+                return <div>UNKNOWN CLIENT STATE: {appModel.gameState}</div>          
         }
     }
 
@@ -102,6 +103,7 @@ export default class Client
     // ------------------------------------------------------------------- 
     render() {
         const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
 
         const reportScale = (scale: number) => {
             this.uiState.mouseScale = .5/scale;

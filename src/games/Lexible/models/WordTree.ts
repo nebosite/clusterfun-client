@@ -7,7 +7,7 @@ export class WordTree {
     private _isTerminator = false;
     private _branches = new Map<string, WordTree>()
     private _letter: string
-    private _parent: WordTree
+    private _parent: WordTree | undefined
 
     get rootWord():string { return (this._parent?.rootWord ?? "") + this._letter}
     get myWord() { return this._isTerminator ?  this.rootWord: undefined}
@@ -19,7 +19,7 @@ export class WordTree {
         return output;
     }
 
-    constructor(letter: string, parent: WordTree){
+    constructor(letter: string, parent: WordTree | undefined){
         this._letter = letter;
         this._parent = parent;
     }
@@ -39,6 +39,6 @@ export class WordTree {
         if(!this._branches.has(indexLetter)) {
             this._branches.set(indexLetter, new WordTree(indexLetter, this))
         }
-        this._branches.get(indexLetter).add(word);
+        this._branches.get(indexLetter)!.add(word);
     }
 }

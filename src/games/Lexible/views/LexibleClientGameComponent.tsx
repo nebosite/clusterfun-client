@@ -1,7 +1,4 @@
-import { SafeBrowser } from "libs/Browser/SafeBrowser";
-import Row from "libs/components/Row";
-import Slider from "libs/components/Slider";
-import { Vector2 } from "libs/types/Vector2";
+import { Vector2, SafeBrowser, Row, Slider } from "libs";
 import { action, observable } from "mobx";
 import { inject, observer } from "mobx-react";
 import React from "react";
@@ -44,14 +41,14 @@ export default class LexibleClientGameComponent extends React.Component<ClientGa
         super(props);
         this.sliderId = props.clientId + "_LexibleSlider" 
 
-        props.appModel.subscribe(LexibleGameEvent.WordAccepted, "game Client", () => {
+        props.appModel!.subscribe(LexibleGameEvent.WordAccepted, "game Client", () => {
             SafeBrowser.vibrate([50])
         })
 
         this.st = new GameComponentState();
         this.st.sliderLocation = new Vector2(
-            props.appModel.myTeam === "A" ? SLIDER_BLOCK_SIZE : (-(props.appModel.theGrid.width-7) * SLIDER_BLOCK_SIZE)
-            ,-props.appModel.theGrid.height * SLIDER_BLOCK_SIZE/2)
+            props.appModel!.myTeam === "A" ? SLIDER_BLOCK_SIZE : (-(props.appModel!.theGrid.width-7) * SLIDER_BLOCK_SIZE)
+            ,-props.appModel!.theGrid.height * SLIDER_BLOCK_SIZE/2)
 
     }
 
@@ -59,7 +56,8 @@ export default class LexibleClientGameComponent extends React.Component<ClientGa
     // renderLetterGrid
     // ------------------------------------------------------------------- 
     renderLetterGrid() {
-        const {appModel} = this.props;  
+        const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
 
         const handleClick = (block: LetterBlockModel) => {
             if(this.canClick) {
@@ -91,7 +89,8 @@ export default class LexibleClientGameComponent extends React.Component<ClientGa
     // renderSelectedLetters
     // ------------------------------------------------------------------- 
     renderSelectedLetters() {
-        const {appModel} = this.props;  
+        const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
 
         const handleClick = (block: LetterBlockModel) => {
             block.selectForPlayer(this.props.playerId, !block.isSelectedByPlayer(this.props.playerId))
@@ -117,7 +116,8 @@ export default class LexibleClientGameComponent extends React.Component<ClientGa
     // render
     // ------------------------------------------------------------------- 
     render() {
-        const {appModel} = this.props;  
+        const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
         // TODO: https://www.npmjs.com/package/react-swipe-component
 
         const onDragStart = () => {

@@ -1,4 +1,4 @@
-import { Vector2 } from "libs/types/Vector2";
+import { Vector2 } from "libs";
 import { action, observable } from "mobx";
 
 export type BlockSelectHandler = (playerId: string, selectedValue: boolean)=>void

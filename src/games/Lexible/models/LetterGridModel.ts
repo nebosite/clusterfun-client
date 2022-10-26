@@ -1,4 +1,4 @@
-import { Vector2 } from "libs/types/Vector2";
+import { Vector2 } from "libs";
 import { observable } from "mobx";
 import { LetterBlockModel } from "./LetterBlockModel";
 

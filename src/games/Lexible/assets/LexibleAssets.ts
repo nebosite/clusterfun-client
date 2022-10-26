@@ -1,12 +1,17 @@
+import logo from "./images/Lexible.png";
+import ding from "./sounds/ding.wav";
+import hello from "./sounds/hello.mp3";
+import response from "./sounds/response.mp3";
+
 const LexibleAssets =
 {
     images: {
-        logo: require('../../../lobby/assets/images/Lexible.png').default,  
+        logo,
     },
     sounds: {
-        ding: require('./sounds/ding.wav').default,  
-        hello: require('./sounds/hello.mp3').default,  
-        response: require('./sounds/response.mp3').default,  
+        ding,
+        hello,
+        response,
        
     }
 }

@@ -6,12 +6,11 @@
   "scripts": {
     "start": "env-cmd -f .env.dev react-scripts start",
     "startlocal": "env-cmd -f .env.local react-scripts start",
-    "build": "react-scripts build",
+    "build": "react-scripts build --stats",
     "test": "react-scripts test --watchAll=false --passWithNoTests",
+    "analyze": "webpack-bundle-analyzer build/bundle-stats.json",
     "eject": "react-scripts eject",
-    "watch": "title Lobby Watcher && node scripts/watch.js",
-    "buildlib": "env-cmd -f .env.lib webpack --config lib-webpack-dev.config.js",
-    "watchlib": "webpack --config lib-webpack-dev.config.js --watch"
+    "watch": "title Lobby Watcher && node scripts/watch.js"
   },
   "eslintConfig": {
     "extends": [
@@ -44,6 +43,7 @@
     "enzyme": "^3.11.0",
     "mobx": "^6.6.2",
     "mobx-react": "^7.5.3",
+    "pako": "^2.0.4",
     "react": "^18.2.0",
     "react-device-detect": "^2.2.2",
     "react-dom": "^18.2.0",
@@ -54,6 +54,7 @@
   },
   "devDependencies": {
     "@types/chai": "^4.3.3",
+    "@types/pako": "^2.0.0",
     "chai": "^4.3.6",
     "clean-webpack-plugin": "^4.0.0",
     "copy-webpack-plugin": "^11.0.0",
@@ -61,6 +62,7 @@
     "env-cmd": "^10.1.0",
     "html-webpack-plugin": "^5.5.0",
     "ts-loader": "^9.4.1",
+    "webpack-bundle-analyzer": "^4.6.1",
     "webpack-cli": "^4.10.0"
   },
   "main": "lib/lib.js",
