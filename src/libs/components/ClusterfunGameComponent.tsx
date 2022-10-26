@@ -55,13 +55,8 @@ extends React.Component<GameChooser.ClusterFunGameProps>
         }
     
         this.appModel.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => onGameEnded());
-
         document.title = `${gameProperties.gameName} / ClusterFun.tv`
-
-        // Do this async so that we don't trip state dependencies during construction
-        setTimeout(()=>{
-            this.appModel!.tryLoadOldGame(this.props);
-        },50)
+        this.appModel!.tryLoadOldGame(this.props);
     }
     
 

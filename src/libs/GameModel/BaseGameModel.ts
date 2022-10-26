@@ -103,7 +103,7 @@ export abstract class BaseGameModel  {
         if(value === GeneralGameState.Unknown) {
             throw Error("Attempting to set game state to 'unknown'")
         }
-        console.log(`${this.name} state setting to ${value}`)
+        console.log(`${this.name} state set to ${value}`)
         if(this._gameState === GeneralGameState.Destroyed) {
             console.log(`WEIRD: Attempted to set detroyed ${this.name} to ${value}`)
         }
@@ -141,6 +141,7 @@ export abstract class BaseGameModel  {
     serializer?: BruteForceSerializer
     private _isCheckpointing = false;
     private _lastCheckpointTime = 0;
+    private _isLoading = false;
 
     // -------------------------------------------------------------------
     // ctor
@@ -183,28 +184,35 @@ export abstract class BaseGameModel  {
     tryLoadOldGame(gameProps: ClusterFunGameProps)
     {
         if(!this.serializer) throw Error("No serializer in tryLoadOldGame")
-        try {
-            const savedDataJson = gameProps.storage.get(GAMESTATE_LABEL);
-            if(savedDataJson) {
-                const savedData = this.serializer.parse<BaseGameModel>(savedDataJson);
-                if(savedData.gameState !== GeneralGameState.Destroyed)
-                {
-                    console.log("Found a saved game.  Resuming ...")
-                    action(()=>{
-                        Object.assign(this, savedData)
-                        this.reconstitute();                          
-                    })()        
-                }
-                else {
-                    console.log(`Saved game state was 'destroyed'.  Going with new game.`)
-                } 
-            }      
-        }
-        catch(err) 
-        {
-            gameProps.logger.logEvent("Error", "Failed Game Restore", (err as any).message )
-            console.log("getSavedGame: Could not retore game because: " + err);
-        }
+        this._isLoading =true;
+
+        // Do this async so that we don't trip state dependencies during construction
+        setTimeout(()=>{
+            try {
+                const savedDataJson = gameProps.storage.get(GAMESTATE_LABEL);
+                if(savedDataJson) {
+                    const savedData = this.serializer!.parse<BaseGameModel>(savedDataJson);
+                    if(savedData.gameState !== GeneralGameState.Destroyed)
+                    {
+                        console.log("Found a saved game.  Resuming ...")
+                        action(()=>{
+                            Object.assign(this, savedData)
+                            this.reconstitute();                          
+                        })()        
+                    }
+                    else {
+                        console.log(`Saved game state was 'destroyed'.  Going with new game.`)
+                    } 
+                }      
+            }
+            catch(err) 
+            {
+                gameProps.logger.logEvent("Error", "Failed Game Restore", (err as any).message )
+                console.log("getSavedGame: Could not retore game because: " + err);
+            }
+            this._isLoading = false;
+        },50)
+
     }
 
 
@@ -279,6 +287,7 @@ export abstract class BaseGameModel  {
     // -------------------------------------------------------------------
     saveCheckpoint() {
         if(this.gameState === GeneralGameState.Destroyed) return;
+        if(this._isLoading) { return; }
 
         if(this.serializer && !this._isCheckpointing)
         {

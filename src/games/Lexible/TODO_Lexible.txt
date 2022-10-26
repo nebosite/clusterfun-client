@@ -49,6 +49,7 @@ TODO
     [ ] Check telemetry - debug part might be wrong.
     [ ] Upgrade to latest deployment method
 
+    [ ] Slider control not working on game test component
     [ ] Fix lighthouse recommendations
     [ ] Fireworks along path when round is over   
         Use Dykstra's algorith
