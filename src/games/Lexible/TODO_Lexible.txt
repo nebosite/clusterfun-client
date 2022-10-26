@@ -4,66 +4,23 @@
 --------------------------------------------------------------
   
 TODO
-    [x] Still seeing bruteforce serializer fail
-    [x] Room code is too small
-    [x] When the player name is too long, there is no feedback
-        - should allow longer names?
-    [x] Redirect http to https
-    [x] Captured letters should change letter color too
-    [x] Still not joining when run from node
-    [x] Bring in network changes
         
-    [x] Appears to keep sending keepalive messages after game is over
-    [x] Remember Nickname as a cookie
-    [x] Appears to keep trying to send messages after retries expire
-        ERROR: out of retries sending {"recipientIds":["2e167myy1ula"],"messageType":"ClusterFunKeepAliveMessage","payload":{"_mid":11,"fromPlayerId":"!set","playerId":"lx5dp59a6pgn"}}
-        MessageThing.ts:64 Socket not ready.  Backing off 204800ms     
-    [x] Allow for room re-creation if presenter is asking for it
-    [x] Resuming game does not reconnect the player who joined
-    [x] Sometimes a room is forgotten
-    [x] After quitting, still trying to connect?
-    [x] Change cloudflare to https only https://blog.cloudflare.com/how-to-make-your-site-https-only/
-    [x] Clean up logging output
-    [x] Resuming after disconnecting - player does not see full game state
-    [x] Clients should show a paused screen when the game is paused
-    [x] Clients should be able to join a paused game
-    [x] rejoining clients puts them on a different team
-    [x] Setting: must start from own color
-        [x] Start with yellow and purple areas if on
-    [x] Setting: Choose map size
-        - adjust according to number of players
-    [x] Always allow spelling with letters, just don't recapture unless number is higher
-
-    [x] Old sockets stick around when they should be forgotten
-    [x] Quitting a game, then restarting on the same room code ... thinks the game has ended
     
-    [x] After quitting a game and sitting in the lobby,  HUGE number of Socket not ready message
-    
-    [x] Git it working
-        [x] Check that games really do get segregated into different bundles
-        [x] Clients starting with "Unknown CLIENT STATE Gathering"
-        [x] Make loading page prettier
-        [x] Client: clicking on first letter does not show available words
-        [x] Check messaging/updates - the clients seem to be exactly one message behind the presenter
 
-    [ ] Check telemetry - debug part might be wrong.
-    [ ] Upgrade to latest deployment method
 
-    [ ] Slider control not working on game test component
-    [ ] Fix lighthouse recommendations
-    [ ] Fireworks along path when round is over   
-        Use Dykstra's algorith
-            start at last quare on the team side, end at the first square on the opposite side
+
+       
+NEW   
     [ ] Show player stats
     [ ] Instructional video
     [ ] Bug: voices too fast
         - Slow down and add "uh" to the front to avoid cutoff
     [ ] Bug: Voices don't work well on Firefox
-    [ ] Bruteforceserializer typename problems
-        minified types break the logic on shouldStringify and reconstitute
-
-       
-NEW   
+    [ ] Fireworks along path when round is over   
+        Use Dykstra's algorith
+            start at last quare on the team side, end at the first square on the opposite side
+    [ ] Fix lighthouse recommendations?  maybe something about knowing where other teammates are
+    [ ] Slider control not working on game test component
     [ ] Message ACK system is kind of messed up
         "Weird: got a message Ack for a message not pending"
         Reloading the page on debug edit puts message system in a weird state
@@ -110,6 +67,47 @@ MAYBE NEVER
 ==========================================================================================
 ===  DONE  ===============================================================================
 ==========================================================================================
+    [x] Still seeing bruteforce serializer fail
+    [x] Room code is too small
+    [x] When the player name is too long, there is no feedback
+        - should allow longer names?
+    [x] Redirect http to https
+    [x] Captured letters should change letter color too
+    [x] Still not joining when run from node
+    [x] Bring in network changes
+        
+    [x] Appears to keep sending keepalive messages after game is over
+    [x] Remember Nickname as a cookie
+    [x] Appears to keep trying to send messages after retries expire
+        ERROR: out of retries sending {"recipientIds":["2e167myy1ula"],"messageType":"ClusterFunKeepAliveMessage","payload":{"_mid":11,"fromPlayerId":"!set","playerId":"lx5dp59a6pgn"}}
+        MessageThing.ts:64 Socket not ready.  Backing off 204800ms     
+    [x] Allow for room re-creation if presenter is asking for it
+    [x] Resuming game does not reconnect the player who joined
+    [x] Sometimes a room is forgotten
+    [x] After quitting, still trying to connect?
+    [x] Change cloudflare to https only https://blog.cloudflare.com/how-to-make-your-site-https-only/
+    [x] Clean up logging output
+    [x] Resuming after disconnecting - player does not see full game state
+    [x] Clients should show a paused screen when the game is paused
+    [x] Clients should be able to join a paused game
+    [x] rejoining clients puts them on a different team
+    [x] Setting: must start from own color
+        [x] Start with yellow and purple areas if on
+    [x] Setting: Choose map size
+        - adjust according to number of players
+    [x] Always allow spelling with letters, just don't recapture unless number is higher
+
+    [x] Old sockets stick around when they should be forgotten
+    [x] Quitting a game, then restarting on the same room code ... thinks the game has ended
+    
+    [x] After quitting a game and sitting in the lobby,  HUGE number of Socket not ready message
+    
+    [x] Git it working
+        [x] Check that games really do get segregated into different bundles
+        [x] Clients starting with "Unknown CLIENT STATE Gathering"
+        [x] Make loading page prettier
+        [x] Client: clicking on first letter does not show available words
+        [x] Check messaging/updates - the clients seem to be exactly one message behind the presenter
 
     [x] Bug: don't attempt to send messages when there are no recipients
     [x] When there is an error joining a room, the text is too small to read
