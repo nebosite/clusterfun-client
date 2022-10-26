@@ -190,8 +190,10 @@ export abstract class BaseGameModel  {
                 if(savedData.gameState !== GeneralGameState.Destroyed)
                 {
                     console.log("Found a saved game.  Resuming ...")
-                    Object.assign(this, savedData)
-                    this.reconstitute();              
+                    action(()=>{
+                        Object.assign(this, savedData)
+                        this.reconstitute();                          
+                    })()        
                 }
                 else {
                     console.log(`Saved game state was 'destroyed'.  Going with new game.`)
