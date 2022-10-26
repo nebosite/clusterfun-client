@@ -1,9 +1,9 @@
-import { action, observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import { LetterSelectData, LexibleEndOfRoundMessage, LexibleFailedWordMessage, LexiblePlayerAction, LexiblePlayerActionMessage, LexiblePlayRequestMessage, LexibleScoredWordMessage, LexibleWordHintMessage, PlayBoard, WordSubmissionData } from "./LexibleMessages";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { LetterGridModel } from "./LetterGridModel";
-import { LexibleGameEvent } from "./LexiblePresenterModel";
-import { ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientState, ITypeHelper } from "libs";
+import { LexibleGameEvent, LexibleGameState } from "./LexiblePresenterModel";
+import { ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, GeneralGameState } from "libs";
 
 
 // -------------------------------------------------------------------
@@ -65,17 +65,22 @@ export enum LexibleClientState {
 export class LexibleClientModel extends ClusterfunClientModel  {
     @observable theGrid = new LetterGridModel();
     @observable letterChain = observable(new Array<LetterBlockModel>())
-    @observable myTeam = "_";
 
-    @observable private _winningTeam = "";
-    @observable private _wordList: string[] = []
+    @observable  private _myTeam = "_"
+    get myTeam() {return this._myTeam}
+    set myTeam(value) {action(()=>{this._myTeam = value})()}
+
+    @observable  private _winningTeam = ""
+    get winningTeam() {return this._winningTeam}
+    set winningTeam(value) {action(()=>{this._winningTeam = value})()}
+
+    @observable  private _wordList = [] as string[]
     get wordList() {
         const prefix = this.activeWord;
         return this._wordList.filter(w => w.startsWith(prefix))   
     }
-    get winningTeam() { return this._winningTeam}
-    set winningTeam(value) { action(()=>{this._winningTeam = value})()}
-
+    set wordList(value) {action(()=>{this._wordList = value})()}
+    
     get activeWord() {
         let output = "";
         this.letterChain.forEach(b => output += b.letter.toUpperCase())
@@ -93,14 +98,18 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         sessionHelper.addListener(LexibleScoredWordMessage, playerName, this.handleScoredWordMessage);
         sessionHelper.addListener(LexibleFailedWordMessage, playerName, this.handleFailedWordMessage);
         sessionHelper.addListener(LexibleWordHintMessage, playerName, this.handleWordHintMessage);
+
+        makeObservable(this);
     }
 
     // -------------------------------------------------------------------
     //  
     // -------------------------------------------------------------------
     assignClientStateFromServerState(serverState: string): void {
-        // TODO: This likely requires more sophisticated state transition behavior
-        this.gameState = serverState;
+        switch(serverState) {
+            case "Gathering": this.gameState = GeneralClientGameState.WaitingToStart; break;
+            default: this.gameState = serverState
+        }
     }
 
     // -------------------------------------------------------------------
@@ -154,7 +163,8 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // handleWordHintMessage
     // -------------------------------------------------------------------
     protected handleWordHintMessage = (message: LexibleWordHintMessage) => {
-        this._wordList = message.wordList;
+        this.wordList = message.wordList;
+        console.log(`Received Wordlist with ${message.wordList?.length} words`)
         this.saveCheckpoint();
         this.ackMessage(message);
     }
@@ -174,7 +184,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // handlePlayRequestMessage 
     // -------------------------------------------------------------------
     protected handlePlayRequestMessage = (message: LexiblePlayRequestMessage) => {
-        if(this.gameState === GeneralClientState.WaitingToStart) {
+        if(this.gameState === GeneralClientGameState.WaitingToStart) {
             this.logger.logEvent("Client", "Start");
         }
         this.roundNumber = message.roundNumber;
@@ -230,7 +240,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
                     const index = this.letterChain.findIndex(b => b.__blockid === block.__blockid);
                     deleteBlocksFromIndex(index, playerId);
 
-                    if(this.letterChain.length === 0) this._wordList = []
+                    if(this.letterChain.length === 0) this.wordList = []
                 }
 
                 this.sendAction(LexiblePlayerAction.LetterSelect, {

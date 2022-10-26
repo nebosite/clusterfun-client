@@ -39,12 +39,12 @@ TODO
     
     [x] After quitting a game and sitting in the lobby,  HUGE number of Socket not ready message
     
-    [ ] Git it working
+    [x] Git it working
         [x] Check that games really do get segregated into different bundles
         [x] Clients starting with "Unknown CLIENT STATE Gathering"
         [x] Make loading page prettier
-        [ ] Client: clicking on first letter does not show available words
-        [ ] Check messaging/updates - the clients seem to be exactly one message behind the presenter
+        [x] Client: clicking on first letter does not show available words
+        [x] Check messaging/updates - the clients seem to be exactly one message behind the presenter
 
     [ ] Check telemetry - debug part might be wrong.
     [ ] Upgrade to latest deployment method
@@ -62,8 +62,11 @@ TODO
     [ ] Bruteforceserializer typename problems
         minified types break the logic on shouldStringify and reconstitute
 
-        
+       
 NEW   
+    [ ] Message ACK system is kind of messed up
+        "Weird: got a message Ack for a message not pending"
+        Reloading the page on debug edit puts message system in a weird state
     [ ] Remember settings
     
 EASY

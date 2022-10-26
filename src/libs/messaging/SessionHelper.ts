@@ -64,6 +64,8 @@ export class SessionHelper implements ISessionHelper {
                 return;
             }
 
+            console.log(`RECV: ${message.messageId} from ${message.sender}`)
+
             const listenersForMessage = this._listeners.get(
                 message.constructor as ClusterFunMessageConstructor<unknown, ClusterFunMessageBase>);
             if (listenersForMessage) {

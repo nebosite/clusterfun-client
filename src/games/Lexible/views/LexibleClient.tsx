@@ -6,7 +6,7 @@ import styles from './LexibleClient.module.css';
 import classNames from "classnames";
 import { observable } from "mobx";
 import LexibleClientGameComponent from "./LexibleClientGameComponent";
-import { UIProperties, GeneralGameState, SafeBrowser, GeneralClientState, UINormalizer, ErrorBoundary } from "libs";
+import { UIProperties, GeneralGameState, SafeBrowser, GeneralClientGameState, UINormalizer, ErrorBoundary } from "libs";
 
  
 class LexibleClientUIState {
@@ -60,13 +60,13 @@ export default class Client
         if (!appModel) return <div>NO APP MODEL</div>
 
         switch(appModel.gameState) {
-            case GeneralClientState.WaitingToStart:
+            case GeneralClientGameState.WaitingToStart:
                 return (<React.Fragment>
                     <div className={styles.wait_text}>
                     Sit tight, we are waiting for the host to start the game...
                     </div>
                 </React.Fragment>);  
-            case GeneralClientState.Paused: 
+            case GeneralClientGameState.Paused: 
                 return <>
                     <div>Game has been paused</div>
                 </>
@@ -86,7 +86,7 @@ export default class Client
                     <div><button onClick={()=>this.props.appModel?.quitApp()}>Quit</button></div>
                     </React.Fragment>
                 );
-            case GeneralClientState.JoinError:
+            case GeneralClientGameState.JoinError:
                 return (
                     <React.Fragment>
                     <p style={{background: "red", color: "yellow", fontSize: "150%"}}>Could not join the game because: {this.props.appModel?.joinError}</p>
