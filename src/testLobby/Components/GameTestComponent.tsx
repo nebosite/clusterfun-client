@@ -143,7 +143,10 @@ export class GameTestComponent extends React.Component<GameTestComponentProps> {
                     </button>
                 </div>
 
-                <div style={{background: "red", width: `${gameTestModel.presenterSize}px`}}>
+                <div style={{
+                        background: "lightgray", 
+                        height: `${gameTestModel.presenterSize * 1080 / 1920}px`, 
+                        width: `${gameTestModel.presenterSize}px`}}>
                     <LobbyMainPage 
                         lobbyModel={gameTestModel.presenterModel} 
                         games={games}

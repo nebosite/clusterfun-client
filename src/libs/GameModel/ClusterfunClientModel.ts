@@ -6,7 +6,7 @@ import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage, ClusterFunJoin
 import { makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 
-export enum GeneralClientState {
+export enum GeneralClientGameState {
     WaitingToStart = "WaitingToStart",
     JoinError = "JoinError",
     Paused = "Paused"
@@ -68,7 +68,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
 
         
 
-        this.gameState = GeneralClientState.WaitingToStart;
+        this.gameState = GeneralClientGameState.WaitingToStart;
         this.keepAlive();
     }
 
@@ -102,16 +102,16 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
 
         if(!message.didJoin) {
             this.joinError = message.joinError ?? "Unknown reason";
-            this.gameState = GeneralClientState.JoinError;
+            this.gameState = GeneralClientGameState.JoinError;
         }
         else if(!message.isRejoin){
             this.clearCheckpoint();
-            this.gameState = GeneralClientState.WaitingToStart;
+            this.gameState = GeneralClientGameState.WaitingToStart;
         }
         else {
             console.log("Rejoining...")
             this.unStashCheckpoint();
-            this.gameState = GeneralClientState.WaitingToStart;
+            this.gameState = GeneralClientGameState.WaitingToStart;
         }
 
         this.saveCheckpoint();
@@ -140,7 +140,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // -------------------------------------------------------------------
     protected handlePauseMessage = (message: ClusterFunGamePauseMessage | undefined) => {
         this.prepauseState = this.gameState;
-        this.gameState = GeneralClientState.Paused
+        this.gameState = GeneralClientGameState.Paused
         this.saveCheckpoint();
         if(message) this.ackMessage(message);
     }
@@ -161,7 +161,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // 
     // -------------------------------------------------------------------
     protected handleServerStateMessage = (message: ClusterFunServerStateMessage) => {
-        if(this.gameState === GeneralClientState.JoinError) return;
+        if(this.gameState === GeneralClientGameState.JoinError) return;
         
         this.assignClientStateFromServerState(message.state);
         if(message.isPaused) {

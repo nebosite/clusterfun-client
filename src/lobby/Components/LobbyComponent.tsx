@@ -6,8 +6,8 @@ import classNames from "classnames";
 import { GLOBALS } from '../../Globals';
 import { LobbyAssets } from "../../lobby/assets/LobbyAssets";
 import styles from './LobbyComponent.module.css';
-import { UIProperties, UINormalizer } from "../../libs";
-import { GameDescriptor } from "../../GameChooser"
+import { GameDescriptor } from "GameChooser";
+import { UIProperties, UINormalizer } from "libs";
 
 @inject("lobbyModel")
 @observer

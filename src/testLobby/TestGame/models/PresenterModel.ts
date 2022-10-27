@@ -105,6 +105,8 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
 
         sessionHelper.addListener(TestatoPlayerActionMessage, "answer", this.handlePlayerAction);
 
+        this.allowedJoinStates = [PresenterGameState.Gathering, TestatoGameState.Playing]
+
         this.minPlayers = 2;
     }
 

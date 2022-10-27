@@ -1,0 +1,139 @@
+  
+    - Helpful for voiceovers: https://www.descript.com/
+    - UX query on fiverr: https://www.fiverr.com/search/gigs?query=user%20interface%20design&source=top-bar&search_in=everywhere&search-autocomplete-original-term=user%20interface%20design
+--------------------------------------------------------------
+  
+TODO
+        
+    
+
+
+
+       
+NEW   
+    [ ] Bug: submitting a work does not set it on the client
+    [ ] Show player stats
+    [ ] Instructional video
+    [ ] Bug: voices too fast
+        - Slow down and add "uh" to the front to avoid cutoff
+    [ ] Bug: Voices don't work well on Firefox
+    [ ] Fireworks along path when round is over   
+        Use Dykstra's algorith
+            start at last quare on the team side, end at the first square on the opposite side
+    [ ] Fix lighthouse recommendations?  maybe something about knowing where other teammates are
+    [ ] Slider control not working on game test component
+    [ ] Message ACK system is kind of messed up
+        "Weird: got a message Ack for a message not pending"
+        Reloading the page on debug edit puts message system in a weird state
+    [ ] Remember settings
+    
+EASY
+    
+NEXT
+
+    
+BACKLOG
+    [ ] Walls
+    [ ] Powerup:  Clear row/column
+    [ ] Word landmarks - blue lettered words that are premarked
+    [ ] have intermediate join mode when players pick teams/handicaps
+    [ ] Show arrows to indicate where other players are
+    [ ] Show letters other players are selecting
+    [ ] Speed up loading by doing it in the background
+        - host extra material so it isn't compiled into the game
+        - load as background task
+
+    [ ] A player signal
+        [ ] Signal button
+        [ ] Sound
+        [ ] Visual on the presenter
+        [ ] Arrow on the client
+    [ ] Powerups
+    [ ]   - word scores are higher +1, +2, +3
+    [ ]   - flood fill to connect to powerups
+    [ ]   - Clear row/column (laser)
+    [ ]   - clear area (bomb)
+    [ ] interactive instructions - everyone spell "fish"!
+    
+    
+MAYBE NEVER
+    [ ] Prevent the formation/reading of R-Rated words
+    [ ] Choose winning condition (connect, territory, points)
+    [ ] walls/maze
+        [ ] have the game alert everyone when a victory is close
+        [ ] Dynamic team join from client
+        [ ] Game option: must have a letter in captured territorry
+
+
+==========================================================================================
+===  DONE  ===============================================================================
+==========================================================================================
+    [x] Still seeing bruteforce serializer fail
+    [x] Room code is too small
+    [x] When the player name is too long, there is no feedback
+        - should allow longer names?
+    [x] Redirect http to https
+    [x] Captured letters should change letter color too
+    [x] Still not joining when run from node
+    [x] Bring in network changes
+        
+    [x] Appears to keep sending keepalive messages after game is over
+    [x] Remember Nickname as a cookie
+    [x] Appears to keep trying to send messages after retries expire
+        ERROR: out of retries sending {"recipientIds":["2e167myy1ula"],"messageType":"ClusterFunKeepAliveMessage","payload":{"_mid":11,"fromPlayerId":"!set","playerId":"lx5dp59a6pgn"}}
+        MessageThing.ts:64 Socket not ready.  Backing off 204800ms     
+    [x] Allow for room re-creation if presenter is asking for it
+    [x] Resuming game does not reconnect the player who joined
+    [x] Sometimes a room is forgotten
+    [x] After quitting, still trying to connect?
+    [x] Change cloudflare to https only https://blog.cloudflare.com/how-to-make-your-site-https-only/
+    [x] Clean up logging output
+    [x] Resuming after disconnecting - player does not see full game state
+    [x] Clients should show a paused screen when the game is paused
+    [x] Clients should be able to join a paused game
+    [x] rejoining clients puts them on a different team
+    [x] Setting: must start from own color
+        [x] Start with yellow and purple areas if on
+    [x] Setting: Choose map size
+        - adjust according to number of players
+    [x] Always allow spelling with letters, just don't recapture unless number is higher
+
+    [x] Old sockets stick around when they should be forgotten
+    [x] Quitting a game, then restarting on the same room code ... thinks the game has ended
+    
+    [x] After quitting a game and sitting in the lobby,  HUGE number of Socket not ready message
+    
+    [x] Git it working
+        [x] Check that games really do get segregated into different bundles
+        [x] Clients starting with "Unknown CLIENT STATE Gathering"
+        [x] Make loading page prettier
+        [x] Client: clicking on first letter does not show available words
+        [x] Check messaging/updates - the clients seem to be exactly one message behind the presenter
+
+    [x] Bug: don't attempt to send messages when there are no recipients
+    [x] When there is an error joining a room, the text is too small to read
+    [x] French accented words are hard to understand
+    [x] UI Tweak to look better
+        - Center the present block field
+        - Play with slider looks
+    [x] If you click more than two letters away from your word, start a new word
+    [x] Bug: Hint is showing duplicate words
+    [x] pare down hint list when you press letter
+    [x] Simple Instructions
+        - client: "Tap on a letter to big spelling"
+        - client: "Possible words from here:"
+    [x] Bug: When connecting after game start, the player shows up on the presenter, but the client screen never updates
+        [x] Does not appear that the client is getting any messages from the server at all?
+        [x] Need to resolve players while playing - mom's client couldn't see and  yet there were two moms on the board
+
+    [x] Shrink blocks on the slider grid a bit and expand the grid size
+    [x] Start teams on their own side
+    [x] slider sometimes too fast on android
+        - perhaps re-calculate slider movement on component update
+
+
+
+
+
+
+

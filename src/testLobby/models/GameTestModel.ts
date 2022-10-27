@@ -1,4 +1,4 @@
-import { makeObservable, observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import { LobbyModel, ILobbyDependencies } from "../../lobby/models/LobbyModel";
 import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, ClusterFunSerializer, IMessageThing, getStorage, GameInstanceProperties, ClusterFunJoinMessage } from "../../libs";
 
@@ -33,13 +33,19 @@ const names = [
 export class GameTestModel {
     @observable _presenterSize: number = 0;
     get presenterSize() {return this._presenterSize;}
-    set presenterSize(value: number) { this._presenterSize = value; this.saveState()}
-    @observable gameName: string = "";
+    set presenterSize(value: number) { action(()=>{this._presenterSize = value; this.saveState()})()}
+
+    @observable  private _gameName = ""
+    get gameName() {return this._gameName}
+    set gameName(value) {action(()=>{this._gameName = value})()}
+    
     clientModels = observable(new Array<LobbyModel>())
     joinCount = 0;
 
-    @observable presenterModel: LobbyModel;
-
+    @observable  private _presenterModel:LobbyModel = {} as LobbyModel
+    get presenterModel() {return this._presenterModel}
+    set presenterModel(value) {action(()=>{this._presenterModel = value})()}
+    
     private _roomInhabitants = new Map<string, LocalMessageThing>();
 
     private _loggerFactory: ITelemetryLoggerFactory;
