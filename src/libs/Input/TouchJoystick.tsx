@@ -26,12 +26,12 @@ export class TouchJoystick  extends React.Component<TouchJoystickOptions>
             while(area) {
                 offsetX += area.offsetLeft;
                 offsetY += area.offsetTop;
-                console.log(`    ${area.nodeType}  ${offsetX},${offsetY}`)
+                console.debug(`    ${area.nodeType}  ${offsetX},${offsetY}`)
                 area = area.offsetParent as HTMLElement;
             }  
             const controlx = event.clientX - offsetX;
             const controly = event.clientY - offsetY;
-            console.log(`    T: ${event.clientX},${event.clientY} -> ${controlx},${controly}`)
+            console.debug(`    T: ${event.clientX},${event.clientY} -> ${controlx},${controly}`)
             const x = (controlx * this.props.scaleAdjust * 2.0 / w) -1;
             const y = (controly * this.props.scaleAdjust * 2.0 / h) -1;
             this.props.onNewPosition(x,y);

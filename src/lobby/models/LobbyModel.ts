@@ -150,7 +150,7 @@ export class LobbyModel {
     // onGameOver 
     // -------------------------------------------------------------------
     private onGameEnded = () => {
-        //console.log("Gameover signalled")
+        console.debug("Gameover signalled")
         this.lobbyState = LobbyState.Fresh;
         if(this._onGameEnded) this._onGameEnded();
         this.gameProperties = null;
@@ -197,7 +197,7 @@ export class LobbyModel {
         const payload: any = { gameName }
         const previousData = sessionStorage.getItem("clusterfun_roominfo")
         if(previousData) {
-            console.log(`Found previous data: ${previousData}`)
+            console.info(`Found previous data: ${previousData}`)
             const oldProps = JSON.parse(previousData) as GameInstanceProperties
             payload.existingRoom = {
                 id: oldProps.roomId,
@@ -211,7 +211,7 @@ export class LobbyModel {
                 {
                     this.gameProperties = properties;
                     const data = JSON.stringify(properties)
-                    console.log(`Storing ${data}`)
+                    console.info(`Storing ${data}`)
                     sessionStorage.setItem("clusterfun_roominfo", data)
                     this.lobbyState = LobbyState.ReadyToPlay
                     this.lobbyErrorMessage = undefined;

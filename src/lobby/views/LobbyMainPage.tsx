@@ -77,7 +77,7 @@ export class LobbyMainPage
             }
         }
         catch (err) {
-            console.log("LobbyMainPage error: " + (err as any).message)
+            console.info("LobbyMainPage error: " + (err as any).message)
             innerChild = (<React.Fragment><div style={{background: "white", fontSize: "30px"}}>There was an error: {(err as any).message}</div></React.Fragment>)
         }
 

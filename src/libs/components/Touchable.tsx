@@ -27,14 +27,14 @@ class MomentumTracker
         const keepFactor = (this.averageFactor - 1) / this.averageFactor;
         const newFactor = 1 - keepFactor;
 
-        // console.log(`__C: ${dx.toFixed(3)},${dy.toFixed(3)},${dt.toFixed(3)} --> [${steps}] ${dxdt.toFixed(3)},${dydt.toFixed(3)}`)
-        // console.log(`     (${this.x.toFixed(3)},${this.y.toFixed(3)})`)
+        // console.debug(`__C: ${dx.toFixed(3)},${dy.toFixed(3)},${dt.toFixed(3)} --> [${steps}] ${dxdt.toFixed(3)},${dydt.toFixed(3)}`)
+        // console.debug(`     (${this.x.toFixed(3)},${this.y.toFixed(3)})`)
 
         for(let i = 0; i < steps; i++) {
             this.x = this.x * keepFactor + dxdt * newFactor;
             this.y = this.y * keepFactor + dydt * newFactor;
         }
-        // console.log(`     (${this.x.toFixed(3)},${this.y.toFixed(3)})`)
+        // console.debug(`     (${this.x.toFixed(3)},${this.y.toFixed(3)})`)
 
     }
 }
@@ -242,7 +242,7 @@ export class Touchable extends React.Component<TouchableProps>
             Array.from(ev.touches).forEach(t => { 
                 const index = endedTouches.indexOf(t.identifier);
                 if(index === -1) {
-                    console.log(`WEIRD: got a touch end for untracked touch: ${t.identifier}`)
+                    console.warn(`WEIRD: got a touch end for untracked touch: ${t.identifier}`)
                 }
                 else {
                     endedTouches.splice(index,1);

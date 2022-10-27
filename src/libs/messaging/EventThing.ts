@@ -25,7 +25,7 @@ export class EventThing<T>
     {
         for(let callMe of this.subscribers.values())
         {
-            //console.log(`invoke: ${this.name}: ${callMe[0]}` )
+            console.debug(`invoke: ${this.name}: ${callMe}` )
             callMe(...args);
         }
     }

@@ -136,7 +136,7 @@ export class GameTestModel {
             return Promise.resolve(gameProperties as unknown as T);
         }
         if(url===("/api/terminategame")) {
-            console.log("Terminating game with room id: " + payload.roomId + " ... " + payload.presenterSecret)      
+            console.info("Terminating game with room id: " + payload.roomId + " ... " + payload.presenterSecret)      
             return Promise.resolve({} as T);
         }
         else if(url.startsWith("/api/joingame")) {

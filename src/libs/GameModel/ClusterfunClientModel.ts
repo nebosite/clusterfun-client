@@ -56,7 +56,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         sessionHelper.addListener(ClusterFunGameResumeMessage, playerName, this.handleResumeMessage);
 
         sessionHelper.onError((err) => {
-            console.log(`Session error: ${err}`)
+            console.error(`Session error: ${err}`)
         })
 
         this.subscribe(GeneralGameState.Destroyed, "GameDestroyed", () =>
@@ -82,7 +82,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // -------------------------------------------------------------------
     keepAlive = () => {
         if(!this.session) {
-            console.log(`No session on ${this.playerName}`)
+            console.info(`No session on ${this.playerName}`)
             return;
         }
         
@@ -91,7 +91,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
             setTimeout(this.keepAlive, this.KEEPALIVE_INTERVAL_MS)
         }
         else {
-            console.log(`Game appears to be over (${this.playerId})`)
+            console.info(`Game appears to be over (${this.playerId})`)
         }
     }
 
@@ -109,7 +109,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
             this.gameState = GeneralClientGameState.WaitingToStart;
         }
         else {
-            console.log("Rejoining...")
+            console.info("Rejoining...")
             this.unStashCheckpoint();
             this.gameState = GeneralClientGameState.WaitingToStart;
         }
@@ -129,7 +129,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     //  
     // -------------------------------------------------------------------
     handleTerminateGameMessage = (message: ClusterFunTerminateGameMessage) => {
-        console.log("Presenter has terminated the game")
+        console.info("Presenter has terminated the game")
         this.gameTerminated = true;
         this.quitApp();
     }

@@ -92,7 +92,7 @@ export class Slider extends React.Component<SliderProps>
             this.st.offsetX += ev.delta.x;
             this.st.offsetY += ev.delta.y;
             fixOffset();
-            //console.log(`move: ${this.st.offsetX.toFixed(0)} ${this.st.offsetY.toFixed(0)}`)
+            console.debug(`move: ${this.st.offsetX.toFixed(0)} ${this.st.offsetY.toFixed(0)}`)
 
         }
 
@@ -107,7 +107,7 @@ export class Slider extends React.Component<SliderProps>
                 x: ev.momentum.x / animationRate_fps, 
                 y: ev.momentum.y / animationRate_fps}
 
-            //console.log(`Momentum: ${momentum.x} ${momentum.y}`)
+            console.debug(`Momentum: ${momentum.x} ${momentum.y}`)
 
             // Now let the child float a little bit
             const decay = 0.90
@@ -131,7 +131,7 @@ export class Slider extends React.Component<SliderProps>
                         if(this.props.onDrift) {
                             this.props.onDrift({momentum, delta: {x:dx, y:dy}, offset: {x: this.st.offsetX, y:this.st.offsetY}})
                         }
-                        //console.log(`drift: ${this.st.offsetX.toFixed(0)} ${this.st.offsetY.toFixed(0)} -- ${dx.toFixed(2)} ${dy.toFixed(2)}`)
+                        console.debug(`drift: ${this.st.offsetX.toFixed(0)} ${this.st.offsetY.toFixed(0)} -- ${dx.toFixed(2)} ${dy.toFixed(2)}`)
 
                     })()
                     if(!this.touching)  setTimeout(drift, 1000 / animationRate_fps)

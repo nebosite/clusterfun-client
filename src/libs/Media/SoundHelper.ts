@@ -70,7 +70,7 @@ export class SoundHelper
 
         if(!this.sounds.has(soundName))
         {
-            console.log("Error: Tried to play non-existent sound: " + soundName);
+            console.warn("Error: Tried to play non-existent sound: " + soundName);
             return;
         }
 

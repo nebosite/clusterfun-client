@@ -25,7 +25,7 @@ export class LetterBlockModel
     set failFade(value) { action(()=>this._failFade = value)()}
     @observable team: string = "_"
 
-    onSelectedChanged:BlockSelectHandler = ()=>{console.log("WERID: Default select action happening")}
+    onSelectedChanged:BlockSelectHandler = ()=>{console.warn("WEIRD: Default select action happening")}
 
     // -------------------------------------------------------------------
     // ctor 

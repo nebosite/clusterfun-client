@@ -35,7 +35,7 @@ export class TelemetryLoggerFactory {
         const trackingInfo = this.trackingIds.find(id => id.name === name);
         if(!trackingInfo)
         {
-            console.log("Error: No logger for " + name); 
+            console.error("Error: No logger for " + name); 
             return new MockTelemetryLogger(name);
         }
         if(!this._initializedTrackingIds.has(name))

@@ -91,7 +91,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
             // case RetroSpectroGameState.WaitingForAnswers: this.gameState = RetroSpectroClientState.SubmittingAnswers; break;
             case TestatoGameState.Playing: this.gameState = TestatoGameState.Playing; break; 
             default:
-                console.log(`Server Updated State to: ${serverState}`) 
+                console.debug(`Server Updated State to: ${serverState}`) 
                 this.gameState = GeneralClientGameState.WaitingToStart; break;
         }
 
@@ -112,7 +112,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     protected handlePlayRequestMessage = (message: TestatoPlayRequestMessage) => {
         if(this.gameState === GeneralClientGameState.WaitingToStart) {
-            this.logger.logEvent("Client", "Start");
+            this.telemetryLogger.logEvent("Client", "Start");
         }
         this.roundNumber = message.roundNumber;
         this.gameState = TestatoClientState.Playing;

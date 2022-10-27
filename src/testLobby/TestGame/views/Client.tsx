@@ -148,7 +148,7 @@ export default class Client
     private renderSubScreen() {
         const {appModel} = this.props;
 
-        console.log(`RENDERING WITH GAME STATE: ${appModel?.gameState}`)
+        console.debug(`RENDERING WITH GAME STATE: ${appModel?.gameState}`)
 
         switch(appModel!.gameState) {
             case GeneralClientGameState.WaitingToStart:

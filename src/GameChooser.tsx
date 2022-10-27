@@ -35,7 +35,7 @@ export const allGames: GameDescriptor[] = [
 // getGameComponent
 // -------------------------------------------------------------------
 export function getGameComponent(descriptor: GameManifestItem, config: ClusterFunGameProps) {
-    console.log(`Creating component for ${descriptor.name} ${config.gameProperties.role} ${config.gameProperties.personalId}`)
+    console.debug(`Creating component for ${descriptor.name} ${config.gameProperties.role} ${config.gameProperties.personalId}`)
     const foundGame = allGames.find(g => g.name === descriptor.name);
     if(!foundGame) throw Error(`Could not find game named '${descriptor.name}'`)
     return <div>

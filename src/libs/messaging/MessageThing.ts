@@ -74,7 +74,7 @@ export class WebSocketMessageThing implements IMessageThing {
                     }
                     else {
                         backoffTime *= 2;
-                        console.log(`Socket not ready.  Backing off ${backoffTime}ms`)
+                        console.info(`Socket not ready.  Backing off ${backoffTime}ms`)
                         setTimeout(delayedSend,backoffTime);
                     }
                 }

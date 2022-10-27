@@ -58,7 +58,7 @@ extends React.Component<ClusterFunGameProps>
             serverCall
             );
 
-        console.log(`INIT ${this.props.playerName}`)
+        console.info(`INIT ${this.props.playerName}`)
 
         if(gameProperties.role === "presenter")
         {

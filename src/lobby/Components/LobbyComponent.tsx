@@ -23,7 +23,7 @@ class PresenterComponent
         if(!lobbyModel) return <div>Loading client...</div>
 
         const startGameClick = (gameName: string) => {
-            //console.log("Attempting to start " + gameName);
+            console.debug("Attempting to start " + gameName);
             this.props.lobbyModel?.startGame(gameName);
         }
 
@@ -75,7 +75,7 @@ class GameClientComponent
         if(!lobbyModel) return <div>Loading lobby...</div>
 
         const handleJoinGameClick = () => {
-            //console.log("Attempting to join room " + this.props.lobbyModel.roomId);
+            console.debug("Attempting to join room " + this.props.lobbyModel?.roomId);
             this.props.lobbyModel?.joinGame();
         }
 

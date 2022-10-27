@@ -21,7 +21,7 @@ if (window.location.href.toLowerCase().startsWith('http://clusterfun.tv')) {
     window.location.replace(`https:${window.location.href.substring(5)}`);
 }
 
-console.log(`MOBILE: ${GLOBALS.IsMobile}`)
+console.debug(`MOBILE: ${GLOBALS.IsMobile}`)
 // -------------------------------------------------------------------
 // _serverCall 
 // -------------------------------------------------------------------
@@ -67,7 +67,6 @@ if (quickTest) {
 
 }
 else if (process.env.REACT_APP_DEVMODE === 'development') {
-    //console.log(`------- TEST PAGE RELOAD -------------------`)
     const factory = process.env.REACT_APP_USE_REAL_TELEMETRY 
         ? telemetryFactory
         : new MockTelemetryLoggerFactory();
@@ -93,17 +92,16 @@ else if (process.env.REACT_APP_DEVMODE === 'development') {
 // Production: Render Lobby
 // -------------------------------------------------------------------
 else {
-    console.log(`------- PAGE RELOAD -------------------`)
+    console.info(`------- PAGE RELOAD -------------------`)
 
     let cachedMessageThings = new Map<string, WebSocketMessageThing>()
     const lobbyModel = new LobbyModel(
         {
             messageThingFactory: (gp: GameInstanceProperties) => {
-                //console.log(`getting message thing for ${gp.personalSecret}`)
                 let cachedThing = cachedMessageThings.get(gp.personalSecret);
                 if(!cachedThing || cachedThing.isClosed)
                 {
-                    console.log(`Caching a new web socket for ${gp.personalSecret}...`)
+                    console.debug(`Caching a new web socket for ${gp.personalSecret}...`)
                     cachedThing = new WebSocketMessageThing(gp.roomId, gp.personalId, gp.personalSecret)
                     cachedMessageThings.set(gp.personalSecret, cachedThing)
                 }
@@ -146,7 +144,7 @@ else {
                 return addMe
             }
             else {
-                console.log(`Server specified a game I don't know about: ${serverItem.name}`)
+                console.warn(`Server specified a game I don't know about: ${serverItem.name}`)
                 return undefined;
             }
         }).filter(i => i !== undefined) as GameDescriptor[]
