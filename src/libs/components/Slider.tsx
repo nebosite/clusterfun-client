@@ -1,5 +1,5 @@
 import { Vector2 } from "../../libs";
-import { action, observable } from "mobx";
+import { action, makeAutoObservable, makeObservable, observable } from "mobx";
 import { observer } from "mobx-react";
 import React from "react"
 import styles from './Slider.module.css';
@@ -36,13 +36,17 @@ class SliderState {
     @observable private _offsetY = 0;
     get offsetY() { return this._offsetY}
     set offsetY(value: number) { action(()=>this._offsetY = value)()}
+
+    constructor(){
+        makeObservable(this);
+    }
 }
 
 
 @observer
 export class Slider extends React.Component<SliderProps>
 {
-    st = new SliderState();
+    @observable st = new SliderState();
     touching = false;
 
     // -------------------------------------------------------------------
