@@ -3,8 +3,8 @@ import { action, observable } from "mobx";
 import { inject, observer } from "mobx-react";
 import React from "react";
 import { LetterBlockModel } from "../models/LetterBlockModel";
-import { LexibleClientModel } from "../models/LexibleClientModel";
-import { LexibleGameEvent } from "../models/LexiblePresenterModel";
+import { LexibleClientModel } from "../models/ClientModel";
+import { LexibleGameEvent } from "../models/PresenterModel";
 import LetterBlock from "./LetterBlock";
 import styles from './LexibleClient.module.css';
 

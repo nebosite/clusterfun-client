@@ -10,8 +10,8 @@ import {
     LexibleFailedWordMessage,
     LexibleScoredWordMessage,
     LexibleWordHintMessage,
-    LetterChain, } from "./LexibleMessages";
-import { PLAYTIME_MS } from "./LexibleGameSettings";
+    LetterChain, } from "./Messages";
+import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";

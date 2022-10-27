@@ -3,11 +3,11 @@ import React from "react";
 import { observer, inject } from "mobx-react";
 import styles from './LexiblePresenter.module.css';
 import classNames from "classnames";
-import LexibleAssets from "../assets/LexibleAssets";
-import { LexibleVersion } from "../models/LexibleGameSettings";
+import LexibleAssets from "../assets/Assets";
+import { LexibleVersion } from "../models/GameSettings";
 import { LetterBlockModel } from "../models/LetterBlockModel";
 import LetterBlock from "./LetterBlock";
-import { LexiblePresenterModel, MapSize, LexibleGameEvent, LexiblePlayer, LexibleGameState } from "../models/LexiblePresenterModel";
+import { LexiblePresenterModel, MapSize, LexibleGameEvent, LexiblePlayer, LexibleGameState } from "../models/PresenterModel";
 import { Row, MediaHelper, SpeechHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, UINormalizer, DevUI } from "libs";
 
 @inject("appModel") @observer

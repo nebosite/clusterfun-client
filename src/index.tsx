@@ -10,7 +10,7 @@ import { GLOBALS } from './Globals';
 import 'index.css'
 import React from 'react';
 import TestatoAssets from 'testLobby/TestGame/assets/Assets';
-import LexibleAssets from 'games/Lexible/assets/LexibleAssets';
+import LexibleAssets from 'games/Lexible/assets/Assets';
 
 const rootContainer = document.getElementById('root') as HTMLElement;
 const root = createRoot(rootContainer);
@@ -88,7 +88,7 @@ else if (process.env.REACT_APP_DEVMODE === 'development') {
         name: "Lexible",
         logoName: LexibleAssets.images.logo,
         tags: [],
-        lazyType: React.lazy(() => import('./games/Lexible/views/LexibleGameComponent'))
+        lazyType: React.lazy(() => import('./games/Lexible/views/GameComponent'))
     });
     
     root.render( <GameTestComponent gameTestModel={gameTestModel} games={games} /> );        
