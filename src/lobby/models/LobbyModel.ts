@@ -1,6 +1,7 @@
 
 import { EventThing, GameInstanceProperties, IMessageThing, IStorage, ITelemetryLogger, ITelemetryLoggerFactory, UIProperties } from "../../libs";
 import { action, makeObservable, observable } from "mobx";
+import Logger from "js-logger";
 
 export enum LobbyMode 
 {
@@ -150,7 +151,7 @@ export class LobbyModel {
     // onGameOver 
     // -------------------------------------------------------------------
     private onGameEnded = () => {
-        console.debug("Gameover signalled")
+        Logger.debug("Gameover signalled")
         this.lobbyState = LobbyState.Fresh;
         if(this._onGameEnded) this._onGameEnded();
         this.gameProperties = null;
@@ -197,7 +198,7 @@ export class LobbyModel {
         const payload: any = { gameName }
         const previousData = sessionStorage.getItem("clusterfun_roominfo")
         if(previousData) {
-            console.info(`Found previous data: ${previousData}`)
+            Logger.info(`Found previous data: ${previousData}`)
             const oldProps = JSON.parse(previousData) as GameInstanceProperties
             payload.existingRoom = {
                 id: oldProps.roomId,
@@ -211,7 +212,7 @@ export class LobbyModel {
                 {
                     this.gameProperties = properties;
                     const data = JSON.stringify(properties)
-                    console.info(`Storing ${data}`)
+                    Logger.info(`Storing ${data}`)
                     sessionStorage.setItem("clusterfun_roominfo", data)
                     this.lobbyState = LobbyState.ReadyToPlay
                     this.lobbyErrorMessage = undefined;
@@ -219,7 +220,7 @@ export class LobbyModel {
                 })
             .catch(e => {
                 this.lobbyErrorMessage = "There was an error trying to start the game. Please try again later.";
-                console.error(e);
+                Logger.error(e);
                 this.lobbyState = LobbyState.Fresh
 
             })
@@ -280,7 +281,7 @@ export class LobbyModel {
                 })
             .catch(e => {
                 this.lobbyErrorMessage = "Unable to join that room code";
-                console.error(e);
+                Logger.error(e);
                 this.lobbyState = LobbyState.Fresh
             })
     }

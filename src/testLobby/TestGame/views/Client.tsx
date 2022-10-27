@@ -5,6 +5,7 @@ import { TestatoClientModel, TestatoClientState } from "../models/ClientModel";
 import styles from './Client.module.css';
 import classNames from "classnames";
 import { ClusterCanvas, UIProperties, GeneralGameState, SafeBrowser, GeneralClientGameState, UINormalizer, ErrorBoundary} from "libs";
+import Logger from "js-logger";
 
 
 // -------------------------------------------------------------------
@@ -148,7 +149,7 @@ export default class Client
     private renderSubScreen() {
         const {appModel} = this.props;
 
-        console.debug(`RENDERING WITH GAME STATE: ${appModel?.gameState}`)
+        Logger.debug(`RENDERING WITH GAME STATE: ${appModel?.gameState}`)
 
         switch(appModel!.gameState) {
             case GeneralClientGameState.WaitingToStart:

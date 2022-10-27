@@ -2,6 +2,7 @@ import { ClusterFunGameProps } from './libs';
 import React from 'react';
 import TestatoAssets from 'testLobby/TestGame/assets/Assets';
 import LexibleAssets from 'games/Lexible/assets/Assets';
+import Logger from 'js-logger';
 
 export interface GameManifestItem { 
     name: string,
@@ -35,7 +36,7 @@ export const allGames: GameDescriptor[] = [
 // getGameComponent
 // -------------------------------------------------------------------
 export function getGameComponent(descriptor: GameManifestItem, config: ClusterFunGameProps) {
-    console.debug(`Creating component for ${descriptor.name} ${config.gameProperties.role} ${config.gameProperties.personalId}`)
+    Logger.debug(`Creating component for ${descriptor.name} ${config.gameProperties.role} ${config.gameProperties.personalId}`)
     const foundGame = allGames.find(g => g.name === descriptor.name);
     if(!foundGame) throw Error(`Could not find game named '${descriptor.name}'`)
     return <div>

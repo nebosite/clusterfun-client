@@ -11,7 +11,7 @@ TODO
 
 
 
-    [ ] Turn off verbose console logs for prod
+    [x] Turn off verbose console logs for prod
     [ ] End Screen
         [ ] Show player stats
     [ ] have intermediate join mode when players pick teams/handicaps

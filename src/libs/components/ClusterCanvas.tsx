@@ -1,3 +1,4 @@
+import Logger from "js-logger";
 import { observer } from "mobx-react";
 import React from "react";
 
@@ -62,7 +63,7 @@ export class ClusterCanvas extends React.Component<ClusterCanvasProps>
 
         if(timeDelta < 50 || this.moveDelta < 30)
         {
-            console.debug(`Click: ${x.toFixed(0)},${y.toFixed(0)} <${event.clientX.toFixed(0)},${event.clientY.toFixed(0)}> [${this.canvasScreenOffset.left.toFixed(0)},${this.canvasScreenOffset.top.toFixed(0)}] (${this.mouseWidth.toFixed(0)},${this.mouseHeight.toFixed(0)})`)
+            Logger.debug(`Click: ${x.toFixed(0)},${y.toFixed(0)} <${event.clientX.toFixed(0)},${event.clientY.toFixed(0)}> [${this.canvasScreenOffset.left.toFixed(0)},${this.canvasScreenOffset.top.toFixed(0)}] (${this.mouseWidth.toFixed(0)},${this.mouseHeight.toFixed(0)})`)
             if(this.props.onClick) this.props.onClick(x/this.mouseWidth, y/this.mouseHeight);
         }
 
@@ -82,12 +83,12 @@ export class ClusterCanvas extends React.Component<ClusterCanvasProps>
         //     while(area) {
         //         offsetX += area.offsetLeft;
         //         offsetY += area.offsetTop;
-        //         console.debug(`    ${area.nodeType}  ${offsetX},${offsetY}`)
+        //         Logger.debug(`    ${area.nodeType}  ${offsetX},${offsetY}`)
         //         area = area.offsetParent as HTMLElement;
         //     }  
         //     const controlx = event.clientX - offsetX;
         //     const controly = event.clientY - offsetY;
-        //     console.debug(`    T: ${event.clientX},${event.clientY} -> ${controlx},${controly}`)
+        //     Logger.debug(`    T: ${event.clientX},${event.clientY} -> ${controlx},${controly}`)
         //     const x = (controlx * this.props.scaleAdjust * 2.0 / w) -1;
         //     const y = (controly * this.props.scaleAdjust * 2.0 / h) -1;
         //     this.props.onNewPosition(x,y);
@@ -125,7 +126,7 @@ export class ClusterCanvas extends React.Component<ClusterCanvasProps>
         this.mouseWidth = rect.width;
         this.mouseHeight = rect.height;
 
-        console.debug(`Canvas Update (${this.canvasId}): ${this.mouseWidth},${this.mouseHeight}`)
+        Logger.debug(`Canvas Update (${this.canvasId}): ${this.mouseWidth},${this.mouseHeight}`)
     }
 
     // -------------------------------------------------------------------

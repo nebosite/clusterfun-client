@@ -4,6 +4,7 @@
 // Abstracted interaction with AudioContext
 // https://www.html5rocks.com/en/tutorials/webaudio/intro
 
+import Logger from "js-logger";
 import { SoundPlayOptions } from "./MediaHelper";
 
 // ----------------------------------------------------------------------------------------
@@ -45,13 +46,13 @@ export class SoundHelper
                         resolve()
                     }, 
                     (error: any) => {
-                        console.error(`ERROR loading sound: ${soundName}: ${error}`)
+                        Logger.error(`ERROR loading sound: ${soundName}: ${error}`)
                         reject(error);
                     }
                 );
             }
             request.onerror = (err) => {
-                console.error(`ERROR loading sound: ${soundName}: ${err}`)
+                Logger.error(`ERROR loading sound: ${soundName}: ${err}`)
                 reject(err)
             }
             request.send();        
@@ -70,7 +71,7 @@ export class SoundHelper
 
         if(!this.sounds.has(soundName))
         {
-            console.warn("Error: Tried to play non-existent sound: " + soundName);
+            Logger.warn("Error: Tried to play non-existent sound: " + soundName);
             return;
         }
 

@@ -1,3 +1,4 @@
+import Logger from "js-logger";
 import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper } from "libs";
 import { observable } from "mobx";
 import { TestatoEndOfRoundMessage, TestatoPlayerActionMessage, TestatoPlayRequestMessage } from "./Messages";
@@ -91,7 +92,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
             // case RetroSpectroGameState.WaitingForAnswers: this.gameState = RetroSpectroClientState.SubmittingAnswers; break;
             case TestatoGameState.Playing: this.gameState = TestatoGameState.Playing; break; 
             default:
-                console.debug(`Server Updated State to: ${serverState}`) 
+                Logger.debug(`Server Updated State to: ${serverState}`) 
                 this.gameState = GeneralClientGameState.WaitingToStart; break;
         }
 

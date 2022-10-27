@@ -3,6 +3,8 @@
 // -------------------------------------------------------------------
 // AnimationItem
 
+import Logger from "js-logger";
+
 // -------------------------------------------------------------------
 export interface SequenceItem {
     id: string;
@@ -56,7 +58,7 @@ export class BaseAnimationController
         }
         
         const hack = this.sequence.splice(0,1)[0]; 
-        if(!hack) console.warn("WEIRD: nothing removed")
+        if(!hack) Logger.warn("WEIRD: nothing removed")
 
         if(!this.sequenceFinished)
         {

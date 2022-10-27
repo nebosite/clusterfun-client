@@ -1,3 +1,4 @@
+import Logger from "js-logger";
 import { ClusterFunSerializer, ClusterFunMessageConstructor, ClusterFunMessageBase } from "../../libs"
 import { IMessageThing } from './MessageThing';
 
@@ -52,7 +53,7 @@ export class SessionHelper implements ISessionHelper {
         this._messageThing = messageThing;
 
         this._messageThing.addEventListener("open", () => {
-            console.debug("Socket Opened")
+            Logger.debug("Socket Opened")
         });
 
         this._messageThing.addEventListener("message", (ev: { data: string; }) => {
@@ -60,11 +61,11 @@ export class SessionHelper implements ISessionHelper {
             try {
                 message = this._serializer.deserialize(ev.data);
             } catch (e) {
-                console.error("Error happened during deserialization", e);
+                Logger.error("Error happened during deserialization", e);
                 return;
             }
 
-            console.debug(`RECV: ${message.messageId} from ${message.sender}`)
+            Logger.debug(`RECV: ${message.messageId} from ${message.sender}`)
 
             const listenersForMessage = this._listeners.get(
                 message.constructor as ClusterFunMessageConstructor<unknown, ClusterFunMessageBase>);
@@ -102,7 +103,7 @@ export class SessionHelper implements ISessionHelper {
     // ------------------------------------------------------------------- 
     async sendMessage(receiver: string, message: ClusterFunMessageBase) {
         const contents = this._serializer.serialize(receiver, this.personalId, message);
-        console.debug(`SEND: ${contents}`)
+        Logger.debug(`SEND: ${contents}`)
 
         await this._messageThing.send(contents, () => this._errorSubs.forEach(e => e(`Message send failure`)))
                 .catch(err => {
@@ -129,7 +130,7 @@ export class SessionHelper implements ISessionHelper {
             // also ensuring the class is registered in the hydrator
             this._listeners.set(messageClass as ClusterFunMessageConstructor<unknown, M>, new Map<string, (message: object) => unknown>());
             this._serializer.register(messageClass);
-            console.debug("REGISTERING: " + messageClass)
+            Logger.debug("REGISTERING: " + messageClass)
         }
         const listenersForType = this._listeners.get(messageClass as ClusterFunMessageConstructor<unknown, M>) as Map<string, (message: M) => unknown>;
         listenersForType.set(name, listener);

@@ -1,6 +1,7 @@
 import { action, makeObservable, observable } from "mobx";
 import { LobbyModel, ILobbyDependencies } from "../../lobby/models/LobbyModel";
 import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, ClusterFunSerializer, IMessageThing, getStorage, GameInstanceProperties, ClusterFunJoinMessage } from "../../libs";
+import Logger from "js-logger";
 
 const names = [
     // Names with weird latin characters
@@ -136,7 +137,7 @@ export class GameTestModel {
             return Promise.resolve(gameProperties as unknown as T);
         }
         if(url===("/api/terminategame")) {
-            console.info("Terminating game with room id: " + payload.roomId + " ... " + payload.presenterSecret)      
+            Logger.info("Terminating game with room id: " + payload.roomId + " ... " + payload.presenterSecret)      
             return Promise.resolve({} as T);
         }
         else if(url.startsWith("/api/joingame")) {

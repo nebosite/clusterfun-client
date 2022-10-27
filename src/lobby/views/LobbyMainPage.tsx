@@ -4,6 +4,7 @@ import { observer, Provider } from "mobx-react";
 import {  LobbyState, LobbyModel } from "../models/LobbyModel";
 import { LobbyComponent } from "../Components/LobbyComponent";
 import { GameDescriptor, getGameComponent } from "../../GameChooser";
+import Logger from "js-logger";
 
 export interface LobbyMainPageProps {
     games: GameDescriptor[],
@@ -77,7 +78,7 @@ export class LobbyMainPage
             }
         }
         catch (err) {
-            console.info("LobbyMainPage error: " + (err as any).message)
+            Logger.info("LobbyMainPage error: " + (err as any).message)
             innerChild = (<React.Fragment><div style={{background: "white", fontSize: "30px"}}>There was an error: {(err as any).message}</div></React.Fragment>)
         }
 
