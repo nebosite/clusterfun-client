@@ -2,6 +2,7 @@
     overflow: hidden;
     cursor: pointer;
     position: relative;
+    user-select: none;
 }
 
 .sliderChild {
