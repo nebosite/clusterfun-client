@@ -1,11 +1,28 @@
 
 
-import { BaseGameModel, ISessionHelper, ITypeHelper, SessionHelper, ClusterFunSerializer, 
-    instantiateGame, getPresenterTypeHelper, getClientTypeHelper, GeneralGameState } from "../../libs";
+import { BaseGameModel, ISessionHelper, ITypeHelper, 
+    SessionHelper, ClusterFunSerializer, 
+    instantiateGame, getPresenterTypeHelper, 
+    getClientTypeHelper, GeneralGameState, 
+    GameInstanceProperties, IMessageThing, 
+    IStorage, ITelemetryLogger } from "../../libs";
 import { UIProperties } from "libs/types/UIProperties";
 import { observer, Provider } from "mobx-react";
 import React from "react";
-import * as GameChooser from "./GameChooser";
+
+// -------------------------------------------------------------------
+// ClusterFunGameProps
+// -------------------------------------------------------------------
+export interface ClusterFunGameProps {
+    playerName?: string;
+    gameProperties: GameInstanceProperties;
+    uiProperties: UIProperties;
+    messageThing: IMessageThing;
+    logger: ITelemetryLogger;
+    storage: IStorage;
+    onGameEnded: () => void;
+    serverCall: <T>(url: string, payload: any) => Promise<T>
+}
 
 class DummyComponent extends React.Component<{ appModel?: any, uiProperties: UIProperties }>
 {
@@ -18,7 +35,7 @@ class DummyComponent extends React.Component<{ appModel?: any, uiProperties: UIP
 // -------------------------------------------------------------------
 @observer
 export class ClusterfunGameComponent 
-extends React.Component<GameChooser.ClusterFunGameProps>
+extends React.Component<ClusterFunGameProps>
 {
 
     appModel?: BaseGameModel;
@@ -27,8 +44,8 @@ extends React.Component<GameChooser.ClusterFunGameProps>
     init(
         presenterType: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>,
         clientType: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>,
-        derivedPresenterTypeHelper: ( sessionHelper: ISessionHelper, gameProps: GameChooser.ClusterFunGameProps) => ITypeHelper,
-        derivedClientTypeHelper: ( sessionHelper: ISessionHelper, gameProps: GameChooser.ClusterFunGameProps) => ITypeHelper
+        derivedPresenterTypeHelper: ( sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper,
+        derivedClientTypeHelper: ( sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper
     )
     {
         const {  gameProperties, messageThing,  onGameEnded, serverCall } = this.props;
