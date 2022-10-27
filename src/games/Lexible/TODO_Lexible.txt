@@ -4,28 +4,29 @@
 --------------------------------------------------------------
   
 TODO
-        
+    [ ] Bug: Slider control not working on game test component
+    [ ] Bug: submitting a word does not set it on the client
+    [ ] Bug: Panning slider on Android phone brings up blue selection slide
+    [ ] Remember settings
+
+
+
+    [ ] Turn off verbose console logs for prod
+    [ ] End Screen
+        [ ] Show player stats
+    [ ] have intermediate join mode when players pick teams/handicaps
+    [ ] Clear indication of what parts of the path are completed
+        Use Dykstra's algorith
+            start at last quare on the team side, end at the first square on the opposite side
+
+
+    [ ] Show letters other players are selecting  (on both client and server)
+    [ ] Show arrows to indicate where other players are
+    [ ] On win, clearly indicate the winning path
     
 
 
-
-       
 NEW   
-    [ ] Bug: submitting a work does not set it on the client
-    [ ] Show player stats
-    [ ] Instructional video
-    [ ] Bug: voices too fast
-        - Slow down and add "uh" to the front to avoid cutoff
-    [ ] Bug: Voices don't work well on Firefox
-    [ ] Fireworks along path when round is over   
-        Use Dykstra's algorith
-            start at last quare on the team side, end at the first square on the opposite side
-    [ ] Fix lighthouse recommendations?  maybe something about knowing where other teammates are
-    [ ] Slider control not working on game test component
-    [ ] Message ACK system is kind of messed up
-        "Weird: got a message Ack for a message not pending"
-        Reloading the page on debug edit puts message system in a weird state
-    [ ] Remember settings
     
 EASY
     
@@ -33,36 +34,34 @@ NEXT
 
     
 BACKLOG
-    [ ] Walls
-    [ ] Powerup:  Clear row/column
-    [ ] Word landmarks - blue lettered words that are premarked
-    [ ] have intermediate join mode when players pick teams/handicaps
-    [ ] Show arrows to indicate where other players are
-    [ ] Show letters other players are selecting
-    [ ] Speed up loading by doing it in the background
-        - host extra material so it isn't compiled into the game
-        - load as background task
-
+    [ ] have the game alert everyone when a victory is close
+    [ ] Choose winning condition (connect, territory, points)
+    [ ] interactive instructions - everyone spell "fish"!
+    [ ] Powerups
+        [ ]   - word scores are higher +1, +2, +3
+        [ ]   - flood fill to connect to powerups
+        [ ]   - Clear row/column (laser)
+        [ ]   - clear area (bomb)
     [ ] A player signal
         [ ] Signal button
         [ ] Sound
         [ ] Visual on the presenter
         [ ] Arrow on the client
-    [ ] Powerups
-    [ ]   - word scores are higher +1, +2, +3
-    [ ]   - flood fill to connect to powerups
-    [ ]   - Clear row/column (laser)
-    [ ]   - clear area (bomb)
-    [ ] interactive instructions - everyone spell "fish"!
+    [ ] Powerup:  Clear row/column
+    [ ] walls/maze
+    [ ] Instructional video
+    [ ] Word landmarks - blue lettered words that are premarked
     
     
 MAYBE NEVER
     [ ] Prevent the formation/reading of R-Rated words
-    [ ] Choose winning condition (connect, territory, points)
-    [ ] walls/maze
-        [ ] have the game alert everyone when a victory is close
-        [ ] Dynamic team join from client
-        [ ] Game option: must have a letter in captured territorry
+    [ ] Message ACK system is kind of messed up
+        "Weird: got a message Ack for a message not pending"
+        Reloading the page on debug edit puts message system in a weird state
+    [ ] Fix lighthouse recommendations?  maybe something about knowing where other teammates are
+    [ ] Bug: voices too fast
+        - Slow down and add "uh" to the front to avoid cutoff
+    [ ] Bug: Voices don't work well on Firefox
 
 
 ==========================================================================================
