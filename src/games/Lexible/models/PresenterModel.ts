@@ -1,4 +1,4 @@
-import { action, observable } from "mobx"
+import { action, makeObservable, observable } from "mobx"
 import { 
     LexiblePlayRequestMessage,
     LexiblePlayerActionMessage,
@@ -16,6 +16,8 @@ import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunPresenterModel, ITelemetryLogger, IStorage, GeneralGameState, PresenterGameEvent, PresenterGameState, ClusterFunGameOverMessage, ITypeHelper } from "libs";
+
+const LEXIBLE_SETTINGS_KEY = "lexible_settings";
 
 export enum LexiblePlayerStatus {
     Unknown = "Unknown",
@@ -56,6 +58,11 @@ export enum MapSize {
     Small = "Small",
     Medium = "Medium", 
     Large = "Large"
+}
+
+interface LexibleSettings {
+    mapSize: MapSize,
+    startFromTeamArea: boolean
 }
 
 // -------------------------------------------------------------------
@@ -117,11 +124,17 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
     @observable  private _startFromTeamArea = true
     get startFromTeamArea() {return this._startFromTeamArea}
-    set startFromTeamArea(value) {action(()=>{this._startFromTeamArea = value})()}
+    set startFromTeamArea(value) {action(()=>{
+        this._startFromTeamArea = value;
+        this.saveSettings();
+    })()}
     
     @observable  private _mapSize = MapSize.Medium;
     get mapSize() {return this._mapSize}
-    set mapSize(value) {action(()=>{this._mapSize = value})()}
+    set mapSize(value) {action(()=>{
+        this._mapSize = value;
+        this.saveSettings();
+    })()}
     
 
     letterData = [
@@ -180,6 +193,15 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
         this.wordTree = WordTree.create([]);
         this.populateWordSet();
+
+        const savedSettingsValue = storage.get(LEXIBLE_SETTINGS_KEY);
+        if (savedSettingsValue) {
+            const savedSettings = JSON.parse(savedSettingsValue) as LexibleSettings;
+            this.mapSize = savedSettings.mapSize ?? MapSize.Medium;
+            this.startFromTeamArea = savedSettings.startFromTeamArea ?? true;
+        }
+
+        makeObservable(this);
     }
 
     // -------------------------------------------------------------------
@@ -188,6 +210,14 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     // -------------------------------------------------------------------
     reconstitute() {
         this.theGrid.processBlocks((block)=>{this.setBlockHandlers(block)})
+    }
+
+    saveSettings() {
+        const savedSettings: LexibleSettings = {
+            mapSize: this.mapSize,
+            startFromTeamArea: this.startFromTeamArea
+        }
+        this.storage.set(LEXIBLE_SETTINGS_KEY, JSON.stringify(savedSettings, null, 2));
     }
 
     // -------------------------------------------------------------------

@@ -227,7 +227,7 @@ export abstract class BaseGameModel  {
         console.log("Quitting the app")
         this.gameState = GeneralGameState.Destroyed;
         clearInterval(this._ticker);
-        this.storage.clear();
+        this.storage.remove(GAMESTATE_LABEL);
     }
 
     // -------------------------------------------------------------------
