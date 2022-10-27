@@ -1,12 +1,28 @@
 
 
-import { BaseGameModel, ISessionHelper, ITypeHelper, SessionHelper, ClusterFunSerializer, 
-    instantiateGame, getPresenterTypeHelper, getClientTypeHelper, GeneralGameState } from "../../libs";
+import { BaseGameModel, ISessionHelper, ITypeHelper, 
+    SessionHelper, ClusterFunSerializer, 
+    instantiateGame, getPresenterTypeHelper, 
+    getClientTypeHelper, GeneralGameState, 
+    GameInstanceProperties, IMessageThing, 
+    IStorage, ITelemetryLogger } from "../../libs";
 import { UIProperties } from "libs/types/UIProperties";
 import { Provider } from "mobx-react";
 import React from "react";
-import { ClusterFunGameProps } from "./GameChooser";
 
+// -------------------------------------------------------------------
+// ClusterFunGameProps
+// -------------------------------------------------------------------
+export interface ClusterFunGameProps {
+    playerName?: string;
+    gameProperties: GameInstanceProperties;
+    uiProperties: UIProperties;
+    messageThing: IMessageThing;
+    logger: ITelemetryLogger;
+    storage: IStorage;
+    onGameEnded: () => void;
+    serverCall: <T>(url: string, payload: any) => Promise<T>
+}
 
 class DummyComponent extends React.Component<{ appModel?: any, uiProperties: UIProperties }>
 {
