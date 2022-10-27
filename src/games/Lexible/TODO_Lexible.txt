@@ -4,10 +4,10 @@
 --------------------------------------------------------------
   
 TODO
-    [ ] Bug: Slider control not working on game test component
-    [ ] Bug: submitting a word does not set it on the client
-    [ ] Bug: Panning slider on Android phone brings up blue selection slide
-    [ ] Remember settings
+    [x] Bug: Slider control not working on game test component
+    [x] Bug: submitting a word does not set it on the client
+    [x] Bug: Panning slider on Android phone brings up blue selection slide
+    [x] Remember settings
 
 
 
@@ -20,7 +20,7 @@ TODO
             start at last quare on the team side, end at the first square on the opposite side
 
 
-    [ ] Show letters other players are selecting  (on both client and server)
+    [x] Show letters other players are selecting  (on both client and server)
     [ ] Show arrows to indicate where other players are
     [ ] On win, clearly indicate the winning path
     
