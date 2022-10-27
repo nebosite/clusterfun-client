@@ -5,12 +5,11 @@ import { LobbyMainPage } from "./lobby/views/LobbyMainPage";
 import { GameTestModel } from "./testLobby/models/GameTestModel";
 import { QuickTestComponent } from "./testLobby/Components/QuickTestComponent";
 import { googleTrackingIds } from "secrets";
-import { GameDescriptor, GameInstanceProperties, getStorage, MockTelemetryLoggerFactory, TelemetryLoggerFactory, WebSocketMessageThing } from './libs';
+import { GameInstanceProperties, getStorage, MockTelemetryLoggerFactory, TelemetryLoggerFactory, WebSocketMessageThing } from './libs';
+import { GameManifestItem, allGames, GameDescriptor } from "./GameChooser"
 import { GLOBALS } from './Globals';
 import 'index.css'
 import React from 'react';
-import TestatoAssets from 'testLobby/TestGame/assets/Assets';
-import LexibleAssets from 'games/Lexible/assets/LexibleAssets';
 
 const rootContainer = document.getElementById('root') as HTMLElement;
 const root = createRoot(rootContainer);
@@ -74,19 +73,15 @@ else if (process.env.REACT_APP_DEVMODE === 'development') {
         : new MockTelemetryLoggerFactory();
 
     const gameTestModel = new GameTestModel(4, getStorage("clusterfun_test"), factory);
-
     
-    const games: GameDescriptor[] = Array(5).fill(0).map((_, i) => {
-        return {
-            name: `Testato${i + 1}`,
-            logoName: TestatoAssets.images.logo,
-            tags: [],
-            lazyType: React.lazy(() => import('./testLobby/TestGame/views/GameComponent'))
-        };
+    const games: GameDescriptor[] = allGames.map((g) => {
+        const item = {...g}
+        item.tags = []
+        return item;
     });
     games.push({
         name: "Lexible",
-        logoName: LexibleAssets.images.logo,
+        logoName: "",
         tags: [],
         lazyType: React.lazy(() => import('./games/Lexible/views/LexibleGameComponent'))
     });
@@ -128,20 +123,35 @@ else {
             const response = await fetch("/api/game_manifest", { method: "GET" });
             if (response.ok) {
                 const streamText = await response.text();
-                return await JSON.parse(streamText) as any[]
+                return await JSON.parse(streamText) as GameManifestItem[]
             } else {
-                return []
+                return [] as GameManifestItem[]
             }      
         }
-        const gamesFromServerManifest:GameDescriptor[] = await getGameManifest(); 
-        gamesFromServerManifest.forEach(g => {
-            g.lazyType = React.lazy(() => import( (g as any).codeUrl))
-        })
 
+        try {
+            var gamesFromServerManifest:GameManifestItem[] = await getGameManifest(); 
+        }
+        catch(err) {
+            root.render( <div>There was a problem trying to load clusterfun.  Please try again later. </div> );     
+            return;        
+        }
 
-        console.log("MANIFEST", gamesFromServerManifest)
+        const gameList = gamesFromServerManifest.map(serverItem => {
+            const foundGame = allGames.find(g => g.name.toLowerCase() === serverItem.name.toLowerCase()) 
+            if(foundGame) {
+                const addMe = {...foundGame}
+                if(serverItem.displayName) addMe.displayName = serverItem.displayName
+                addMe.tags = serverItem.tags;
+                return addMe
+            }
+            else {
+                console.log(`Server specified a game I don't know about: ${serverItem.name}`)
+                return undefined;
+            }
+        }).filter(i => i != undefined) as GameDescriptor[]
 
-        root.render( <LobbyMainPage lobbyModel={lobbyModel} games={gamesFromServerManifest}/> );             
+        root.render( <LobbyMainPage lobbyModel={lobbyModel} games={gameList}/> );             
 
     },0)
     root.render( <div>Loading stuff....</div> );     
