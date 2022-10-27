@@ -1,7 +1,7 @@
 // App Navigation handled here
 import React from "react";
 import { observer, inject } from "mobx-react";
-import styles from './LexiblePresenter.module.css';
+import styles from './Presenter.module.css';
 import classNames from "classnames";
 import LexibleAssets from "../assets/Assets";
 import { LexibleVersion } from "../models/GameSettings";

@@ -6,7 +6,7 @@ import { LetterBlockModel } from "../models/LetterBlockModel";
 import { LexibleClientModel } from "../models/ClientModel";
 import { LexibleGameEvent } from "../models/PresenterModel";
 import LetterBlock from "./LetterBlock";
-import styles from './LexibleClient.module.css';
+import styles from './Client.module.css';
 
 interface ClientGameComponentProps {
     appModel?: LexibleClientModel, 

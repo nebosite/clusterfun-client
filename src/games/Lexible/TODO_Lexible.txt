@@ -11,6 +11,7 @@ TODO
 
        
 NEW   
+    [ ] Bug: submitting a work does not set it on the client
     [ ] Show player stats
     [ ] Instructional video
     [ ] Bug: voices too fast

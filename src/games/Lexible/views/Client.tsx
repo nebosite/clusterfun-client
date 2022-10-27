@@ -2,11 +2,11 @@
 import React from "react";
 import { observer, inject } from "mobx-react";
 import { LexibleClientModel, LexibleClientState } from "../models/ClientModel";
-import styles from './LexibleClient.module.css';
+import styles from './Client.module.css';
 import classNames from "classnames";
 import { observable } from "mobx";
-import LexibleClientGameComponent from "./ClientGameComponent";
 import { UIProperties, GeneralGameState, SafeBrowser, GeneralClientGameState, UINormalizer, ErrorBoundary } from "libs";
+import LexibleClientGameComponent from "./ClientGameComponent";
 
  
 class LexibleClientUIState {
