@@ -1,2 +1,3 @@
 # clusterfun_client
-Library code for ClusterFun front end
+
+ClusterFun front end, main lobby client + games

@@ -4,8 +4,7 @@ import { GameTestModel } from "../models/GameTestModel";
 import { LobbyMainPage } from "../../lobby/views/LobbyMainPage";
 import { LobbyModel } from "../../lobby/models/LobbyModel";
 import styles from './GameTestComponent.module.css';
-import { GameDescriptor } from "libs";
-
+import { GameDescriptor } from "GameChooser";
 
 const HD_RATIO = 1080/1920;
 
