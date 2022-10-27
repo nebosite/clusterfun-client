@@ -20,7 +20,9 @@ export class LetterBlockModel
     @observable selectedMap = observable(new Array<string>());
     get selected() {return this.selectedMap.length > 0}
 
-    @observable failFade = 0;
+    @observable private _failFade: number = 0;
+    get failFade() {return this._failFade}
+    set failFade(value) { action(()=>this._failFade = value)()}
     @observable team: string = "_"
 
     onSelectedChanged:BlockSelectHandler = ()=>{console.log("WERID: Default select action happening")}
