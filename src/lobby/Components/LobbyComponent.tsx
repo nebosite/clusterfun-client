@@ -6,7 +6,8 @@ import classNames from "classnames";
 import { GLOBALS } from '../../Globals';
 import { LobbyAssets } from "../../lobby/assets/LobbyAssets";
 import styles from './LobbyComponent.module.css';
-import { UIProperties, GameDescriptor, UINormalizer } from "../../libs";
+import { GameDescriptor } from "GameChooser";
+import { UIProperties, UINormalizer } from "libs";
 
 @inject("lobbyModel")
 @observer
@@ -34,11 +35,11 @@ class PresenterComponent
                 {games?.map(game =>
                     <li key={game.name}>
                         <div className={styles.btnContainer}>
-                            <img alt={`Start ${game.name}`}
+                            <img alt={`Start ${game.displayName ?? game.name}`}
                                 src={game.logoName}
                                 className={styles.gmButton}
                                 onClick={() => startGameClick(game.name)} />
-                            <div className={styles.gameLogoLabel}>{game.name}</div>
+                            <div className={styles.gameLogoLabel}>{game.displayName ?? game.name}</div>
                             {game.tags.indexOf("beta") > -1 
                                 ? <div>(beta)</div>
                                 : null}
