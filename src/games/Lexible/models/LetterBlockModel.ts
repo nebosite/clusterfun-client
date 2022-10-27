@@ -1,5 +1,5 @@
 import { Vector2 } from "libs";
-import { action, observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 
 export type BlockSelectHandler = (playerId: string, selectedValue: boolean)=>void
 export type BlockSelectAuthroizer = (block: LetterBlockModel)=>boolean
@@ -32,6 +32,7 @@ export class LetterBlockModel
     {
         this.letter = letter;
         this.coordinates = coordinates;
+        makeObservable(this);
     }
 
     // -------------------------------------------------------------------
