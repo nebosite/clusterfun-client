@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@500&display=swap');
+
+/* Overall Formatting */
+.gameclient {
+    width: 100%;
+    height: 100%;
+    background-color: rgb(227, 175, 238);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    overflow: hidden;
+    font-size: 60px;
+    font-family: sans-serif;
+    user-select: none;
+}
+
+/* Buttons */
+
+.gameclient button {
+    font-size: 150%;
+    padding: 20px;
+    margin: 20px;
+}
+
+/* Overall Formatting */
+
+.gameclient .divRow {
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+.gameclient .gametitle {
+    font-weight: 800;
+}
+
+.gameclient .topbar {
+    display: flex; 
+    justify-content: space-around;
+}
+
+.gameclient .quitbutton {
+    font-size: 40px;
+    font-weight: 800;
+    padding: 0;
+    width: 100px;
+    margin-left:auto; margin-right:0;
+    margin: 0;
+}
+
+.gameclient .gameCanvasFrame{
+    display: flex;
+    justify-content: center;
+    margin: 20px
+}
+
+.gameclient .letterRow {
+    display: flex;
+    flex-shrink: unset;
+    flex-direction: row;
+}
+
+.gameclient .letterFrame {
+    display: flex;
+    flex-direction: column;
+}
+
+.gameclient .selectedLetterRow {
+    margin-top: 50px;
+    width: 950px;
+    border: 1px solid black;
+    min-height: 100px;
+}
+
+.gameclient .hintList {
+    font-size: 80%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.gameclient .hintWord {
+    margin: 10px;
+}
+
+.gameclient .gameComponent {
+    display: flex;
+    justify-content: center;
+    margin-top: 80px;
+    align-items: center;
+    flex-direction: column;
+}
+
+.gameclient .sliderOverlay {
+    border-radius: 30px;
+    box-shadow: inset 0px 0px 80px #000;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    pointer-events: none;
+}
+
+.gameclient .letterSlider {
+    background: rgb(161, 161, 161);
+    border-radius: 30px;
+    border: 10px solid #00000040;
+}

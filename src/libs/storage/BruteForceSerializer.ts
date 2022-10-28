@@ -28,7 +28,7 @@ export const objectDump = (thing: any, depth: number = 0) => {
 export class BruteForceSerializer
 {
     private _objectCount = 0;
-    private _typeHelper: ITypeHelper;
+    typeHelper: ITypeHelper;
 
     maxObjects: number
 
@@ -37,7 +37,7 @@ export class BruteForceSerializer
     //-------------------------------------------------------------------------------
     constructor(typeHelper: ITypeHelper, maxOjects: number = 20000)
     {
-        this._typeHelper = typeHelper;
+        this.typeHelper = typeHelper;
         this.maxObjects = maxOjects;
     }
 
@@ -115,7 +115,7 @@ export class BruteForceSerializer
         // It's an object to handle the properties
         for(const propertyName in normalizeMe)
         {
-            if(!this._typeHelper.shouldStringify(output.__t, propertyName, normalizeMe))
+            if(!this.typeHelper.shouldStringify(output.__t, propertyName, normalizeMe))
             {
                 continue;
             } 
@@ -178,7 +178,7 @@ export class BruteForceSerializer
                         nodeObject = {};
                         break;
                     default:
-                        nodeObject = this._typeHelper.constructType(node.__t) as any;
+                        nodeObject = this.typeHelper.constructType(node.__t) as any;
                         break;
                 }
                 lookup.set(node.__i, nodeObject); 
@@ -207,7 +207,7 @@ export class BruteForceSerializer
                                 continue;
                 }
                 const data = parseData(node[propertyName]);
-                nodeObject[propertyName] = this._typeHelper.reconstitute( node.__t, propertyName, data );
+                nodeObject[propertyName] = this.typeHelper.reconstitute( node.__t, propertyName, data );
             }
             return nodeObject;
         }

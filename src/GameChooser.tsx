@@ -1,6 +1,7 @@
 import { ClusterFunGameProps } from './libs';
 import React from 'react';
 import TestatoAssets from 'testLobby/TestGame/assets/Assets';
+import LexibleAssets from 'games/Lexible/assets/Assets';
 
 export interface GameManifestItem { 
     name: string,
@@ -20,6 +21,13 @@ export const allGames: GameDescriptor[] = [
         tags: [],
         logoName: TestatoAssets.images.logo,
         lazyType: React.lazy(() => import('./testLobby/TestGame/views/GameComponent'))
+    },
+    {
+        name: "Lexible",
+        displayName: "Lexible",
+        tags: [],
+        logoName: LexibleAssets.images.logo,
+        lazyType: React.lazy(() => import('./games/Lexible/views/GameComponent'))
     }
 ]
 
