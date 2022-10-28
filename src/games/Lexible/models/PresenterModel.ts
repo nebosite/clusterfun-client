@@ -232,15 +232,38 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     //                    word list
     // -------------------------------------------------------------------
     private async populateWordSet() {
-        const { wordList } = await import("../assets/words/Collins_Scrabble_2019");
-        const { badWords } = await import("../assets/words/badwords");
-        const words = wordList.split('\n').map(w => w.trim())
-        this.wordTree = WordTree.create(words);
-        words.forEach(w => this.wordSet.add(w));
+        const wordListPromise = import("../assets/words/Collins_Scrabble_2019");
+        const badWordsPromise = import("../assets/words/badwords");
+
+        const { wordList } = await wordListPromise;
+        let lastAwaitTime = window.performance.now();
+        const words = wordList.split('\n')
+        this.wordTree = new WordTree("", undefined);
+        for (const word of words) {
+            if (window.performance.now() - lastAwaitTime > 10) {
+                await this.waitForRealTime(0);
+                lastAwaitTime = window.performance.now();
+            }
+            this.wordTree.add(word.trim());
+            this.wordSet.add(word.trim());
+        }
         Logger.info(`Loaded ${this.wordSet.size} words`)
 
-        badWords.split('\n').forEach(w => this.badWords.add(w));
-        Logger.info(`Loaded ${this.wordSet.size} words`)
+        const { badWords } = await badWordsPromise;
+        for (const badWord of badWords) {
+            if (window.performance.now() - lastAwaitTime > 5) {
+                await this.waitForRealTime(0);
+                lastAwaitTime = window.performance.now();
+            }
+            this.badWords.add(badWord.trim());
+        }
+        Logger.info(`Loaded ${this.badWords.size} censored words`)
+    }
+
+    private waitForRealTime(ms: number) {
+        return new Promise((resolve, _reject) => {
+            setTimeout(resolve, ms);
+        })
     }
 
     // -------------------------------------------------------------------
