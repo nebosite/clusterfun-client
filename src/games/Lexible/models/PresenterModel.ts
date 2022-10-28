@@ -171,6 +171,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
     wordTree: WordTree;
     wordSet = new Set<string>();
+    badWords = new Set<string>();
 
     gameTimeLastSentTouchedLetters_ms = 0;
     recentlyTouchedLetters = new Map<number, Vector2>();
@@ -231,11 +232,38 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     //                    word list
     // -------------------------------------------------------------------
     private async populateWordSet() {
-        const { wordList } = await import("../assets/words/Collins_Scrabble_2019");
-        const words = wordList.split('\n').map(w => w.trim())
-        this.wordTree = WordTree.create(words);
-        words.forEach(w => this.wordSet.add(w));
+        const wordListPromise = import("../assets/words/Collins_Scrabble_2019");
+        const badWordsPromise = import("../assets/words/badwords");
+
+        const { wordList } = await wordListPromise;
+        let lastAwaitTime = window.performance.now();
+        const words = wordList.split('\n')
+        this.wordTree = new WordTree("", undefined);
+        for (const word of words) {
+            if (window.performance.now() - lastAwaitTime > 10) {
+                await this.waitForRealTime(0);
+                lastAwaitTime = window.performance.now();
+            }
+            this.wordTree.add(word.trim());
+            this.wordSet.add(word.trim());
+        }
         Logger.info(`Loaded ${this.wordSet.size} words`)
+
+        const { badWords } = await badWordsPromise;
+        for (const badWord of badWords) {
+            if (window.performance.now() - lastAwaitTime > 5) {
+                await this.waitForRealTime(0);
+                lastAwaitTime = window.performance.now();
+            }
+            this.badWords.add(badWord.trim());
+        }
+        Logger.info(`Loaded ${this.badWords.size} censored words`)
+    }
+
+    private waitForRealTime(ms: number) {
+        return new Promise((resolve, _reject) => {
+            setTimeout(resolve, ms);
+        })
     }
 
     // -------------------------------------------------------------------
@@ -476,7 +504,9 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         const words = findHere(startBlock, this.wordTree)
         const returnMe: string[] = []
         words.forEach(w => {
-            if(!returnMe.find(item => item === w))  {
+            if(!returnMe.find(item => item === w)
+                && !this.badWords.has(w)
+            )  {
                 returnMe.push(w)
             } 
         } )
