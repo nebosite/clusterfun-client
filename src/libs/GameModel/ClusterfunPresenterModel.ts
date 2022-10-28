@@ -247,7 +247,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     {
         this.secondsLeftInStage = 
             Math.max(0, Math.floor((this.timeOfStageEnd - this.gameTime_ms) / 1000));
-        this.handleState();
+        this.handleTick();
     }
 
 
@@ -284,10 +284,10 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     }
 
     // -------------------------------------------------------------------
-    // handle game state - check isStateOver and modify the state
-    // as needed
+    // handle the passage of time. This should include a check for
+    // the game state ending when its time expires
     // -------------------------------------------------------------------
-    abstract handleState(): void;
+    abstract handleTick(): void;
 
     // -------------------------------------------------------------------
     // Start a game round

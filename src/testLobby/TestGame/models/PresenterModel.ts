@@ -148,7 +148,7 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     // -------------------------------------------------------------------
     //  run a method to check for a state transition
     // -------------------------------------------------------------------
-    handleState()
+    handleTick()
     {
         if (this.isStageOver) {
             switch(this.gameState) {

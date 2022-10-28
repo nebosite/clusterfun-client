@@ -11,6 +11,7 @@ TODO
     [x] Fix Quit buttons
 
     [x] On the user screen, show all selected letters
+    [x] Show letters other players are selecting  (on both client and server)
     [ ] Turn off verbose console logs for prod
     [ ] Clear indication of what parts of the path are completed
         Use Dykstra's algorith
@@ -20,7 +21,6 @@ TODO
     [ ] have intermediate join mode when players pick teams/handicaps
 
 
-    [ ] Show letters other players are selecting  (on both client and server)
     [ ] Show arrows to indicate where other players are
     [ ] On win, clearly indicate the winning path
     

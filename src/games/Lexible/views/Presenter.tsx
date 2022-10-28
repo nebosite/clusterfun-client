@@ -323,8 +323,8 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
         return (
             <div className={classNames(styles.divRow)}>
                 <button className={classNames(styles.quitButton)} 
-                    style={{marginRight: "30px"}}
-                    onClick={()=> appModel.quitApp()} />
+                    style={{marginRight: "30px", fontSize:"10px"}}
+                    onClick={()=> appModel.quitApp()}>X</button>
                 <div className={classNames(styles.roomCode)}>
                     <div>Room Code:</div>
                     <div style={{fontSize: "180%", fontWeight: 800}}>{appModel.roomId}</div>

@@ -17,6 +17,7 @@ export interface IStorage {
 
     set: (name: string, value: string) => void
     get: (name: string) => string | undefined | null;
+    remove: (name: string) => void;
     clear: () => void
 }
 
@@ -107,6 +108,16 @@ class SessionStorage implements IStorage {
     {
         const key = this._id + name;
         return this._cache.get(key);
+    }
+
+    // -------------------------------------------------------------------
+    // remove
+    // -------------------------------------------------------------------
+    remove(name: string)
+    {
+        const key = this._id + name;
+        this._cache.delete(key);
+        this._accessor.removeItem(key);
     }
 
     // -------------------------------------------------------------------

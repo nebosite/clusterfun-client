@@ -26,6 +26,21 @@ export class LexiblePlayRequestMessage  extends LexiblePlayRequestMessageData {
 export type LetterChain = {letter: string, coordinates: Vector2}[]
 
 // ------------------------------------------------------------------------------------------
+// LexibleRecentlyTouchedLettersMessage
+// ------------------------------------------------------------------------------------------
+export class LexibleRecentlyTouchedLettersMessageData extends ClusterFunMessageBase
+{
+    letterCoordinates: Vector2[] = [];
+}
+
+export class LexibleRecentlyTouchedLettersMessage  extends LexibleRecentlyTouchedLettersMessageData {
+    static readonly messageTypeName = "LexibleRecentlyTouchedLettersMessage";
+    
+    // eslint-disable-next-line
+    constructor(payload: LexibleRecentlyTouchedLettersMessageData) { super(payload); Object.assign(this, payload);  } 
+}
+
+// ------------------------------------------------------------------------------------------
 // LexibleFailedWordMessage
 // ------------------------------------------------------------------------------------------
 export class LexibleFailedWordMessageData extends ClusterFunMessageBase

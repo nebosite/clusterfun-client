@@ -1,4 +1,4 @@
-import { action, observable } from "mobx"
+import { action, makeObservable, observable } from "mobx"
 import { 
     LexiblePlayRequestMessage,
     LexiblePlayerActionMessage,
@@ -10,12 +10,16 @@ import {
     LexibleFailedWordMessage,
     LexibleScoredWordMessage,
     LexibleWordHintMessage,
-    LetterChain, } from "./Messages";
+    LetterChain,
+    LexibleRecentlyTouchedLettersMessage, } from "./Messages";
 import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunPresenterModel, ITelemetryLogger, IStorage, GeneralGameState, PresenterGameEvent, PresenterGameState, ClusterFunGameOverMessage, ITypeHelper } from "libs";
+
+const LEXIBLE_SETTINGS_KEY = "lexible_settings";
+const SEND_RECENT_LETTERS_INTERVAL_MS = 200;
 
 export enum LexiblePlayerStatus {
     Unknown = "Unknown",
@@ -56,6 +60,11 @@ export enum MapSize {
     Small = "Small",
     Medium = "Medium", 
     Large = "Large"
+}
+
+interface LexibleSettings {
+    mapSize: MapSize,
+    startFromTeamArea: boolean
 }
 
 // -------------------------------------------------------------------
@@ -117,11 +126,17 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
     @observable  private _startFromTeamArea = true
     get startFromTeamArea() {return this._startFromTeamArea}
-    set startFromTeamArea(value) {action(()=>{this._startFromTeamArea = value})()}
+    set startFromTeamArea(value) {action(()=>{
+        this._startFromTeamArea = value;
+        this.saveSettings();
+    })()}
     
     @observable  private _mapSize = MapSize.Medium;
     get mapSize() {return this._mapSize}
-    set mapSize(value) {action(()=>{this._mapSize = value})()}
+    set mapSize(value) {action(()=>{
+        this._mapSize = value;
+        this.saveSettings();
+    })()}
     
 
     letterData = [
@@ -156,6 +171,9 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     wordTree: WordTree;
     wordSet = new Set<string>();
 
+    gameTimeLastSentTouchedLetters_ms = 0;
+    recentlyTouchedLetters = new Map<number, Vector2>();
+
     // -------------------------------------------------------------------
     // ctor 
     // -------------------------------------------------------------------
@@ -180,6 +198,15 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
         this.wordTree = WordTree.create([]);
         this.populateWordSet();
+
+        const savedSettingsValue = storage.get(LEXIBLE_SETTINGS_KEY);
+        if (savedSettingsValue) {
+            const savedSettings = JSON.parse(savedSettingsValue) as LexibleSettings;
+            this.mapSize = savedSettings.mapSize ?? MapSize.Medium;
+            this.startFromTeamArea = savedSettings.startFromTeamArea ?? true;
+        }
+
+        makeObservable(this);
     }
 
     // -------------------------------------------------------------------
@@ -188,6 +215,14 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     // -------------------------------------------------------------------
     reconstitute() {
         this.theGrid.processBlocks((block)=>{this.setBlockHandlers(block)})
+    }
+
+    saveSettings() {
+        const savedSettings: LexibleSettings = {
+            mapSize: this.mapSize,
+            startFromTeamArea: this.startFromTeamArea
+        }
+        this.storage.set(LEXIBLE_SETTINGS_KEY, JSON.stringify(savedSettings, null, 2));
     }
 
     // -------------------------------------------------------------------
@@ -316,17 +351,16 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     // -------------------------------------------------------------------
     //  run a method to check for a state transition
     // -------------------------------------------------------------------
-    handleState()
+    handleTick()
     {
-        // This is the kind of code we need of there ever is a timed stage
-        // if (this.isStageOver) {
-        //     switch(this.gameState) {
-        //         case LexibleGameState.Playing: 
-        //             this.finishPlayingRound(); 
-        //             this.saveCheckpoint();
-        //             break;            
-        //     }
-        // }
+        if (this.recentlyTouchedLetters.size <= 0) return;
+        if (this.gameTime_ms - this.gameTimeLastSentTouchedLetters_ms > SEND_RECENT_LETTERS_INTERVAL_MS) {
+            this.gameTimeLastSentTouchedLetters_ms = this.gameTime_ms;
+            const letterCoordinates = Array.from(this.recentlyTouchedLetters.values());
+            this.recentlyTouchedLetters.clear();
+            const message = new LexibleRecentlyTouchedLettersMessage({ sender: this.session.personalId, letterCoordinates });
+            this.sendToEveryone(() => message);
+        }
     }
 
     // -------------------------------------------------------------------
@@ -386,12 +420,17 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         if(!data?.coordinates) throw Error(`No coordinates passed to handlePlayerLetterSelect ${data.coordinates}`)
         
         const selectedBlock = this.theGrid.getBlock(data.coordinates);
-        if(selectedBlock && data.isFirst) {
+        if (!selectedBlock) {
+            console.log("WEIRD: No block at:", data.coordinates);
+            return;
+        }
+        if(data.isFirst) {
             console.log(`First selection for ${playerId} is ${selectedBlock.letter}`)
             const wordList = this.findWords(selectedBlock);
             this.sendToPlayer(playerId, new LexibleWordHintMessage({ sender: this.session.personalId, wordList }))
         }
-        selectedBlock?.selectForPlayer(data.playerId, data.selectedValue);
+        selectedBlock.selectForPlayer(data.playerId, data.selectedValue);
+        this.recentlyTouchedLetters.set(selectedBlock.coordinates.x * 1000 + selectedBlock.coordinates.y, selectedBlock.coordinates)
     }
 
     // -------------------------------------------------------------------

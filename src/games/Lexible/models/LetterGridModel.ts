@@ -1,5 +1,5 @@
 import { Vector2 } from "libs";
-import { observable } from "mobx";
+import { makeObservable, observable } from "mobx";
 import { LetterBlockModel } from "./LetterBlockModel";
 
 export class LetterGridModel {
@@ -10,6 +10,7 @@ export class LetterGridModel {
     constructor(width: number = 0, height: number = 0) {
         this.width = width;
         this.height = height;
+        makeObservable(this);
     }
 
     // -------------------------------------------------------------------
