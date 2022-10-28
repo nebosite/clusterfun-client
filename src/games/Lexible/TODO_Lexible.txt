@@ -4,20 +4,20 @@
 --------------------------------------------------------------
   
 TODO
-    [ ] Bug: Slider control not working on game test component
-    [ ] Bug: submitting a word does not set it on the client
-    [ ] Bug: Panning slider on Android phone brings up blue selection slide
-    [ ] Remember settings
+    [x] Bug: Slider control not working on game test component
+    [x] Bug: submitting a word does not set it on the client
+    [x] Bug: Panning slider on Android phone brings up blue selection slide
+    [x] Remember settings
+    [x] Fix Quit buttons
 
-
-
+    [x] On the user screen, show all selected letters
     [ ] Turn off verbose console logs for prod
-    [ ] End Screen
-        [ ] Show player stats
-    [ ] have intermediate join mode when players pick teams/handicaps
     [ ] Clear indication of what parts of the path are completed
         Use Dykstra's algorith
             start at last quare on the team side, end at the first square on the opposite side
+    [ ] End Screen
+        [ ] Show player stats
+    [ ] have intermediate join mode when players pick teams/handicaps
 
 
     [ ] Show letters other players are selecting  (on both client and server)
@@ -54,6 +54,7 @@ BACKLOG
     
     
 MAYBE NEVER
+    [ ] Edit manifest from the server
     [ ] Prevent the formation/reading of R-Rated words
     [ ] Message ACK system is kind of messed up
         "Weird: got a message Ack for a message not pending"
