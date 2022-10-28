@@ -4,6 +4,7 @@ import { ClusterFunGameProps, ITypeHelper, ISessionHelper, ITelemetryLogger,
 } from "../../libs";
 
 import { action, makeObservable, observable } from "mobx";
+import Logger from "js-logger";
 
 
 const GAMESTATE_LABEL = "game_state";
@@ -27,7 +28,7 @@ export function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper
     let returnMe: T | undefined;
 
     returnMe = typeHelper.constructType(gameTypeName) as T;
-    console.log(`Creating fresh ${gameTypeName}.  State is ${returnMe?.gameState}`)
+    Logger.info(`Creating fresh ${gameTypeName}.  State is ${returnMe?.gameState}`)
     if(!returnMe) throw Error(`Unable to construct ${gameTypeName}`)
 
     returnMe.serializer = serializer;
@@ -103,9 +104,9 @@ export abstract class BaseGameModel  {
         if(value === GeneralGameState.Unknown) {
             throw Error("Attempting to set game state to 'unknown'")
         }
-        console.log(`${this.name} state set to ${value}`)
+        Logger.info(`${this.name} state set to ${value}`)
         if(this._gameState === GeneralGameState.Destroyed) {
-            console.log(`WEIRD: Attempted to set detroyed ${this.name} to ${value}`)
+            Logger.warn(`WEIRD: Attempted to set destroyed ${this.name} to ${value}`)
         }
         else {
             action(()=>{
@@ -129,7 +130,7 @@ export abstract class BaseGameModel  {
     public set devFast(value: boolean) { action(()=>{this._devFast = value;})() }
 
     protected session: ISessionHelper;
-    protected logger: ITelemetryLogger;
+    protected telemetryLogger: ITelemetryLogger;
     protected storage: IStorage;
 
     public onTick = new EventThing<number>("BaseGameModel");
@@ -160,7 +161,7 @@ export abstract class BaseGameModel  {
     {
         makeObservable(this);
         this.name = name;
-        this.logger = logger;
+        this.telemetryLogger = logger;
         this.session = sessionHelper;
         this.storage = storage;
 
@@ -175,7 +176,7 @@ export abstract class BaseGameModel  {
             timeOfLastTick = now;
         }, this.tickInterval_ms );
 
-        this.logger.logPageView(name);
+        this.telemetryLogger.logPageView(name);
     }
 
     // -------------------------------------------------------------------
@@ -194,21 +195,21 @@ export abstract class BaseGameModel  {
                     const savedData = this.serializer!.parse<BaseGameModel>(savedDataJson);
                     if(savedData.gameState !== GeneralGameState.Destroyed)
                     {
-                        console.log("Found a saved game.  Resuming ...")
+                        Logger.info("Found a saved game.  Resuming ...")
                         action(()=>{
                             Object.assign(this, savedData)
                             this.reconstitute();                          
                         })()        
                     }
                     else {
-                        console.log(`Saved game state was 'destroyed'.  Going with new game.`)
+                        Logger.info(`Saved game state was 'destroyed'.  Going with new game.`)
                     } 
                 }      
             }
             catch(err) 
             {
                 gameProps.logger.logEvent("Error", "Failed Game Restore", (err as any).message )
-                console.log("getSavedGame: Could not retore game because: " + err);
+                Logger.error("getSavedGame: Could not restore game because: " + err);
             }
             this._isLoading = false;
         },50)
@@ -224,7 +225,7 @@ export abstract class BaseGameModel  {
     //  quitApp
     // -------------------------------------------------------------------
     quitApp = () => {
-        console.log("Quitting the app")
+        Logger.info("Quitting the app")
         this.gameState = GeneralGameState.Destroyed;
         clearInterval(this._ticker);
         this.storage.remove(GAMESTATE_LABEL);
@@ -234,7 +235,7 @@ export abstract class BaseGameModel  {
     // onSessionClosed
     // -------------------------------------------------------------------
     protected onSessionClosed(code: number) {
-        console.log("Session was closed with code: " + code);
+        Logger.info("Session was closed with code: " + code);
         const CLOSECODE_PAGEREFRESH = 1001
         const CLOSECODE_PLEASERETRY = 1013
 
@@ -299,7 +300,7 @@ export abstract class BaseGameModel  {
 
             setTimeout(()=> {
                 const jsonToSave = this.serializer!.stringify(this);
-                //console.log(`Saving checkpoint (${jsonToSave.length} bytes)`)
+                Logger.info(`Saving checkpoint (${jsonToSave.length} bytes)`)
                 if(this.gameState !== GeneralGameState.Destroyed) {
                     this.storage.set(GAMESTATE_LABEL, jsonToSave)
                 }
@@ -325,7 +326,7 @@ export abstract class BaseGameModel  {
 
         const checkpoint = this.storage.get(GAMESTATE_LABEL)
         if(checkpoint) {
-            console.log("************** STASHING  " + this.session.personalId)
+            Logger.info("************** STASHING  " + this.session.personalId)
             this.storage.set(STASH_LABEL, checkpoint);
             this.storage.set(GAMESTATE_LABEL, "");
         }
@@ -338,7 +339,7 @@ export abstract class BaseGameModel  {
 
         const checkpoint = this.storage.get(STASH_LABEL)
         if(checkpoint) {
-            console.log("************** UNSTASHING  " + this.session.personalId)
+            Logger.info("************** UNSTASHING  " + this.session.personalId)
             this.storage.set(GAMESTATE_LABEL, checkpoint);
             this.storage.set(STASH_LABEL, "");
         }

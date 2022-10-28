@@ -1,3 +1,4 @@
+import Logger from "js-logger";
 import { Vector2 } from "libs";
 import { action, makeObservable, observable } from "mobx";
 
@@ -25,7 +26,7 @@ export class LetterBlockModel
     set failFade(value) { action(()=>this._failFade = value)()}
     @observable team: string = "_"
 
-    onSelectedChanged:BlockSelectHandler = ()=>{console.log("WERID: Default select action happening")}
+    onSelectedChanged:BlockSelectHandler = ()=>{Logger.warn("WEIRD: Default select action happening")}
 
     // -------------------------------------------------------------------
     // ctor 
