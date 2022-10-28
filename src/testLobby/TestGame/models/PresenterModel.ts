@@ -105,6 +105,8 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
 
         sessionHelper.addListener(TestatoPlayerActionMessage, "answer", this.handlePlayerAction);
 
+        this.allowedJoinStates = [PresenterGameState.Gathering, TestatoGameState.Playing]
+
         this.minPlayers = 2;
     }
 
@@ -146,7 +148,7 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     // -------------------------------------------------------------------
     //  run a method to check for a state transition
     // -------------------------------------------------------------------
-    handleState()
+    handleTick()
     {
         if (this.isStageOver) {
             switch(this.gameState) {

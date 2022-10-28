@@ -42,9 +42,9 @@ extends React.Component<LetterBlockProps>
         const failHex = Math.floor((1-context.failFade) * 255).toString(16).padStart(2,"0")
         let background = context.failFade > 0
             ? `#FF${failHex}${failHex}`
-            : context.score > 0
-                ? "#00000080"
-                : context.selected ? "cyan" : "#eee"
+            : context.selected
+                ? "cyan"
+                : context.score > 0 ? "#00000080" : "#eee"
 
 
         const innerStyle:any = {
@@ -61,7 +61,7 @@ extends React.Component<LetterBlockProps>
         }
         const letterStyle:any = {
             fontSize: fontSize,
-            color: context.score > 0 
+            color: !context.selected && context.score > 0 
                 ? "#ffffff80"
                 : "#333",
 

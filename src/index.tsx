@@ -83,7 +83,7 @@ else if (process.env.REACT_APP_DEVMODE === 'development') {
         name: "Lexible",
         logoName: "",
         tags: [],
-        lazyType: React.lazy(() => import('./games/Lexible/views/LexibleGameComponent'))
+        lazyType: React.lazy(() => import('./games/Lexible/views/GameComponent'))
     });
     
     root.render( <GameTestComponent gameTestModel={gameTestModel} games={games} /> );        
@@ -149,7 +149,7 @@ else {
                 console.log(`Server specified a game I don't know about: ${serverItem.name}`)
                 return undefined;
             }
-        }).filter(i => i != undefined) as GameDescriptor[]
+        }).filter(i => i !== undefined) as GameDescriptor[]
 
         root.render( <LobbyMainPage lobbyModel={lobbyModel} games={gameList}/> );             
 

@@ -4,7 +4,7 @@ import { observer, inject } from "mobx-react";
 import { TestatoClientModel, TestatoClientState } from "../models/ClientModel";
 import styles from './Client.module.css';
 import classNames from "classnames";
-import { ClusterCanvas, UIProperties, GeneralGameState, SafeBrowser, GeneralClientState, UINormalizer, ErrorBoundary} from "libs";
+import { ClusterCanvas, UIProperties, GeneralGameState, SafeBrowser, GeneralClientGameState, UINormalizer, ErrorBoundary} from "libs";
 
 
 // -------------------------------------------------------------------
@@ -151,7 +151,7 @@ export default class Client
         console.log(`RENDERING WITH GAME STATE: ${appModel?.gameState}`)
 
         switch(appModel!.gameState) {
-            case GeneralClientState.WaitingToStart:
+            case GeneralClientGameState.WaitingToStart:
                 return (<React.Fragment>
                     <div className={styles.wait_text}>
                     Sit tight, we are waiting for the host to start the game...
@@ -170,7 +170,7 @@ export default class Client
                     <div><button onClick={()=>this.props.appModel!.quitApp()}>Quit</button></div>
                     </React.Fragment>
                 );
-            case GeneralClientState.JoinError:
+            case GeneralClientGameState.JoinError:
                 return (
                     <React.Fragment>
                     <p>Could not join the game because: {this.props.appModel!.joinError}</p>

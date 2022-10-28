@@ -1,6 +1,7 @@
-import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientState, ITypeHelper } from "libs";
+import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper } from "libs";
 import { observable } from "mobx";
 import { TestatoEndOfRoundMessage, TestatoPlayerActionMessage, TestatoPlayRequestMessage } from "./Messages";
+import { TestatoGameState } from "./PresenterModel";
 
 
 // -------------------------------------------------------------------
@@ -88,9 +89,10 @@ export class TestatoClientModel extends ClusterfunClientModel  {
             // case RetroSpectroGameState.Discussing: this.gameState = RetroSpectroClientState.Discussing; break;
             // case RetroSpectroGameState.Sorting: this.gameState = RetroSpectroClientState.Sorting; break;
             // case RetroSpectroGameState.WaitingForAnswers: this.gameState = RetroSpectroClientState.SubmittingAnswers; break;
+            case TestatoGameState.Playing: this.gameState = TestatoGameState.Playing; break; 
             default:
                 console.log(`Server Updated State to: ${serverState}`) 
-                this.gameState = GeneralClientState.WaitingToStart; break;
+                this.gameState = GeneralClientGameState.WaitingToStart; break;
         }
 
     }
@@ -109,7 +111,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
     // handlePlayRequestMessage 
     // -------------------------------------------------------------------
     protected handlePlayRequestMessage = (message: TestatoPlayRequestMessage) => {
-        if(this.gameState === GeneralClientState.WaitingToStart) {
+        if(this.gameState === GeneralClientGameState.WaitingToStart) {
             this.logger.logEvent("Client", "Start");
         }
         this.roundNumber = message.roundNumber;

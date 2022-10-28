@@ -6,7 +6,7 @@ import classNames from "classnames";
 import { observable } from "mobx";
 import TestatoAssets from "../assets/Assets";
 import { TestatoVersion } from "../models/GameSettings";
-import { BaseAnimationController, MediaHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, DevUI, UINormalizer, ISessionHelper, IStorage, ITelemetryLogger } from "libs";
+import { BaseAnimationController, MediaHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, DevUI, UINormalizer } from "libs";
 import { TestatoPresenterModel, TestatoGameState, TestatoGameEvent } from "../models/PresenterModel";
 
 

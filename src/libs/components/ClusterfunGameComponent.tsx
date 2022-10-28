@@ -7,7 +7,7 @@ import { BaseGameModel, ISessionHelper, ITypeHelper,
     GameInstanceProperties, IMessageThing, 
     IStorage, ITelemetryLogger } from "../../libs";
 import { UIProperties } from "libs/types/UIProperties";
-import { Provider } from "mobx-react";
+import { observer, Provider } from "mobx-react";
 import React from "react";
 
 // -------------------------------------------------------------------
@@ -28,15 +28,18 @@ class DummyComponent extends React.Component<{ appModel?: any, uiProperties: UIP
 {
     render() { return <div>DUMDUMDUM</div>}
 }
+
+
 // -------------------------------------------------------------------
 // Main Game Page
 // -------------------------------------------------------------------
+@observer
 export class ClusterfunGameComponent 
 extends React.Component<ClusterFunGameProps>
 {
 
     appModel?: BaseGameModel;
-    UI: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }> = DummyComponent;
+    UI: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }> = DummyComponent
 
     init(
         presenterType: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>,
@@ -55,23 +58,22 @@ extends React.Component<ClusterFunGameProps>
             serverCall
             );
 
+        console.log(`INIT ${this.props.playerName}`)
 
         if(gameProperties.role === "presenter")
         {
             this.UI = presenterType;
             this.appModel = instantiateGame(
-                this.props, 
                 getPresenterTypeHelper( derivedPresenterTypeHelper(sessionHelper, this.props)))
         } else {
             this.UI = clientType;
             this.appModel = instantiateGame(
-                this.props, 
                 getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)))
         }
     
         this.appModel.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => onGameEnded());
-
         document.title = `${gameProperties.gameName} / ClusterFun.tv`
+        this.appModel!.tryLoadOldGame(this.props);
     }
     
 
@@ -83,7 +85,7 @@ extends React.Component<ClusterFunGameProps>
         return (
             <Provider appModel={this.appModel}>
                 <React.Suspense fallback={<div>loading...</div>}>
-                    <UI uiProperties={this.props.uiProperties}/>
+                    <UI uiProperties={this.props.uiProperties}/>            
                 </React.Suspense>
             </Provider>
         );
