@@ -17,6 +17,7 @@ import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunPresenterModel, ITelemetryLogger, IStorage, GeneralGameState, PresenterGameEvent, PresenterGameState, ClusterFunGameOverMessage, ITypeHelper } from "libs";
+import Logger from "js-logger";
 
 const LEXIBLE_SETTINGS_KEY = "lexible_settings";
 const SEND_RECENT_LETTERS_INTERVAL_MS = 200;
@@ -190,7 +191,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         sessionHelper.addListener(LexiblePlayerActionMessage, `${this.name}_action`, this.handlePlayerAction);
 
         sessionHelper.onError(err => {
-            console.log(`Session error: ${err}`)
+            Logger.error(`Session error: ${err}`)
             this.quitApp();
         })
         
@@ -234,7 +235,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         const words = wordList.split('\n').map(w => w.trim())
         this.wordTree = WordTree.create(words);
         words.forEach(w => this.wordSet.add(w));
-        console.log(`Loaded ${this.wordSet.size} words`)
+        Logger.info(`Loaded ${this.wordSet.size} words`)
     }
 
     // -------------------------------------------------------------------
@@ -255,7 +256,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             }
         }
 
-        console.log(`Joined game state: ${this.gameState}`)
+        Logger.debug(`Joined game state: ${this.gameState}`)
         if(this.gameState !== PresenterGameState.Gathering) {
             this.sendToPlayer(player.playerId, this.createPlayRequestMessage(player.teamName))
         }
@@ -421,11 +422,11 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         
         const selectedBlock = this.theGrid.getBlock(data.coordinates);
         if (!selectedBlock) {
-            console.log("WEIRD: No block at:", data.coordinates);
+            Logger.warn("WEIRD: No block at:", data.coordinates);
             return;
         }
         if(data.isFirst) {
-            console.log(`First selection for ${playerId} is ${selectedBlock.letter}`)
+            Logger.debug(`First selection for ${playerId} is ${selectedBlock.letter}`)
             const wordList = this.findWords(selectedBlock);
             this.sendToPlayer(playerId, new LexibleWordHintMessage({ sender: this.session.personalId, wordList }))
         }
@@ -617,8 +618,8 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     handlePlayerAction = (message: LexiblePlayerActionMessage) => {
         const player = this.players.find(p => p.playerId === message.sender);
         if(!player) {
-            console.log("No player found for message: " + JSON.stringify(message));
-            this.logger.logEvent("Presenter", "AnswerMessage", "Deny");
+            Logger.warn("No player found for message: " + JSON.stringify(message));
+            this.telemetryLogger.logEvent("Presenter", "AnswerMessage", "Deny");
             return;
         }
 

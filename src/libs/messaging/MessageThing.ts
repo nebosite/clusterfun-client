@@ -1,3 +1,4 @@
+import Logger from "js-logger";
 import { ClusterFunSerializer } from "../../libs"
 
 // -------------------------------------------------------------------
@@ -74,7 +75,7 @@ export class WebSocketMessageThing implements IMessageThing {
                     }
                     else {
                         backoffTime *= 2;
-                        console.log(`Socket not ready.  Backing off ${backoffTime}ms`)
+                        Logger.info(`Socket not ready.  Backing off ${backoffTime}ms`)
                         setTimeout(delayedSend,backoffTime);
                     }
                 }

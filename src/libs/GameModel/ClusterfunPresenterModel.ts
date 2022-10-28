@@ -5,6 +5,7 @@ import { IMessageReceipt, ITypeHelper, ISessionHelper, ITelemetryLogger,
 } from "../../libs";
 import { action, makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
+import Logger from "js-logger";
 
 // All games have these states which are managed 
 // in the base classes
@@ -122,7 +123,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     //  handleJoinMessage
     // -------------------------------------------------------------------
     handleJoinMessage = async (message: ClusterFunJoinMessage) => {
-        console.log(`Join message from ${message.sender}`)
+        Logger.info(`Join message from ${message.sender}`)
 
         // Find a player with a matching id - we know this one is an exact match
         let returningPlayer = this._exitedPlayers.find(p => p.playerId === message.sender) as unknown as PlayerType;
@@ -139,7 +140,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
 
             if(this.gameState === GeneralGameState.Paused) {
             }
-            console.log(`Sending state to ${message.sender}...`)
+            Logger.info(`Sending state to ${message.sender}...`)
             setTimeout(()=>{
                 this.session.sendMessage(
                     message.sender,
@@ -149,7 +150,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         }
 
         if(returningPlayer) {
-            console.log(`Returning player: ${returningPlayer.name}`)
+            Logger.info(`Returning player: ${returningPlayer.name}`)
             returningPlayer.playerId = message.sender;
             this.session.sendMessage(
                 message.sender,
@@ -159,7 +160,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                 const pendingMessage = returningPlayer.pendingMessage
                 const playerId = returningPlayer.playerId
                 setTimeout(()=>{
-                    console.log("Resending Pending message to " + playerId)
+                    Logger.info("Resending Pending message to " + playerId)
                     this.session.resendMessage(playerId, pendingMessage);
                 },50)
             }
@@ -167,28 +168,28 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
             const index = this._exitedPlayers.indexOf(returningPlayer);
             this._exitedPlayers.splice(index,1);
             this.players.push(returningPlayer);
-            this.logger.logEvent("Presenter", "JoinRequest", "ApproveRejoin");
+            this.telemetryLogger.logEvent("Presenter", "JoinRequest", "ApproveRejoin");
             this.invokeEvent(PresenterGameEvent.PlayerJoined, returningPlayer);
             setTimeout(() => {notifyState()}, 250)
         }
         else if (this.allowedJoinStates.find(s => s === this.gameState)) {
-            console.log(`New Player`)
+            Logger.info(`New Player`)
             if(this.players.length < this.maxPlayers)
             {
                 let existingPlayer = this.players.find(p => p.name === message.name) as unknown as PlayerType;
-                console.log(`Existing Player:: ${existingPlayer?.name}`)
+                Logger.info(`Existing Player:: ${existingPlayer?.name}`)
                 if(existingPlayer) {
-                    console.log(`Denying join because name exists`)
+                    Logger.info(`Denying join because name exists`)
                     this.session.sendMessage(
                         message.sender,
                         new ClusterFunJoinAckMessage({ sender: this.session.personalId, didJoin: false, isRejoin: false, joinError: `That name is taken`})   
                     )
     
-                    this.logger.logEvent("Presenter", "JoinRequest", "Deny (Name Taken)" );
+                    this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Name Taken)" );
                 }
                 else {
                     const entry = this.createFreshPlayerEntry(message.name, message.sender);
-                    this.logger.logEvent("Presenter", "JoinRequest", "Approve");
+                    this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve");
                     action(()=>{this.players.push(entry)})();                
 
                     this.session.sendMessage(
@@ -199,7 +200,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
 
                     this.saveCheckpoint();
                     this.invokeEvent(PresenterGameEvent.PlayerJoined, entry);     
-                    this.logger.logEvent("Presenter", "JoinRequest", "Approve new player" );
+                    this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve new player" );
                 }
             }
             else {
@@ -207,7 +208,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                     message.sender,
                     new ClusterFunJoinAckMessage({ sender: this.session.personalId, didJoin: false, isRejoin: false, joinError: "The room is full"})
                 )
-                this.logger.logEvent("Presenter", "JoinRequest", "Deny (Full)" );
+                this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Full)" );
             }
         }
         else {
@@ -215,7 +216,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                 message.sender,
                 new ClusterFunJoinAckMessage({ sender: this.session.personalId, didJoin: false, isRejoin: false, joinError: `The room is currently closed (game state: ${this.gameState})`})
             )
-            this.logger.logEvent("Presenter", "JoinRequest", "Deny (Not Allowed)");          
+            this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Not Allowed)");          
         }
     }
 
@@ -224,8 +225,8 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     // -------------------------------------------------------------------
     handlePlayerQuitMessage = (message: ClusterFunQuitMessage) => {
         if(this.gameState === GeneralGameState.Destroyed) return;
-        console.log("received quit message from " + message.sender)
-        this.logger.logEvent("Presenter", "QuitRequest");
+        Logger.info("received quit message from " + message.sender)
+        this.telemetryLogger.logEvent("Presenter", "QuitRequest");
         const player = this.players.find(p => p.playerId === message.sender);
         if(player) {
             this.players.remove(player);
@@ -261,7 +262,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         players.forEach(player => {
             this.players.push(this.createFreshPlayerEntry(player.name, player.playerId))
         });
-        this.logger.logEvent("Presenter", "PlayAgain");
+        this.telemetryLogger.logEvent("Presenter", "PlayAgain");
 
         this.startGame();
     }
@@ -273,7 +274,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         this.prepareFreshGame();
         this.startNextRound();
         this.saveCheckpoint();
-        this.logger.logEvent("Presenter", "Start");
+        this.telemetryLogger.logEvent("Presenter", "Start");
     }
 
     // -------------------------------------------------------------------
@@ -304,7 +305,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     // -------------------------------------------------------------------
     resumeGame = () => {
         if(this._stateBeforePause === GeneralGameState.Unknown) {
-            console.log(`WEIRD:  Attempted resuming with previous unknown state. Current state is ${this.gameState}`)
+            Logger.warn(`WEIRD:  Attempted resuming with previous unknown state. Current state is ${this.gameState}`)
         }
         else {
             this.gameState = this._stateBeforePause;
@@ -343,7 +344,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                 return;
             }
         }
-        console.log(`Weird: got a message Ack for a message not pending: ` + JSON.stringify(message))
+        Logger.warn(`Weird: got a message Ack for a message not pending: ` + JSON.stringify(message))
     }
    
     // -------------------------------------------------------------------
