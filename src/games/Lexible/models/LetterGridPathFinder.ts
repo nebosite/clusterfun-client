@@ -19,7 +19,75 @@ export interface LetterGridPath {
     cost: PathCost;
 }
 
-// TODO: To clean up this code in the future, make a Vector2-keyed map
+class Vector2Map<V> implements Map<Vector2, V> {
+    private _size: number = 0;
+    data: Map<number, Map<number, V>> = new Map<number, Map<number, V>>();
+    clear(): void {
+        this.data.clear();
+    }
+    delete(key: Vector2): boolean {
+        if (!this.data.has(key.x)) return false;
+        const xmap = this.data.get(key.x)!;
+        const result = xmap.delete(key.y);
+        if (result) this._size--;
+        if (xmap.size === 0) this.data.delete(key.x);
+        return result;
+    }
+    forEach(callbackfn: (value: V, key: Vector2, map: Map<Vector2, V>) => void, thisArg?: any): void {
+        this.data.forEach((xmap, x) => {
+            xmap.forEach((v, y) => {
+                callbackfn(v, new Vector2(x, y), this);
+            })
+        })
+    }
+    get(key: Vector2): V | undefined {
+        if (!this.data.has(key.x)) return undefined;
+        return this.data.get(key.x)!.get(key.y);
+    }
+    has(key: Vector2): boolean {
+        if (!this.data.has(key.x)) return false;
+        return this.data.get(key.x)!.has(key.y);
+    }
+    set(key: Vector2, value: V): this {
+        if (!this.data.has(key.x)) {
+            this.data.set(key.x, new Map<number, V>());
+        }
+        const xmap = this.data.get(key.x)!;
+        if (!xmap.has(key.y)) this._size++;
+        xmap.set(key.y, value);
+        return this;
+    }
+    get size(): number {
+        return this._size;
+    }
+    *entries(): IterableIterator<[Vector2, V]> {
+        for (const [x, xmap] of this.data.entries()) {
+            for (const [y, v] of xmap.entries()) {
+                yield [new Vector2(x, y), v];
+            }
+        }
+    }
+    *keys(): IterableIterator<Vector2> {
+        for (const [x, xmap] of this.data.entries()) {
+            for (const y of xmap.keys()) {
+                yield new Vector2(x, y);
+            }
+        }
+    }
+    *values(): IterableIterator<V> {
+        for (const [x, xmap] of this.data.entries()) {
+            for (const v of xmap.values()) {
+                yield v;
+            }
+        }
+    }
+    [Symbol.iterator](): IterableIterator<[Vector2, V]> {
+        return this.entries();
+    }
+    get [Symbol.toStringTag](): string {
+        return "Vector2Map";
+    }
+}
 
 export class LetterGridPathFinder {
     findHotPath(grid: LetterGridModel, team: "A" | "B"): LetterGridPath {
@@ -32,25 +100,20 @@ export class LetterGridPathFinder {
         }
 
         // A map indicating the previous element on a path search
-        const cameFrom = new Map<Vector2, Vector2>();
+        const cameFrom = new Vector2Map<Vector2>();
         // A map of (x, (y, cost)) indicating the shortest path from start to n
-        const truePathScore = new Map<number, Map<number, PathCost>>();
+        const truePathScore = new Vector2Map<PathCost>();
         // A map of (x, (y, cost)) indicating the current best guess for a path's
         // cost from start to finish if it goes through n
-        const guessPathScore = new Map<number, Map<number, PathCost>>();
+        const guessPathScore = new Vector2Map<PathCost>();
         // A map of (x, (y)) indicating whether a certain coordinate
         // is in the search queue (since the queue itself is not
         // directly searchable)
-        const searchQueuePresence = new Map<number, Set<number>>();
-        for (let x = 0; x < grid.width; x++) {
-            truePathScore.set(x, new Map<number, PathCost>());
-            guessPathScore.set(x, new Map<number, PathCost>());
-            searchQueuePresence.set(x, new Set<number>());
-        }
+        const searchQueuePresence = new Vector2Map<boolean>();
         // A priority queue indicating which coordinates to search next
         const searchQueue = new PriorityQueue<Vector2>((a, b) => {
-            const aCost = guessPathScore.get(a.x)!.get(a.y);
-            const bCost = guessPathScore.get(b.x)!.get(b.y);
+            const aCost = guessPathScore.get(a);
+            const bCost = guessPathScore.get(b);
             if (aCost && bCost) return comparePathCostElements(aCost, bCost);
             else if (aCost) return 1;
             else if (bCost) return -1;
@@ -70,18 +133,19 @@ export class LetterGridPathFinder {
                 neutral: trueCost.neutral,
                 enemy: trueCost.enemy
             };
+            const vector = new Vector2(startx, y);
             searchQueue.enqueue(new Vector2(startx, y));
-            truePathScore.get(startx)!.set(y, trueCost);
-            guessPathScore.get(startx)!.set(y, guessCost);
-            searchQueuePresence.get(startx)!.add(y);
+            truePathScore.set(vector, trueCost);
+            guessPathScore.set(vector, guessCost);
+            searchQueuePresence.set(vector, true);
         }
 
         while (!searchQueue.isEmpty()) {
             let current = searchQueue.dequeue();
-            searchQueuePresence.get(current.x)!.delete(current.y);
+            searchQueuePresence.delete(current);
             if (current.x === winx) {
                 const nodes: Vector2[] = [ current ];
-                const cost: PathCost = truePathScore.get(current.x)!.get(current.y)!;
+                const cost: PathCost = truePathScore.get(current)!;
                 while (cameFrom.has(current)) {
                     // TODO: In tests, the path and the node cost are ocassionally off by one.
                     // Figure out why this is.
@@ -96,31 +160,31 @@ export class LetterGridPathFinder {
                 const block = grid.getBlock(neighbor);
                 if (!block) continue;
 
-                if (!truePathScore.get(neighbor.x)!.has(neighbor.y)) {
-                    truePathScore.get(neighbor.x)!.set(neighbor.y, { 
+                if (!truePathScore.has(neighbor)) {
+                    truePathScore.set(neighbor, { 
                         ally: Number.POSITIVE_INFINITY, 
                         neutral: Number.POSITIVE_INFINITY, 
                         enemy: Number.POSITIVE_INFINITY 
                     });
-                    guessPathScore.get(neighbor.x)!.set(neighbor.y, { 
+                    guessPathScore.set(neighbor, { 
                         ally: Number.POSITIVE_INFINITY, 
                         neutral: Number.POSITIVE_INFINITY, 
                         enemy: Number.POSITIVE_INFINITY 
                     });
                 }
 
-                const tenativeTrueScore = {...truePathScore.get(current.x)!.get(current.y)!};
+                const tenativeTrueScore = {...truePathScore.get(current)!};
                 const propertyToAdd = block.team === team ? "ally" : block.team === "_" ? "neutral" : "enemy";
                 tenativeTrueScore[propertyToAdd] += 1;
 
-                if (comparePathCostElements(tenativeTrueScore, truePathScore.get(neighbor.x)!.get(neighbor.y)!) < 0) {
+                if (comparePathCostElements(tenativeTrueScore, truePathScore.get(neighbor)!) < 0) {
                     cameFrom.set(neighbor, current);
-                    truePathScore.get(neighbor.x)?.set(neighbor.y, tenativeTrueScore);
+                    truePathScore.set(neighbor, tenativeTrueScore);
                     const neighborGuessScore = {...tenativeTrueScore};
                     neighborGuessScore.ally += Math.abs(neighbor.x - winx);
-                    guessPathScore.get(neighbor.x)!.set(neighbor.y, neighborGuessScore);
-                    if (!searchQueuePresence.get(neighbor.x)!.has(neighbor.y)) {
-                        searchQueuePresence.get(neighbor.x)!.add(neighbor.y);
+                    guessPathScore.set(neighbor, neighborGuessScore);
+                    if (!searchQueuePresence.has(neighbor)) {
+                        searchQueuePresence.set(neighbor, true);
                         searchQueue.enqueue(neighbor);
                     }
                 }
