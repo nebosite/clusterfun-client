@@ -172,6 +172,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
     wordTree: WordTree;
     wordSet = new Set<string>();
+    badWords = new Set<string>();
 
     gameTimeLastSentTouchedLetters_ms = 0;
     recentlyTouchedLetters = new Map<number, Vector2>();
@@ -264,9 +265,12 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     // -------------------------------------------------------------------
     private async populateWordSet() {
         const { wordList } = await import("../assets/words/Collins_Scrabble_2019");
+        const { badWords } = await import("../assets/words/badwords");
         const words = wordList.split('\n').map(w => w.trim())
         this.wordTree = WordTree.create(words);
         words.forEach(w => this.wordSet.add(w));
+
+        badWords.split('\n').forEach(w => this.badWords.add(w));
         console.log(`Loaded ${this.wordSet.size} words`)
     }
 
@@ -508,7 +512,9 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         const words = findHere(startBlock, this.wordTree)
         const returnMe: string[] = []
         words.forEach(w => {
-            if(!returnMe.find(item => item === w))  {
+            if(!returnMe.find(item => item === w)
+                && !this.badWords.has(w)
+            )  {
                 returnMe.push(w)
             } 
         } )
