@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { Vector2 } from "libs";
 import { LetterGridModel } from "./LetterGridModel";
-import { LetterGridPathFinder } from "./LetterGridPathFinder";
+import { findHotPathInGrid } from "./LetterGridPath";
 
 function generateUniformlyFilledGrid(width: number, height: number, 
     team: string, score: string, nextRandom: () => number) {
@@ -52,8 +52,7 @@ describe("LetterGridPathFinder tests", () => {
         for (const testCase of testCases) {
             it(`Identifies ${gridDescription[testCase[1]]} as needing an all ${testCase[2]} path for team ${testCase[0]}`, () => {
                 const grid = generateUniformlyFilledGrid(GRID_WIDTH, GRID_HEIGHT, testCase[1], "4", Math.random);
-                const finder = new LetterGridPathFinder();
-                const path = finder.findHotPath(grid, testCase[0] as "A" | "B");
+                const path = findHotPathInGrid(grid, testCase[0] as "A" | "B");
                 expect(path.nodes.length).equals(GRID_WIDTH);
                 for (const k of ["neutral", "ally", "enemy"]) {
                     if (k === testCase[2]) {
@@ -76,9 +75,8 @@ describe("LetterGridPathFinder tests", () => {
                 const width = MIN_GRID_WIDTH + Math.floor(Math.random() * GRID_WIDTH_VARIANCE);
                 const height = MIN_GRID_HEIGHT + Math.floor(Math.random() * GRID_HEIGHT_VARIANCE);
                 const grid = generateFullyRandomGrid(width, height, Math.random);
-                const finder = new LetterGridPathFinder();
                 const team = Math.random() < 0.5 ? "A" : "B";
-                finder.findHotPath(grid, team);
+                findHotPathInGrid(grid, team);
             });
         }
     })
@@ -113,8 +111,7 @@ describe("LetterGridPathFinder tests", () => {
                         x++;
                     }
                 }
-                const finder = new LetterGridPathFinder();
-                const path = finder.findHotPath(grid, team);
+                const path = findHotPathInGrid(grid, team);
                 expect(path.cost.neutral).equals(0);
                 expect(path.cost.enemy).equals(0);
                 expect(path.nodes.length).equals(path.cost.ally);

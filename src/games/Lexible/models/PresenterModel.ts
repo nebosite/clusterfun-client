@@ -18,9 +18,11 @@ import { WordTree } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunPresenterModel, ITelemetryLogger, IStorage, GeneralGameState, PresenterGameEvent, PresenterGameState, ClusterFunGameOverMessage, ITypeHelper } from "libs";
 import Logger from "js-logger";
+import { findHotPathInGrid } from "./LetterGridPath";
 
 const LEXIBLE_SETTINGS_KEY = "lexible_settings";
 const SEND_RECENT_LETTERS_INTERVAL_MS = 200;
+const SHOW_HOT_PATHS_MS = 6000;
 
 export enum LexiblePlayerStatus {
     Unknown = "Unknown",
@@ -172,6 +174,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     wordTree: WordTree;
     wordSet = new Set<string>();
 
+    gameTimeLastShowedHotPaths_ms = 0;
     gameTimeLastSentTouchedLetters_ms = 0;
     recentlyTouchedLetters = new Map<number, Vector2>();
 
@@ -354,13 +357,29 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     // -------------------------------------------------------------------
     handleTick()
     {
-        if (this.recentlyTouchedLetters.size <= 0) return;
-        if (this.gameTime_ms - this.gameTimeLastSentTouchedLetters_ms > SEND_RECENT_LETTERS_INTERVAL_MS) {
-            this.gameTimeLastSentTouchedLetters_ms = this.gameTime_ms;
-            const letterCoordinates = Array.from(this.recentlyTouchedLetters.values());
-            this.recentlyTouchedLetters.clear();
-            const message = new LexibleRecentlyTouchedLettersMessage({ sender: this.session.personalId, letterCoordinates });
-            this.sendToEveryone(() => message);
+        if (this.recentlyTouchedLetters.size > 0) {
+            if (this.gameTime_ms - this.gameTimeLastSentTouchedLetters_ms > SEND_RECENT_LETTERS_INTERVAL_MS) {
+                this.gameTimeLastSentTouchedLetters_ms = this.gameTime_ms;
+                const letterCoordinates = Array.from(this.recentlyTouchedLetters.values());
+                this.recentlyTouchedLetters.clear();
+                const message = new LexibleRecentlyTouchedLettersMessage({ sender: this.session.personalId, letterCoordinates });
+                this.sendToEveryone(() => message);
+            }
+        }
+
+        if (this.gameTime_ms - this.gameTimeLastShowedHotPaths_ms > SHOW_HOT_PATHS_MS) {
+            this.gameTimeLastShowedHotPaths_ms = this.gameTime_ms;
+            const aTeamPath = findHotPathInGrid(this.theGrid, "A");
+            const bTeamPath = findHotPathInGrid(this.theGrid, "B");
+            // TODO: Consider a better visualization for this path
+            for (const path of [aTeamPath, bTeamPath]) {
+                if (path.cost.ally * 2 > path.cost.neutral + path.cost.enemy) {
+                    for (const node of path.nodes) {
+                        const block = this.theGrid.getBlock(node);
+                        block?.fail();
+                    }
+                }
+            }
         }
     }
 
@@ -486,55 +505,15 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     }
 
     // -------------------------------------------------------------------
-    // findHotPath - Find the most likely path of victory for a given
-    //               team. The path will attempt to minimize the number
-    //               of neutral or enemy blocks that must be crossed and
-    //               will indicate if neither of these is required (meaning
-    //               that the team has won the game)
-    // -------------------------------------------------------------------
-    findHotPath(team: string) {
-        
-    }
-
-    // -------------------------------------------------------------------
     //  checkForWin - a win is when there is a contiguous line of blocks
     //                from one side to the other for a single team. 
     //                Blocks are not continguous through corners.
     // -------------------------------------------------------------------
-    checkForWin(team: string) {
-        // Step 1: figure out the edges
-        let startx = 0;
-        let winx = this.theGrid.width-1;
-        if(team === "B") {
-             startx = this.theGrid.width-1;
-             winx = 0;
-        }
-
-        // figure out the places on the edge to start with
-        const workRemaining = new Array<LetterBlockModel>();
-        for(let y = 0; y < this.theGrid.height; y++) {
-             const block = this.theGrid.getBlock(new Vector2(startx, y))!
-             if(block.team === team) { workRemaining.push(block) }
-        }
-
-        const visited = new Set<number>();
-
-        // Now recurse through the blocks and check for win
-        while(workRemaining.length > 0) {
-            const currentBlock = workRemaining.pop()!;
-            const {x,y} = currentBlock.coordinates;
-            if(currentBlock.team !== team || visited.has(currentBlock.__blockid))  continue;
-
-            visited.add(currentBlock.__blockid)
-            if(x === winx) {
-                this.handleGameWin(team);
-                return;
-            }
-            
-            if(x > 0) workRemaining.push(this.theGrid.getBlock(new Vector2(x-1,y))!)
-            if(x < this.theGrid.width - 1) workRemaining.push(this.theGrid.getBlock(new Vector2(x+1,y))!)
-            if(y > 0) workRemaining.push(this.theGrid.getBlock(new Vector2(x, y-1))!)
-            if(y < this.theGrid.height - 1) workRemaining.push(this.theGrid.getBlock(new Vector2(x, y+1))!)
+    checkForWin(team: "A" | "B") {
+        const path = findHotPathInGrid(this.theGrid, team);
+        if (path.cost.enemy === 0 && path.cost.neutral === 0) {
+            this.handleGameWin(team);
+            return;
         }
     }
 
@@ -570,7 +549,11 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             }) 
         })
         this.invokeEvent(LexibleGameEvent.WordAccepted, word.toLowerCase(), player)
-        this.checkForWin(player.teamName);
+        if (player.teamName === "A" || player.teamName === "B") {
+            this.checkForWin(player.teamName);
+        } else {
+            Logger.warn("WEIRD: Player with unknown teamname")
+        }
     }
 
     // -------------------------------------------------------------------
