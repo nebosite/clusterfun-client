@@ -68,8 +68,8 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     @observable timeOfStageEnd: number = 1;
     @observable secondsLeftInStage: number = 0; // calculated based on timeOfStageEnd
     @observable isPaused: boolean = false;
-    @observable currentRound = 1;
-    @observable totalRounds = 30000;
+    @observable currentRound = 0;
+    @observable totalRounds = 3;
 
     // General Game Settings
     minPlayers = 3;
@@ -254,15 +254,19 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     // -------------------------------------------------------------------
     //  playAgain - reset the player list and start the game over
     // -------------------------------------------------------------------
-    playAgain() {
+    playAgain(resetPlayerList: boolean) {
+        if(resetPlayerList) {
+            this.players.clear();
+        }
+
         const players = this.players.slice(0);
         this.players.clear();
-
         players.forEach(player => {
             this.players.push(this.createFreshPlayerEntry(player.name, player.playerId))
         });
         this.logger.logEvent("Presenter", "PlayAgain");
 
+        this.prepareFreshGame()
         this.startGame();
     }
 
@@ -270,7 +274,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     //  startGame
     // -------------------------------------------------------------------
     startGame = () => {
-        this.prepareFreshGame();
+        this.prepareFreshRound();
         this.startNextRound();
         this.saveCheckpoint();
         this.logger.logEvent("Presenter", "Start");
@@ -296,6 +300,11 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
 
     // -------------------------------------------------------------------
     // Start a game round
+    // -------------------------------------------------------------------
+    abstract prepareFreshRound(): void;
+
+    // -------------------------------------------------------------------
+    // Start a whole new game
     // -------------------------------------------------------------------
     abstract prepareFreshGame(): void;
 

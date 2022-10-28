@@ -61,6 +61,16 @@
     
 }
 
+.gamepresenter .currentRound {
+    font-size: 80%;
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    width: 200px;
+    text-align: center;
+    
+}
+
 .gamepresenter .version {
     font-size: 80%;
     position: absolute;

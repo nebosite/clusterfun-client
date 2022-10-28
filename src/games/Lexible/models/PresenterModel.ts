@@ -288,9 +288,17 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     }
 
     // -------------------------------------------------------------------
-    //  prepareFreshGame - called automatically before every round
+    //  
     // -------------------------------------------------------------------
     prepareFreshGame = () => {
+        this.gameState = PresenterGameState.Gathering;
+        this.currentRound = 0;
+    }
+
+    // -------------------------------------------------------------------
+    //  prepareFreshRound - called automatically before every round
+    // -------------------------------------------------------------------
+    prepareFreshRound = () => {
         const boardRatio = 34/24;
 
         let boardWidth = 20 + 2 * this.players.length;
@@ -340,15 +348,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     }
 
     // -------------------------------------------------------------------
-    //  resetGame
-    // -------------------------------------------------------------------
-    resetGame() {
-        this.players.clear();
-        this.gameState = PresenterGameState.Gathering;
-        this.currentRound = 0;
-    }
-
-    // -------------------------------------------------------------------
     //  run a method to check for a state transition
     // -------------------------------------------------------------------
     handleTick()
@@ -386,7 +385,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     // -------------------------------------------------------------------
     startNextRound = () =>
     {
-        this.prepareFreshGame();
+        this.prepareFreshRound();
         this.gameState = LexibleGameState.Playing;
         this.timeOfStageEnd = this.gameTime_ms + PLAYTIME_MS;
         this.currentRound++;

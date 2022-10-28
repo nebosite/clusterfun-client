@@ -1,5 +1,5 @@
 import { Vector2 } from "../../libs";
-import { action, makeAutoObservable, makeObservable, observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import { observer } from "mobx-react";
 import React from "react"
 import styles from './Slider.module.css';

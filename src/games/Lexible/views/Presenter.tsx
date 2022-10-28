@@ -26,13 +26,13 @@ class GameSettings  extends React.Component<{appModel?: LexiblePresenterModel}> 
             <div className={styles.settingsArea} >
                 <div><b>Settings</b></div>
                 <Row>
-                    <div>Start words from team area:</div>
                     <input
                         className={styles.settingsCheckbox}
                         type="checkbox"
                         checked={appModel.startFromTeamArea}
                         onChange={handleStartFromTeamAreaChange}
                     />
+                    <div>Words must start from team territory:</div>
                 </Row>
                 <Row>
                     <div>Map Size:</div>
@@ -195,7 +195,9 @@ const teamBTaunts = [
             <button 
                 style={{margin: "20px", fontSize:"80%"}}
                 onClick={startNextRoundClick}
-            >Play Again!</button>
+            >{appModel.currentRound < appModel.totalRounds
+                ? "Play Next Round"
+                : "Finish Game"}</button>
         </div>
     }
 
@@ -232,14 +234,16 @@ const teamBTaunts = [
 
         return (
             <div>
-                <div>End of round {appModel.currentRound}</div>
                 {
                     appModel.currentRound >= appModel.totalRounds 
-                    ? <div>
+                    ?   <div>
                             <div>The game is over...</div>
-                            <button onClick={() => appModel.startGame()}>Play again, same players</button> 
+                            <button onClick={() => appModel.playAgain(false)}>Play again, same players</button> 
                         </div>
-                    : <button onClick={() => appModel.startNextRound()}>Start next round</button> 
+                    :   <div>
+                            <div>End of round {appModel.currentRound}</div>
+                            <button onClick={() => appModel.startNextRound()}>Start next round</button> 
+                        </div>
                 }
                               
             </div>
@@ -328,6 +332,10 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
                 <div className={classNames(styles.roomCode)}>
                     <div>Room Code:</div>
                     <div style={{fontSize: "180%", fontWeight: 800}}>{appModel.roomId}</div>
+                </div>
+                <div className={classNames(styles.currentRound)}>
+                    <div>Round:</div>
+                    <div style={{fontSize: "180%", fontWeight: 800}}>{appModel.currentRound}/{appModel.totalRounds}</div>
                 </div>
                 <div className={classNames(styles.version)}>v{LexibleVersion}</div>
             </div>)
