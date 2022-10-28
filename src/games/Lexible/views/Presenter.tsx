@@ -191,7 +191,7 @@ const teamBTaunts = [
         const startNextRoundClick = () => appModel.startNextRound();
 
         return <div className={styles.overlay} style={{fontSize: "200%"}}>
-            <div className={styles.endOfRoundText}>TEAM {appModel.winningTeam} is the winner!</div>
+            <div className={styles.endOfRoundText}>TEAM {appModel.roundWinningTeam} is the winner!</div>
             <button 
                 style={{margin: "20px", fontSize:"80%"}}
                 onClick={startNextRoundClick}
@@ -234,18 +234,13 @@ const teamBTaunts = [
 
         return (
             <div>
-                {
-                    appModel.currentRound >= appModel.totalRounds 
-                    ?   <div>
-                            <div>The game is over...</div>
-                            <button onClick={() => appModel.playAgain(false)}>Play again, same players</button> 
-                        </div>
-                    :   <div>
-                            <div>End of round {appModel.currentRound}</div>
-                            <button onClick={() => appModel.startNextRound()}>Start next round</button> 
-                        </div>
-                }
-                              
+                <div>The game is over...</div>
+                <div>Overall winner is: { appModel.gameWinningTeam 
+                    ? `Team ${appModel.gameWinningTeam}`
+                    : "It's a TIE!"
+                }</div>
+                <div>Longest word: {appModel.longestWord.value} ({appModel.longestWord.playerName}) </div>
+                <button onClick={() => appModel.playAgain(false)}>Play again, same players</button> 
             </div>
         );
     }

@@ -34,6 +34,7 @@ export class LexiblePlayer extends ClusterFunPlayer {
     @observable x = 0;
     @observable y = 0;
     @observable teamName = "X";
+    @observable longestWord = "";
 }
 
 // -------------------------------------------------------------------
@@ -120,9 +121,9 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
     @observable theGrid = new LetterGridModel();
 
-    @observable private _winningTeam = "";
-    get winningTeam() { return this._winningTeam}
-    set winningTeam(value) { action(()=>{this._winningTeam = value})()}
+    @observable private _roundWinningTeam = "";
+    get roundWinningTeam() { return this._roundWinningTeam}
+    set roundWinningTeam(value) { action(()=>{this._roundWinningTeam = value})()}
 
     @observable  private _startFromTeamArea = true
     get startFromTeamArea() {return this._startFromTeamArea}
@@ -173,6 +174,23 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
     gameTimeLastSentTouchedLetters_ms = 0;
     recentlyTouchedLetters = new Map<number, Vector2>();
+    _teamPoints:number[] = observable([0,0])
+    get gameWinningTeam() {
+        if(this._teamPoints[0] > this._teamPoints[1]) return "A";
+        if(this._teamPoints[0] < this._teamPoints[1]) return "B";
+        else return undefined;
+    }
+
+    get longestWord() {
+        let longestWord = {value: "_", playerName: "na"};
+        this.players.forEach(p => {
+            if(p.longestWord.length > longestWord.value.length) {
+                longestWord.value = p.longestWord;
+                longestWord.playerName = p.name;
+            }
+        })
+        return longestWord;
+    }
 
     // -------------------------------------------------------------------
     // ctor 
@@ -217,6 +235,9 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         this.theGrid.processBlocks((block)=>{this.setBlockHandlers(block)})
     }
 
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
     saveSettings() {
         const savedSettings: LexibleSettings = {
             mapSize: this.mapSize,
@@ -293,6 +314,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     prepareFreshGame = () => {
         this.gameState = PresenterGameState.Gathering;
         this.currentRound = 0;
+        this._teamPoints.fill(0)
     }
 
     // -------------------------------------------------------------------
@@ -529,7 +551,12 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     //  handleGameWin 
     // -------------------------------------------------------------------
     handleGameWin(team: string) {
-        this.winningTeam = team;
+        this.roundWinningTeam = team;
+        switch(team) {
+            case "A": this._teamPoints[0]++; break;
+            case "B": this._teamPoints[1]++; break;
+            default: console.log(`WEIRD: unexpected team value: ${team}`)
+        }
         this.gameState = LexibleGameState.EndOfRound
         this.invokeEvent(LexibleGameEvent.TeamWon, team)
         this.sendToEveryone((p,ie) => new LexibleEndOfRoundMessage({ sender: this.session.personalId, roundNumber: this.currentRound, winningTeam: team}));
@@ -547,6 +574,9 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 placedLetters.push(l);
             }
         })
+
+        if(word.length > player.longestWord.length) player.longestWord = word;
+
         this.sendToEveryone((p, isExited) => {
             return new LexibleScoredWordMessage({
                 sender: this.session.personalId,
