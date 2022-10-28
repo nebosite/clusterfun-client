@@ -23,6 +23,7 @@ export class LetterBlockModel
     @observable private _failFade: number = 0;
     get failFade() {return this._failFade}
     set failFade(value) { action(()=>this._failFade = value)()}
+
     @observable team: string = "_"
 
     onSelectedChanged:BlockSelectHandler = ()=>{console.log("WERID: Default select action happening")}
