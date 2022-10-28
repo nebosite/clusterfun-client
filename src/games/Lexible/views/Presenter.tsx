@@ -240,6 +240,7 @@ const teamBTaunts = [
                     : "It's a TIE!"
                 }</div>
                 <div>Longest word: {appModel.longestWord.value} ({appModel.longestWord.playerName}) </div>
+                <div>Most Captures: {appModel.mostCaptures.value} ({appModel.mostCaptures.playerName}) </div>
                 <button onClick={() => appModel.playAgain(false)}>Play again, same players</button> 
             </div>
         );

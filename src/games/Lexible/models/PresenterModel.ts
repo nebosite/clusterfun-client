@@ -35,6 +35,7 @@ export class LexiblePlayer extends ClusterFunPlayer {
     @observable y = 0;
     @observable teamName = "X";
     @observable longestWord = "";
+    @observable captures = 0;
 }
 
 // -------------------------------------------------------------------
@@ -190,6 +191,17 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             }
         })
         return longestWord;
+    }
+
+    get mostCaptures() {
+        let mostCaptures = {value: 0, playerName: "na"};
+        this.players.forEach(p => {
+            if(p.captures > mostCaptures.value) {
+                mostCaptures.value = p.captures;
+                mostCaptures.playerName = p.name;
+            }
+        })
+        return mostCaptures;
     }
 
     // -------------------------------------------------------------------
@@ -569,10 +581,19 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         const placedLetters: LetterChain = []
         data.letters.forEach(l => {
             const block = this.theGrid.getBlock(l.coordinates)
-            if(block && word.length > block.score) {
-                block.setScore( Math.max(word.length, block.score), player.teamName);  
-                placedLetters.push(l);
+            if(!block) {
+                console.log(`WEIRD: placeSuccessfulWord: no block at `, l.coordinates)
+                return;
             }
+            // only capture this block if the score is high enough
+            if(word.length > block.score){
+                if(block.team != "_" && block.team != player.teamName) {
+                    player.captures++
+                }
+                block.setScore( Math.max(word.length, block.score), player.teamName);  
+                placedLetters.push(l);                
+            }
+
         })
 
         if(word.length > player.longestWord.length) player.longestWord = word;
