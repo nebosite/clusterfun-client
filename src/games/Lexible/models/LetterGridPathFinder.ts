@@ -19,6 +19,8 @@ export interface LetterGridPath {
     cost: PathCost;
 }
 
+// TODO: To clean up this code in the future, make a Vector2-keyed map
+
 export class LetterGridPathFinder {
     findHotPath(grid: LetterGridModel, team: "A" | "B"): LetterGridPath {
         // Implement A* to find the current shortest path for the given team
@@ -36,9 +38,14 @@ export class LetterGridPathFinder {
         // A map of (x, (y, cost)) indicating the current best guess for a path's
         // cost from start to finish if it goes through n
         const guessPathScore = new Map<number, Map<number, PathCost>>();
+        // A map of (x, (y)) indicating whether a certain coordinate
+        // is in the search queue (since the queue itself is not
+        // directly searchable)
+        const searchQueuePresence = new Map<number, Set<number>>();
         for (let x = 0; x < grid.width; x++) {
             truePathScore.set(x, new Map<number, PathCost>());
             guessPathScore.set(x, new Map<number, PathCost>());
+            searchQueuePresence.set(x, new Set<number>());
         }
         // A priority queue indicating which coordinates to search next
         const searchQueue = new PriorityQueue<Vector2>((a, b) => {
@@ -66,14 +73,18 @@ export class LetterGridPathFinder {
             searchQueue.enqueue(new Vector2(startx, y));
             truePathScore.get(startx)!.set(y, trueCost);
             guessPathScore.get(startx)!.set(y, guessCost);
+            searchQueuePresence.get(startx)!.add(y);
         }
 
         while (!searchQueue.isEmpty()) {
             let current = searchQueue.dequeue();
+            searchQueuePresence.get(current.x)!.delete(current.y);
             if (current.x === winx) {
-                const nodes: Vector2[] = [ new Vector2(current.x, current.y) ];
+                const nodes: Vector2[] = [ current ];
                 const cost: PathCost = truePathScore.get(current.x)!.get(current.y)!;
                 while (cameFrom.has(current)) {
+                    // TODO: In tests, the path and the node cost are ocassionally off by one.
+                    // Figure out why this is.
                     current = cameFrom.get(current)!;
                     nodes.push(new Vector2(current.x, current.y));
                 }
@@ -108,7 +119,10 @@ export class LetterGridPathFinder {
                     const neighborGuessScore = {...tenativeTrueScore};
                     neighborGuessScore.ally += Math.abs(neighbor.x - winx);
                     guessPathScore.get(neighbor.x)!.set(neighbor.y, neighborGuessScore);
-                    searchQueue.enqueue(neighbor);
+                    if (!searchQueuePresence.get(neighbor.x)!.has(neighbor.y)) {
+                        searchQueuePresence.get(neighbor.x)!.add(neighbor.y);
+                        searchQueue.enqueue(neighbor);
+                    }
                 }
             }
         }

@@ -89,7 +89,7 @@ describe("LetterGridPathFinder tests", () => {
         const GRID_WIDTH_VARIANCE = 10;
         const GRID_HEIGHT_VARIANCE = 10;
         for (let i = 0; i < 10; i++) {
-            it(`Finds winning path if it exists (iteration ${i + 1}`, () => {
+            it(`Finds winning path if it exists (iteration ${i + 1})`, () => {
                 const width = MIN_GRID_WIDTH + Math.floor(Math.random() * GRID_WIDTH_VARIANCE);
                 const height = MIN_GRID_HEIGHT + Math.floor(Math.random() * GRID_HEIGHT_VARIANCE);
                 const grid = generateUniformlyFilledGrid(width, height, "_", "0", Math.random);
@@ -97,21 +97,22 @@ describe("LetterGridPathFinder tests", () => {
     
                 let x = 0, y = Math.floor(height / 2);
                 while (x < width) {
-                    const xRand = Math.random();
-                    const yRand = Math.random();
-                    if (xRand > 0.6) x++;
-                    //else if (xRand < 0.2) x--;
-                    if (yRand > 0.7) y++;
-                    else if (yRand < 0.3) y--;
-                    if (x < 0) x = 0;
-                    if (y < 0) y = 0;
-                    if (y > height - 1) y = height - 1;
-                    if (x < width) {
-                        const block = grid.getBlock(new Vector2(x, y))!;
-                        block.setScore(4, team);
+                    const block = grid.getBlock(new Vector2(x, y))!;
+                    block.setScore(4, team);
+                    const dirRand = Math.random();
+                    if (dirRand < 0.1) {
+                        x--;
+                        if (x < 0) x = 0;
+                    } else if (dirRand < 0.3) {
+                        y--;
+                        if (y < 0) y = 0;
+                    } else if (dirRand < 0.5) {
+                        y++;
+                        if (y > height - 1) y = height - 1;
+                    } else {
+                        x++;
                     }
                 }
-                console.log(grid.serialize());
                 const finder = new LetterGridPathFinder();
                 const path = finder.findHotPath(grid, team);
                 expect(path.cost.neutral).equals(0);

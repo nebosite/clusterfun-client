@@ -482,7 +482,18 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         returnMe.sort();
         returnMe.sort((a,b) => b.length - a.length);
         return returnMe;
-    } 
+    }
+
+    // -------------------------------------------------------------------
+    // findHotPath - Find the most likely path of victory for a given
+    //               team. The path will attempt to minimize the number
+    //               of neutral or enemy blocks that must be crossed and
+    //               will indicate if neither of these is required (meaning
+    //               that the team has won the game)
+    // -------------------------------------------------------------------
+    findHotPath(team: string) {
+        
+    }
 
     // -------------------------------------------------------------------
     //  checkForWin - a win is when there is a contiguous line of blocks
