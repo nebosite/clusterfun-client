@@ -89,12 +89,6 @@ else if (process.env.REACT_APP_DEVMODE === 'development') {
         item.tags = []
         return item;
     });
-    games.push({
-        name: "Lexible",
-        logoName: "",
-        tags: [],
-        lazyType: React.lazy(() => import('./games/Lexible/views/GameComponent'))
-    });
     
     root.render( <GameTestComponent gameTestModel={gameTestModel} games={games} /> );        
 }

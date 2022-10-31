@@ -133,15 +133,14 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     // -------------------------------------------------------------------
     //  prePareFreshGame
     // -------------------------------------------------------------------
-    prepareFreshGame = () => {
+    prepareFreshRound = () => {
         this.currentRound = 0;
     }
 
     // -------------------------------------------------------------------
-    //  resetGame
+    //  prepareFreshGame
     // -------------------------------------------------------------------
-    resetGame() {
-        this.players.clear();
+    prepareFreshGame = () => {
         this.gameState = PresenterGameState.Gathering;
         this.currentRound = 0;
     }
