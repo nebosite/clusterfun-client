@@ -1,3 +1,4 @@
+import Logger from 'js-logger';
 import {createRoot} from 'react-dom/client'
 import { LobbyModel } from "./lobby/models/LobbyModel";
 import { GameTestComponent } from "./testLobby/Components/GameTestComponent";
@@ -11,6 +12,16 @@ import { GLOBALS } from './Globals';
 import 'index.css'
 import React from 'react';
 
+// Configure logging levels here
+// TODO: While in production, set default log level to WARN/ERROR
+// eslint-disable-next-line
+Logger.useDefaults();
+if (process.env.REACT_APP_DEVMODE === 'development') {
+    Logger.setLevel(Logger.DEBUG);
+} else {
+    Logger.setLevel(Logger.WARN);
+}
+
 const rootContainer = document.getElementById('root') as HTMLElement;
 const root = createRoot(rootContainer);
 
@@ -21,7 +32,7 @@ if (window.location.href.toLowerCase().startsWith('http://clusterfun.tv')) {
     window.location.replace(`https:${window.location.href.substring(5)}`);
 }
 
-console.log(`MOBILE: ${GLOBALS.IsMobile}`)
+Logger.debug(`MOBILE: ${GLOBALS.IsMobile}`)
 // -------------------------------------------------------------------
 // _serverCall 
 // -------------------------------------------------------------------
@@ -67,7 +78,6 @@ if (quickTest) {
 
 }
 else if (process.env.REACT_APP_DEVMODE === 'development') {
-    //console.log(`------- TEST PAGE RELOAD -------------------`)
     const factory = process.env.REACT_APP_USE_REAL_TELEMETRY 
         ? telemetryFactory
         : new MockTelemetryLoggerFactory();
@@ -87,17 +97,16 @@ else if (process.env.REACT_APP_DEVMODE === 'development') {
 // Production: Render Lobby
 // -------------------------------------------------------------------
 else {
-    console.log(`------- PAGE RELOAD -------------------`)
+    Logger.info(`------- PAGE RELOAD -------------------`)
 
     let cachedMessageThings = new Map<string, WebSocketMessageThing>()
     const lobbyModel = new LobbyModel(
         {
             messageThingFactory: (gp: GameInstanceProperties) => {
-                //console.log(`getting message thing for ${gp.personalSecret}`)
                 let cachedThing = cachedMessageThings.get(gp.personalSecret);
                 if(!cachedThing || cachedThing.isClosed)
                 {
-                    console.log(`Caching a new web socket for ${gp.personalSecret}...`)
+                    Logger.debug(`Caching a new web socket for ${gp.personalSecret}...`)
                     cachedThing = new WebSocketMessageThing(gp.roomId, gp.personalId, gp.personalSecret)
                     cachedMessageThings.set(gp.personalSecret, cachedThing)
                 }
@@ -140,7 +149,7 @@ else {
                 return addMe
             }
             else {
-                console.log(`Server specified a game I don't know about: ${serverItem.name}`)
+                Logger.warn(`Server specified a game I don't know about: ${serverItem.name}`)
                 return undefined;
             }
         }).filter(i => i !== undefined) as GameDescriptor[]

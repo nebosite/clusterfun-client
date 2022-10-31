@@ -5,6 +5,7 @@ import {
     TestatoEndOfRoundMessage, } from "./Messages";
 import { PLAYTIME_MS } from "./GameSettings";
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, ITypeHelper, PresenterGameState, GeneralGameState, ClusterFunGameOverMessage } from "libs";
+import Logger from "js-logger";
 
 
 export enum TestatoPlayerStatus {
@@ -101,7 +102,7 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
         storage: IStorage)
     {
         super("Testato", sessionHelper, logger, storage);
-        console.log(`Constructing TestatoPresenterModel ${this.gameState}`)
+        Logger.info(`Constructing TestatoPresenterModel ${this.gameState}`)
 
         sessionHelper.addListener(TestatoPlayerActionMessage, "answer", this.handlePlayerAction);
 
@@ -204,8 +205,8 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     handlePlayerAction = (message: TestatoPlayerActionMessage) => {
         const player = this.players.find(p => p.playerId === message.sender);
         if(!player) {
-            console.log("No player found for message: " + JSON.stringify(message));
-            this.logger.logEvent("Presenter", "AnswerMessage", "Deny");
+            Logger.warn("No player found for message: " + JSON.stringify(message));
+            this.telemetryLogger.logEvent("Presenter", "AnswerMessage", "Deny");
             return;
         }
 

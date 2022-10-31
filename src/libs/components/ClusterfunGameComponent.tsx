@@ -9,6 +9,7 @@ import { BaseGameModel, ISessionHelper, ITypeHelper,
 import { UIProperties } from "libs/types/UIProperties";
 import { observer, Provider } from "mobx-react";
 import React from "react";
+import Logger from "js-logger";
 
 // -------------------------------------------------------------------
 // ClusterFunGameProps
@@ -58,7 +59,7 @@ extends React.Component<ClusterFunGameProps>
             serverCall
             );
 
-        console.log(`INIT ${this.props.playerName}`)
+        Logger.info(`INIT ${this.props.playerName}`)
 
         if(gameProperties.role === "presenter")
         {

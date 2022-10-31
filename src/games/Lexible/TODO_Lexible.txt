@@ -10,9 +10,10 @@ TODO
     [x] Remember settings
     [x] Fix Quit buttons
 
+
     [x] On the user screen, show all selected letters
     [x] Show letters other players are selecting  (on both client and server)
-    [ ] Turn off verbose console logs for prod
+    [x] Turn off verbose console logs for prod
     [ ] Clear indication of what parts of the path are completed
         Use Dykstra's algorith
             start at last quare on the team side, end at the first square on the opposite side

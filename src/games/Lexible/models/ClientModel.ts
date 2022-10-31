@@ -4,6 +4,7 @@ import { LetterBlockModel } from "./LetterBlockModel";
 import { LetterGridModel } from "./LetterGridModel";
 import { LexibleGameEvent } from "./PresenterModel";
 import { ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper } from "libs";
+import Logger from "js-logger";
 
 
 // -------------------------------------------------------------------
@@ -118,7 +119,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     submitWord() {
         if(this.letterChain.length === 0) {
-            console.log("WEIRD:  should have been letters in the letter chain")
+            Logger.warn("WEIRD:  should have been letters in the letter chain")
             return;
         }
 
@@ -137,7 +138,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     protected handleScoredWordMessage = (message: LexibleScoredWordMessage) => {
         message.letters.forEach(l => {
             const block = this.theGrid.getBlock(l.coordinates)
-            if(!block) console.error(`WEIRD: No block at ${l.coordinates}`)
+            if(!block) Logger.warn(`WEIRD: No block at ${l.coordinates}`)
             else block.setScore( Math.max(message.score, block.score), message.team);
         })
         this.saveCheckpoint();
@@ -152,7 +153,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         message.letters.forEach(w => {
             const block = this.theGrid.getBlock(w.coordinates)
             if(!block) {
-                console.error(`No block at ${JSON.stringify(w.coordinates)}`)
+                Logger.warn(`WEIRD: No block at ${JSON.stringify(w.coordinates)}`)
             }
             else block.fail()
         })
@@ -165,7 +166,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         message.letterCoordinates.forEach(c => {
             const block = this.theGrid.getBlock(c)
             if(!block) {
-                console.error(`No block at ${JSON.stringify(c)}`)
+                Logger.warn(`WEIRD: No block at ${JSON.stringify(c)}`)
             }
             else block.fail()
         })
@@ -176,7 +177,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     protected handleWordHintMessage = (message: LexibleWordHintMessage) => {
         this.wordList = message.wordList;
-        console.log(`Received Wordlist with ${message.wordList?.length} words`)
+        Logger.debug(`Received Wordlist with ${message.wordList?.length} words`)
         this.saveCheckpoint();
         this.ackMessage(message);
     }
@@ -197,7 +198,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     protected handlePlayRequestMessage = (message: LexiblePlayRequestMessage) => {
         if(this.gameState === GeneralClientGameState.WaitingToStart) {
-            this.logger.logEvent("Client", "Start");
+            this.telemetryLogger.logEvent("Client", "Start");
         }
         this.roundNumber = message.roundNumber;
         this.myTeam = message.teamName;
