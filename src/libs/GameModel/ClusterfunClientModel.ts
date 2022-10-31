@@ -5,6 +5,7 @@ import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage, ClusterFunJoin
 } from "../../libs";
 import { makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
+import Logger from "js-logger";
 
 export enum GeneralClientGameState {
     WaitingToStart = "WaitingToStart",
@@ -56,7 +57,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         sessionHelper.addListener(ClusterFunGameResumeMessage, playerName, this.handleResumeMessage);
 
         sessionHelper.onError((err) => {
-            console.log(`Session error: ${err}`)
+            Logger.error(`Session error: ${err}`)
         })
 
         this.subscribe(GeneralGameState.Destroyed, "GameDestroyed", () =>
@@ -82,7 +83,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // -------------------------------------------------------------------
     keepAlive = () => {
         if(!this.session) {
-            console.log(`No session on ${this.playerName}`)
+            Logger.info(`No session on ${this.playerName}`)
             return;
         }
         
@@ -91,7 +92,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
             setTimeout(this.keepAlive, this.KEEPALIVE_INTERVAL_MS)
         }
         else {
-            console.log(`Game appears to be over (${this.playerId})`)
+            Logger.info(`Game appears to be over (${this.playerId})`)
         }
     }
 
@@ -109,7 +110,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
             this.gameState = GeneralClientGameState.WaitingToStart;
         }
         else {
-            console.log("Rejoining...")
+            Logger.info("Rejoining...")
             this.unStashCheckpoint();
             this.gameState = GeneralClientGameState.WaitingToStart;
         }
@@ -129,7 +130,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     //  
     // -------------------------------------------------------------------
     handleTerminateGameMessage = (message: ClusterFunTerminateGameMessage) => {
-        console.log("Presenter has terminated the game")
+        Logger.info("Presenter has terminated the game")
         this.gameTerminated = true;
         this.quitApp();
     }

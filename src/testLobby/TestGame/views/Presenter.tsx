@@ -241,8 +241,7 @@ extends React.Component<{appModel?: TestatoPresenterModel, uiProperties: UIPrope
     private renderSubScreen() {
         const {appModel} = this.props;
         if(!appModel) {
-            console.log("NO GAME DATA.  Quitting...")
-            return;
+            return <div>NO APP MODEL</div>
         }
 
         switch(appModel.gameState)

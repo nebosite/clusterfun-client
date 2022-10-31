@@ -1,3 +1,4 @@
+import Logger from "js-logger";
 
 let knownVoices:SpeechSynthesisVoice[] = [];
 let voiceLoadCount = 0;
@@ -12,11 +13,11 @@ const loadVoices = () => {
             setTimeout(loadVoices,voiceLoadCount * 50);
         }
         else {
-            console.log("Giving up on loading voices...")
+            Logger.warn("Giving up on loading voices...")
         }
     }
     else {
-        console.log(`Found ${knownVoices.length} voices`)
+        Logger.info(`Found ${knownVoices.length} voices`)
     }
 }
 
@@ -36,13 +37,13 @@ export class SpeechHelper {
         }
         loadVoices();
 
-        //console.log(knownVoices.map(v => v.name).join('\n'))
+        Logger.debug(knownVoices.map(v => v.name).join('\n'))
     }
 
     speak(text: string, voice: string | number | undefined = undefined) {
-        console.log(`Speaking '${text}' in ${voice}`)
+        Logger.debug(`Speaking '${text}' in ${voice}`)
         if(!this.supported) {
-            console.warn("Text to speech not supported")
+            Logger.warn("Text to speech not supported")
             return;
         }
         var msg = new SpeechSynthesisUtterance();
@@ -61,7 +62,7 @@ export class SpeechHelper {
             const foundVoice = knownVoices.find(v => v.name === voice) 
             if(!foundVoice)
             {
-                console.log(`could not find voice '${voice}'`)
+                Logger.warn(`could not find voice '${voice}'`)
             }
             msg.voice = foundVoice ?? knownVoices[0]
         }

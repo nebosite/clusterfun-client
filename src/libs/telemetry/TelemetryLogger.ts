@@ -1,3 +1,4 @@
+import Logger from 'js-logger';
 import ReactGA from 'react-ga4';
 import { MockTelemetryLogger } from '../../libs';
 
@@ -35,7 +36,7 @@ export class TelemetryLoggerFactory {
         const trackingInfo = this.trackingIds.find(id => id.name === name);
         if(!trackingInfo)
         {
-            console.log("Error: No logger for " + name); 
+            Logger.error("Error: No logger for " + name); 
             return new MockTelemetryLogger(name);
         }
         if(!this._initializedTrackingIds.has(name))
