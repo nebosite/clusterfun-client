@@ -608,7 +608,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             }
             // only capture this block if the score is high enough
             if(word.length > block.score){
-                if(block.team != "_" && block.team != player.teamName) {
+                if(block.team !== "_" && block.team !== player.teamName) {
                     player.captures++
                 }
                 block.setScore( Math.max(word.length, block.score), player.teamName);  
