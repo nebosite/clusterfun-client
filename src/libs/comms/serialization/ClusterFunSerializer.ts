@@ -124,7 +124,7 @@ export class ClusterFunSerializer {
         // TODO: If we want to do React.PropTypes payload validation,
         // this is where it would go
         if(!this.validationWarningCount++) {
-            // console.warn("Payload validation has not been implemented");
+            // Logger.warn("Payload validation has not been implemented");
         }
         return this.deserializeAssumingValidPayload(input);
     }
