@@ -3,6 +3,7 @@ import React from 'react';
 import TestatoAssets from 'testLobby/TestGame/assets/Assets';
 import LexibleAssets from 'games/Lexible/assets/Assets';
 import Logger from 'js-logger';
+import StressatoAssets from 'testLobby/stressgame/assets/Assets';
 
 export interface GameManifestItem { 
     name: string,
@@ -17,9 +18,16 @@ export interface GameDescriptor extends GameManifestItem {
 
 export const allGames: GameDescriptor[] = [
     {
+        name: "Stressato",
+        displayName: "Stress Game",
+        tags: ["debug"],
+        logoName: StressatoAssets.images.logo,
+        lazyType: React.lazy(() => import('./testLobby/stressgame/views/GameComponent'))
+    },
+    {
         name: "Testato",
         displayName: "Test Game",
-        tags: [],
+        tags: ["debug"],
         logoName: TestatoAssets.images.logo,
         lazyType: React.lazy(() => import('./testLobby/TestGame/views/GameComponent'))
     },

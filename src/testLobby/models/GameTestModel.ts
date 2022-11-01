@@ -136,7 +136,81 @@ export class GameTestModel {
             this.saveState();
             return Promise.resolve(gameProperties as unknown as T);
         }
-        if(url===("/api/terminategame")) {
+        else if(url===("/api/am_i_healthy")) {
+            const healthdata = {
+                version: "99.99.99",
+                uptime: "0 00:04:37",
+                rooms: {
+                    roomCount: 12,
+                    activeRooms: 8,
+                    activeUsers: 22
+                },
+                summary: [
+                    {
+                      label: "GetRequest_ROOT",
+                      data: {
+                        count: 27377,
+                        sum: 0
+                      }
+                    },
+                    {
+                      label: "MessageSend",
+                      data: {
+                        count: 32364,
+                        sum: 9061270
+                      }
+                    },
+                    {
+                      label: "MessageReceive",
+                      data: {
+                        count: 32305,
+                        sum: 9053536
+                      }
+                    },
+                    {
+                      label: "GeneralError_Join invalid room id",
+                      data: {
+                        count: 12,
+                        sum: 0
+                      }
+                    },
+                    {
+                      label: "GeneralError_roomJoinError",
+                      data: {
+                        count: 12,
+                        sum: 0
+                      }
+                    }
+                  ],
+                  series: [
+                        {
+                        date: 1667319600000,
+                        columns: [
+                                {
+                                label: "GetRequest_ROOT",
+                                    data: {
+                                        count: 1,
+                                        sum: 0
+                                    }
+                                }
+                            ]
+                        },
+                    ],                                
+                    cpuUsage: {
+                        user: 0.11284722222221624,
+                        system: 0.01495833333328142
+                    },
+                    memoryUsage: {
+                        rss: 130777088,
+                        heapTotal: 94367744,
+                        heapUsed: 91789664,
+                        external: 3445039,
+                        arrayBuffers: 1769002
+                    }
+                }
+            return Promise.resolve(healthdata as T);
+        }
+        else if(url===("/api/terminategame")) {
             Logger.info("Terminating game with room id: " + payload.roomId + " ... " + payload.presenterSecret)      
             return Promise.resolve({} as T);
         }
@@ -146,7 +220,7 @@ export class GameTestModel {
                 gameName: this.gameName,
                 role: "client",
                 roomId: payload.roomId,
-                presenterId: "presenter_id",
+                presenterId: "presenter_id", 
                 personalId: `client${this.joinCount}_id`,
                 personalSecret: `client${this.joinCount}_secret`
             }       

@@ -129,7 +129,7 @@ export abstract class BaseGameModel  {
     public get devFast() { return this._devFast;}
     public set devFast(value: boolean) { action(()=>{this._devFast = value;})() }
 
-    protected session: ISessionHelper;
+    public session: ISessionHelper;
     protected telemetryLogger: ITelemetryLogger;
     protected storage: IStorage;
 
