@@ -7,8 +7,6 @@ import { StressatoVersion } from "../models/GameSettings";
 import { MediaHelper, UIProperties, PresenterGameState, DevUI, UINormalizer, Row } from "libs";
 import { StressatoPresenterModel, StressatoGameState } from "../models/PresenterModel";
 
-
-
 @inject("appModel") @observer class MonitoringPage 
     extends React.Component<{appModel?: StressatoPresenterModel }> {
 
@@ -34,7 +32,6 @@ import { StressatoPresenterModel, StressatoGameState } from "../models/Presenter
         const w = canvas.width;
         const h = canvas.height;
         context.fillRect(0,0,w,h);
-
     }
 
     // -------------------------------------------------------------------
