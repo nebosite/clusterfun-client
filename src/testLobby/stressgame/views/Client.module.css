@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@500&display=swap');
+
+/* Overall Formatting */
+.gameclient {
+    width: 100%;
+    height: 100%;
+    background-color: rgb(227, 175, 238);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    overflow: hidden;
+    font-size: 55px;
+    font-family: sans-serif;
+}
+
+/* Buttons */
+
+.gameclient button {
+    font-size: 80%;
+    padding: 10px;
+    margin: 10px;
+}
+
+/* Overall Formatting */
+
+.gameclient .divRow {
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+.gameclient .gametitle {
+    font-weight: 800;
+}
+
+.gameclient .topbar {
+    display: flex; 
+    justify-content: space-around;
+}
+
+.gameclient .quitbutton {
+    font-size: 40px;
+    font-weight: 800;
+    padding: 0;
+    width: 100px;
+    margin-left:auto; margin-right:0;
+    margin: 0;
+}
+
+.gameclient .gameCanvasFrame{
+    display: flex;
+    justify-content: center;
+    margin: 5px
+}
+
+.valueBox {
+    border: 1px solid gray;
+    padding: 15px;
+    font-weight: 800;
+    font-size: 120%;
+    margin-left: 20px;
+    margin-right: 20px;
+    min-width: 150px;
+}

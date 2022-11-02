@@ -1,4 +1,5 @@
 import Logger from "js-logger";
+import { action, makeAutoObservable } from "mobx";
 import { ClusterFunSerializer, ClusterFunMessageConstructor, ClusterFunMessageBase } from "../../libs"
 import { IMessageThing } from './MessageThing';
 
@@ -25,7 +26,13 @@ export interface ISessionHelper {
     addOpenedListener(listener: () => void): void;
     addClosedListener(listener: (code: number) => void): void;
     onError(doThis: (err:string) => void): void;
-    serverCall: <T>(url: string, payload: any) => Promise<T>;
+    serverCall: <T>(url: string, payload: any ) => Promise<T>;
+    stats: {
+        sentCount: number
+        bytesSent: number
+        recievedCount: number
+        bytesRecieved: number
+    }
 }
 
 // -------------------------------------------------------------------
@@ -41,6 +48,12 @@ export class SessionHelper implements ISessionHelper {
     private _listeners = new Map<ClusterFunMessageConstructor<unknown, ClusterFunMessageBase>, Map<string, (message: object) => void>>()
     sessionError?:string;
     serverCall: <T>(url: string, payload: any) => Promise<T>;
+    stats = {
+        sentCount: 0,
+        bytesSent: 0,
+        recievedCount: 0,
+        bytesRecieved: 0,
+    }
 
     // -------------------------------------------------------------------
     // ctor
@@ -58,6 +71,10 @@ export class SessionHelper implements ISessionHelper {
 
         this._messageThing.addEventListener("message", (ev: { data: string; }) => {
             let message: ClusterFunMessageBase;
+            action(()=>{
+                this.stats.recievedCount++;
+                this.stats.bytesRecieved += ev.data.length;
+            })()
             try {
                 message = this._serializer.deserialize(ev.data);
             } catch (e) {
@@ -80,6 +97,8 @@ export class SessionHelper implements ISessionHelper {
         this._messageThing.addEventListener("close", (ev: { code: number }) => {
 
         })
+
+        makeAutoObservable(this.stats);
     }
 
     // -------------------------------------------------------------------
@@ -105,6 +124,11 @@ export class SessionHelper implements ISessionHelper {
         const contents = this._serializer.serialize(receiver, this.personalId, message);
         Logger.debug(`SEND: ${contents}`)
 
+        action(()=>{
+            this.stats.sentCount++;
+            this.stats.bytesSent += contents.length;
+        })()
+    
         await this._messageThing.send(contents, () => this._errorSubs.forEach(e => e(`Message send failure`)))
                 .catch(err => {
                     this._errorSubs.forEach(e => e(`${err}`))
