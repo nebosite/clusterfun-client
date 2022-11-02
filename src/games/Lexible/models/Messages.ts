@@ -12,15 +12,15 @@ export interface PlayBoard {
     gridData: string
 }
 
-export class LexiblePlayRequestMessageData extends ClusterFunMessageBase
-{
+export class LexiblePlayRequestMessage  extends ClusterFunMessageBase {
+    static readonly messageTypeName = "LexiblePlayRequestMessage";
     roundNumber: number = 0;
     playBoard: PlayBoard = { gridWidth: 0, gridHeight: 0, gridData: "" };
     teamName: string = "";
-} 
-export class LexiblePlayRequestMessage  extends LexiblePlayRequestMessageData {
-    static readonly messageTypeName = "LexiblePlayRequestMessage";
-    constructor(payload: LexiblePlayRequestMessageData) { super(payload); Object.assign(this, payload);  } 
+    settings= {
+        startFromTeamArea: true  
+    }
+    constructor(payload: LexiblePlayRequestMessage) { super(payload); Object.assign(this, payload);  } 
 }
 
 export type LetterChain = {letter: string, coordinates: Vector2}[]

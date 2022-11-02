@@ -61,7 +61,7 @@ export default class LexibleClientGameComponent extends React.Component<ClientGa
 
         const handleClick = (block: LetterBlockModel) => {
             if(this.canClick) {
-                block.selectForPlayer(this.props.playerId, !block.isSelectedByPlayer(this.props.playerId))
+                appModel.toggleSelect(block, this.props.playerId)
             }
         }
 

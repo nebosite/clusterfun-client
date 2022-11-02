@@ -457,7 +457,8 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             sender: this.session.personalId,
             roundNumber: this.currentRound,
             playBoard,
-            teamName
+            teamName,
+            settings: {startFromTeamArea: this.startFromTeamArea}
         }
         return new LexiblePlayRequestMessage(payload)
     }
@@ -666,6 +667,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             this.placeSuccessfulWord(data, word, player);
         }
         else {
+            Logger.info(`Failed word '${data.letters.join("")}' because ${(scoreTooLow ? "Low score" : "Not found" )}`)
             const rejectMessage = new LexibleFailedWordMessage({
                 sender: this.session.personalId,
                 letters: data.letters
