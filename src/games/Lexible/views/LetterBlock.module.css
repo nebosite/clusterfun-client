@@ -20,7 +20,19 @@
     justify-content: center;
     align-items: center;
     background-color: white;
+}
 
+.letterBlock .highlight {
+    animation: glow .5s infinite alternate;
+}
+
+@keyframes glow {
+    from {
+      box-shadow: 0 0 15px 15px #ffffffd0;
+    }
+    to {
+      box-shadow: 0 0 5px 5px #ffffff80;
+    }
 }
 
 .letterBlock .letterBlockText {

@@ -430,15 +430,14 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
         if (this.gameTime_ms - this.gameTimeLastShowedHotPaths_ms > SHOW_HOT_PATHS_MS) {
             this.gameTimeLastShowedHotPaths_ms = this.gameTime_ms;
+            this.theGrid.processBlocks(b => { b.onPath = false; })
             const aTeamPath = findHotPathInGrid(this.theGrid, "A");
             const bTeamPath = findHotPathInGrid(this.theGrid, "B");
             // TODO: Consider a better visualization for this path
             for (const path of [aTeamPath, bTeamPath]) {
-                if (path.cost.ally * 2 > path.cost.neutral + path.cost.enemy) {
-                    for (const node of path.nodes) {
-                        const block = this.theGrid.getBlock(node);
-                        block?.fail();
-                    }
+                for (const node of path.nodes) {
+                    const block = this.theGrid.getBlock(node);
+                    if (block) block.onPath = true;
                 }
             }
         }
@@ -575,6 +574,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     // -------------------------------------------------------------------
     checkForWin(team: "A" | "B") {
         const path = findHotPathInGrid(this.theGrid, team);
+
         if (path.cost.enemy === 0 && path.cost.neutral === 0) {
             this.handleGameWin(team);
             return;
