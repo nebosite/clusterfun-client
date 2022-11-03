@@ -82,9 +82,11 @@ extends React.Component<LetterBlockProps>
             badgeUI = <div className={styles.badge} style={badgeStyle}>{context.score}</div>
         }
 
+        let innerstyle = styles.letterBlockInner
+        if(context.onPath) innerstyle += " " + styles.highlight
 
         return <div className={styles.letterBlock} style={blockStyle} key={context.__blockid}> 
-            <div className={styles.letterBlockInner} style={innerStyle} onClick={handleClick}>
+            <div className={innerstyle} style={innerStyle} onClick={handleClick}>
                 <div className={styles.letterBlockText} style={letterStyle}>
                     {context.letter}
                 </div>

@@ -14,18 +14,22 @@ TODO
     [x] On the user screen, show all selected letters
     [x] Show letters other players are selecting  (on both client and server)
     [x] Turn off verbose console logs for prod
+    [x] End Screen
+        [x] Show player stats
+    [x] On client, don't allow clicking on a letter if it can't be selected (team area)
+    [ ] Create a trello
     [ ] Clear indication of what parts of the path are completed
         Use Dykstra's algorith
             start at last quare on the team side, end at the first square on the opposite side
-    [ ] End Screen
-        [ ] Show player stats
-    [ ] have intermediate join mode when players pick teams/handicaps
-
-
-    [ ] Show arrows to indicate where other players are
     [ ] On win, clearly indicate the winning path
+    [ ] Chose your team when joining
+        - should be able to change team before start
+    [ ] Lexible presenter: show traffic stats for the game
+
+
     
 
+    
 
 NEW   
     
@@ -35,6 +39,7 @@ NEXT
 
     
 BACKLOG
+    [ ] Show arrows to indicate where other players are
     [ ] have the game alert everyone when a victory is close
     [ ] Choose winning condition (connect, territory, points)
     [ ] interactive instructions - everyone spell "fish"!

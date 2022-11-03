@@ -88,6 +88,8 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         return output;
     }
 
+    startFromTeamArea = true;
+
     // -------------------------------------------------------------------
     // ctor 
     // -------------------------------------------------------------------
@@ -112,6 +114,26 @@ export class LexibleClientModel extends ClusterfunClientModel  {
             case "Gathering": this.gameState = GeneralClientGameState.WaitingToStart; break;
             default: this.gameState = serverState
         }
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    toggleSelect(block: LetterBlockModel, playerId: string) {
+        let selectable = true;
+        let isSelected = block.isSelectedByPlayer(playerId)
+        if(!isSelected) {
+            if (    this.startFromTeamArea 
+                &&  this.letterChain.length === 0 
+                &&  block.team !== this.myTeam) 
+            {
+                selectable = false;
+            }
+        }
+        
+        if(selectable) {
+            block.selectForPlayer(playerId, !isSelected) 
+        } 
     }
 
     // -------------------------------------------------------------------
@@ -202,6 +224,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         }
         this.roundNumber = message.roundNumber;
         this.myTeam = message.teamName;
+        this.startFromTeamArea = message.settings.startFromTeamArea;
 
         this.setupPlayBoard(message.playBoard)
 

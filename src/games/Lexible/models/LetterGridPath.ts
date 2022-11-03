@@ -161,6 +161,7 @@ export function findHotPathInGrid(grid: LetterGridModel, team: "A" | "B"): Lette
                 current = cameFrom.get(current)!;
                 nodes.push(new Vector2(current.x, current.y));
             }
+            nodes.reverse();
             return { nodes, cost };
         }
 

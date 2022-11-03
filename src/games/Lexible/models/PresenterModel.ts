@@ -18,11 +18,11 @@ import { WordTree } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunPresenterModel, ITelemetryLogger, IStorage, GeneralGameState, PresenterGameEvent, PresenterGameState, ClusterFunGameOverMessage, ITypeHelper } from "libs";
 import Logger from "js-logger";
-import { findHotPathInGrid } from "./LetterGridPath";
+import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
+import path from "path";
 
 const LEXIBLE_SETTINGS_KEY = "lexible_settings";
 const SEND_RECENT_LETTERS_INTERVAL_MS = 200;
-const SHOW_HOT_PATHS_MS = 6000;
 
 export enum LexiblePlayerStatus {
     Unknown = "Unknown",
@@ -177,7 +177,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     wordSet = new Set<string>();
     badWords = new Set<string>();
 
-    gameTimeLastShowedHotPaths_ms = 0;
     gameTimeLastSentTouchedLetters_ms = 0;
     recentlyTouchedLetters = new Map<number, Vector2>();
     _teamPoints:number[] = observable([0,0])
@@ -427,21 +426,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 this.sendToEveryone(() => message);
             }
         }
-
-        if (this.gameTime_ms - this.gameTimeLastShowedHotPaths_ms > SHOW_HOT_PATHS_MS) {
-            this.gameTimeLastShowedHotPaths_ms = this.gameTime_ms;
-            const aTeamPath = findHotPathInGrid(this.theGrid, "A");
-            const bTeamPath = findHotPathInGrid(this.theGrid, "B");
-            // TODO: Consider a better visualization for this path
-            for (const path of [aTeamPath, bTeamPath]) {
-                if (path.cost.ally * 2 > path.cost.neutral + path.cost.enemy) {
-                    for (const node of path.nodes) {
-                        const block = this.theGrid.getBlock(node);
-                        block?.fail();
-                    }
-                }
-            }
-        }
     }
 
     // -------------------------------------------------------------------
@@ -457,7 +441,8 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             sender: this.session.personalId,
             roundNumber: this.currentRound,
             playBoard,
-            teamName
+            teamName,
+            settings: {startFromTeamArea: this.startFromTeamArea}
         }
         return new LexiblePlayRequestMessage(payload)
     }
@@ -572,11 +557,34 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     //                from one side to the other for a single team. 
     //                Blocks are not continguous through corners.
     // -------------------------------------------------------------------
-    checkForWin(team: "A" | "B") {
-        const path = findHotPathInGrid(this.theGrid, team);
-        if (path.cost.enemy === 0 && path.cost.neutral === 0) {
-            this.handleGameWin(team);
-            return;
+    async checkForWin() {
+        this.theGrid.processBlocks(b => { b.onPath = false; })
+        await this.waitForRealTime(0); // allow mobx to clear animations
+        const paths: Record<"A" | "B", LetterGridPath> = {
+            "A": findHotPathInGrid(this.theGrid, "A"),
+            "B": findHotPathInGrid(this.theGrid, "B")
+        }
+        for (const team of ["A", "B"]) {
+            const path = paths[team as "A" | "B"];
+            if (path.cost.enemy === 0 && path.cost.neutral === 0) {
+                this.handleGameWin(team);
+            }
+        }
+        for (let i = 0; i < this.theGrid.width * 4; i++) {
+            let paintedOne = false;
+            if (paths.A.nodes.length > i) {
+                paintedOne = true;
+                this.theGrid.getBlock(paths.A.nodes[i])!.onPath = true;
+            }
+            if (paths.B.nodes.length > i) {
+                paintedOne = true;
+                this.theGrid.getBlock(paths.B.nodes[i])!.onPath = true;
+            }
+            if (!paintedOne) {
+                break;
+            } else {
+                await this.waitForRealTime(50);
+            }
         }
     }
 
@@ -630,7 +638,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         })
         this.invokeEvent(LexibleGameEvent.WordAccepted, word.toLowerCase(), player)
         if (player.teamName === "A" || player.teamName === "B") {
-            this.checkForWin(player.teamName);
+            this.checkForWin();
         } else {
             Logger.warn("WEIRD: Player with unknown teamname")
         }
@@ -666,6 +674,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             this.placeSuccessfulWord(data, word, player);
         }
         else {
+            Logger.info(`Failed word '${data.letters.join("")}' because ${(scoreTooLow ? "Low score" : "Not found" )}`)
             const rejectMessage = new LexibleFailedWordMessage({
                 sender: this.session.personalId,
                 letters: data.letters

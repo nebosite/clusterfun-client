@@ -25,6 +25,11 @@ export class LetterBlockModel
     get failFade() {return this._failFade}
     set failFade(value) { action(()=>this._failFade = value)()}
 
+    @observable  private _onPath = false;
+    get onPath() {return this._onPath}
+    set onPath(value) {action(()=>{this._onPath = value})()}
+    
+
     @observable team: string = "_"
 
     onSelectedChanged:BlockSelectHandler = ()=>{Logger.warn("WEIRD: Default select action happening")}
