@@ -1,6 +1,4 @@
 
-
-
 .letterBlock {
     width: 40px;
     height: 40px;
@@ -22,6 +20,9 @@
     background-color: white;
 }
 
+/* TODO: Add a non-animated version for the client (saves power usage).
+   Note that we couldn't get the "gameclient" and
+   "gamepresenter" classes to respond correctly */
 .letterBlock .highlight {
     animation: glow .5s infinite alternate;
 }
