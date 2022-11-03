@@ -24,7 +24,7 @@
    Note that we couldn't get the "gameclient" and
    "gamepresenter" classes to respond correctly */
 .letterBlock .highlight {
-    animation: glow .5s infinite alternate;
+    animation: glow 2s infinite alternate;
 }
 
 @keyframes glow {

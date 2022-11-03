@@ -294,12 +294,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         Logger.info(`Loaded ${this.badWords.size} censored words`)
     }
 
-    private waitForRealTime(ms: number) {
-        return new Promise((resolve, _reject) => {
-            setTimeout(resolve, ms);
-        })
-    }
-
     // -------------------------------------------------------------------
     // handlePlayerJoin 
     // -------------------------------------------------------------------
@@ -563,21 +557,21 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             "A": findHotPathInGrid(this.theGrid, "A"),
             "B": findHotPathInGrid(this.theGrid, "B")
         }
-        for (const team of ["A", "B"]) {
-            const path = paths[team as "A" | "B"];
+        let pathsToDraw: Array<"A" | "B"> = ["A","B"];
+        for (const team of ["A", "B"] as Array<"A" | "B">) {
+            const path = paths[team];
             if (path.cost.enemy === 0 && path.cost.neutral === 0) {
                 this.handleGameWin(team);
+                pathsToDraw = [team];
             }
         }
         for (let i = 0; i < this.theGrid.width * 4; i++) {
             let paintedOne = false;
-            if (paths.A.nodes.length > i) {
-                paintedOne = true;
-                this.theGrid.getBlock(paths.A.nodes[i])!.onPath = true;
-            }
-            if (paths.B.nodes.length > i) {
-                paintedOne = true;
-                this.theGrid.getBlock(paths.B.nodes[i])!.onPath = true;
+            for (const team of pathsToDraw) {
+                if (paths[team].nodes.length > i) {
+                    paintedOne = true;
+                    this.theGrid.getBlock(paths[team].nodes[i])!.onPath = true;
+                }
             }
             if (!paintedOne) {
                 break;

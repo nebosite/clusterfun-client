@@ -160,24 +160,32 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     //                from one side to the other for a single team. 
     //                Blocks are not continguous through corners.
     // -------------------------------------------------------------------
-    updateWinningPaths() {
+    async updateWinningPaths() {
         this.theGrid.processBlocks(b => { b.onPath = false; })
+        await this.waitForRealTime(0); // allow mobx to clear animations
         const paths: Record<"A" | "B", LetterGridPath> = {
             "A": findHotPathInGrid(this.theGrid, "A"),
             "B": findHotPathInGrid(this.theGrid, "B")
         }
+        let pathsToDraw: Array<"A" | "B"> = ["A","B"];
+        for (const team of ["A", "B"] as Array<"A" | "B">) {
+            const path = paths[team];
+            if (path.cost.enemy === 0 && path.cost.neutral === 0) {
+                pathsToDraw = [team];
+            }
+        }
         for (let i = 0; i < this.theGrid.width * 4; i++) {
             let paintedOne = false;
-            if (paths.A.nodes.length > i) {
-                paintedOne = true;
-                this.theGrid.getBlock(paths.A.nodes[i])!.onPath = true;
-            }
-            if (paths.B.nodes.length > i) {
-                paintedOne = true;
-                this.theGrid.getBlock(paths.B.nodes[i])!.onPath = true;
+            for (const team of pathsToDraw) {
+                if (paths[team].nodes.length > i) {
+                    paintedOne = true;
+                    this.theGrid.getBlock(paths[team].nodes[i])!.onPath = true;
+                }
             }
             if (!paintedOne) {
                 break;
+            } else {
+                await this.waitForRealTime(50);
             }
         }
     }
