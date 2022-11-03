@@ -17,16 +17,16 @@ TODO
     [x] End Screen
         [x] Show player stats
     [x] On client, don't allow clicking on a letter if it can't be selected (team area)
+    [ ] Create a trello
     [ ] Clear indication of what parts of the path are completed
         Use Dykstra's algorith
             start at last quare on the team side, end at the first square on the opposite side
     [ ] On win, clearly indicate the winning path
-    [ ] Lexible presenter: show traffic stats for the game
     [ ] Chose your team when joining
         - should be able to change team before start
+    [ ] Lexible presenter: show traffic stats for the game
 
 
-    [ ] Show arrows to indicate where other players are
     
 
     
@@ -39,6 +39,7 @@ NEXT
 
     
 BACKLOG
+    [ ] Show arrows to indicate where other players are
     [ ] have the game alert everyone when a victory is close
     [ ] Choose winning condition (connect, territory, points)
     [ ] interactive instructions - everyone spell "fish"!
