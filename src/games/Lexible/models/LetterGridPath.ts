@@ -9,8 +9,10 @@ export interface PathCost {
 }
 
 function comparePathCostElements(a: PathCost, b: PathCost) {
+    const aTotal = a.enemy + a.neutral;
+    const bTotal = b.enemy + b.neutral;
+    if (aTotal !== bTotal) return aTotal - bTotal;
     if (a.enemy !== b.enemy) return a.enemy - b.enemy;
-    if (a.neutral !== b.neutral) return a.neutral - b.neutral;
     return a.ally - b.ally;
 }
 
