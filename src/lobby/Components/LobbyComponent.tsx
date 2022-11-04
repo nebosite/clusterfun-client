@@ -10,20 +10,17 @@ import { GameDescriptor } from "GameChooser";
 import { UIProperties, UINormalizer } from "libs";
 import Logger from "js-logger";
 
-const urlSearchParams = new URLSearchParams(window.location.search);
-const params = Object.fromEntries(urlSearchParams.entries());
-
-const showParam = (params as any).showme
-const showTags: string[] = [];
-if(showParam) {
-    `${showParam}`.split(",").forEach(p => showTags.push(p.toLowerCase()))
-}
-
-
 @inject("lobbyModel")
 @observer
 class PresenterComponent
     extends React.Component<{ lobbyModel?: LobbyModel, games: GameDescriptor[] }> {
+    private _urlParams: URLSearchParams = new URLSearchParams(window.location.search);
+
+    constructor(props: { lobbyModel?: LobbyModel, games: GameDescriptor[] }) {
+        super(props);
+        const showParam = this._urlParams.get("show");
+        if(showParam) showParam.split(',').forEach(p => props.lobbyModel?.showTags.push(p.toLowerCase()));       
+    }
 
     //--------------------------------------------------------------------------------------
     // 
@@ -47,7 +44,7 @@ class PresenterComponent
                         let showme = game.tags.length === 0;
 
                         game.tags.forEach(tag => {
-                            if(showTags.indexOf(tag.toLowerCase()) !== -1) {
+                            if(lobbyModel.showTags.find(t => t === tag)) {
                                 showme = true;
                             }
                         })
@@ -158,18 +155,6 @@ interface LobbyComponentProps {
 @observer
 export class LobbyComponent
     extends React.Component<LobbyComponentProps> {
-    private _urlParams: URLSearchParams = new URLSearchParams(window.location.search);
-
-    // -------------------------------------------------------------------
-    // ctor
-    // -------------------------------------------------------------------
-    constructor(props: LobbyComponentProps)
-    {
-        super(props);
-        const showParam = this._urlParams.get("show");
-        const showTags = ["production", "beta"];
-        if(showParam) showParam.split(',').forEach(p => showTags.push(p));
-    } 
 
     // -------------------------------------------------------------------
     // render

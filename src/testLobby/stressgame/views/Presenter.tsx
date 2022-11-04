@@ -51,12 +51,15 @@ import { StressatoPresenterModel, StressatoGameState } from "../models/Presenter
                 <div>Game Stats:</div>
                 <div>Messages Sent: {appModel.session.stats.sentCount} ({appModel.session.stats.bytesSent} B)</div>
                 <div>Messages Received: {appModel.session.stats.recievedCount} ({appModel.session.stats.bytesRecieved} B)</div>
-                <div>Server Stats:</div>
-                <div>Rooms: {appModel.serverHealth?.rooms?.roomCount}  Active: {appModel.serverHealth?.rooms?.activeRooms}  Users:{appModel.serverHealth?.rooms?.activeUsers}</div>
-                <div>Messages Sent: {serverSent.count} ({(serverSent.sum/1000).toFixed(2)} KB)</div>
-                <div>Messages Received: {serverReceive.count} ({(serverReceive.sum/1000).toFixed(2)} KB)</div>
-                <div>CPU Utilization: {appModel.serverHealth?.cpuUsage?.user.toFixed(2)}%</div>
-                <div>Memory Utilization: {(appModel.serverHealth?.memoryUsage?.rss / 1000000).toFixed(2)} MB</div>
+                <div><b>Server Stats:</b></div>
+                <div style={{marginLeft: "20px"}}>
+                    <div>Rooms: {appModel.serverHealth?.rooms?.roomCount}  Active: {appModel.serverHealth?.rooms?.activeRooms}  Users:{appModel.serverHealth?.rooms?.activeUsers}</div>
+                    <div>Messages Sent: {serverSent.count} ({(serverSent.sum/1000).toFixed(2)} KB)</div>
+                    <div>Messages Received: {serverReceive.count} ({(serverReceive.sum/1000).toFixed(2)} KB)</div>
+                    <div>CPU Utilization: {(appModel.serverHealth?.cpuUsage?.user * 100).toFixed(2)}%</div>
+                    <div>Memory Utilization: {(appModel.serverHealth?.memoryUsage?.rss / 1000000).toFixed(2)} MB</div>                    
+                </div>
+
             </div>
         );
     }
