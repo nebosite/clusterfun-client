@@ -42,13 +42,13 @@ class PresenterComponent
                                 onClick={() => startGameClick(game.name)} />
                             <div className={styles.gameLogoLabel}>{game.displayName ?? game.name}</div>
                             {game.tags.indexOf("beta") > -1 
-                                ? <div>(beta)</div>
+                                ? <div className={styles.gameLogoTag}>(beta)</div>
                                 : null}
                             {game.tags.indexOf("alpha") > -1 
-                                ? <div>(alpha)</div>
+                                ? <div className={styles.gameLogoTag} >(alpha)</div>
                                 : null}
                             {game.tags.indexOf("debug") > -1 
-                                ? <div>(debug)</div>
+                                ? <div className={styles.gameLogoTag}>(debug)</div>
                                 : null}
                         </div>
                     </li>)}
