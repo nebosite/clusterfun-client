@@ -406,6 +406,24 @@ export abstract class BaseGameModel  {
     }
 
     // -------------------------------------------------------------------
+    // return a promise that goes off after x game time milliseconds
+    // ------------------------------------------------------------------- 
+    protected waitForGameTime(ms: number): Promise<void> {
+        return new Promise((resolve, _reject) => {
+            this.scheduleEvent(this.gameTime_ms + ms, resolve)
+        })
+    }
+
+    // -------------------------------------------------------------------
+    // return a promise that goes off after x real time milliseconds
+    // ------------------------------------------------------------------- 
+    protected waitForRealTime(ms: number): Promise<void> {
+        return new Promise((resolve, _reject) => {
+            setTimeout(resolve, ms);
+        })
+    }
+
+    // -------------------------------------------------------------------
     // scheduleEvent
     // -------------------------------------------------------------------
     protected scheduleEvent(time: number, event: () => void) {
