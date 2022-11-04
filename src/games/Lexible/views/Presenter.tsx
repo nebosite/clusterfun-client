@@ -354,6 +354,12 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
             </div>
         }
 
+        const stats = appModel.session.stats;
+        const sendRate = stats.sentCount / appModel.roundTimeMinutes;
+        const recieveRate = stats.recievedCount / appModel.roundTimeMinutes;
+        const sendSize = stats.bytesSent / stats.sentCount / 1000;
+        const receiveSize = stats.bytesRecieved / stats.sentCount / 1000;
+
         return (
             <UINormalizer
                 className={styles.gamepresenter}
@@ -365,6 +371,10 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
                         <button onClick={()=>appModel.handleGameWin("A")}>Win: A</button>
                         <button onClick={()=>appModel.handleGameWin("B")}>Win: B</button>
                     </DevUI>
+                    <div style={{position: "absolute", left: "0", bottom: "0px", fontSize: "50%"}} >
+                        Sent: {stats.sentCount}  {sendRate.toFixed(1)}/min ({(stats.bytesSent / 1000).toFixed(1)}KB, {sendSize.toFixed(1)}/msg)
+                        Recv: {stats.recievedCount} {recieveRate.toFixed(1)}/min ({(stats.bytesRecieved / 1000).toFixed(1)}KB, {sendSize.toFixed(1)}/msg)
+                    </div>
 
                     <div style={{margin: "15px"}}>
                         <Row className={styles.presenterRow}>

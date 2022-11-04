@@ -142,6 +142,11 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         this._mapSize = value;
         this.saveSettings();
     })()}
+
+    private _roundStartTime = 0;
+    get roundTimeMinutes() {
+        return (this.gameTime_ms - this._roundStartTime) / (60000)
+    }
     
 
     letterData = [
@@ -456,6 +461,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         this.gameState = LexibleGameState.Playing;
         this.timeOfStageEnd = this.gameTime_ms + PLAYTIME_MS;
         this.currentRound++;
+        this._roundStartTime = this.gameTime_ms;
 
         this.players.forEach((p,i) => {
             p.status = LexiblePlayerStatus.WaitingForStart;
