@@ -22,11 +22,6 @@ if (process.env.REACT_APP_DEVMODE === 'development') {
     Logger.setLevel(Logger.WARN);
 }
 
-const urlSearchParams = new URLSearchParams(window.location.search);
-const params = Object.fromEntries(urlSearchParams.entries());
-
-const showParam = (params as any).show;
-
 const rootContainer = document.getElementById('root') as HTMLElement;
 const root = createRoot(rootContainer);
 
@@ -147,19 +142,11 @@ else {
 
         const gameList = gamesFromServerManifest.map(serverItem => {
             const foundGame = allGames.find(g => g.name.toLowerCase() === serverItem.name.toLowerCase()) 
-            const debugOK = showParam === "debug"
             if(foundGame) {
-                if(foundGame.tags.find(t => t.toLowerCase() === "debug") && !debugOK)
-                {
-                    // exclude this debug item
-                    return undefined;
-                }
-                else {
-                    const addMe = {...foundGame}
-                    if(serverItem.displayName) addMe.displayName = serverItem.displayName
-                    addMe.tags = serverItem.tags;
-                    return addMe                    
-                }
+                const addMe = {...foundGame}
+                if(serverItem.displayName) addMe.displayName = serverItem.displayName
+                addMe.tags = serverItem.tags;
+                return addMe                    
             }
             else {
                 Logger.warn(`Server specified a game I don't know about: ${serverItem.name}`)

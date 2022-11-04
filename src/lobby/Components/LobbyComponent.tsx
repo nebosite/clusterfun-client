@@ -10,6 +10,16 @@ import { GameDescriptor } from "GameChooser";
 import { UIProperties, UINormalizer } from "libs";
 import Logger from "js-logger";
 
+const urlSearchParams = new URLSearchParams(window.location.search);
+const params = Object.fromEntries(urlSearchParams.entries());
+
+const showParam = (params as any).showme
+const showTags: string[] = [];
+if(showParam) {
+    `${showParam}`.split(",").forEach(p => showTags.push(p.toLowerCase()))
+}
+
+
 @inject("lobbyModel")
 @observer
 class PresenterComponent
@@ -33,7 +43,17 @@ class PresenterComponent
             <div className={styles.gmContainer}> <img src={LobbyAssets.images.logos.clusterFun} alt="" /> </div>
             <h3 className={styles.gmTitle}>PICK A GAME!</h3>
             <ul className={styles.btnMenu}>
-                {games?.map(game =>
+                {games?.filter(game => {
+                        let showme = game.tags.length === 0;
+
+                        game.tags.forEach(tag => {
+                            if(showTags.indexOf(tag.toLowerCase()) !== -1) {
+                                showme = true;
+                            }
+                        })
+                        return showme;
+                    })
+                    .map(game =>
                     <li key={game.name}>
                         <div className={styles.btnContainer}>
                             <img alt={`Start ${game.displayName ?? game.name}`}
