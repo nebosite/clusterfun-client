@@ -72,16 +72,16 @@ class GameScreen extends React.Component<{appModel?: StressatoClientModel}>
             <div>
                 <h4>{appModel!.playerName}</h4>
                 <NumberAdjuster 
-                        title="Send messages/min:"
+                        title="Send msg/min:"
                         min={0}
-                        max={120}
-                        increments={[1]}
-                        absolutes={[0,1,6,30,60,120]}
+                        max={600}
+                        increments={[1,10]}
+                        absolutes={[0,10,50,250,600]}
                         value={appModel.sendRate}
                         onValueChange={(v) => appModel.sendRate = v}
                         />
                 <NumberAdjuster 
-                        title="Message Size (B):"
+                        title="Msg Size (B):"
                         min={0}
                         max={10000}
                         increments={[1,10,100]}

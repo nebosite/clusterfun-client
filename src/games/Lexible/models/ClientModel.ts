@@ -5,6 +5,7 @@ import { LetterGridModel } from "./LetterGridModel";
 import { LexibleGameEvent } from "./PresenterModel";
 import { ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper } from "libs";
 import Logger from "js-logger";
+import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
 
 
 // -------------------------------------------------------------------
@@ -154,6 +155,41 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         this.letterChain[0].selectForPlayer(this.playerId, false);
     }
 
+        // -------------------------------------------------------------------
+    //  checkForWin - a win is when there is a contiguous line of blocks
+    //                from one side to the other for a single team. 
+    //                Blocks are not continguous through corners.
+    // -------------------------------------------------------------------
+    async updateWinningPaths() {
+        this.theGrid.processBlocks(b => { b.onPath = false; })
+        await this.waitForRealTime(0); // allow mobx to clear animations
+        const paths: Record<"A" | "B", LetterGridPath> = {
+            "A": findHotPathInGrid(this.theGrid, "A"),
+            "B": findHotPathInGrid(this.theGrid, "B")
+        }
+        let pathsToDraw: Array<"A" | "B"> = ["A","B"];
+        for (const team of ["A", "B"] as Array<"A" | "B">) {
+            const path = paths[team];
+            if (path.cost.enemy === 0 && path.cost.neutral === 0) {
+                pathsToDraw = [team];
+            }
+        }
+        for (let i = 0; i < this.theGrid.width * 4; i++) {
+            let paintedOne = false;
+            for (const team of pathsToDraw) {
+                if (paths[team].nodes.length > i) {
+                    paintedOne = true;
+                    this.theGrid.getBlock(paths[team].nodes[i])!.onPath = true;
+                }
+            }
+            if (!paintedOne) {
+                break;
+            } else {
+                await this.waitForRealTime(50);
+            }
+        }
+    }
+
     // -------------------------------------------------------------------
     // handleScoredWordMessage
     // -------------------------------------------------------------------
@@ -163,6 +199,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
             if(!block) Logger.warn(`WEIRD: No block at ${l.coordinates}`)
             else block.setScore( Math.max(message.score, block.score), message.team);
         })
+        this.updateWinningPaths();
         this.saveCheckpoint();
         this.ackMessage(message);  
         this.invokeEvent(LexibleGameEvent.WordAccepted)

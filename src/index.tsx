@@ -170,7 +170,7 @@ else {
                 const addMe = {...foundGame}
                 if(serverItem.displayName) addMe.displayName = serverItem.displayName
                 addMe.tags = serverItem.tags;
-                return addMe
+                return addMe                    
             }
             else {
                 Logger.warn(`Server specified a game I don't know about: ${serverItem.name}`)

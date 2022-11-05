@@ -14,6 +14,13 @@ import { GameDescriptor } from "games/lists/GameDescriptor";
 @observer
 class PresenterComponent
     extends React.Component<{ lobbyModel?: LobbyModel, games: GameDescriptor[] }> {
+    private _urlParams: URLSearchParams = new URLSearchParams(window.location.search);
+
+    constructor(props: { lobbyModel?: LobbyModel, games: GameDescriptor[] }) {
+        super(props);
+        const showParam = this._urlParams.get("show");
+        if(showParam) showParam.split(',').forEach(p => props.lobbyModel?.showTags.push(p.toLowerCase()));       
+    }
 
     //--------------------------------------------------------------------------------------
     // 
@@ -33,7 +40,17 @@ class PresenterComponent
             <div className={styles.gmContainer}> <img src={LobbyAssets.images.logos.clusterFun} alt="" /> </div>
             <h3 className={styles.gmTitle}>PICK A GAME!</h3>
             <ul className={styles.btnMenu}>
-                {games?.map(game =>
+                {games?.filter(game => {
+                        let showme = game.tags.length === 0;
+
+                        game.tags.forEach(tag => {
+                            if(lobbyModel.showTags.find(t => t === tag)) {
+                                showme = true;
+                            }
+                        })
+                        return showme;
+                    })
+                    .map(game =>
                     <li key={game.name}>
                         <div className={styles.btnContainer}>
                             <img alt={`Start ${game.displayName ?? game.name}`}
@@ -42,13 +59,13 @@ class PresenterComponent
                                 onClick={() => startGameClick(game.name)} />
                             <div className={styles.gameLogoLabel}>{game.displayName ?? game.name}</div>
                             {game.tags.indexOf("beta") > -1 
-                                ? <div>(beta)</div>
+                                ? <div className={styles.gameLogoTag}>(beta)</div>
                                 : null}
                             {game.tags.indexOf("alpha") > -1 
-                                ? <div>(alpha)</div>
+                                ? <div className={styles.gameLogoTag} >(alpha)</div>
                                 : null}
                             {game.tags.indexOf("debug") > -1 
-                                ? <div>(debug)</div>
+                                ? <div className={styles.gameLogoTag}>(debug)</div>
                                 : null}
                         </div>
                     </li>)}
@@ -138,18 +155,6 @@ interface LobbyComponentProps {
 @observer
 export class LobbyComponent
     extends React.Component<LobbyComponentProps> {
-    private _urlParams: URLSearchParams = new URLSearchParams(window.location.search);
-
-    // -------------------------------------------------------------------
-    // ctor
-    // -------------------------------------------------------------------
-    constructor(props: LobbyComponentProps)
-    {
-        super(props);
-        const showParam = this._urlParams.get("show");
-        const showTags = ["production", "beta"];
-        if(showParam) showParam.split(',').forEach(p => showTags.push(p));
-    } 
 
     // -------------------------------------------------------------------
     // render

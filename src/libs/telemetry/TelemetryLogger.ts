@@ -19,6 +19,7 @@ export interface ITelemetryLoggerFactory {
 // -------------------------------------------------------------------
 export class TelemetryLoggerFactory {
     trackingIds: TrackingInfo[]
+    private _defaultTrackingId?: TrackingInfo
     private _initializedTrackingIds = new Map<string, string>();
 
     // -------------------------------------------------------------------
@@ -27,20 +28,22 @@ export class TelemetryLoggerFactory {
     constructor(trackingIds: TrackingInfo[])
     {
         this.trackingIds = trackingIds;
+        this._defaultTrackingId = this.trackingIds.find(id => id.name === "DEFAULT")
     }
 
     // -------------------------------------------------------------------
     // Get one of the initialized loggers
     // -------------------------------------------------------------------
     getLogger(name: string) {
-        const trackingInfo = this.trackingIds.find(id => id.name === name);
+        const trackingInfo = this.trackingIds.find(id => id.name === name) ?? this._defaultTrackingId;
         if(!trackingInfo)
         {
-            Logger.error("Error: No logger for " + name); 
+            Logger.error("Error: No tracking if found for  " + name); 
             return new MockTelemetryLogger(name);
         }
         if(!this._initializedTrackingIds.has(name))
         {
+            Logger.info(`Tracking id for ${name} is ${trackingInfo.trackingId}`)
             const trackingData = [{ trackingId: trackingInfo.trackingId, gaOptions: { name: trackingInfo.name } }]
             const debug = process.env.REACT_APP_DEVMODE === "development";
             ReactGA.initialize(trackingData, { testMode: debug });
