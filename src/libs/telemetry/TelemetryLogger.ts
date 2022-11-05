@@ -51,16 +51,6 @@ export class TelemetryLoggerFactory {
 
 }
 
-
-// -------------------------------------------------------------------
-//  MockTelemetryLoggerFactory
-// -------------------------------------------------------------------
-export class MockTelemetryLoggerFactory {
-    getLogger(name: string) {
-        return new MockTelemetryLogger(name);
-    }
-}
-
 // -------------------------------------------------------------------
 //  ITelemetryLogger
 // -------------------------------------------------------------------
