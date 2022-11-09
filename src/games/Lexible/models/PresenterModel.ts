@@ -11,7 +11,8 @@ import {
     LexibleScoredWordMessage,
     LexibleWordHintMessage,
     LetterChain,
-    LexibleRecentlyTouchedLettersMessage, } from "./Messages";
+    LexibleRecentlyTouchedLettersMessage,
+    LexibleScoredWordMessageData, } from "./Messages";
 import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
@@ -88,6 +89,7 @@ export const getLexiblePresenterTypeHelper = (
                 case "LetterBlockModel": return new LetterBlockModel("_");
                 case "LexiblePresenterModel": return new LexiblePresenterModel( sessionHelper, gameProps.logger, gameProps.storage);
                 case "LexiblePlayer": return new LexiblePlayer();
+                case "LexibleScoredWordMessage": return new LexibleScoredWordMessage(new LexibleScoredWordMessageData({ sender: "" }))
                 case "Vector2": return new Vector2(0,0);
                 // TODO: add your custom type handlers here
             }
@@ -227,7 +229,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         this.allowedJoinStates.push(LexibleGameState.Playing, GeneralGameState.Paused)
         this.subscribe(PresenterGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
 
-        sessionHelper.addListener(LexiblePlayerActionMessage, `${this.name}_action`, this.handlePlayerAction);
+        sessionHelper.addListener(LexiblePlayerActionMessage, this, this.handlePlayerAction);
 
         sessionHelper.onError(err => {
             Logger.error(`Session error: ${err}`)
@@ -290,7 +292,8 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         }
         Logger.info(`Loaded ${this.wordSet.size} words`)
 
-        const { badWords } = await badWordsPromise;
+        const { badWordList } = await badWordsPromise;
+        const badWords = badWordList.split('\n');
         for (const badWord of badWords) {
             if (window.performance.now() - lastAwaitTime > 5) {
                 await this.waitForRealTime(0);

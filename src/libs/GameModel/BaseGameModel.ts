@@ -1,5 +1,5 @@
 import { ClusterFunGameProps, ITypeHelper, ISessionHelper, ITelemetryLogger, 
-    IStorage, EventThing, ClusterFunMessageBase, ClusterFunMessageConstructor, 
+    IStorage, EventThing, ClusterFunMessageBase, 
     BaseAnimationController, ClusterFunReceiptAckMessage, BruteForceSerializer
 } from "../../libs";
 
@@ -38,6 +38,7 @@ export function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper
             }
             else {
                 Logger.info(`Saved game state was 'destroyed'.  Going with new game.`)
+                savedData.shutdown();
             } 
         }      
     }
@@ -211,9 +212,20 @@ export abstract class BaseGameModel  {
     // -------------------------------------------------------------------
     quitApp = () => {
         Logger.info("Quitting the app")
+        this.shutdown();
         this.gameState = GeneralGameState.Destroyed;
-        clearInterval(this._ticker);
         this.storage.remove(GAMESTATE_LABEL);
+    }
+
+    // -------------------------------------------------------------------
+    //  Shut down the model instance, disconnecting all events
+    // -------------------------------------------------------------------
+    shutdown(): void {
+        Logger.info("Shutting down model")
+        clearInterval(this._ticker);
+        this._scheduledEvents.clear();
+        this._events.clear();
+        this.session.removeAllListenersForOwner(this);
     }
 
     // -------------------------------------------------------------------
@@ -243,17 +255,6 @@ export abstract class BaseGameModel  {
         }
 
         this._events!.get(event)!.subscribe(subscriptionId, callback);
-    }
-
-    // -------------------------------------------------------------------
-    // addMessageListener - register a listening for a specific clusterfun
-    // message type.
-    // -------------------------------------------------------------------
-    addMessageListener<P, M extends ClusterFunMessageBase>(
-        messageClass: ClusterFunMessageConstructor<P, M>, 
-        name: string, 
-        listener: (message: M) => unknown) {
-        this.session.addListener(messageClass, name, listener);
     }
 
     // -------------------------------------------------------------------

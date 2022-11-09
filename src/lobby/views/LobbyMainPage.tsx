@@ -63,6 +63,8 @@ export class LobbyMainPage
             containerId: `LobbyContainer_${lobbyModel.id}`
         }
 
+        Logger.warn(`Rendering ${uiProperties.containerId} with state ${lobbyModel.lobbyState}`)
+
         try {
             switch(lobbyModel.lobbyState)
             {

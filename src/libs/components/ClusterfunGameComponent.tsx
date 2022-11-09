@@ -30,6 +30,16 @@ class DummyComponent extends React.Component<{ appModel?: any, uiProperties: UIP
     render() { return <div>DUMDUMDUM</div>}
 }
 
+// Finalization registry to shut down models when the corresponding component is destroyed.
+// NOTE: This is kind of a hack
+const modelShutdownRegistry = new FinalizationRegistry((model: BaseGameModel) => {
+    if (model.gameState !== GeneralGameState.Destroyed) {
+        Logger.info("Disposing of a destroyed model");
+    } else {
+        Logger.warn("Disposing of a model that was not destroyed");
+    }
+    model.shutdown();
+})
 
 // -------------------------------------------------------------------
 // Main Game Page
@@ -59,7 +69,7 @@ extends React.Component<ClusterFunGameProps>
             serverCall
             );
 
-        Logger.info(`INIT ${this.props.playerName}`)
+        Logger.info(`INIT ${this.props.playerName} AS ${gameProperties.role}`)
 
         // NOTE: The current flow for game instantiation (create a new model from the
         // type helper, then attempt to load an old model if it exists) causes multiple
@@ -78,11 +88,17 @@ extends React.Component<ClusterFunGameProps>
             this.appModel = instantiateGame(
                 getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)), this.props)
         }
+        modelShutdownRegistry.register(this, this.appModel!);
     
         this.appModel.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => onGameEnded());
         document.title = `${gameProperties.gameName} / ClusterFun.tv`
+        Logger.info(`INIT for ${this.props.playerName} SUCCEEDED`)
     }
-    
+
+    componentWillUnmount(): void {
+        this.appModel?.shutdown();
+        Logger.warn(`Game component for ${this.props.playerName} unmounted - this should destroy subscriptions`);
+    }
 
     // -------------------------------------------------------------------
     // render

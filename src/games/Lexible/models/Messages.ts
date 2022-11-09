@@ -69,15 +69,17 @@ export class LexibleWordHintMessage  extends LexibleWordHintMessageData {
     constructor(payload: LexibleWordHintMessageData) { super(payload); Object.assign(this, payload);  } 
 }
 
-export class LexibleScoredWordMessage  extends ClusterFunMessageBase {
-    static readonly messageTypeName = "LexibleScoredWordMessage";
+export class LexibleScoredWordMessageData extends ClusterFunMessageBase {
     scoringPlayerId: string = "";
     team: string = "";
     letters: LetterChain = []
     score: number = 0
+}
+export class LexibleScoredWordMessage  extends LexibleScoredWordMessageData {
+    static readonly messageTypeName = "LexibleScoredWordMessage";
     
     // eslint-disable-next-line
-    constructor(payload: LexibleScoredWordMessage) { super(payload); Object.assign(this, payload);  } 
+    constructor(payload: LexibleScoredWordMessageData) { super(payload); Object.assign(this, payload);  } 
 }
 
 

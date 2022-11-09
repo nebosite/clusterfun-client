@@ -48,7 +48,7 @@ export function getGameComponent(descriptor: GameManifestItem, config: ClusterFu
     const foundGame = allGames.find(g => g.name === descriptor.name);
     if(!foundGame) throw Error(`Could not find game named '${descriptor.name}'`)
     return <div>
-        <React.Suspense fallback="Loading...">
+        <React.Suspense fallback="Loading Game...">
             <foundGame.lazyType {...config} />
         </React.Suspense>
     </div>;

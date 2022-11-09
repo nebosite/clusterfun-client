@@ -21,10 +21,14 @@ export interface ISessionHelper {
     resendMessage(receiver: string, oldMessage: IMessageReceipt): void;
     addListener<P, M extends ClusterFunMessageBase>(
         messageClass: ClusterFunMessageConstructor<P, M>, 
-        name: string, 
+        owner: object, 
         listener: (message: M) => unknown): void;
     addOpenedListener(listener: () => void): void;
     addClosedListener(listener: (code: number) => void): void;
+    removeListener<P, M extends ClusterFunMessageBase>(
+        messageClass: ClusterFunMessageConstructor<P, M>, 
+        owner: object): void;
+    removeAllListenersForOwner(owner: object): void;
     onError(doThis: (err:string) => void): void;
     serverCall: <T>(url: string, payload: any ) => Promise<T>;
     stats: {
@@ -45,7 +49,8 @@ export class SessionHelper implements ISessionHelper {
     private readonly _presenterId: string;
     private readonly _serializer: ClusterFunSerializer;
     private _messageThing: IMessageThing;
-    private _listeners = new Map<ClusterFunMessageConstructor<unknown, ClusterFunMessageBase>, Map<string, (message: object) => void>>()
+    private _listeners = new Map<ClusterFunMessageConstructor<unknown, ClusterFunMessageBase>, Map<object, (message: ClusterFunMessageBase) => void>>()
+    
     sessionError?:string;
     serverCall: <T>(url: string, payload: any) => Promise<T>;
     stats = {
@@ -147,17 +152,38 @@ export class SessionHelper implements ISessionHelper {
     // -------------------------------------------------------------------
     // addListener
     // ------------------------------------------------------------------- 
-    addListener<P, M extends ClusterFunMessageBase>(messageClass: ClusterFunMessageConstructor<P, M>, name: string, listener: (message: M) => unknown) {
+    addListener<P, M extends ClusterFunMessageBase>(messageClass: ClusterFunMessageConstructor<P, M>, owner: object, listener: (message: M) => unknown) {
         if(!this._listeners.has(messageClass as ClusterFunMessageConstructor<unknown, M>))
         {
             // Create the set of listeners for the new class,
             // also ensuring the class is registered in the hydrator
-            this._listeners.set(messageClass as ClusterFunMessageConstructor<unknown, M>, new Map<string, (message: object) => unknown>());
+            this._listeners.set(messageClass as ClusterFunMessageConstructor<unknown, M>, new Map<object, (message: object) => unknown>());
             this._serializer.register(messageClass);
             Logger.debug("REGISTERING: " + messageClass)
         }
-        const listenersForType = this._listeners.get(messageClass as ClusterFunMessageConstructor<unknown, M>) as Map<string, (message: M) => unknown>;
-        listenersForType.set(name, listener);
+        const listenersForType = this._listeners.get(messageClass as ClusterFunMessageConstructor<unknown, M>) as Map<object, (message: M) => unknown>;
+        listenersForType.set(owner, listener);
+    }
+
+    // -------------------------------------------------------------------
+    // removeListener
+    // ------------------------------------------------------------------- 
+    removeListener<P, M extends ClusterFunMessageBase>(messageClass: ClusterFunMessageConstructor<P, M>, owner: object) {
+        if(this._listeners.has(messageClass as ClusterFunMessageConstructor<unknown, M>))
+        {
+            const listenersForType = this._listeners.get(messageClass as ClusterFunMessageConstructor<unknown, M>) as Map<object, (message: M) => unknown>;
+            listenersForType.delete(owner);
+            Logger.debug("UNREGISTERING: " + messageClass)
+        }
+    }
+
+    // -------------------------------------------------------------------
+    // removeAllListenersForOwner
+    // ------------------------------------------------------------------- 
+    removeAllListenersForOwner(owner: object) {
+        for (const key of this._listeners.keys()) {
+            this.removeListener(key, owner);
+        }
     }
 
     // -------------------------------------------------------------------

@@ -35,6 +35,11 @@ const HD_RATIO = 1080/1920;
         const width = gameTestModel.presenterSize/4.5;
         return {width: width, height: width * ratio};    
     }
+    private cachedGetClientSize = () => this.getClientSize(this.props.sizeAdjust)
+
+    private handleRefresh = () => {
+        this.setState({childKey: this.newKey})
+    }
 
     // -------------------------------------------------------------------
     // render
@@ -44,15 +49,11 @@ const HD_RATIO = 1080/1920;
 
         const width = gameTestModel.presenterSize/4.5;
 
-        const handleRefresh = () => {
-            this.setState({childKey: this.newKey})
-        }
-
         return (
             <div className={styles.clientBox} key={this.state.childKey}>
                 <div className={styles.divRow}>
                     <span>{`C${clientNumber}: ${clientModel.playerName}`} </span>
-                    <button className={styles.utilityButton} onClick={handleRefresh}>Refresh</button>
+                    <button className={styles.utilityButton} onClick={this.handleRefresh}>Refresh</button>
                 </div>
                 <div className={styles.clientArea} style={{
                     width: width,
@@ -60,7 +61,7 @@ const HD_RATIO = 1080/1920;
                         <LobbyMainPage 
                             lobbyModel={clientModel} 
                             games={games}
-                            size={() => { return this.getClientSize(sizeAdjust)}}/> 
+                            size={this.cachedGetClientSize}/> 
                 </div> 
             </div>)
     }        
@@ -150,7 +151,7 @@ export class GameTestComponent extends React.Component<GameTestComponentProps> {
                     <LobbyMainPage 
                         lobbyModel={gameTestModel.presenterModel} 
                         games={games}
-                        size={() => {return this.getPresenterSize()}} /> 
+                        size={this.getPresenterSize} /> 
                 </div>
             </div>
         );
