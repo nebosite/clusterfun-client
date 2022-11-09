@@ -239,7 +239,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         this.minPlayers = 2;
 
         this.wordTree = WordTree.create([]);
-        this.populateWordSet();
 
         const savedSettingsValue = storage.get(LEXIBLE_SETTINGS_KEY);
         if (savedSettingsValue) {
@@ -257,6 +256,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     // -------------------------------------------------------------------
     reconstitute() {
         this.theGrid.processBlocks((block)=>{this.setBlockHandlers(block)})
+        this.populateWordSet();
     }
 
     //--------------------------------------------------------------------------------------
@@ -471,7 +471,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
         this.players.forEach((p,i) => {
             p.status = LexiblePlayerStatus.WaitingForStart;
-            p.pendingMessage = undefined;
             p.message = "";
             p.colorStyle = "white";
             p.x = .1;

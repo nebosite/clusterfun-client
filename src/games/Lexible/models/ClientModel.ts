@@ -201,7 +201,6 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         })
         this.updateWinningPaths();
         this.saveCheckpoint();
-        this.ackMessage(message);  
         this.invokeEvent(LexibleGameEvent.WordAccepted)
     }
 
@@ -238,7 +237,6 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         this.wordList = message.wordList;
         Logger.debug(`Received Wordlist with ${message.wordList?.length} words`)
         this.saveCheckpoint();
-        this.ackMessage(message);
     }
 
     // -------------------------------------------------------------------
@@ -249,7 +247,6 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         this.gameState = LexibleClientState.EndOfRound;
 
         this.saveCheckpoint();
-        this.ackMessage(message);
     }
 
     // -------------------------------------------------------------------
@@ -268,7 +265,6 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         this.gameState = LexibleClientState.Playing;
 
         this.saveCheckpoint();
-        this.ackMessage(message);
     }
 
     // -------------------------------------------------------------------
@@ -360,32 +356,4 @@ export class LexibleClientModel extends ClusterfunClientModel  {
 
         this.session.sendMessageToPresenter(message);
     }
-
-    // // -------------------------------------------------------------------
-    // // Tell the presenter to change my color
-    // // -------------------------------------------------------------------
-    // doColorChange(){
-    //     const hex = Array.from("0123456789ABCDEF");
-    //     let colorStyle = "#";
-    //     for(let i = 0; i < 6; i++) colorStyle += this.randomItem(hex);
-    //     this.sendAction("ColorChange", {colorStyle})
-    // }
-   
-    // // -------------------------------------------------------------------
-    // // Tell the presenter to show a message for me
-    // // -------------------------------------------------------------------
-    // doMessage(){
-    //     const messages = ["Hi!", "Bye?", "What's up?", "Oh No!", "Hoooooweeee!!", "More gum."]
-    //     this.sendAction("Message", {text: this.randomItem(messages)})
-    // }
-   
-    // // -------------------------------------------------------------------
-    // // Tell the presenter that I tapped somewhere
-    // // -------------------------------------------------------------------
-    // doTap(x: number, y: number){
-    //     x = Math.floor(x * 1000)/1000;
-    //     y = Math.floor(y * 1000)/1000;
-        
-    //     this.sendAction("Tap", {x,y})
-    // }
 }

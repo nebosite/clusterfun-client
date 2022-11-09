@@ -1,6 +1,6 @@
 import { ClusterFunGameProps, ITypeHelper, ISessionHelper, ITelemetryLogger, 
-    IStorage, EventThing, ClusterFunMessageBase, 
-    BaseAnimationController, ClusterFunReceiptAckMessage, BruteForceSerializer
+    IStorage, EventThing, 
+    BaseAnimationController, BruteForceSerializer
 } from "../../libs";
 
 import { action, makeObservable, observable } from "mobx";
@@ -379,16 +379,6 @@ export abstract class BaseGameModel  {
         eventsToRun.forEach(e => e());
 
         this.onTick.invoke(this.gameTime_ms);
-    }
-
-    // -------------------------------------------------------------------
-    // acknowledge a message
-    // ------------------------------------------------------------------- 
-    ackMessage(message: ClusterFunMessageBase) {
-        this.session.sendMessage(message.sender, new ClusterFunReceiptAckMessage({
-            sender: this.session.personalId,
-            ackedMessageId: message.messageId ?? 0
-        }))
     }
 
     // -------------------------------------------------------------------

@@ -143,7 +143,6 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         this.prepauseState = this.gameState;
         this.gameState = GeneralClientGameState.Paused
         this.saveCheckpoint();
-        if(message) this.ackMessage(message);
     }
 
     // -------------------------------------------------------------------
@@ -153,7 +152,6 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         if(this.prepauseState !== GeneralGameState.Unknown) {
             this.gameState = this.prepauseState;
             this.saveCheckpoint();
-            this.ackMessage(message);
         }
 
     }

@@ -179,7 +179,6 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
 
         this.players.forEach((p,i) => {
             p.status = TestatoPlayerStatus.WaitingForStart;
-            p.pendingMessage = undefined;
             p.message = "";
             p.colorStyle = "white";
             p.x = .1;
@@ -224,8 +223,6 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
                 player.y = message.actionData.y;
                 break;
         }
-
-        player.pendingMessage = undefined;
 
         this.saveCheckpoint();
     }

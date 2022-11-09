@@ -49,16 +49,6 @@ export class ClusterFunKeepAliveMessage extends ClusterFunMessageBase  {
 	static readonly messageTypeName = 'ClusterFunKeepAliveMessage';
 }
 
-export class ClusterFunReceiptAckMessage extends ClusterFunMessageBase {
-    static readonly messageTypeName = "ClusterFunReceiptAckMessage";
-    readonly ackedMessageId: number;
-
-    constructor(payload: ClusterFunReceiptAckMessage)  {  
-        super(payload); 
-        this.ackedMessageId = payload.ackedMessageId;
-    }
-}
-
 export class ClusterFunPingMessage extends ClusterFunMessageBase {
     static readonly messageTypeName = "ClusterFunPingMessage";
     readonly pingTime: number;

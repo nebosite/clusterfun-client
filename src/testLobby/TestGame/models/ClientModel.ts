@@ -105,7 +105,6 @@ export class TestatoClientModel extends ClusterfunClientModel  {
         this.gameState = TestatoClientState.EndOfRound;
 
         this.saveCheckpoint();
-        this.ackMessage(message);
     }
 
     // -------------------------------------------------------------------
@@ -119,7 +118,6 @@ export class TestatoClientModel extends ClusterfunClientModel  {
         this.gameState = TestatoClientState.Playing;
 
         this.saveCheckpoint();
-        this.ackMessage(message);
     }
 
     // -------------------------------------------------------------------

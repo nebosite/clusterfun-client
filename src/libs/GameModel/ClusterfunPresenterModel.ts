@@ -1,6 +1,6 @@
-import { IMessageReceipt, ITypeHelper, ISessionHelper, ITelemetryLogger, 
+import { ITypeHelper, ISessionHelper, ITelemetryLogger, 
     IStorage, ClusterFunTerminateGameMessage, ClusterFunJoinMessage, ClusterFunQuitMessage, 
-    ClusterFunReceiptAckMessage, ClusterFunKeepAliveMessage, ClusterFunServerStateMessage, 
+    ClusterFunKeepAliveMessage, ClusterFunServerStateMessage, 
     ClusterFunJoinAckMessage, ClusterFunGameResumeMessage, ClusterFunGamePauseMessage, ClusterFunMessageBase 
 } from "../../libs";
 import { action, makeObservable, observable } from "mobx";
@@ -26,7 +26,6 @@ export class ClusterFunPlayer
 {
     playerId: string = "";
     @observable name: string = "";
-    pendingMessage?: IMessageReceipt = undefined;
 }
 
 // -------------------------------------------------------------------
@@ -110,7 +109,6 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
 
         sessionHelper.addListener(ClusterFunJoinMessage, this, this.handleJoinMessage);
         sessionHelper.addListener(ClusterFunQuitMessage, this, this.handlePlayerQuitMessage);
-        sessionHelper.addListener(ClusterFunReceiptAckMessage, this, this.handleReceipts)
         sessionHelper.addListener(ClusterFunKeepAliveMessage, this, this.handleKeepAlive)
 
         this.gameState = PresenterGameState.Gathering;
@@ -156,14 +154,6 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                 message.sender,
                 new ClusterFunJoinAckMessage({ sender: this.session.personalId, didJoin: true, isRejoin: true})
             )
-            if(returningPlayer.pendingMessage) {
-                const pendingMessage = returningPlayer.pendingMessage
-                const playerId = returningPlayer.playerId
-                setTimeout(()=>{
-                    Logger.info("Resending Pending message to " + playerId)
-                    this.session.resendMessage(playerId, pendingMessage);
-                },50)
-            }
 
             const index = this._exitedPlayers.indexOf(returningPlayer);
             this._exitedPlayers.splice(index,1);
@@ -342,27 +332,12 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     }
    
     // -------------------------------------------------------------------
-    //  handleReceipts
-    // -------------------------------------------------------------------
-    handleReceipts = (message: ClusterFunReceiptAckMessage) => {
-        for(const p of this.players)  {
-            if(p.pendingMessage 
-                && p.playerId === message.sender
-                && p.pendingMessage.id === message.ackedMessageId) { 
-                p.pendingMessage = undefined;
-                return;
-            }
-        }
-        Logger.warn(`Weird: got a message Ack for a message not pending: ` + JSON.stringify(message))
-    }
-   
-    // -------------------------------------------------------------------
     //  sendToPlayer - send a message to a player
     // -------------------------------------------------------------------
     async sendToPlayer(playerId: string, message:ClusterFunMessageBase) {
         const player = this.players.find(p => p.playerId === playerId);
         if(player) {
-            player.pendingMessage = await this.session.sendMessage(playerId, message);
+            await this.session.sendMessage(playerId, message);
         }
     }
 
@@ -377,7 +352,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
             if(player.playerId !== this.session.personalId) {
                 const message = generateMessage(player, isExited);
                 if(message) {
-                    player.pendingMessage = await this.session.sendMessage(player.playerId, message);
+                    await this.session.sendMessage(player.playerId, message);
                 }
             }
         }
