@@ -159,7 +159,7 @@ export class SessionHelper implements ISessionHelper {
             // also ensuring the class is registered in the hydrator
             this._listeners.set(messageClass as ClusterFunMessageConstructor<unknown, M>, new Map<object, (message: object) => unknown>());
             this._serializer.register(messageClass);
-            Logger.debug("REGISTERING: " + messageClass)
+            Logger.debug("REGISTERING: " + messageClass.messageTypeName)
         }
         const listenersForType = this._listeners.get(messageClass as ClusterFunMessageConstructor<unknown, M>) as Map<object, (message: M) => unknown>;
         listenersForType.set(owner, listener);
@@ -173,7 +173,7 @@ export class SessionHelper implements ISessionHelper {
         {
             const listenersForType = this._listeners.get(messageClass as ClusterFunMessageConstructor<unknown, M>) as Map<object, (message: M) => unknown>;
             listenersForType.delete(owner);
-            Logger.debug("UNREGISTERING: " + messageClass)
+            Logger.debug("UNREGISTERING: " + messageClass.messageTypeName)
         }
     }
 

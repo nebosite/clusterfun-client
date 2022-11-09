@@ -685,7 +685,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             this.placeSuccessfulWord(data, word, player);
         }
         else {
-            Logger.info(`Failed word '${data.letters.join("")}' because ${(scoreTooLow ? "Low score" : "Not found" )}`)
+            Logger.info(`Failed word '${data.letters.map(l => l.letter).join("")}' because ${(scoreTooLow ? "Low score" : "Not found" )}`)
             const rejectMessage = new LexibleFailedWordMessage({
                 sender: this.session.personalId,
                 letters: data.letters
