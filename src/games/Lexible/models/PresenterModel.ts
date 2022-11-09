@@ -220,6 +220,8 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         logger: ITelemetryLogger, 
         storage: IStorage)
     {
+        // NOTE: For lack of a better place to put it, I'll note that this constructor logic
+        // gets run multiple times during the creation of a game model.
         super("Lexible", sessionHelper, logger, storage);
 
         this.allowedJoinStates.push(LexibleGameState.Playing, GeneralGameState.Paused)
@@ -407,6 +409,14 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
         // done!
         this.theGrid = newGrid;
+        this.saveCheckpoint();
+    }
+
+    // -------------------------------------------------------------------
+    // Resend the raw game state to everyone
+    // -------------------------------------------------------------------
+    resyncPlayers(){
+        this.sendToEveryone((p,ie) =>  this.createPlayRequestMessage(p.teamName))
         this.saveCheckpoint();
     }
 

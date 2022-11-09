@@ -61,20 +61,26 @@ extends React.Component<ClusterFunGameProps>
 
         Logger.info(`INIT ${this.props.playerName}`)
 
+        // NOTE: The current flow for game instantiation (create a new model from the
+        // type helper, then attempt to load an old model if it exists) causes multiple
+        // copies of the model to be created. This means that all of the constructor logic
+        // runs for each of these copies, _including event subscriptions_, and thus multiple
+        // copies of the model are running at once, including copies that are connecting
+        // differently to different parts of the ecosystem (e.g. one copy cannot produce
+        // word suggestions)
         if(gameProperties.role === "presenter")
         {
             this.UI = presenterType;
             this.appModel = instantiateGame(
-                getPresenterTypeHelper( derivedPresenterTypeHelper(sessionHelper, this.props)))
+                getPresenterTypeHelper( derivedPresenterTypeHelper(sessionHelper, this.props)), this.props)
         } else {
             this.UI = clientType;
             this.appModel = instantiateGame(
-                getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)))
+                getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)), this.props)
         }
     
         this.appModel.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => onGameEnded());
         document.title = `${gameProperties.gameName} / ClusterFun.tv`
-        this.appModel!.tryLoadOldGame(this.props);
     }
     
 

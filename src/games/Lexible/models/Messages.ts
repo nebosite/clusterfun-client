@@ -1,10 +1,7 @@
-
+import { ClusterFunMessageBase, Vector2 } from "libs";
 
 // ------------------------------------------------------------------------------------------
 // LexiblePlayRequestMessage
-
-import { ClusterFunMessageBase, Vector2 } from "libs";
-
 // ------------------------------------------------------------------------------------------
 export interface PlayBoard {
     gridWidth: number
@@ -22,6 +19,14 @@ export class LexiblePlayRequestMessage  extends ClusterFunMessageBase {
     }
     constructor(payload: LexiblePlayRequestMessage) { super(payload); Object.assign(this, payload);  } 
 }
+
+// export class LexibleDesyncDetectedMessageData extends ClusterFunMessageBase {}
+
+// export class LexibleDesyncDetectedMessage extends LexibleDesyncDetectedMessageData {
+//     static readonly messageTypeName = "LexibleDesyncDetectedMessage";
+//     // eslint-disable-next-line
+//     constructor(payload: LexibleDesyncDetectedMessageData) { super(payload); Object.assign(this, payload); }
+// }
 
 export type LetterChain = {letter: string, coordinates: Vector2}[]
 

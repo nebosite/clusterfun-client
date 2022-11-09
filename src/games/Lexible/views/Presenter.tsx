@@ -370,6 +370,7 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
                     <DevUI style={{position: "absolute", left: "30%", bottom: "0px", fontSize: "50%"}} context={appModel} >
                         <button onClick={()=>appModel.handleGameWin("A")}>Win: A</button>
                         <button onClick={()=>appModel.handleGameWin("B")}>Win: B</button>
+                        <button onClick={()=>appModel.resyncPlayers()}>Resync</button>
                     </DevUI>
                     <div style={{position: "absolute", left: "0", bottom: "0px", fontSize: "50%"}} >
                         Sent: {stats.sentCount}  {sendRate.toFixed(1)}/min ({(stats.bytesSent / 1000).toFixed(1)}KB, {sendSize.toFixed(1)}/msg)

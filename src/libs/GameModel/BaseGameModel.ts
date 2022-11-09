@@ -21,10 +21,32 @@ export enum GeneralGameState
 // -------------------------------------------------------------------
 // get the saved game if available or create a new one
 // -------------------------------------------------------------------
-export function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper)
+export function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper, gameProps: ClusterFunGameProps)
 {
     const serializer = createSerializer(typeHelper);
     const gameTypeName = typeHelper.rootTypeName;
+
+    try {
+        const savedDataJson = gameProps.storage.get(GAMESTATE_LABEL);
+        if(savedDataJson) {
+            const savedData = serializer.parse<T>(savedDataJson);
+            if(savedData.gameState !== GeneralGameState.Destroyed)
+            {
+                Logger.info("Found a saved game.  Resuming ...")
+                savedData.reconstitute();
+                return savedData;
+            }
+            else {
+                Logger.info(`Saved game state was 'destroyed'.  Going with new game.`)
+            } 
+        }      
+    }
+    catch(err) 
+    {
+        gameProps.logger.logEvent("Error", "Failed Game Restore", (err as any).message )
+        Logger.error("getSavedGame: Could not restore game because: " + err);
+    }
+
     let returnMe: T | undefined;
 
     returnMe = typeHelper.constructType(gameTypeName) as T;
@@ -177,43 +199,6 @@ export abstract class BaseGameModel  {
         }, this.tickInterval_ms );
 
         this.telemetryLogger.logPageView(name);
-    }
-
-    // -------------------------------------------------------------------
-    // get the saved game if available or create a new one
-    // -------------------------------------------------------------------
-    tryLoadOldGame(gameProps: ClusterFunGameProps)
-    {
-        if(!this.serializer) throw Error("No serializer in tryLoadOldGame")
-        this._isLoading =true;
-
-        // Do this async so that we don't trip state dependencies during construction
-        setTimeout(()=>{
-            try {
-                const savedDataJson = gameProps.storage.get(GAMESTATE_LABEL);
-                if(savedDataJson) {
-                    const savedData = this.serializer!.parse<BaseGameModel>(savedDataJson);
-                    if(savedData.gameState !== GeneralGameState.Destroyed)
-                    {
-                        Logger.info("Found a saved game.  Resuming ...")
-                        action(()=>{
-                            Object.assign(this, savedData)
-                            this.reconstitute();                          
-                        })()        
-                    }
-                    else {
-                        Logger.info(`Saved game state was 'destroyed'.  Going with new game.`)
-                    } 
-                }      
-            }
-            catch(err) 
-            {
-                gameProps.logger.logEvent("Error", "Failed Game Restore", (err as any).message )
-                Logger.error("getSavedGame: Could not restore game because: " + err);
-            }
-            this._isLoading = false;
-        },50)
-
     }
 
 
