@@ -1,4 +1,4 @@
-export const badWords = `ANAL
+export const badWordList = `ANAL
 ANALANNIE
 ANALPROBE
 ANALSEX

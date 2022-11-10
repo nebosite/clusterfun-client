@@ -1,10 +1,16 @@
 import { ClusterFunGameProps, ITypeHelper, ISessionHelper, ITelemetryLogger, 
-    IStorage, EventThing, ClusterFunMessageBase, ClusterFunMessageConstructor, 
+    IStorage, EventThing, ClusterFunMessageBase, 
     BaseAnimationController, ClusterFunReceiptAckMessage, BruteForceSerializer
 } from "../../libs";
 
 import { action, makeObservable, observable } from "mobx";
 import Logger from "js-logger";
+
+// Finalizer to track whether models have been properly cleared
+// Remove when debugging makes us confident of this
+const debug_model_finalizer = new FinalizationRegistry((name) => {
+    Logger.info(`Model with ${name} successfully garbage collected`);
+})
 
 
 const GAMESTATE_LABEL = "game_state";
@@ -64,6 +70,7 @@ function createSerializer(typeHelper: ITypeHelper)
                     case "_ticker":
                     case "_isCheckpointing":
                     case "_lastCheckpointTime":
+                    case "_isShutdown":
                     case "logger":
                     case "onTick":
                     case "serializer":
@@ -136,6 +143,9 @@ export abstract class BaseGameModel  {
     public onTick = new EventThing<number>("BaseGameModel");
     private _scheduledEvents: Map<number, Array<() => void>>;
 
+    private _isShutdown = false;
+    public get isShutdown() { return this._isShutdown; }
+
     //private _deserializeHelper: (propertyName: string, data: any) => any
     private _events = new Map<string, EventThing<any>>();
     private _ticker: NodeJS.Timeout;
@@ -177,6 +187,8 @@ export abstract class BaseGameModel  {
         }, this.tickInterval_ms );
 
         this.telemetryLogger.logPageView(name);
+
+        debug_model_finalizer.register(this, this.name);
     }
 
     // -------------------------------------------------------------------
@@ -227,8 +239,20 @@ export abstract class BaseGameModel  {
     quitApp = () => {
         Logger.info("Quitting the app")
         this.gameState = GeneralGameState.Destroyed;
-        clearInterval(this._ticker);
         this.storage.remove(GAMESTATE_LABEL);
+        this.shutdown();
+    }
+
+    // -------------------------------------------------------------------
+    //  shutdown - Shut down the model without destroying saved state
+    // -------------------------------------------------------------------
+    shutdown = () => {
+        Logger.info("Shutting down model");
+        clearInterval(this._ticker);
+        this.session.removeAllListenersForOwner(this);
+        this._events.clear();
+        this._scheduledEvents.clear();
+        this._isShutdown = true;
     }
 
     // -------------------------------------------------------------------
@@ -264,9 +288,10 @@ export abstract class BaseGameModel  {
     // invokeEvent - force an event to trigger
     // -------------------------------------------------------------------
     invokeEvent(event: string, ...args: any[]) {
+        const eventFunction = this._events.get(event);
         return new Promise<void>(resolve => {
             setTimeout(() => {
-                this._events.get(event)?.invoke(...args);
+                eventFunction?.invoke(...args);
                 resolve();
             },1)            
         })
@@ -445,6 +470,4 @@ export abstract class BaseGameModel  {
     {
         return items[this.randomInt(items.length)]
     }
-    
-
 }

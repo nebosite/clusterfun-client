@@ -188,7 +188,6 @@ export class SessionHelper implements ISessionHelper {
             listenersForType.delete(owner);
             if (listenersForType.size === 0) {
                 this._listeners.delete(messageClass as ClusterFunMessageConstructor<unknown, M>);
-                this._serializer.unregister(messageClass);
                 Logger.debug("UNREGISTERING: " + messageClass.messageTypeName)
             }
         }
