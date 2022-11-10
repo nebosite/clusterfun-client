@@ -1,0 +1,113 @@
+This branch will exist to establish a full rework to the Clusterfun message structure.
+This rework primarily encompasses the way that Clusterfun games use the established
+relay server - the server itself might change somewhat as needed, but we will mostly
+focus on the messages themselves and how they will be performed. The rework also
+encompasses how game state is recovered between refreshes.
+
+Main thoughts on the current system:
+- The current ack system bugs out once a refresh occurs. Never mind that it only stores
+  one message to ack - what's more concerning is that it simply doesn't perform its
+  intended function.
+- Joining and starting a game largely do work. Rejoining is pretty good, though client
+  state has trouble restoring.
+- The current checkpoint system makes absolutely perfect sense for the host. Refreshing
+  the host is effectively the same as pausing the game and resuming it, which is effective
+  whenever the browser needs to be made inactive (such as when hosting on mobile).
+- The checkpoint system does not make as much sense for the client. After a while, anything
+  that the client remembers is going to be out of date and it will need to resync. However,
+  the client credential information (room code, credentials, etc.) remain perfectly valid
+  and should be kept for a good rejoin experience.
+- The current messages for Lexible rely on the game being able to keep up with the client
+  state, which obviously does not work. The message system, as it currently exists, works
+  better when the client is just giving orders and doesn't have as much context to save.
+- We have two entirely different serialization systems, one for the messaging system and
+  one for game state. The game state serializer is clearly more capable - the messaging
+  serializer requires specially annotated constructors and only serializes JSON-compatible
+  objects, while the game serializer has better type annotations and can handle both
+  circular references and more complex objects. For the sake of better software testing
+  and feature sets, we should use the game state serializer.
+- Currently, the server itself sends a Join message whenever a new player arrives.
+  This is the only reason the server actually needs to know anything about the message
+  serialization protocol - if we got the client to do that, then the server could just
+  leave out any code that parses anything beyond the header.
+- For some message types that don't need full reliability, WebRTC allows us to send
+  data streams over UDP in a way that's not only more efficient, but can also be used
+  for direct peer-to-peer communication that skips the server.
+
+Architecture idea: frame messages as request and response:
+- Most of our messages fit a request and response pattern - either the client or the host
+  makes a request of the other, and the recipient may send a response of some kind back.
+  Our current Lexible messages can be fit into this pattern:
+  - CLIENT joins game -> PRESENTER assigns client to team and sends current state
+  - CLIENT rejoins game -> PRESENTER sends current state
+  - CLIENT clicks a letter -> PRESENTER records click
+  - PRESENTER sends recently clicked letters -> CLIENT shows clicks (no message)
+  - CLIENT asks for hints, providing current path -> PRESENTER returns word hints
+  - CLIENT submits word -> PRESENTER reports success or failure
+  - PRESENTER sends board square updates -> CLIENT applies them (no message)
+  - EITHER PARTY pings -> OTHER PARTY pings back
+  - PRESENTER pauses game -> CLIENT pauses
+  - PRESENTER resumes game -> CLIENT resumes
+  - PRESENTER ends game -> CLIENT disconnects (no message)
+- Some messages do not require a response and thus can be fire-and-forget.
+- Most messages, however, do require a response, and whoever is in charge of the request
+  should keep track of this needed response and react appropriately when the response
+  does not arrive.
+
+TODO:
+[ ] Move the `ClusterFunJoinMessage` from the server to the client
+    [ ] When a client first joins the game, it sends the Join message to the presenter
+    [ ] The server no longer sends this message
+    [ ] Also remove all code from the server that parses anything beyond the header
+[ ] Use the Clusterfun BruteForceSerializer to serialize/deserialize payloads
+    [ ] Side enhancement: Allow the serializer to work with Sets
+    [ ] Have each client/presenter model register the messages it intends to serialize
+        in the brute force serializer
+    [ ] Use this brute force serializer to read and write the message after peeling
+        the header off/before sticking it on.
+    [ ] (NOTE: If done before having the client send the join message, the server can
+         be changed to construct the correct join message manually)
+[ ] Arrange messages into requests and responses
+    [ ] Add listeners for request types, as before. 
+        (We may just want to name them / give them string routes)
+    [ ] Add a request function on the session helper
+        [ ] The interface takes a route, a message, and a recipient ID. It returns
+            a promise that resolves or rejects to a response from the recipient.
+        [ ] The listener API function should return this promise, which will be translated
+            into a return message over the relay server
+        [ ] Requests should be able to last multiple seconds. For games with quiz prompts,
+            the presenter should send a request for answers to each client, which request
+            will remain outstanding and eventually be fulfilled by the answer that the
+            user types into the input field that the client shows.
+    [ ] Both the request and listener functions return handles that allow for cleanup,
+        serialization, and cancellation.
+        [ ] The likely best route is to make these our own Promise implementation with these
+            extra features - the "await" operator will convert these to a vanilla Promise
+            for us (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables)
+    [ ] Sending the same request multiple times should more or less be idempotent
+        [ ] All requests have a unique ID number (perhaps a GUID)
+        [ ] If a request would change state, sending the same request multiple times
+            should be the same as sending it once, as far as is reasonable. (For instance,
+            if you submit a word in Lexible, tiles that are your color and have the same
+            score as the original word should succeed - this allows sending the same
+            word multiple times in a row and having it always report success).
+        [ ] Requests should also return the same data from the same ID as much as possible,
+            or should fail with a note that the requester should send an updated message.
+        [ ] If a receiver is currently showing UI to respond to a user data request,
+            receiving the same ID for that request should not change anything. (This allows
+            the presenter to ping a long-running user data request every few seconds
+            to re-poll it after disconnects)
+[ ] Have game models keep track of all outstanding requests.
+    [ ] When a request that needs a response times out, the game model can resend it
+    [ ] On resume from serialized state, the game model resends all pending requests
+    [ ] Ensure this interface is exposed to the game model in a reasonable way, so that
+        it can control what messages to keep and which ones to throw away.
+[ ] Clients should ask for a full state resync every time they are refreshed
+    [ ] Clients should save enough state to reconnect after a refresh
+    [ ] Once they reconnect, they should send a request to the server for the full game state
+        that they need, and then completely overwrite what they have after a refresh.
+        (Note that while this is a significant amount of state for Lexible, games where
+        the phone acts as a simple controller will require far less)
+    [ ] Clients should also request full state if they suspect something to be very
+        wrong with their saved state.
+    [ ] Log a telemetry event every time this full state is requested.
