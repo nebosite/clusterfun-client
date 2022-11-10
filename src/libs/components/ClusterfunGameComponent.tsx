@@ -30,6 +30,13 @@ class DummyComponent extends React.Component<{ appModel?: any, uiProperties: UIP
     render() { return <div>DUMDUMDUM</div>}
 }
 
+const componentFinalizer = new FinalizationRegistry((model: BaseGameModel) => {
+    if (!model.isShutdown) {
+        Logger.warn("Component was finalized before model was shut down");
+        model.shutdown();
+    }
+})
+
 
 // -------------------------------------------------------------------
 // Main Game Page
@@ -75,6 +82,11 @@ extends React.Component<ClusterFunGameProps>
         this.appModel.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => onGameEnded());
         document.title = `${gameProperties.gameName} / ClusterFun.tv`
         this.appModel!.tryLoadOldGame(this.props);
+        componentFinalizer.register(this, this.appModel!);
+    }
+
+    componentWillUnmount(): void {
+        this.appModel?.shutdown();
     }
     
 

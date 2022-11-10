@@ -93,7 +93,7 @@ export class StressatoClientModel extends ClusterfunClientModel  {
             }
         })
 
-        sessionHelper.addListener(StressatoServerActionMessage, playerName, this.handleActionMessage);
+        sessionHelper.addListener(StressatoServerActionMessage, this, this.handleActionMessage);
         makeObservable(this);
     }
 
