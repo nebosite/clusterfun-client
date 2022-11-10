@@ -225,7 +225,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         this.allowedJoinStates.push(LexibleGameState.Playing, GeneralGameState.Paused)
         this.subscribe(PresenterGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
 
-        sessionHelper.addListener(LexiblePlayerActionMessage, `${this.name}_action`, this.handlePlayerAction);
+        sessionHelper.addListener(LexiblePlayerActionMessage, this, this.handlePlayerAction);
 
         sessionHelper.onError(err => {
             Logger.error(`Session error: ${err}`)

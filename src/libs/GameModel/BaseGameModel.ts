@@ -166,7 +166,7 @@ export abstract class BaseGameModel  {
         this.storage = storage;
 
         this._scheduledEvents = new Map<number, Array<() => void>>();
-        this.session.addClosedListener(code => this.onSessionClosed(code));
+        this.session.addClosedListener(this, code => this.onSessionClosed(code));
    
         // Set up a regular ticker to drive scheduled events and animations
         let timeOfLastTick = Date.now();
@@ -258,17 +258,6 @@ export abstract class BaseGameModel  {
         }
 
         this._events!.get(event)!.subscribe(subscriptionId, callback);
-    }
-
-    // -------------------------------------------------------------------
-    // addMessageListener - register a listening for a specific clusterfun
-    // message type.
-    // -------------------------------------------------------------------
-    addMessageListener<P, M extends ClusterFunMessageBase>(
-        messageClass: ClusterFunMessageConstructor<P, M>, 
-        name: string, 
-        listener: (message: M) => unknown) {
-        this.session.addListener(messageClass, name, listener);
     }
 
     // -------------------------------------------------------------------

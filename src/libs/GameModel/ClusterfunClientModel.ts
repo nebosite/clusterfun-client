@@ -49,12 +49,12 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         makeObservable(this);
         this._playerName = playerName;
 
-        sessionHelper.addListener(ClusterFunJoinAckMessage, playerName, this.handleJoinAckMessage);
-        sessionHelper.addListener(ClusterFunGameOverMessage, playerName, this.handleGameOverMessage);
-        sessionHelper.addListener(ClusterFunTerminateGameMessage, playerName, this.handleTerminateGameMessage);
-        sessionHelper.addListener(ClusterFunGamePauseMessage, playerName, this.handlePauseMessage);
-        sessionHelper.addListener(ClusterFunServerStateMessage, playerName, this.handleServerStateMessage);
-        sessionHelper.addListener(ClusterFunGameResumeMessage, playerName, this.handleResumeMessage);
+        sessionHelper.addListener(ClusterFunJoinAckMessage, this, this.handleJoinAckMessage);
+        sessionHelper.addListener(ClusterFunGameOverMessage, this, this.handleGameOverMessage);
+        sessionHelper.addListener(ClusterFunTerminateGameMessage, this, this.handleTerminateGameMessage);
+        sessionHelper.addListener(ClusterFunGamePauseMessage, this, this.handlePauseMessage);
+        sessionHelper.addListener(ClusterFunServerStateMessage, this, this.handleServerStateMessage);
+        sessionHelper.addListener(ClusterFunGameResumeMessage, this, this.handleResumeMessage);
 
         sessionHelper.onError((err) => {
             Logger.error(`Session error: ${err}`)

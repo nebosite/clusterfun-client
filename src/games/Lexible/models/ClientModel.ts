@@ -97,12 +97,12 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     constructor(sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage) {
         super("LexibleClient", sessionHelper, playerName, logger, storage);
 
-        sessionHelper.addListener(LexiblePlayRequestMessage, playerName, this.handlePlayRequestMessage);
-        sessionHelper.addListener(LexibleRecentlyTouchedLettersMessage, playerName, this.handleRecentlyTouchedMessage);
-        sessionHelper.addListener(LexibleEndOfRoundMessage, playerName, this.handleEndOfRoundMessage);
-        sessionHelper.addListener(LexibleScoredWordMessage, playerName, this.handleScoredWordMessage);
-        sessionHelper.addListener(LexibleFailedWordMessage, playerName, this.handleFailedWordMessage);
-        sessionHelper.addListener(LexibleWordHintMessage, playerName, this.handleWordHintMessage);
+        sessionHelper.addListener(LexiblePlayRequestMessage, this, this.handlePlayRequestMessage);
+        sessionHelper.addListener(LexibleRecentlyTouchedLettersMessage, this, this.handleRecentlyTouchedMessage);
+        sessionHelper.addListener(LexibleEndOfRoundMessage, this, this.handleEndOfRoundMessage);
+        sessionHelper.addListener(LexibleScoredWordMessage, this, this.handleScoredWordMessage);
+        sessionHelper.addListener(LexibleFailedWordMessage, this, this.handleFailedWordMessage);
+        sessionHelper.addListener(LexibleWordHintMessage, this, this.handleWordHintMessage);
 
         makeObservable(this);
     }
