@@ -172,10 +172,9 @@ export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoP
     }
 
     // -------------------------------------------------------------------
-    //  prePareFreshGame
+    //  
     // -------------------------------------------------------------------
     prepareFreshRound = () => {
-        this.currentRound = 0;
     }
 
     // -------------------------------------------------------------------

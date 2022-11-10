@@ -1,5 +1,4 @@
 import LexibleAssets from "games/Lexible/assets/Assets";
-import React from "react";
 import { GameDescriptor } from "./GameDescriptor";
 
 const releaseGames: GameDescriptor[] = [
