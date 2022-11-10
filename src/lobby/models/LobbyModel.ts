@@ -67,6 +67,8 @@ export class LobbyModel {
         })()
     }
 
+    public showTags = observable<string[]>(["production", "beta", "alpha"])
+
     @observable private _lobbyState: LobbyState = LobbyState.Fresh;
     get lobbyState(): LobbyState { return this._lobbyState; }
     set lobbyState(value: LobbyState) {action(()=>{this._lobbyState = value})()}

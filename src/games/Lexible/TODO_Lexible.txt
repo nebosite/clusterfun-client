@@ -26,9 +26,7 @@ TODO
 
     [ ] Chose your team when joining
         - should be able to change team before start
-
-    
-
+    [ ] Lexible presenter: show traffic stats for the game
     
 
 NEW   
