@@ -261,12 +261,14 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
     // -------------------------------------------------------------------
     constructor(props: Readonly<{ appModel?: LexiblePresenterModel; uiProperties: UIProperties; }>) {
         super(props);
+        this.media = new MediaHelper();
+    }
 
+    componentDidMount(): void {
         const {appModel} = this.props;
         if (!appModel) throw new Error("No appModel provided")
 
         // Set up sound effects
-        this.media = new MediaHelper();
         for(let soundName in LexibleAssets.sounds)
         {
             this.media.loadSound((LexibleAssets.sounds as any)[soundName]);

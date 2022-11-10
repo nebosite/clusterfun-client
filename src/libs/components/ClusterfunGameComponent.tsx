@@ -25,6 +25,11 @@ export interface ClusterFunGameProps {
     serverCall: <T>(url: string, payload: any) => Promise<T>
 }
 
+interface ClusterFunComponentState {
+    appModel?: BaseGameModel;
+    UI: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>
+}
+
 class DummyComponent extends React.Component<{ appModel?: any, uiProperties: UIProperties }>
 {
     render() { return <div>DUMDUMDUM</div>}
@@ -46,11 +51,14 @@ const modelShutdownRegistry = new FinalizationRegistry((model: BaseGameModel) =>
 // -------------------------------------------------------------------
 @observer
 export class ClusterfunGameComponent 
-extends React.Component<ClusterFunGameProps>
+extends React.Component<ClusterFunGameProps, ClusterFunComponentState>
 {
-
-    appModel?: BaseGameModel;
-    UI: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }> = DummyComponent
+    constructor(props: ClusterFunGameProps) {
+        super(props);
+        this.state = {
+            UI: DummyComponent
+        };
+    }
 
     init(
         presenterType: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>,
@@ -60,6 +68,9 @@ extends React.Component<ClusterFunGameProps>
     )
     {
         const {  gameProperties, messageThing,  onGameEnded, serverCall } = this.props;
+
+        let appModel: BaseGameModel;
+        let UI: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>;
 
         const sessionHelper = new SessionHelper(
             messageThing, 
@@ -80,33 +91,36 @@ extends React.Component<ClusterFunGameProps>
         // word suggestions)
         if(gameProperties.role === "presenter")
         {
-            this.UI = presenterType;
-            this.appModel = instantiateGame(
-                getPresenterTypeHelper( derivedPresenterTypeHelper(sessionHelper, this.props)), this.props)
+            UI = presenterType
+            appModel = instantiateGame(
+                    getPresenterTypeHelper( derivedPresenterTypeHelper(sessionHelper, this.props)), this.props)
         } else {
-            this.UI = clientType;
-            this.appModel = instantiateGame(
-                getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)), this.props)
+            UI = clientType
+            appModel = instantiateGame(
+                    getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)), this.props)
         }
-        modelShutdownRegistry.register(this, this.appModel!);
+        modelShutdownRegistry.register(this, appModel);
     
-        this.appModel.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => onGameEnded());
+        appModel.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => onGameEnded());
         document.title = `${gameProperties.gameName} / ClusterFun.tv`
-        Logger.info(`INIT for ${this.props.playerName} SUCCEEDED`)
+        Logger.info(`init for ${this.props.playerName} SUCCEEDED`)
+        this.setState({ appModel, UI });
     }
 
     componentWillUnmount(): void {
-        this.appModel?.shutdown();
-        Logger.warn(`Game component for ${this.props.playerName} unmounted - this should destroy subscriptions`);
+        this.state.appModel?.shutdown();
     }
 
     // -------------------------------------------------------------------
     // render
     // -------------------------------------------------------------------
     render() {
-        const UI = this.UI;
+        if (!this.state.appModel) {
+            return <div>NO APP MODEL</div>
+        }
+        const UI = this.state.UI;
         return (
-            <Provider appModel={this.appModel}>
+            <Provider appModel={this.state.appModel}>
                 <React.Suspense fallback={<div>loading...</div>}>
                     <UI uiProperties={this.props.uiProperties}/>            
                 </React.Suspense>

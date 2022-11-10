@@ -16,7 +16,9 @@ export default class TestatoGameComponent extends ClusterfunGameComponent {
     // -------------------------------------------------------------------
     constructor(props: ClusterFunGameProps) {
         super(props);
+    }
 
+    componentDidMount(): void {
         this.init(
             lazyPresenter, 
             lazyClient, 
