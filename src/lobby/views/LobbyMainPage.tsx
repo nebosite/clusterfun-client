@@ -3,8 +3,9 @@ import React from "react";
 import { observer, Provider } from "mobx-react";
 import {  LobbyState, LobbyModel } from "../models/LobbyModel";
 import { LobbyComponent } from "../Components/LobbyComponent";
-import { GameDescriptor, getGameComponent } from "../../GameChooser";
+import { getGameComponent } from "../../GameChooser";
 import Logger from "js-logger";
+import { GameDescriptor } from "games/lists/GameDescriptor";
 
 export interface LobbyMainPageProps {
     games: GameDescriptor[],
