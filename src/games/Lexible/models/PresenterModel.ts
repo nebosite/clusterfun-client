@@ -287,7 +287,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         }
         this.wordTree.trim();
         Logger.info(`Loaded ${words.length} words`)
-        Logger.info("Word list stats", this.wordTree.getUsageStats())
 
         const { badWordList } = await badWordsPromise;
         const badWords = badWordList.split('\n');
@@ -301,7 +300,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         }
         this.badWords.trim();
         Logger.info(`Loaded ${badWords.length} censored words`)
-        Logger.info("Censored word list stats", this.badWords.getUsageStats())
     }
 
     // -------------------------------------------------------------------

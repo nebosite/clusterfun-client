@@ -1,13 +1,19 @@
 
+// Record format:
+// 0 - 4 byte address to parent
+const PARENT_OFFSET = 0;
+// 4 thru 107:
+// Lowest bit - Whether or not this node is a terminator
+// Bits 1 and 2 - Reserved
+// Higher bits - 4 byte address to next node
+const CHILD_OFFSET = 8;
+
 // The size of each record in bytes
 const RECORD_SIZE = 112
+// The place in the array where the first record is stored (note: must be non-zero)
 const FIRST_NODE_LOCATION = 8
-
-// Record format:
-// 0 - UTF-32 code for the character being represented (or 0 if no character)
-// 1 - Whether or not this node is a terminator
-// 4 - pointer to parent (or 0 if no parent)
-// 8 thru 111 - pointers to each child (A-Z, 0 if no child)
+// The char code for the letter A (so we don't have to keep recalculating it)
+const A_CODE = "A".charCodeAt(0);
 
 export interface WordTreeSearcher {
     get currentWord(): string;
@@ -67,7 +73,7 @@ export class WordTree {
     }
 
     search(): WordTreeSearcher {
-        return new WordTree.WordTreeSearcherImpl(this);
+        return new WordTree.WordTreeSearcherRoot(this);
     }
 
     trim(): void {
@@ -85,129 +91,152 @@ export class WordTree {
         return searcher.isTerminator;
     }
 
-    getUsageStats(): WordTreeUsageStats {
-        const stats: WordTreeUsageStats = {
-            nodeCount: this._totalNodeCount,
-            wordCount: this._totalWordCount,
-            filledChildPointers: this._totalNodeCount - 1,
-            totalChildPointers: this._totalNodeCount * 26,
-            usageStatsByLength: new Map(),
-            usageStatsByLetter: new Map()
-        }
-        if (process.env.REACT_APP_DEVMODE !== "development") return stats;
-        const searchers = [this.search()];
-        while (searchers.length > 0) {
-            const searcher = searchers.pop()!;
-            const letter = searcher.currentLetter;
-            if (!stats.usageStatsByLetter.has(letter)) {
-                stats.usageStatsByLetter.set(letter, new WordTreeUsageRecordImpl())
-            }
-            const letterStats = stats.usageStatsByLetter.get(letter)!;
-
-            const length = searcher.currentWord.length;
-            if (!stats.usageStatsByLength.has(length)) {
-                stats.usageStatsByLength.set(length, new WordTreeUsageRecordImpl())
-            }
-            const lengthStats = stats.usageStatsByLength.get(length)!;
-            letterStats.nodeCount++;
-            lengthStats.nodeCount++;
-            for (let i = "A".charCodeAt(0); i <= "Z".charCodeAt(0); i++) {
-                letterStats.totalChildPointers++;
-                lengthStats.totalChildPointers++;
-                const child = searcher.child(String.fromCharCode(i));
-                if (child) {
-                    letterStats.filledChildPointers++;
-                    lengthStats.filledChildPointers++;
-                    searchers.push(child);
-                }
-            }
-        }
-        return stats;
-    }
-
     private static WordTreeSearcherImpl = class WordTreeSearcherImpl implements WordTreeSearcher {
         private _tree: WordTree;
         private _currentNodeAddress: number;
         private _currentWord: string;
-        constructor(tree: WordTree) {
+
+        constructor(tree: WordTree, address: number, word: string) {
             this._tree = tree;
-            this._currentNodeAddress = FIRST_NODE_LOCATION;
-            this._currentWord = "";
+            this._currentNodeAddress = address;
+            this._currentWord = word;
         }
         get currentWord(): string {
             return this._currentWord;
         }
         get currentLetter(): string {
-            const nodeView = this.getCurrentNodeView();
-            const code = nodeView.getUint8(0);
-            return code > 0 ? String.fromCharCode(code) : "";
+            return this.currentWord.charAt(this.currentWord.length - 1);
         }
         get currentNodeAddress(): number {
             return this._currentNodeAddress;
         }
         get isTerminator(): boolean {
             const nodeView = this.getCurrentNodeView();
-            return nodeView.getUint8(1) !== 0;
+            const branchIndex = this.currentLetter.charCodeAt(0) - A_CODE;
+            if (branchIndex < 0 || branchIndex > 25) {
+                debugger;
+                throw new Error("Branch index out of range");
+            }
+            const terminatorValue = nodeView.getUint32(CHILD_OFFSET + branchIndex * 4) & 0x00000001;
+            return terminatorValue !== 0;
         }
         hasParent(): boolean {
-            const nodeView = this.getCurrentNodeView();
-            return nodeView.getUint32(4) !== 0;
+            return this.parent() !== undefined;
         }
         hasChild(letter: string): boolean {
-            const nodeView = this.getCurrentNodeView();
-            const branchIndex = (letter.toUpperCase()).charCodeAt(0) - "A".charCodeAt(0);
-            return nodeView.getUint32(8 + branchIndex * 4) !== 0;
+            return this.child(letter) !== undefined;
         }
         parent(): WordTreeSearcher | undefined {
+            if (this._currentNodeAddress === FIRST_NODE_LOCATION) {
+                if (this._currentWord.length !== 1) {
+                    debugger;
+                    throw new Error("Unexpected word length at root node");
+                }
+                // Special case: if we're at the first node, but have a letter behind us,
+                // move to the root state
+                return new WordTree.WordTreeSearcherRoot(this._tree);
+            }
             const nodeView = this.getCurrentNodeView();
-            const nodeAddress = nodeView.getUint32(4);
-            if (!nodeAddress) return undefined;
-            const newSearcher = new WordTreeSearcherImpl(this._tree);
-            newSearcher._currentNodeAddress = nodeAddress;
-            newSearcher._currentWord = this._currentWord.substring(0, this._currentWord.length - 1);
-            return newSearcher;
+            const nodeAddress = nodeView.getUint32(PARENT_OFFSET);
+            if (!nodeAddress) {
+                debugger;
+                throw new Error("Unexpected null parent");
+            }
+            return new WordTreeSearcherImpl(this._tree, nodeAddress, this._currentWord.substring(0, this._currentWord.length - 1));
         }
         child(letter: string): WordTreeSearcher | undefined {
             const nodeView = this.getCurrentNodeView();
-            const branchIndex = (letter.toUpperCase()).charCodeAt(0) - "A".charCodeAt(0);
-            const nodeAddress = nodeView.getUint32(8 + branchIndex * 4);
-            if (!nodeAddress) return undefined;
-            const newSearcher = new WordTreeSearcherImpl(this._tree);
-            newSearcher._currentNodeAddress = nodeAddress;
-            newSearcher._currentWord = this._currentWord + (letter.toUpperCase()).charAt(0);
-            return newSearcher;
+            const branchIndex = this.currentLetter.charCodeAt(0) - A_CODE;
+            if (branchIndex < 0 || branchIndex > 25) {
+                debugger;
+                throw new Error("Branch index out of range");
+            }
+            const nodeAddress = nodeView.getUint32(CHILD_OFFSET + branchIndex * 4) & 0xfffffff8;
+            if (!nodeAddress) {
+                return undefined;
+            }
+            return new WordTreeSearcherImpl(this._tree, nodeAddress, this._currentWord + letter);
         }
         private getCurrentNodeView() {
             return new DataView(this._tree._buffer, this._currentNodeAddress, RECORD_SIZE);
         }
     }
 
+    private static WordTreeSearcherRoot = class WordTreeSearcherRoot implements WordTreeSearcher {
+        private _tree: WordTree;
+        constructor(tree: WordTree) {
+            this._tree = tree;
+        }
+        get currentWord(): string {
+            return "";
+        }
+        get currentLetter(): string {
+            return "";
+        }
+        get isTerminator(): boolean {
+            return false;
+        }
+        hasParent(): boolean {
+            return false;
+        }
+        hasChild(letter: string): boolean {
+            return this.child(letter) !== undefined;
+        }
+        parent(): WordTreeSearcher | undefined {
+            return undefined;
+        }
+        child(letter: string): WordTreeSearcher | undefined {
+            const dataView = new DataView(this._tree._buffer, FIRST_NODE_LOCATION, RECORD_SIZE);
+            const branchIndex = letter.charCodeAt(0) - A_CODE;
+            if (branchIndex < 0 || branchIndex > 25) {
+                debugger;
+                throw new Error("Branch index out of range");
+            }
+            const childValue = dataView.getUint32(CHILD_OFFSET + branchIndex * 4);
+            if (childValue) {
+                return new WordTree.WordTreeSearcherImpl(this._tree, FIRST_NODE_LOCATION, letter);
+            }
+        }
+        
+    }
+
     private addInternal(word: string, currentNodeAddress: number) {
         let nodeView = new DataView(this._buffer, currentNodeAddress, RECORD_SIZE);
-        if (word.length === 0) {
-            nodeView.setUint8(1, 1);
+        const branchIndex = word.charCodeAt(0) - A_CODE;
+        if (branchIndex < 0 || branchIndex > 25) {
+            debugger;
+            throw new Error("Branch index out of range");
+        }
+        let childValue = nodeView.getUint32(CHILD_OFFSET + branchIndex * 4);
+        if (word.length === 1) {
+            childValue |= 0x00000001;
+            nodeView.setUint32(CHILD_OFFSET + branchIndex * 4, childValue);
             return;
         }
-        const branchIndex = word.charCodeAt(0) - "A".charCodeAt(0);
+        
         const restOfWord = word.substring(1);
-        let branchAddress = nodeView.getUint32(8 + branchIndex * 4);
+        let branchAddress = childValue & 0xfffffff8;
         if (!branchAddress) {
-            branchAddress = this.allocateNode(currentNodeAddress, word.charCodeAt(0));
+            branchAddress = this.allocateNode(currentNodeAddress);
             // Recreate the current node view in case things changed
             nodeView = new DataView(this._buffer, currentNodeAddress, RECORD_SIZE);
-            nodeView.setUint32(8 + branchIndex * 4, branchAddress);
+            childValue = (childValue & 0x00000007) | branchAddress;
+            nodeView.setUint32(CHILD_OFFSET + branchIndex * 4, childValue);
         }
         this.addInternal(restOfWord, branchAddress);
     }
 
-    private allocateNode(parentAddress: number, charCode: number): number {
+    private allocateNode(parentAddress: number): number {
+        if (!parentAddress) {
+            debugger;
+            throw new Error("Expected parent address");
+        }
         if (this._allocationPoint + RECORD_SIZE > this._buffer.byteLength) {
             this.resize(this._buffer.byteLength * 2);
         }
         const nodeAddress = this._allocationPoint;
         const nodeView = new DataView(this._buffer, nodeAddress, RECORD_SIZE);
-        nodeView.setUint8(0, charCode);
-        nodeView.setUint32(4, parentAddress);
+        nodeView.setUint32(PARENT_OFFSET, parentAddress);
         this._allocationPoint += RECORD_SIZE;
         this._totalNodeCount++;
         return nodeAddress;
