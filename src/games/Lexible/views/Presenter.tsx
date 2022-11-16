@@ -9,22 +9,36 @@ import { LetterBlockModel } from "../models/LetterBlockModel";
 import LetterBlock from "./LetterBlock";
 import { LexiblePresenterModel, MapSize, LexibleGameEvent, LexiblePlayer, LexibleGameState } from "../models/PresenterModel";
 import { Row, MediaHelper, SpeechHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, UINormalizer, DevUI } from "libs";
+import { action, makeAutoObservable } from "mobx";
 
 @inject("appModel") @observer
 class GameSettings  extends React.Component<{appModel?: LexiblePresenterModel}> {
-    // -------------------------------------------------------------------
-    // render
-    // -------------------------------------------------------------------
-    render() {
+    myState = {
+        showSettings: false
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    constructor(props: {appModel?: LexiblePresenterModel}) {
+        super(props);
+
+        makeAutoObservable(this.myState);
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    renderSettingsItems() {
         const {appModel} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>
 
         const handleStartFromTeamAreaChange = () => {
             appModel.startFromTeamArea = !appModel.startFromTeamArea
         }
+        
         return (
             <div className={styles.settingsArea} >
-                <div><b>Settings</b></div>
                 <Row>
                     <input
                         className={styles.settingsCheckbox}
@@ -61,11 +75,31 @@ class GameSettings  extends React.Component<{appModel?: LexiblePresenterModel}> 
 
             </div>
         );
+    }
 
+    // -------------------------------------------------------------------
+    // render
+    // -------------------------------------------------------------------
+    render() {
+        const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
+
+        const toggleShow = () => action(()=>this.myState.showSettings = !this.myState.showSettings)()
+
+        return (
+            <div>
+                <div onClick={toggleShow} className={styles.settingsButton}>Settings</div>
+                { this.myState.showSettings
+                    ? this.renderSettingsItems()
+                    : null
+                }
+            </div>   
+        );
     }
 }
 
-@inject("appModel") @observer
+@inject("appModel") 
+@observer
 class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenterModel}> {
     // -------------------------------------------------------------------
     // render
@@ -76,23 +110,20 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenter
 
         return (
             <div className={styles.instructionArea} >
-                <h3>Welcome to {appModel.name}</h3>
-                <p>To Join: go to http://{ window.location.host} and enter this room code: {appModel.roomId}</p>
-                {
-                    appModel.players.length > 0
-                    ?   <div><p style={{fontWeight: 600}}>Joined team members:</p>
-                            <div className={styles.divRow}>
-                                {appModel.players.map(player => (<div className={styles.nameBox} key={player.playerId}>{player.name}</div>))}
-                            </div>
-                        </div>
-                    : null 
-                }
+                <h1>Welcome to {appModel.name}</h1>
+                <div className={styles.joinBlock}>
+                    <p><b>To Join:</b> go to http://{ window.location.host}
+                    &nbsp;&nbsp;&nbsp;(room code: <b>{appModel.roomId}</b>)</p>
+                </div>
+
                 
                 {appModel.players.length < appModel.minPlayers
-                    ? <div>{`Waiting for at least ${appModel.minPlayers} players to join ...`}</div>
-                    : <button className={styles.presenterButton} onClick={() => appModel.startGame()}> Click here to start! </button>
+                    ? <div className={styles.waitingText}>{`Waiting for at least ${appModel.minPlayers} players to join ...`}</div>
+                    : <button className={styles.startButton} onClick={() => appModel.startGame()}> Click here to start! </button>
                 }          
-                <GameSettings/>     
+                <div className={styles.settingsBox}>
+                    <GameSettings/> 
+                </div>
             </div>
         );
 

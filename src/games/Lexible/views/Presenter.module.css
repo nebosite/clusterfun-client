@@ -110,8 +110,29 @@
 
 .gamepresenter .instructionArea {    
     height: 100%;
+    width: 100%;
     margin: 20px;
+    margin-top: 150px;
+    display: flex;
+    flex-direction: column;
+}
 
+.gamepresenter .waitingText {    
+    padding: 40px;
+    font-size: 200%;
+}
+
+.gamepresenter .startButton {    
+    padding: 40px;
+    font-size: 200%;
+}
+
+.gamepresenter .instructionArea .joinBlock {
+    border: 1px solid black;
+    margin: 20px;
+    padding: 20px;
+    background: #ffffff40;
+    font-size: 120%;
 }
 
 .gamepresenter .gameCanvas {
@@ -184,4 +205,23 @@
     width: 30px;
     height: 30px;
     margin: 10px;
+}
+
+.gamepresenter .settingsBox {
+    border: 1px solid black;
+    position: absolute;
+    padding: 20px;
+    bottom: 30px;
+}
+
+.gamepresenter .settingsButton {
+    border: 1px solid black;
+    padding: 5px;
+    font-weight: 800;
+    background: limegreen;
+    border-radius: 10px;
+    user-select: none;
+}
+.gamepresenter .settingsButton :hover{
+    cursor: pointer;
 }

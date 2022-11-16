@@ -6,6 +6,7 @@ import { IMessageReceipt, ITypeHelper, ISessionHelper, ITelemetryLogger,
 import { action, makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 import Logger from "js-logger";
+import { LexibleGameState } from "games/Lexible/models/PresenterModel";
 
 // All games have these states which are managed 
 // in the base classes
@@ -280,6 +281,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     //  startGame
     // -------------------------------------------------------------------
     startGame = () => {
+        this.gameState = LexibleGameState.Instructions;
         this.prepareFreshRound();
         this.startNextRound();
         this.saveCheckpoint();
