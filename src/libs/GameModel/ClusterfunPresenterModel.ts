@@ -114,10 +114,10 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         this.gameTime_ms = 0;
         this.onTick.subscribe("PresenterState", ()=> this.manageState())
 
-        sessionHelper.addListener(ClusterFunJoinMessage, "playerJoin", this.handleJoinMessage);
-        sessionHelper.addListener(ClusterFunQuitMessage, "playerQuit", this.handlePlayerQuitMessage);
-        sessionHelper.addListener(ClusterFunReceiptAckMessage, "playerAck", this.handleReceipts)
-        sessionHelper.addListener(ClusterFunKeepAliveMessage, "keepAliveSignal", this.handleKeepAlive)
+        sessionHelper.addListener(ClusterFunJoinMessage, this, this.handleJoinMessage);
+        sessionHelper.addListener(ClusterFunQuitMessage, this, this.handlePlayerQuitMessage);
+        sessionHelper.addListener(ClusterFunReceiptAckMessage, this, this.handleReceipts)
+        sessionHelper.addListener(ClusterFunKeepAliveMessage, this, this.handleKeepAlive)
 
         this.gameState = PresenterGameState.Gathering;
 

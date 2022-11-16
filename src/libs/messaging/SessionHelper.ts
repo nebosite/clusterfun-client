@@ -21,10 +21,14 @@ export interface ISessionHelper {
     resendMessage(receiver: string, oldMessage: IMessageReceipt): void;
     addListener<P, M extends ClusterFunMessageBase>(
         messageClass: ClusterFunMessageConstructor<P, M>, 
-        name: string, 
+        owner: object, 
         listener: (message: M) => unknown): void;
-    addOpenedListener(listener: () => void): void;
-    addClosedListener(listener: (code: number) => void): void;
+    addClosedListener(owner: object, listener: (code: number) => void): void;
+    removeListener<P, M extends ClusterFunMessageBase>(
+        messageClass: ClusterFunMessageConstructor<P, M>, 
+        owner: object): void;
+    removeClosedListener(owner: object): void;
+    removeAllListenersForOwner(owner: object): void;
     onError(doThis: (err:string) => void): void;
     serverCall: <T>(url: string, payload: any ) => Promise<T>;
     stats: {
@@ -45,7 +49,8 @@ export class SessionHelper implements ISessionHelper {
     private readonly _presenterId: string;
     private readonly _serializer: ClusterFunSerializer;
     private _messageThing: IMessageThing;
-    private _listeners = new Map<ClusterFunMessageConstructor<unknown, ClusterFunMessageBase>, Map<string, (message: object) => void>>()
+    private _listeners = new Map<ClusterFunMessageConstructor<unknown, ClusterFunMessageBase>, Map<object, (message: ClusterFunMessageBase) => void>>()
+    private _closedListeners = new Map<object, (code: number) => void>();
     sessionError?:string;
     serverCall: <T>(url: string, payload: any) => Promise<T>;
     stats = {
@@ -95,7 +100,9 @@ export class SessionHelper implements ISessionHelper {
         })
 
         this._messageThing.addEventListener("close", (ev: { code: number }) => {
-
+            for (const listener of this._closedListeners.values()) {
+                listener(ev.code);
+            }
         })
 
         makeAutoObservable(this.stats);
@@ -147,38 +154,59 @@ export class SessionHelper implements ISessionHelper {
     // -------------------------------------------------------------------
     // addListener
     // ------------------------------------------------------------------- 
-    addListener<P, M extends ClusterFunMessageBase>(messageClass: ClusterFunMessageConstructor<P, M>, name: string, listener: (message: M) => unknown) {
+    addListener<P, M extends ClusterFunMessageBase>(messageClass: ClusterFunMessageConstructor<P, M>, owner: object, listener: (message: M) => unknown) {
         if(!this._listeners.has(messageClass as ClusterFunMessageConstructor<unknown, M>))
         {
             // Create the set of listeners for the new class,
             // also ensuring the class is registered in the hydrator
-            this._listeners.set(messageClass as ClusterFunMessageConstructor<unknown, M>, new Map<string, (message: object) => unknown>());
+            this._listeners.set(messageClass as ClusterFunMessageConstructor<unknown, M>, new Map());
             this._serializer.register(messageClass);
-            Logger.debug("REGISTERING: " + messageClass)
+            Logger.debug("REGISTERING: " + messageClass.messageTypeName)
         }
-        const listenersForType = this._listeners.get(messageClass as ClusterFunMessageConstructor<unknown, M>) as Map<string, (message: M) => unknown>;
-        listenersForType.set(name, listener);
-    }
-
-    // -------------------------------------------------------------------
-    // addOpenedListener
-    // ------------------------------------------------------------------- 
-    addOpenedListener(listener: () => void) {
-        if (this._messageThing.isOpen) {
-            setTimeout(() => listener(), 0);
-        } else {
-            this._messageThing.addEventListener("open", (ev) => listener());
-        }
+        const listenersForType = this._listeners.get(messageClass as ClusterFunMessageConstructor<unknown, M>) as Map<object, (message: M) => unknown>;
+        listenersForType.set(owner, listener);
     }
 
     // -------------------------------------------------------------------
     // addClosedListener
     // ------------------------------------------------------------------- 
-    addClosedListener(listener: (code: number) => void) {
+    addClosedListener(owner: object, listener: (code: number) => void) {
         if (this._messageThing.isClosed) {
-            setTimeout(() => listener(this._messageThing.closeCode), 0);
+            listener(this._messageThing.closeCode);
         } else {
-            this._messageThing.addEventListener("close", (ev) => listener(ev.code));
+            this._closedListeners.set(owner, listener);
         }
+    }
+
+    // -------------------------------------------------------------------
+    // removeListener
+    // ------------------------------------------------------------------- 
+    removeListener<P, M extends ClusterFunMessageBase>(messageClass: ClusterFunMessageConstructor<P, M>, owner: object) {
+        if(this._listeners.has(messageClass as ClusterFunMessageConstructor<unknown, M>))
+        {
+            const listenersForType = this._listeners.get(messageClass as ClusterFunMessageConstructor<unknown, M>)!;
+            listenersForType.delete(owner);
+            if (listenersForType.size === 0) {
+                this._listeners.delete(messageClass as ClusterFunMessageConstructor<unknown, M>);
+                Logger.debug("UNREGISTERING: " + messageClass.messageTypeName)
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------
+    // removeClosedListener
+    // ------------------------------------------------------------------- 
+    removeClosedListener(owner: object) {
+        this._closedListeners.delete(owner);
+    }
+
+    // -------------------------------------------------------------------
+    // removeAllListenersForOwner
+    // ------------------------------------------------------------------- 
+    removeAllListenersForOwner(owner: object) {
+        for (const messageType of this._listeners.keys()) {
+            this.removeListener(messageType, owner);
+        }
+        this.removeClosedListener(owner);
     }
 }

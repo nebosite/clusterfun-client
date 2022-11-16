@@ -69,8 +69,8 @@ export class TestatoClientModel extends ClusterfunClientModel  {
         this.ballData.xm = (this.randomDouble(.01) + 0.005) * (this.randomInt(2) ? 1 : -1) ;
         this.ballData.ym = (this.randomDouble(.01) + 0.005) * (this.randomInt(2) ? 1 : -1) ;
         this.ballData.color = this.randomItem(colors);
-        sessionHelper.addListener(TestatoPlayRequestMessage, playerName, this.handlePlayRequestMessage);
-        sessionHelper.addListener(TestatoEndOfRoundMessage, playerName, this.handleEndOfRoundMessage);
+        sessionHelper.addListener(TestatoPlayRequestMessage, this, this.handlePlayRequestMessage);
+        sessionHelper.addListener(TestatoEndOfRoundMessage, this, this.handleEndOfRoundMessage);
     }
 
     // -------------------------------------------------------------------
