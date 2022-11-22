@@ -44,9 +44,7 @@ export class LexiblePlayer extends ClusterFunPlayer {
 // The Game state  
 // -------------------------------------------------------------------
 export enum LexibleGameState {
-    Playing = "Playing",
     EndOfRound = "EndOfRound",
-    Instructions = "Instructions",
 }
 
 // -------------------------------------------------------------------
@@ -222,7 +220,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     {
         super("Lexible", sessionHelper, logger, storage);
 
-        this.allowedJoinStates.push(LexibleGameState.Playing, GeneralGameState.Paused)
+        this.allowedJoinStates.push(GeneralGameState.Playing, GeneralGameState.Paused, GeneralGameState.Instructions)
         this.subscribe(PresenterGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
 
         sessionHelper.addListener(LexiblePlayerActionMessage, this, this.handlePlayerAction);
@@ -448,13 +446,20 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         return new LexiblePlayRequestMessage(payload)
     }
 
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    doneGathering(){
+        this.gameState = GeneralGameState.Instructions;
+    }
+
     // -------------------------------------------------------------------
     //  startNextRound
     // -------------------------------------------------------------------
     startNextRound = () =>
     {
         this.prepareFreshRound();
-        this.gameState = LexibleGameState.Playing;
+        this.gameState = GeneralGameState.Playing;
         this.timeOfStageEnd = this.gameTime_ms + PLAYTIME_MS;
         this.currentRound++;
 

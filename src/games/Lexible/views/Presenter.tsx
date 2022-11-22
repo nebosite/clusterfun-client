@@ -115,11 +115,12 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenter
                     <p><b>To Join:</b> go to http://{ window.location.host}
                     &nbsp;&nbsp;&nbsp;(room code: <b>{appModel.roomId}</b>)</p>
                 </div>
-
                 
                 {appModel.players.length < appModel.minPlayers
                     ? <div className={styles.waitingText}>{`Waiting for at least ${appModel.minPlayers} players to join ...`}</div>
-                    : <button className={styles.startButton} onClick={() => appModel.startGame()}> Click here to start! </button>
+                    : <button className={styles.startButton} onClick={() => appModel.doneGathering()}> 
+                        Click here to start! 
+                    </button>
                 }          
                 <div className={styles.settingsBox}>
                     <GameSettings/> 
@@ -129,6 +130,94 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenter
 
     }
 }
+
+
+@inject("appModel") @observer class InstructionsPage 
+    extends React.Component<{appModel?: LexiblePresenterModel}> {
+
+    myState = {
+        instructionsPage: 0
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    constructor(props: {appModel?: LexiblePresenterModel}) {
+        super(props);
+
+        makeAutoObservable(this.myState);
+    }    
+
+    // -------------------------------------------------------------------
+    // render
+    // -------------------------------------------------------------------
+    render() {
+        const {appModel} = this.props;
+        const {instructionsPage} = this.myState;
+        if (!appModel) return <div>NO APP MODEL</div>
+
+        const renderInstructionsPage = () => {
+            switch(instructionsPage) {
+                case 0: return (<div>
+                        <p className={styles.instructionParagraph}>
+                            1. Claim tiles by spelling a word with adjacent letters.
+                            Tiles you claim will get a point value equal to the length of the word.
+                        </p>
+                        <img src={LexibleAssets.images.instructions1} style={{width: "280px", height: "280px"}} />
+                    </div>);
+                case 1: return (<div>
+                        <p className={styles.instructionParagraph}>
+                            2. You can claim the other team's tiles, but make sure your word is long enough! 
+                            If the word is not longer than a tile's score, it will not be claimed.
+                        </p>
+                        <img src={LexibleAssets.images.instructions2}  style={{width: "480px", height: "280px", marginLeft: "30px"}} />
+                    </div>);
+                case 2: return (<div>
+                        <p className={styles.instructionParagraph}>
+                        3. TO WIN: Build a bridge of tiles that connect your team's side to the other side of the grid. </p>
+                        <img src={LexibleAssets.images.instructions3} style={{width: "800px", marginLeft: "100px"}} />
+                    </div>);
+                default: return (<div>Let's play!</div>)
+            }
+
+        }
+
+        const turnPage = (count: number) => {
+            const newPage = instructionsPage + count;
+            if(newPage >= 0 && newPage <= 3) {
+                action(()=>this.myState.instructionsPage = newPage)();
+            }
+        }
+
+        const buttonStyle: React.CSSProperties = {
+            width: "200px"
+        }
+        return (
+            <div className={styles.instructionFrame}>
+                <p><b>How to play</b></p>
+                <div>
+                    { renderInstructionsPage() }
+                </div>
+                <Row style={{position: "absolute", bottom: "150px"}}>
+                {
+                    instructionsPage > 0 
+                        ? <button style={buttonStyle} onClick={() => turnPage(-1)}>◀</button>
+                        : <div style={buttonStyle}></div>
+                }                
+                <button style={{margin: "40px"}} onClick={() => appModel.startGame()}>Ready!</button>
+                {
+                    instructionsPage < 3
+                        ? <button style={buttonStyle} onClick={() => turnPage(1)}>▶</button>
+                        : <div style={buttonStyle}></div>
+                }
+                </Row>
+
+            </div>
+        );
+    }
+} 
+
+
 
 @inject("appModel") @observer
 class PausedGamePage  extends React.Component<{appModel?: LexiblePresenterModel}> {
@@ -308,7 +397,7 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
         let timeAlertLoaded = false;
         appModel.onTick.subscribe("Timer Watcher", ()=>{
             if(appModel.secondsLeftInStage > 10) timeAlertLoaded = true; 
-            if( (appModel.gameState === LexibleGameState.Playing)
+            if( (appModel.gameState === GeneralGameState.Playing)
                 && timeAlertLoaded 
                 && appModel.secondsLeftInStage <= 10) {
                 timeAlertLoaded = false 
@@ -319,7 +408,7 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
         appModel.subscribe(LexibleGameEvent.ResponseReceived,  "play response received sound", ()=> this.media.playSound(LexibleAssets.sounds.response, {volume: sfxVolume}));
     }
 
-    // -------------------------------------------------------------------
+    // ------------------------------------------------------------------- 
     // renderPlayArea
     // -------------------------------------------------------------------
     private renderPlayArea() {
@@ -332,8 +421,10 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
         {
             case PresenterGameState.Gathering:
                 return <GatheringPlayersPage />
+            case GeneralGameState.Instructions:
+                return <InstructionsPage />
             case LexibleGameState.EndOfRound:
-            case LexibleGameState.Playing:
+            case GeneralGameState.Playing:
                 return <PlayingPage media={this.media} />
             case GeneralGameState.GameOver:
                 return <EndOfRoundPage />
