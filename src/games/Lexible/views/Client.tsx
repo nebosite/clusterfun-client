@@ -11,7 +11,7 @@ import LexibleAssets from "../assets/Assets";
 
 
 interface InstructionsComponentProps {
-
+    appModel?: LexibleClientModel
 }
 
 // -------------------------------------------------------------------
@@ -26,10 +26,21 @@ class InstructionsComponent
     // 
     //--------------------------------------------------------------------------------------
     render() {
+        const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
+
+        const switchTeam = () => {
+            appModel.requestSwitchTeam();
+        }
+
         return <div>
             <div className={styles.wait_text}>
-                Sit tight, we are waiting for the host to start the game...
+                Waiting for the host to start...
             </div>
+            <Row>
+                <div>You are on Team {appModel.myTeam}</div>
+                <button onClick={switchTeam} style={{fontSize: "80%", marginLeft: "50px"}}>Switch Team</button>
+            </Row>
             <p><b>How to play</b></p>
             <div className={styles.instructionsRow}>
                 <p>
@@ -103,15 +114,7 @@ export default class Client
 
         switch(appModel.gameState) {
             case GeneralClientGameState.WaitingToStart: return <InstructionsComponent />
-                // return (<React.Fragment>
-                //     <div className={styles.wait_text}>
-                //     Sit tight, we are waiting for the host to start the game...
-                //     </div>
-                // </React.Fragment>);  
-            case GeneralClientGameState.Paused: 
-                return <>
-                    <div>Game has been paused</div>
-                </>
+            case GeneralClientGameState.Paused:  return  <div>Game has been paused</div> 
             case LexibleClientState.Playing:
                 this.alertUser();
                 return <LexibleClientGameComponent 

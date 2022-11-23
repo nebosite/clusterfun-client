@@ -99,6 +99,7 @@ export class LexibleEndOfRoundMessage  extends LexibleEndOfRoundMessageData {
 export enum LexiblePlayerAction {
     LetterSelect = "LetterSelect",
     WordSubmit = "WordSubmit",
+    SwitchTeam = "SwitchTeam"
 }
 export interface LetterSelectData {
     coordinates: Vector2
@@ -114,7 +115,7 @@ export class LexiblePlayerActionMessageData extends ClusterFunMessageBase
 {
     roundNumber: number = 0;
     action: LexiblePlayerAction = LexiblePlayerAction.WordSubmit;
-    actionData: LetterSelectData | WordSubmissionData = { letters:[] };
+    actionData: LetterSelectData | WordSubmissionData | {} = { letters:[] };
 }
 export class LexiblePlayerActionMessage extends LexiblePlayerActionMessageData {
     static readonly messageTypeName = "LexiblePlayerActionMessage";

@@ -3,7 +3,7 @@ import { LetterSelectData, LexibleEndOfRoundMessage, LexibleFailedWordMessage, L
 import { LetterBlockModel } from "./LetterBlockModel";
 import { LetterGridModel } from "./LetterGridModel";
 import { LexibleGameEvent } from "./PresenterModel";
-import { ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper } from "libs";
+import { ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, GeneralGameState } from "libs";
 import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
 
@@ -259,13 +259,16 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         if(this.gameState === GeneralClientGameState.WaitingToStart) {
             this.telemetryLogger.logEvent("Client", "Start");
         }
-        this.roundNumber = message.roundNumber;
+
         this.myTeam = message.teamName;
+
+        this.roundNumber = message.roundNumber;
         this.startFromTeamArea = message.settings.startFromTeamArea;
 
-        this.setupPlayBoard(message.playBoard)
-
-        this.gameState = LexibleClientState.Playing;
+        if(message.roundNumber > 0) {
+            this.setupPlayBoard(message.playBoard)
+            this.gameState = GeneralGameState.Playing;
+        }
 
         this.saveCheckpoint();
         this.ackMessage(message);
@@ -348,7 +351,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     // sendAction 
     // -------------------------------------------------------------------
-    protected sendAction(action: LexiblePlayerAction, actionData: LetterSelectData | WordSubmissionData) {
+    protected sendAction(action: LexiblePlayerAction, actionData: LetterSelectData | WordSubmissionData | {}) {
         const message = new LexiblePlayerActionMessage(
             {
                 sender: this.session.personalId,
@@ -361,31 +364,10 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         this.session.sendMessageToPresenter(message);
     }
 
-    // // -------------------------------------------------------------------
-    // // Tell the presenter to change my color
-    // // -------------------------------------------------------------------
-    // doColorChange(){
-    //     const hex = Array.from("0123456789ABCDEF");
-    //     let colorStyle = "#";
-    //     for(let i = 0; i < 6; i++) colorStyle += this.randomItem(hex);
-    //     this.sendAction("ColorChange", {colorStyle})
-    // }
-   
-    // // -------------------------------------------------------------------
-    // // Tell the presenter to show a message for me
-    // // -------------------------------------------------------------------
-    // doMessage(){
-    //     const messages = ["Hi!", "Bye?", "What's up?", "Oh No!", "Hoooooweeee!!", "More gum."]
-    //     this.sendAction("Message", {text: this.randomItem(messages)})
-    // }
-   
-    // // -------------------------------------------------------------------
-    // // Tell the presenter that I tapped somewhere
-    // // -------------------------------------------------------------------
-    // doTap(x: number, y: number){
-    //     x = Math.floor(x * 1000)/1000;
-    //     y = Math.floor(y * 1000)/1000;
-        
-    //     this.sendAction("Tap", {x,y})
-    // }
+    // -------------------------------------------------------------------
+    // 
+    // -------------------------------------------------------------------
+    requestSwitchTeam(){
+        this.sendAction(LexiblePlayerAction.SwitchTeam, {})
+    }
 }

@@ -319,10 +319,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             }
         }
 
-        Logger.debug(`Joined game state: ${this.gameState}`)
-        if(this.gameState !== PresenterGameState.Gathering) {
-            this.sendToPlayer(player.playerId, this.createPlayRequestMessage(player.teamName))
-        }
+        this.sendToPlayer(player.playerId, this.createPlayRequestMessage(player.teamName))
     }
 
     // -------------------------------------------------------------------
@@ -486,7 +483,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     }
 
     // -------------------------------------------------------------------
-    //  handlePlayerAction 
+    //   
     // -------------------------------------------------------------------
     handlePlayerLetterSelect = (playerId: string, data: LetterSelectData) => {
         if(!data) throw Error("handlePlayerLetterSelect: No data")
@@ -690,6 +687,19 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         }
     }
 
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    handleSwitchTeam(player: LexiblePlayer) {
+        const TeamA = this.players.filter(p => p.teamName === "A")
+        const TeamB = this.players.filter(p => p.teamName === "B")
+
+        if(player.teamName === "A" && TeamA.length < 2) return;
+        if(player.teamName === "B" && TeamB.length < 2) return;
+        player.teamName = player.teamName === "A" ? "B" : "A";
+
+        this.sendToPlayer(player.playerId, this.createPlayRequestMessage(player.teamName))
+    }
 
     // -------------------------------------------------------------------
     //  handlePlayerAction
@@ -709,6 +719,9 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 break;
             case LexiblePlayerAction.WordSubmit:
                 this.handlePlayerWordSubmit(message.sender, message.actionData as WordSubmissionData)
+                break;
+            case LexiblePlayerAction.SwitchTeam:
+                this.handleSwitchTeam(player);
                 break;
         }
 
