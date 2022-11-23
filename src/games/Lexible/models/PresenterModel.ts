@@ -87,6 +87,7 @@ export const getLexiblePresenterTypeHelper = (
                 case "LetterBlockModel": return new LetterBlockModel("_");
                 case "LexiblePresenterModel": return new LexiblePresenterModel( sessionHelper, gameProps.logger, gameProps.storage);
                 case "LexiblePlayer": return new LexiblePlayer();
+                case "LexibleScoredWordMessage": return new LexibleScoredWordMessage({letters: [], score: 0, scoringPlayerId: "", sender: "", team: "", messageId: 0});
                 case "Vector2": return new Vector2(0,0);
                 // TODO: add your custom type handlers here
             }
