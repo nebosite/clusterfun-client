@@ -112,9 +112,8 @@ export class BruteForceSerializer
             return output;
         }
 
-        // Sets are special - output keys in the key-value array
-        if(normalizeMe instanceof Set) {
-            output.__kv = Array.from(normalizeMe.values()).map(v => this.normalize(v, `${path}.value:`,lookup));
+        if (normalizeMe instanceof Set) {
+            output.__kv = Array.from(normalizeMe.values()).map(v => this.normalize(v, `${path}.value:`, lookup));
             return output;
         }
 
@@ -181,11 +180,15 @@ export class BruteForceSerializer
                         }
                         return outputMap;
                     case "Set":
+<<<<<<< HEAD
                         const outputSet = new Set();
                         for (let i = 0; i < node.__kv.length; i++) {
                             const value = parseData(node.__kv[i])
                             outputSet.add(value);
                         }
+=======
+                        const outputSet = new Set(node.__kv.map(parseData));
+>>>>>>> origin/main
                         return outputSet;
                     case "Object":
                         nodeObject = {};

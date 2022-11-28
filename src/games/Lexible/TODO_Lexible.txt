@@ -17,17 +17,34 @@ TODO
     [x] End Screen
         [x] Show player stats
     [x] On client, don't allow clicking on a letter if it can't be selected (team area)
-    [ ] Create a trello
-    [ ] Clear indication of what parts of the path are completed
+    [x] Create a trello
+    [x] Clear indication of what parts of the path are completed
         Use Dykstra's algorith
             start at last quare on the team side, end at the first square on the opposite side
-    [ ] On win, clearly indicate the winning path
+    [x] On win, clearly indicate the winning path
+    [x] Lexible presenter: show traffic stats for the game
+
     [ ] Chose your team when joining
         - should be able to change team before start
     [ ] Lexible presenter: show traffic stats for the game
     
 
 NEW   
+    Feedback
+        [ ] Lexible telemetry still not working
+        [ ] What are the rules?  How do I play?   Needs instructions
+            Lexible instructions
+                - Capture letters by spelling word
+                - Letters get a numeric value when captured
+                - To win, you must capture a path that connects your side to the other side
+                    - Diagonal connections do not count
+                - You can capture opponent tiles by using a word with a higher value
+        [ ] Left->right advantage - Maybe switch sides each round. 
+            Maybe relax the start in territory restriction -> connected restriction instead
+        [ ] Lexible: Make speaking the word an option
+            - or say just longer words
+        [ ] BUG: Lexible, can't join existing game - shows blank slider grid
+        [ ] Timed game - declare a winner if enough time passes
     
 EASY
     

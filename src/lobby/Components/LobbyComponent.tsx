@@ -6,9 +6,9 @@ import classNames from "classnames";
 import { GLOBALS } from '../../Globals';
 import { LobbyAssets } from "../../lobby/assets/LobbyAssets";
 import styles from './LobbyComponent.module.css';
-import { GameDescriptor } from "GameChooser";
 import { UIProperties, UINormalizer } from "libs";
 import Logger from "js-logger";
+import { GameDescriptor } from "games/lists/GameDescriptor";
 
 @inject("lobbyModel")
 @observer

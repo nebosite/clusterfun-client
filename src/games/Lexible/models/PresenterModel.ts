@@ -285,6 +285,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         for (const word of words) {
             if (window.performance.now() - lastAwaitTime > 10) {
                 await this.waitForRealTime(0);
+                if (this.isShutdown) return;
                 lastAwaitTime = window.performance.now();
             }
             this.wordTree.add(word.trim());
@@ -297,6 +298,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         for (const badWord of badWords) {
             if (window.performance.now() - lastAwaitTime > 5) {
                 await this.waitForRealTime(0);
+                if (this.isShutdown) return;
                 lastAwaitTime = window.performance.now();
             }
             this.badWords.add(badWord.trim());

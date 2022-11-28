@@ -35,16 +35,13 @@ class DummyComponent extends React.Component<{ appModel?: any, uiProperties: UIP
     render() { return <div>DUMDUMDUM</div>}
 }
 
-// Finalization registry to shut down models when the corresponding component is destroyed.
-// NOTE: This is kind of a hack
-const modelShutdownRegistry = new FinalizationRegistry((model: BaseGameModel) => {
-    if (model.gameState !== GeneralGameState.Destroyed) {
-        Logger.info("Disposing of a destroyed model");
-    } else {
-        Logger.warn("Disposing of a model that was not destroyed");
+const componentFinalizer = new FinalizationRegistry((model: BaseGameModel) => {
+    if (!model.isShutdown) {
+        Logger.warn("Component was finalized before model was shut down");
+        model.shutdown();
     }
-    model.shutdown();
 })
+
 
 // -------------------------------------------------------------------
 // Main Game Page
@@ -103,12 +100,12 @@ extends React.Component<ClusterFunGameProps, ClusterFunComponentState>
     
         appModel.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => onGameEnded());
         document.title = `${gameProperties.gameName} / ClusterFun.tv`
-        Logger.info(`init for ${this.props.playerName} SUCCEEDED`)
-        this.setState({ appModel, UI });
+        this.appModel!.tryLoadOldGame(this.props);
+        componentFinalizer.register(this, this.appModel!);
     }
 
     componentWillUnmount(): void {
-        this.state.appModel?.shutdown();
+        this.appModel?.shutdown();
     }
 
     // -------------------------------------------------------------------
