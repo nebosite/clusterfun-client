@@ -71,7 +71,7 @@ function createSerializer(typeHelper: ITypeHelper)
                     case "_isCheckpointing":
                     case "_lastCheckpointTime":
                     case "_isShutdown":
-                    case "logger":
+                    case "telemetryLogger":
                     case "onTick":
                     case "serializer":
                     case "session":
