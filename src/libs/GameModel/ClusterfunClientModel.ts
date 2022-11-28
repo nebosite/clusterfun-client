@@ -1,7 +1,7 @@
 
 import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage, ClusterFunJoinAckMessage, 
     ClusterFunGameOverMessage, ClusterFunTerminateGameMessage, ClusterFunGamePauseMessage, 
-    ClusterFunServerStateMessage, ClusterFunGameResumeMessage, ClusterFunQuitMessage, ClusterFunKeepAliveMessage 
+    ClusterFunServerStateMessage, ClusterFunGameResumeMessage, ClusterFunQuitMessage, ClusterFunKeepAliveMessage, ClusterFunJoinMessage 
 } from "../../libs";
 import { makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
@@ -67,9 +67,8 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
             }
         })
 
-        
-
         this.gameState = GeneralClientGameState.WaitingToStart;
+        this.session.sendMessageToPresenter(new ClusterFunJoinMessage({name: playerName, sender: this.playerId}));
         this.keepAlive();
     }
 

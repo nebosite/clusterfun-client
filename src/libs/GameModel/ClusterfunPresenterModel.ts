@@ -125,15 +125,6 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     handleJoinMessage = async (message: ClusterFunJoinMessage) => {
         Logger.info(`Join message from ${message.sender}`)
 
-        // Find a player with a matching id - we know this one is an exact match
-        let returningPlayer = this._exitedPlayers.find(p => p.playerId === message.sender) as unknown as PlayerType;
-
-        // Maybe they rebooted their device and don't have the id any more - then we will try to 
-        // match on the player name. 
-        if(!returningPlayer && this.allowRejoinOnNameOnly) {
-            returningPlayer = this._exitedPlayers.find(p => p.name === message.name) as unknown as PlayerType;
-        }
-
         const notifyState = () => {
             const isPaused = this.gameState === GeneralGameState.Paused 
             const state = isPaused  ? this._stateBeforePause : this.gameState;
@@ -147,6 +138,29 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                     new ClusterFunServerStateMessage({sender: this.session.personalId, state, isPaused})
                 )                    
             },100)
+        }
+
+        // If a player has already joined, any additional Join messages should be idempotent.
+        // Do send an Ack in case it's needed, though.
+        let resendingPlayer = this.players.find(p => p.playerId === message.sender) as unknown as PlayerType;
+        if (resendingPlayer) {
+            Logger.debug(`Repeated join message: ${resendingPlayer.name}`)
+            this.session.sendMessage(
+                message.sender,
+                new ClusterFunJoinAckMessage({ sender: this.session.personalId, didJoin: true, isRejoin: true})
+            )
+            setTimeout(() => {notifyState()}, 250)
+            return;
+        }
+
+        // If the player isn't currently in the game, but joined previously,
+        // find them by playerID first
+        let returningPlayer = this._exitedPlayers.find(p => p.playerId === message.sender) as unknown as PlayerType;
+
+        // It's possible that the player has rebooted their device and doesn't have the player ID anymore -
+        // if this is the case and we want to accomodate it, try matching on the player name
+        if(!returningPlayer && this.allowRejoinOnNameOnly) {
+            returningPlayer = this._exitedPlayers.find(p => p.name === message.name) as unknown as PlayerType;
         }
 
         if(returningPlayer) {
