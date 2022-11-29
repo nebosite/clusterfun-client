@@ -55,18 +55,21 @@ Architecture idea: frame messages as request and response:
   does not arrive.
 
 TODO:
-[ ] Move the `ClusterFunJoinMessage` from the server to the client
-    [ ] When a client first joins the game, it sends the Join message to the presenter
-    [ ] The server no longer sends this message
-    [ ] Also remove all code from the server that parses anything beyond the header
-[ ] Use the Clusterfun BruteForceSerializer to serialize/deserialize payloads
-    [ ] Side enhancement: Allow the serializer to work with Sets
-    [ ] Have each client/presenter model register the messages it intends to serialize
+[x] Move the `ClusterFunJoinMessage` from the server to the client
+    [x] When a client first joins the game, it sends the Join message to the presenter
+    [x] The server no longer sends this message
+    [x] Also remove all code from the server that parses anything beyond the header
+[-] Use the Clusterfun BruteForceSerializer to serialize/deserialize payloads
+    [-] Side enhancement: Allow the serializer to work with Sets
+    [-] Have each client/presenter model register the messages it intends to serialize
         in the brute force serializer
-    [ ] Use this brute force serializer to read and write the message after peeling
+    [-] Use this brute force serializer to read and write the message after peeling
         the header off/before sticking it on.
-    [ ] (NOTE: If done before having the client send the join message, the server can
+    [-] (NOTE: If done before having the client send the join message, the server can
          be changed to construct the correct join message manually)
+    [x] NOT NEEDED: The main reason we went with message classes was to provide routing
+        on the message type. Since the new message system will use named routes,
+        a simple JSON parser will do instead.
 [ ] Arrange messages into requests and responses
     [ ] Add listeners for request types, as before. 
         (We may just want to name them / give them string routes)

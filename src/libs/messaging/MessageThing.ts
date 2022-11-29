@@ -8,6 +8,7 @@ export interface IMessageThing {
     personalId: string;
     personalSecret: string;
     addEventListener: (eventName: string, handler: (event?: any) => void) => void;
+    removeEventListener: (eventName: string, handler: (event?: any) => void) => void;
     send: (payload: string, onFailure: ()=>void) => Promise<void>;
     readonly isOpen: boolean;
     readonly isClosed: boolean;
@@ -50,6 +51,14 @@ export class WebSocketMessageThing implements IMessageThing {
     addEventListener(eventName: string, handler: (event?: any) => void) {
         this._websocket.addEventListener(eventName, handler)
     }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    removeEventListener(eventName: string, handler: (event?: any) => void) {
+        this._websocket.removeEventListener(eventName, handler)
+    }
+
 
     //--------------------------------------------------------------------------------------
     // 
@@ -122,9 +131,22 @@ export class LocalMessageThing implements IMessageThing {
     }
 
     // -------------------------------------------------------------------
+    // addEventListener
+    // -------------------------------------------------------------------
+    removeEventListener(eventName: string, handler: (event?: any) => void) {
+        if(this._listeners.has(eventName)) {
+            const eventListeners = this._listeners.get(eventName)!;
+            const index = eventListeners.indexOf(handler);
+            if (index !== -1) {
+                eventListeners.splice(index, 1);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------
     // send
     // -------------------------------------------------------------------
-    async send(payload: string, onFailure: ()=>void) {
+    async send(payload: string, _onFailure: ()=>void) {
         const header = this._serializer.deserializeHeaderOnly(payload);
         if (header.s !== this.personalId) {
             throw new SyntaxError("Sender of header must match personal ID")
