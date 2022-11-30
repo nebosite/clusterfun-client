@@ -80,6 +80,7 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
     }
 
     unsubscribe() {
+        Logger.info("Unsubscribing route: ", this.endpoint.route);
         this._messageThing.removeEventListener("message", this._messageCallback);
     }
 }

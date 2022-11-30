@@ -105,9 +105,9 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         this.gameTime_ms = 0;
         this.onTick.subscribe("PresenterState", ()=> this.manageState())
 
-        sessionHelper.listen(JoinEndpoint, this.handleJoinMessage);
-        sessionHelper.listen(QuitEndpoint, this.handlePlayerQuitMessage);
-        sessionHelper.listen(PingEndpoint, this.handlePing);
+        this.listenToEndpoint(JoinEndpoint, this.handleJoinMessage);
+        this.listenToEndpoint(QuitEndpoint, this.handlePlayerQuitMessage);
+        this.listenToEndpoint(PingEndpoint, this.handlePing);
 
         this.gameState = PresenterGameState.Gathering;
 
@@ -118,7 +118,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     // -------------------------------------------------------------------
     //  handleJoinMessage
     // -------------------------------------------------------------------
-    handleJoinMessage = async (sender: string, message: { name: string }): Promise<{ isRejoin: boolean, didJoin: boolean, joinError?: string }> => {
+    handleJoinMessage = async (sender: string, message: { playerName: string }): Promise<{ isRejoin: boolean, didJoin: boolean, joinError?: string }> => {
         Logger.info(`Join message from ${sender}`)
 
         // If a player has already joined, any additional Join messages should be idempotent.
@@ -139,7 +139,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         // It's possible that the player has rebooted their device and doesn't have the player ID anymore -
         // if this is the case and we want to accomodate it, try matching on the player name
         if(!returningPlayer && this.allowRejoinOnNameOnly) {
-            returningPlayer = this._exitedPlayers.find(p => p.name === message.name) as unknown as PlayerType;
+            returningPlayer = this._exitedPlayers.find(p => p.name === message.playerName) as unknown as PlayerType;
         }
 
         if(returningPlayer) {
@@ -159,7 +159,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
             Logger.info(`New Player`)
             if(this.players.length < this.maxPlayers)
             {
-                let existingPlayer = this.players.find(p => p.name === message.name) as unknown as PlayerType;
+                let existingPlayer = this.players.find(p => p.name === message.playerName) as unknown as PlayerType;
                 Logger.info(`Existing Player:: ${existingPlayer?.name}`)
                 if(existingPlayer) {
                     Logger.info(`Denying join because name exists`)
@@ -167,7 +167,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                     return { didJoin: false, isRejoin: false, joinError: `That name is taken`};
                 }
                 else {
-                    const entry = this.createFreshPlayerEntry(message.name, sender);
+                    const entry = this.createFreshPlayerEntry(message.playerName, sender);
                     this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve");
                     action(()=>{this.players.push(entry)})();                
                     this.saveCheckpoint();

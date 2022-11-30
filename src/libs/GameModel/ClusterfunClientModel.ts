@@ -48,11 +48,11 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         makeObservable(this);
         this._playerName = playerName;
 
-        sessionHelper.listen(InvalidateStateEndpoint, this.handleInvalidateStateMessage);
-        sessionHelper.listen(GameOverEndpoint, this.handleGameOverMessage);
-        sessionHelper.listen(TerminateGameEndpoint, this.handleTerminateGameMessage);
-        sessionHelper.listen(PauseGameEndpoint, this.handlePauseMessage);
-        sessionHelper.listen(ResumeGameEndpoint, this.handleResumeMessage);
+        this.listenToEndpoint(InvalidateStateEndpoint, this.handleInvalidateStateMessage);
+        this.listenToEndpoint(GameOverEndpoint, this.handleGameOverMessage);
+        this.listenToEndpoint(TerminateGameEndpoint, this.handleTerminateGameMessage);
+        this.listenToEndpoint(PauseGameEndpoint, this.handlePauseMessage);
+        this.listenToEndpoint(ResumeGameEndpoint, this.handleResumeMessage);
 
         sessionHelper.onError((err) => {
             Logger.error(`Session error: ${err}`)
@@ -66,7 +66,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         })
 
         this.gameState = GeneralClientGameState.WaitingToStart;
-        sessionHelper.request(JoinEndpoint, sessionHelper.presenterId, { name: playerName }).then(ack => {
+        sessionHelper.request(JoinEndpoint, sessionHelper.presenterId, { playerName }).then(ack => {
             this.handleJoinAck(ack);
             this._stateIsInvalid = true;
             this.requestGameStateFromPresenter().then(() => this._stateIsInvalid = false);

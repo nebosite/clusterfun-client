@@ -97,9 +97,9 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     constructor(sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage) {
         super("LexibleClient", sessionHelper, playerName, logger, storage);
 
-        sessionHelper.listen(LexibleShowRecentlyTouchedLettersEndpoint, this.handleRecentlyTouchedMessage);
-        sessionHelper.listen(LexibleEndRoundEndpoint, this.handleEndOfRoundMessage);
-        sessionHelper.listen(LexibleBoardUpdateEndpoint, this.handleBoardUpdateMessage); 
+        this.listenToEndpoint(LexibleShowRecentlyTouchedLettersEndpoint, this.handleRecentlyTouchedMessage);
+        this.listenToEndpoint(LexibleEndRoundEndpoint, this.handleEndOfRoundMessage);
+        this.listenToEndpoint(LexibleBoardUpdateEndpoint, this.handleBoardUpdateMessage); 
 
         makeObservable(this);
     }

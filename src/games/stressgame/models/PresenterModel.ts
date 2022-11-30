@@ -137,7 +137,7 @@ export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoP
         storage: IStorage)
     {
         super("Stressato", sessionHelper, logger, storage);
-        sessionHelper.listen(StressatoPresenterRelayEndpoint, this.handlePlayerAction);
+        this.listenToEndpoint(StressatoPresenterRelayEndpoint, this.handlePlayerAction);
         this.allowedJoinStates = [PresenterGameState.Gathering, StressatoGameState.Playing]
         this.minPlayers = 1;
 

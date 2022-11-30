@@ -102,10 +102,10 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
         super("Testato", sessionHelper, logger, storage);
         Logger.info(`Constructing TestatoPresenterModel ${this.gameState}`)
 
-        sessionHelper.listen(TestatoOnboardClientEndpoint, this.handleOnboardClient);
-        sessionHelper.listen(TestatoColorChangeActionEndpoint, this.handleColorChangeAction);
-        sessionHelper.listen(TestatoMessageActionEndpoint, this.handleMessageAction);
-        sessionHelper.listen(TestatoTapActionEndpoint, this.handleTapAction);
+        this.listenToEndpoint(TestatoOnboardClientEndpoint, this.handleOnboardClient);
+        this.listenToEndpoint(TestatoColorChangeActionEndpoint, this.handleColorChangeAction);
+        this.listenToEndpoint(TestatoMessageActionEndpoint, this.handleMessageAction);
+        this.listenToEndpoint(TestatoTapActionEndpoint, this.handleTapAction);
 
         this.allowedJoinStates = [PresenterGameState.Gathering, TestatoGameState.Playing]
 

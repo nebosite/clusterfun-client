@@ -6,6 +6,7 @@ import { ClusterFunGameProps, ITypeHelper, ISessionHelper, ITelemetryLogger,
 import { action, makeObservable, observable } from "mobx";
 import Logger from "js-logger";
 import ClusterfunListener from "libs/messaging/ClusterfunListener";
+import MessageEndpoint from "libs/messaging/MessageEndpoint";
 
 // Finalizer to track whether models have been properly cleared
 // Remove when debugging makes us confident of this
@@ -432,6 +433,18 @@ export abstract class BaseGameModel  {
         return new Promise((resolve, _reject) => {
             setTimeout(resolve, ms);
         })
+    }
+
+    // -------------------------------------------------------------------
+    // Create a request listener, registering it for removal when the
+    // model is shut down
+    // ------------------------------------------------------------------- 
+    protected listenToEndpoint<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>,
+        apiCallback: (sender: string, request: REQUEST) => RESPONSE | PromiseLike<RESPONSE>) {
+        const listener = this.session.listen(endpoint, apiCallback);
+        this._messageListeners.push(listener as ClusterfunListener<unknown, unknown>);
+        return listener;
     }
 
     // -------------------------------------------------------------------
