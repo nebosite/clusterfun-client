@@ -1,11 +1,11 @@
 import { action, makeObservable, observable } from "mobx";
-import { LetterSelectData, LexibleEndOfRoundMessage, LexibleFailedWordMessage, LexiblePlayerAction, LexiblePlayerActionMessage, LexiblePlayRequestMessage, LexibleRecentlyTouchedLettersMessage, LexibleScoredWordMessage, LexibleWordHintMessage, PlayBoard, WordSubmissionData } from "./Messages";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { LetterGridModel } from "./LetterGridModel";
 import { LexibleGameEvent } from "./PresenterModel";
 import { ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper } from "libs";
 import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
+import { LexibleBoardUpdateEndpoint, LexibleBoardUpdateNotification, LexibleEndOfRoundMessage, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, LexibleRecentlyTouchedLettersMessage, LexibleRequestTouchLetterEndpoint, LexibleShowRecentlyTouchedLettersEndpoint, LexibleSubmitWordEndpoint, LexibleWordSubmissionRequest, PlayBoard } from "./lexibleEndpoints";
 
 
 // -------------------------------------------------------------------
@@ -97,24 +97,27 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     constructor(sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage) {
         super("LexibleClient", sessionHelper, playerName, logger, storage);
 
-        sessionHelper.addListener(LexiblePlayRequestMessage, this, this.handlePlayRequestMessage);
-        sessionHelper.addListener(LexibleRecentlyTouchedLettersMessage, this, this.handleRecentlyTouchedMessage);
-        sessionHelper.addListener(LexibleEndOfRoundMessage, this, this.handleEndOfRoundMessage);
-        sessionHelper.addListener(LexibleScoredWordMessage, this, this.handleScoredWordMessage);
-        sessionHelper.addListener(LexibleFailedWordMessage, this, this.handleFailedWordMessage);
-        sessionHelper.addListener(LexibleWordHintMessage, this, this.handleWordHintMessage);
+        sessionHelper.listen(LexibleShowRecentlyTouchedLettersEndpoint, this.handleRecentlyTouchedMessage);
+        sessionHelper.listen(LexibleEndRoundEndpoint, this.handleEndOfRoundMessage);
+        sessionHelper.listen(LexibleBoardUpdateEndpoint, this.handleBoardUpdateMessage); 
 
         makeObservable(this);
     }
 
-    // -------------------------------------------------------------------
-    //  
-    // -------------------------------------------------------------------
-    assignClientStateFromServerState(serverState: string): void {
-        switch(serverState) {
-            case "Gathering": this.gameState = GeneralClientGameState.WaitingToStart; break;
-            default: this.gameState = serverState
+    async requestGameStateFromPresenter(): Promise<void> {
+        const onboardState = await this.session.request(LexibleOnboardClientEndpoint, this.session.presenterId, {})
+        if(this.gameState === GeneralClientGameState.WaitingToStart) {
+            this.telemetryLogger.logEvent("Client", "Start");
         }
+        this.roundNumber = onboardState.roundNumber;
+        this.myTeam = onboardState.teamName;
+        this.startFromTeamArea = onboardState.settings.startFromTeamArea;
+
+        this.setupPlayBoard(onboardState.playBoard)
+
+        this.gameState = LexibleClientState.Playing;
+
+        this.saveCheckpoint();
     }
 
     //--------------------------------------------------------------------------------------
@@ -140,17 +143,28 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     // submitWord 
     // -------------------------------------------------------------------
-    submitWord() {
+    async submitWord() {
         if(this.letterChain.length === 0) {
             Logger.warn("WEIRD:  should have been letters in the letter chain")
             return;
         }
 
-        const submissionData: WordSubmissionData = {
+        const submissionData: LexibleWordSubmissionRequest = {
             letters: this.letterChain.map(l => ({letter: l.letter, coordinates: l.coordinates}))
         }
 
-        this.sendAction(LexiblePlayerAction.WordSubmit, submissionData)
+        const response = await this.session.request(LexibleSubmitWordEndpoint, this.session.presenterId, submissionData)
+        if (response.success) {
+            this.invokeEvent(LexibleGameEvent.WordAccepted)
+        } else {
+            response.letters.forEach(l => {
+                const block = this.theGrid.getBlock(l.coordinates)
+                if(!block) {
+                    Logger.warn(`WEIRD: No block at ${JSON.stringify(l.coordinates)}`)
+                }
+                else block.fail()
+            })
+        }
 
         this.letterChain[0].selectForPlayer(this.playerId, false);
     }
@@ -190,38 +204,21 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         }
     }
 
-    // -------------------------------------------------------------------
-    // handleScoredWordMessage
-    // -------------------------------------------------------------------
-    protected handleScoredWordMessage = (message: LexibleScoredWordMessage) => {
+    protected handleBoardUpdateMessage = (sender: string, message: LexibleBoardUpdateNotification) => {
         message.letters.forEach(l => {
             const block = this.theGrid.getBlock(l.coordinates)
             if(!block) Logger.warn(`WEIRD: No block at ${l.coordinates}`)
-            else block.setScore( Math.max(message.score, block.score), message.team);
+            else block.setScore( Math.max(message.score, block.score), message.scoringTeam);
         })
         this.updateWinningPaths();
         this.saveCheckpoint();
-        this.ackMessage(message);  
-        this.invokeEvent(LexibleGameEvent.WordAccepted)
-    }
-
-    // -------------------------------------------------------------------
-    // handleFailedWordMessage
-    // -------------------------------------------------------------------
-    protected handleFailedWordMessage = (message: LexibleFailedWordMessage) => {
-        message.letters.forEach(w => {
-            const block = this.theGrid.getBlock(w.coordinates)
-            if(!block) {
-                Logger.warn(`WEIRD: No block at ${JSON.stringify(w.coordinates)}`)
-            }
-            else block.fail()
-        })
+        this.invokeEvent(LexibleGameEvent.WordAccepted);
     }
 
     // -------------------------------------------------------------------
     // handleRecentlyTouchedMessage
     // -------------------------------------------------------------------
-    protected handleRecentlyTouchedMessage = (message: LexibleRecentlyTouchedLettersMessage) => {
+    protected handleRecentlyTouchedMessage = (sender: string, message: LexibleRecentlyTouchedLettersMessage) => {
         message.letterCoordinates.forEach(c => {
             const block = this.theGrid.getBlock(c)
             if(!block) {
@@ -232,43 +229,13 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     }
 
     // -------------------------------------------------------------------
-    // handleWordHintMessage
-    // -------------------------------------------------------------------
-    protected handleWordHintMessage = (message: LexibleWordHintMessage) => {
-        this.wordList = message.wordList;
-        Logger.debug(`Received Wordlist with ${message.wordList?.length} words`)
-        this.saveCheckpoint();
-        this.ackMessage(message);
-    }
-
-    // -------------------------------------------------------------------
     // handleEndOfRoundMessage
     // -------------------------------------------------------------------
-    protected handleEndOfRoundMessage = (message: LexibleEndOfRoundMessage) => {
+    protected handleEndOfRoundMessage = (sender: string, message: LexibleEndOfRoundMessage) => {
         this.winningTeam = message.winningTeam;
         this.gameState = LexibleClientState.EndOfRound;
 
         this.saveCheckpoint();
-        this.ackMessage(message);
-    }
-
-    // -------------------------------------------------------------------
-    // handlePlayRequestMessage 
-    // -------------------------------------------------------------------
-    protected handlePlayRequestMessage = (message: LexiblePlayRequestMessage) => {
-        if(this.gameState === GeneralClientGameState.WaitingToStart) {
-            this.telemetryLogger.logEvent("Client", "Start");
-        }
-        this.roundNumber = message.roundNumber;
-        this.myTeam = message.teamName;
-        this.startFromTeamArea = message.settings.startFromTeamArea;
-
-        this.setupPlayBoard(message.playBoard)
-
-        this.gameState = LexibleClientState.Playing;
-
-        this.saveCheckpoint();
-        this.ackMessage(message);
     }
 
     // -------------------------------------------------------------------
@@ -316,12 +283,10 @@ export class LexibleClientModel extends ClusterfunClientModel  {
                     if(this.letterChain.length === 0) this.wordList = []
                 }
 
-                this.sendAction(LexiblePlayerAction.LetterSelect, {
-                    coordinates:block.coordinates, 
-                    playerId, 
-                    selectedValue: selectedValue,
-                    isFirst
-                })
+                this.session.request(LexibleRequestTouchLetterEndpoint, this.session.presenterId, {
+                    touchPoint: block.coordinates
+                }).forget();
+                
                 this.saveCheckpoint();
             })()
         }
@@ -344,48 +309,4 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     reconstitute() {
         this.theGrid.processBlocks(b => this.setBlockHandlers(b))
     }
-
-    // -------------------------------------------------------------------
-    // sendAction 
-    // -------------------------------------------------------------------
-    protected sendAction(action: LexiblePlayerAction, actionData: LetterSelectData | WordSubmissionData) {
-        const message = new LexiblePlayerActionMessage(
-            {
-                sender: this.session.personalId,
-                roundNumber: this.roundNumber,
-                action,
-                actionData
-            }
-        );
-
-        this.session.sendMessageToPresenter(message);
-    }
-
-    // // -------------------------------------------------------------------
-    // // Tell the presenter to change my color
-    // // -------------------------------------------------------------------
-    // doColorChange(){
-    //     const hex = Array.from("0123456789ABCDEF");
-    //     let colorStyle = "#";
-    //     for(let i = 0; i < 6; i++) colorStyle += this.randomItem(hex);
-    //     this.sendAction("ColorChange", {colorStyle})
-    // }
-   
-    // // -------------------------------------------------------------------
-    // // Tell the presenter to show a message for me
-    // // -------------------------------------------------------------------
-    // doMessage(){
-    //     const messages = ["Hi!", "Bye?", "What's up?", "Oh No!", "Hoooooweeee!!", "More gum."]
-    //     this.sendAction("Message", {text: this.randomItem(messages)})
-    // }
-   
-    // // -------------------------------------------------------------------
-    // // Tell the presenter that I tapped somewhere
-    // // -------------------------------------------------------------------
-    // doTap(x: number, y: number){
-    //     x = Math.floor(x * 1000)/1000;
-    //     y = Math.floor(y * 1000)/1000;
-        
-    //     this.sendAction("Tap", {x,y})
-    // }
 }

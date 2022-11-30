@@ -2,7 +2,7 @@ import { ISessionHelper, ClusterFunGameProps,
     ClusterfunClientModel, ITelemetryLogger, 
     IStorage, ITypeHelper } from "libs";
 import { action, makeObservable, observable } from "mobx";
-import { StressatoPlayerActionMessage, StressatoServerActionMessage } from "./Messages";
+import { StressatoPresenterRelayEndpoint } from "./stressatoEndpoints";
 
 
 // -------------------------------------------------------------------
@@ -93,7 +93,6 @@ export class StressatoClientModel extends ClusterfunClientModel  {
             }
         })
 
-        sessionHelper.addListener(StressatoServerActionMessage, this, this.handleActionMessage);
         makeObservable(this);
     }
 
@@ -103,31 +102,17 @@ export class StressatoClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     reconstitute() {}
 
-    
-    // -------------------------------------------------------------------
-    //  
-    // -------------------------------------------------------------------
-    assignClientStateFromServerState(serverState: string) { }
-
-    // -------------------------------------------------------------------
-    // handleEndOfRoundMessage
-    // -------------------------------------------------------------------
-    protected handleActionMessage = (message: StressatoServerActionMessage) => {
-
+    requestGameStateFromPresenter = (): Promise<void> => {
+        return Promise.resolve(undefined);
     }
 
     // -------------------------------------------------------------------
     // sendAction 
     // -------------------------------------------------------------------
-    protected sendAction(actionData: any = null) {
-        const message = new StressatoPlayerActionMessage(
-            {
-                sender: this.session.personalId,
-                returnSize: this.returnMessageSize,
-                actionData
-            }
-        );
-
-        this.session.sendMessageToPresenter(message);
+    protected async sendAction(actionData: any = null) {
+        await this.session.request(StressatoPresenterRelayEndpoint, this.session.presenterId, {
+            returnSize: this.returnMessageSize,
+            actionData
+        });
     }
 }

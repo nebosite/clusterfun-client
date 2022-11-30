@@ -1,8 +1,8 @@
 import Logger from "js-logger";
-import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper } from "libs";
+import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, Vector2 } from "libs";
 import { observable } from "mobx";
-import { TestatoEndOfRoundMessage, TestatoPlayerActionMessage, TestatoPlayRequestMessage } from "./Messages";
 import { TestatoGameState } from "./PresenterModel";
+import { TestatoColorChangeActionEndpoint, TestatoMessageActionEndpoint, TestatoOnboardClientEndpoint, TestatoTapActionEndpoint } from "./testatoEndpoints";
 
 
 // -------------------------------------------------------------------
@@ -69,8 +69,6 @@ export class TestatoClientModel extends ClusterfunClientModel  {
         this.ballData.xm = (this.randomDouble(.01) + 0.005) * (this.randomInt(2) ? 1 : -1) ;
         this.ballData.ym = (this.randomDouble(.01) + 0.005) * (this.randomInt(2) ? 1 : -1) ;
         this.ballData.color = this.randomItem(colors);
-        sessionHelper.addListener(TestatoPlayRequestMessage, this, this.handlePlayRequestMessage);
-        sessionHelper.addListener(TestatoEndOfRoundMessage, this, this.handleEndOfRoundMessage);
     }
 
     // -------------------------------------------------------------------
@@ -79,6 +77,18 @@ export class TestatoClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     reconstitute() {}
 
+    async requestGameStateFromPresenter(): Promise<void> {
+        const response = await this.session.request(TestatoOnboardClientEndpoint, this.session.presenterId, {});
+        this.roundNumber = response.roundNumber;
+        switch(response.state) {
+            case TestatoGameState.Playing: this.gameState = TestatoGameState.Playing; break;
+            case TestatoGameState.EndOfRound: this.gameState = TestatoGameState.EndOfRound; break;
+            default:
+                Logger.debug(`Server Updated State to: ${response.state}`)
+                this.gameState = GeneralClientGameState.WaitingToStart;
+                break;
+        }
+    }
     
     // -------------------------------------------------------------------
     //  
@@ -96,46 +106,6 @@ export class TestatoClientModel extends ClusterfunClientModel  {
                 this.gameState = GeneralClientGameState.WaitingToStart; break;
         }
 
-    }
-
-    // -------------------------------------------------------------------
-    // handleEndOfRoundMessage
-    // -------------------------------------------------------------------
-    protected handleEndOfRoundMessage = (message: TestatoEndOfRoundMessage) => {
-        this.gameState = TestatoClientState.EndOfRound;
-
-        this.saveCheckpoint();
-        this.ackMessage(message);
-    }
-
-    // -------------------------------------------------------------------
-    // handlePlayRequestMessage 
-    // -------------------------------------------------------------------
-    protected handlePlayRequestMessage = (message: TestatoPlayRequestMessage) => {
-        if(this.gameState === GeneralClientGameState.WaitingToStart) {
-            this.telemetryLogger.logEvent("Client", "Start");
-        }
-        this.roundNumber = message.roundNumber;
-        this.gameState = TestatoClientState.Playing;
-
-        this.saveCheckpoint();
-        this.ackMessage(message);
-    }
-
-    // -------------------------------------------------------------------
-    // sendAction 
-    // -------------------------------------------------------------------
-    protected sendAction(action: string, actionData: any = null) {
-        const message = new TestatoPlayerActionMessage(
-            {
-                sender: this.session.personalId,
-                roundNumber: this.roundNumber,
-                action,
-                actionData
-            }
-        );
-
-        this.session.sendMessageToPresenter(message);
     }
 
     // -------------------------------------------------------------------
@@ -158,7 +128,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
         const hex = Array.from("0123456789ABCDEF");
         let colorStyle = "#";
         for(let i = 0; i < 6; i++) colorStyle += this.randomItem(hex);
-        this.sendAction("ColorChange", {colorStyle})
+        this.session.request(TestatoColorChangeActionEndpoint, this.session.presenterId, { colorStyle }).forget();
     }
    
     // -------------------------------------------------------------------
@@ -166,7 +136,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     doMessage(){
         const messages = ["Hi!", "Bye?", "What's up?", "Oh No!", "Hoooooweeee!!", "More gum."]
-        this.sendAction("Message", {text: this.randomItem(messages)})
+        this.session.request(TestatoMessageActionEndpoint, this.session.presenterId, { message: this.randomItem(messages)}).forget();
     }
    
     // -------------------------------------------------------------------
@@ -176,6 +146,6 @@ export class TestatoClientModel extends ClusterfunClientModel  {
         x = Math.floor(x * 1000)/1000;
         y = Math.floor(y * 1000)/1000;
         
-        this.sendAction("Tap", {x,y})
+        this.session.request(TestatoTapActionEndpoint, this.session.presenterId, { point: new Vector2(x, y) }).forget();
     }
 }

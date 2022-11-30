@@ -2,17 +2,13 @@ import Logger from "js-logger";
 import { ClusterFunMessageHeader, ClusterFunRoutingHeader, parseMessage, stringifyMessage } from "libs/comms";
 import { IMessageThing } from "./MessageThing";
 
-// Regex for parsing incoming messages - a JSON header and an arbitrary payload
-// separated by a caret.
-const MESSAGE_REGEX = /^(?<header>{[^^]*})\^(?<payload>.*)$/;
-
 export default class ClusterfunListener<REQUEST, RESPONSE> {
     route: string;
     private _messageThing: IMessageThing;
-    private _apiCallback: (value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>;
+    private _apiCallback: (sender: string, value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>;
     private _messageCallback: (ev: { data: string; }) => void;
 
-    constructor(route: string, messageThing: IMessageThing, apiCallback: (value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>) {
+    constructor(route: string, messageThing: IMessageThing, apiCallback: (sender: string, value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>) {
         this.route = route;
         this._messageThing = messageThing;
         this._apiCallback = apiCallback;
@@ -26,7 +22,7 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
         // Parse the input message into header and payload, if possible
         // TODO: Note that the payload is untrusted - can we add verification here?
         let header: ClusterFunMessageHeader;
-        let routing: ClusterfunRoutingHeader;
+        let routing: ClusterFunRoutingHeader;
         let payload: REQUEST;
         try {
             const parsedMessage = parseMessage(data);
@@ -41,9 +37,9 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
             return; // this message is not for us
         }
         try {
-            const rawResult = this._apiCallback(payload);
+            const rawResult = this._apiCallback(header.s, payload);
             let result: RESPONSE;
-            if ("then" in rawResult && typeof(rawResult.then) === "function") {
+            if (rawResult && typeof(rawResult) === "object" && "then" in rawResult && typeof(rawResult.then) === "function") {
                 result = await rawResult;
             } else {
                 result = rawResult as RESPONSE;
@@ -54,7 +50,7 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
                     s: header.r,
                     id: header.id + "-response"
                 };
-                const responseRouting: ClusterfunRoutingHeader = {
+                const responseRouting: ClusterFunRoutingHeader = {
                     requestId: routing.requestId,
                     role: "response",
                     route: this.route
@@ -68,7 +64,7 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
                 s: header.r,
                 id: header.id + "-error"
             };
-            const responseRouting: ClusterfunRoutingHeader = {
+            const responseRouting: ClusterFunRoutingHeader = {
                 requestId: routing.requestId,
                 role: "error",
                 route: this.route

@@ -1,10 +1,11 @@
 import { ClusterFunGameProps, ITypeHelper, ISessionHelper, ITelemetryLogger, 
-    IStorage, EventThing, ClusterFunMessageBase, 
-    BaseAnimationController, ClusterFunReceiptAckMessage, BruteForceSerializer
+    IStorage, EventThing, 
+    BaseAnimationController, BruteForceSerializer
 } from "../../libs";
 
 import { action, makeObservable, observable } from "mobx";
 import Logger from "js-logger";
+import ClusterfunListener from "libs/messaging/ClusterfunListener";
 
 // Finalizer to track whether models have been properly cleared
 // Remove when debugging makes us confident of this
@@ -142,9 +143,12 @@ export abstract class BaseGameModel  {
 
     public onTick = new EventThing<number>("BaseGameModel");
     private _scheduledEvents: Map<number, Array<() => void>>;
-
+    private _messageListeners: ClusterfunListener<unknown, unknown>[] = [];
+    
     private _isShutdown = false;
     public get isShutdown() { return this._isShutdown; }
+
+    
 
     //private _deserializeHelper: (propertyName: string, data: any) => any
     private _events = new Map<string, EventThing<any>>();
@@ -249,7 +253,10 @@ export abstract class BaseGameModel  {
     shutdown = () => {
         Logger.info("Shutting down model");
         clearInterval(this._ticker);
-        this.session.removeAllListenersForOwner(this);
+        for (const listener of this._messageListeners) {
+            listener.unsubscribe();
+        }
+        this._messageListeners = [];
         this._events.clear();
         this._scheduledEvents.clear();
         this._isShutdown = true;
@@ -407,16 +414,6 @@ export abstract class BaseGameModel  {
         eventsToRun.forEach(e => e());
 
         this.onTick.invoke(this.gameTime_ms);
-    }
-
-    // -------------------------------------------------------------------
-    // acknowledge a message
-    // ------------------------------------------------------------------- 
-    ackMessage(message: ClusterFunMessageBase) {
-        this.session.sendMessage(message.sender, new ClusterFunReceiptAckMessage({
-            sender: this.session.personalId,
-            ackedMessageId: message.messageId ?? 0
-        }))
     }
 
     // -------------------------------------------------------------------

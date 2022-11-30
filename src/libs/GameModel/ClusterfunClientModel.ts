@@ -1,11 +1,9 @@
 
-import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage, ClusterFunJoinAckMessage, 
-    ClusterFunGameOverMessage, ClusterFunTerminateGameMessage, ClusterFunGamePauseMessage, 
-    ClusterFunServerStateMessage, ClusterFunGameResumeMessage, ClusterFunQuitMessage, ClusterFunKeepAliveMessage, ClusterFunJoinMessage 
-} from "../../libs";
+import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage } from "../../libs";
 import { makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 import Logger from "js-logger";
+import { GameOverEndpoint, InvalidateStateEndpoint, JoinEndpoint, PauseGameEndpoint, PingEndpoint, QuitEndpoint, ResumeGameEndpoint, TerminateGameEndpoint } from "libs/messaging/basicEndpoints";
 
 export enum GeneralClientGameState {
     WaitingToStart = "WaitingToStart",
@@ -39,6 +37,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     @observable joinError: string | null = null;
     @observable roundNumber: number = 0;
     gameTerminated = false;
+    private _stateIsInvalid = true;
 
     // -------------------------------------------------------------------
     // ctor 
@@ -49,12 +48,11 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         makeObservable(this);
         this._playerName = playerName;
 
-        sessionHelper.addListener(ClusterFunJoinAckMessage, this, this.handleJoinAckMessage);
-        sessionHelper.addListener(ClusterFunGameOverMessage, this, this.handleGameOverMessage);
-        sessionHelper.addListener(ClusterFunTerminateGameMessage, this, this.handleTerminateGameMessage);
-        sessionHelper.addListener(ClusterFunGamePauseMessage, this, this.handlePauseMessage);
-        sessionHelper.addListener(ClusterFunServerStateMessage, this, this.handleServerStateMessage);
-        sessionHelper.addListener(ClusterFunGameResumeMessage, this, this.handleResumeMessage);
+        sessionHelper.listen(InvalidateStateEndpoint, this.handleInvalidateStateMessage);
+        sessionHelper.listen(GameOverEndpoint, this.handleGameOverMessage);
+        sessionHelper.listen(TerminateGameEndpoint, this.handleTerminateGameMessage);
+        sessionHelper.listen(PauseGameEndpoint, this.handlePauseMessage);
+        sessionHelper.listen(ResumeGameEndpoint, this.handleResumeMessage);
 
         sessionHelper.onError((err) => {
             Logger.error(`Session error: ${err}`)
@@ -63,19 +61,23 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         this.subscribe(GeneralGameState.Destroyed, "GameDestroyed", () =>
         {
             if(!this.gameTerminated) {
-                this.session.sendMessageToPresenter(new ClusterFunQuitMessage({sender: this.playerId}));
+                this.session.request(QuitEndpoint, this.session.presenterId, {}).forget();
             }
         })
 
         this.gameState = GeneralClientGameState.WaitingToStart;
-        this.session.sendMessageToPresenter(new ClusterFunJoinMessage({name: playerName, sender: this.playerId}));
+        sessionHelper.request(JoinEndpoint, sessionHelper.presenterId, { name: playerName }).then(ack => {
+            this.handleJoinAck(ack);
+            this._stateIsInvalid = true;
+            this.requestGameStateFromPresenter().then(() => this._stateIsInvalid = false);
+        });
         this.keepAlive();
     }
 
     abstract reconstitute():void;
-    abstract assignClientStateFromServerState(serverState: string): void;
+    abstract requestGameStateFromPresenter(): Promise<void>;
 
-    KEEPALIVE_INTERVAL_MS = 60 * 1000;  // one minute
+    KEEPALIVE_INTERVAL_MS = 10 * 1000;  // ten seconds
 
     // -------------------------------------------------------------------
     // keepAlive 
@@ -87,7 +89,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         }
         
         if(this.gameState !== GeneralGameState.Destroyed) {
-            this.session.sendMessageToPresenter(new ClusterFunKeepAliveMessage({sender: this.playerId}));
+            this.session.request(PingEndpoint, this.session.presenterId, { pingTime: Date.now() }).forget();
             setTimeout(this.keepAlive, this.KEEPALIVE_INTERVAL_MS)
         }
         else {
@@ -98,7 +100,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // -------------------------------------------------------------------
     // handleJoinAckMessage 
     // -------------------------------------------------------------------
-    handleJoinAckMessage = (message: ClusterFunJoinAckMessage) => {
+    handleJoinAck = (message: { isRejoin: boolean, didJoin: boolean, joinError?: string }) => {
 
         if(!message.didJoin) {
             this.joinError = message.joinError ?? "Unknown reason";
@@ -118,9 +120,17 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     }
 
     // -------------------------------------------------------------------
+    //  handleInvalidateStateMessage
+    // -------------------------------------------------------------------
+    handleInvalidateStateMessage = (sender: string, message: unknown) => {
+        this._stateIsInvalid = true;
+        this.requestGameStateFromPresenter().then(() => this._stateIsInvalid = false);
+    }
+
+    // -------------------------------------------------------------------
     //  
     // -------------------------------------------------------------------
-    handleGameOverMessage = (message: ClusterFunGameOverMessage) => {
+    handleGameOverMessage = (sender: string, message: unknown) => {
         this.gameState = GeneralGameState.GameOver;
         this.saveCheckpoint();
     }
@@ -128,7 +138,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // -------------------------------------------------------------------
     //  
     // -------------------------------------------------------------------
-    handleTerminateGameMessage = (message: ClusterFunTerminateGameMessage) => {
+    handleTerminateGameMessage = (sender: string, message: unknown) => {
         Logger.info("Presenter has terminated the game")
         this.gameTerminated = true;
         this.quitApp();
@@ -138,34 +148,21 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // -------------------------------------------------------------------
     // 
     // -------------------------------------------------------------------
-    protected handlePauseMessage = (message: ClusterFunGamePauseMessage | undefined) => {
+    protected handlePauseMessage = (sender: string, message: unknown): any => {
         this.prepauseState = this.gameState;
         this.gameState = GeneralClientGameState.Paused
         this.saveCheckpoint();
-        if(message) this.ackMessage(message);
+        return {};
     }
 
     // -------------------------------------------------------------------
     // 
     // -------------------------------------------------------------------
-    protected handleResumeMessage = (message: ClusterFunGameResumeMessage) => {
+    protected handleResumeMessage = (sender: string, message: unknown): any => {
         if(this.prepauseState !== GeneralGameState.Unknown) {
             this.gameState = this.prepauseState;
             this.saveCheckpoint();
-            this.ackMessage(message);
         }
-
-    }
-
-    // -------------------------------------------------------------------
-    // 
-    // -------------------------------------------------------------------
-    protected handleServerStateMessage = (message: ClusterFunServerStateMessage) => {
-        if(this.gameState === GeneralClientGameState.JoinError) return;
-        
-        this.assignClientStateFromServerState(message.state);
-        if(message.isPaused) {
-            this.handlePauseMessage(undefined);
-        }
+        return {};
     }
 }

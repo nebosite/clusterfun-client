@@ -1,5 +1,5 @@
 import Logger from "js-logger";
-import { ClusterFunSerializer } from "../../libs"
+import { parseHeaderOnly } from "libs/comms";
 
 // -------------------------------------------------------------------
 // IMessageThing
@@ -107,7 +107,6 @@ export class LocalMessageThing implements IMessageThing {
     get closeCode() { return 0; }
     private _listeners = new Map<string, any[]>();
     private _room: Map<string, LocalMessageThing>;
-    private _serializer: ClusterFunSerializer;
 
     // -------------------------------------------------------------------
     // ctor
@@ -117,7 +116,6 @@ export class LocalMessageThing implements IMessageThing {
         this._room = roomInhabitants;
         this.personalId = personalId;
         this._room.set(personalId, this);
-        this._serializer = new ClusterFunSerializer();
     }
 
     // -------------------------------------------------------------------
@@ -147,7 +145,7 @@ export class LocalMessageThing implements IMessageThing {
     // send
     // -------------------------------------------------------------------
     async send(payload: string, _onFailure: ()=>void) {
-        const header = this._serializer.deserializeHeaderOnly(payload);
+        const header = parseHeaderOnly(payload);
         if (header.s !== this.personalId) {
             throw new SyntaxError("Sender of header must match personal ID")
         }

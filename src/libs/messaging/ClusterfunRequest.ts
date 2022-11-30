@@ -1,6 +1,12 @@
 import { ClusterFunMessageHeader, ClusterFunRoutingHeader, parseMessage, stringifyMessage } from "libs/comms";
 import { IMessageThing } from "./MessageThing";
 
+enum RequestState {
+    Unsettled,
+    Resolved,
+    Rejected
+}
+
 /**
  * Object tracking an outstanding request to another network participant.
  */
@@ -11,6 +17,7 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
     route: string;
     id: string;
     private _messageThing: IMessageThing;
+    private _state: RequestState;
     private _response?: RESPONSE;
     private _error?: any;
     private _fulfilledCallbacks?: ((value: RESPONSE) => void)[];
@@ -24,6 +31,7 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
         this.route = route;
         this.id = id;
         this._messageThing = messageThing;
+        this._state = RequestState.Unsettled;
         this._fulfilledCallbacks = [];
         this._rejectedCallbacks = [];
 
@@ -37,9 +45,9 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
     then<TResult1 = RESPONSE, TResult2 = never>(
         onfulfilled?: ((value: RESPONSE) => TResult1 | PromiseLike<TResult1>) | null | undefined, 
         onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined): PromiseLike<TResult1 | TResult2> {
-        if ("_response" in this && onfulfilled) {
+        if (this._state === RequestState.Resolved && onfulfilled) {
             return Promise.resolve(onfulfilled(this._response!));
-        } else if ("_error" in this && onrejected) {
+        } else if (this._state === RequestState.Rejected && onrejected) {
             return Promise.reject(onrejected(this._error!))
         }
 
@@ -69,22 +77,31 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
         }
     }
 
-    // TODO: Figure out a better, more private way to call these two functions
     private resolve(value: RESPONSE): void {
+        if (this._state !== RequestState.Unsettled) {
+            throw new Error(`Request was already settled as ${this._state}`)
+        }
         const fulfilledCallbacks = this._fulfilledCallbacks!;
         delete this._fulfilledCallbacks;
         delete this._rejectedCallbacks;
         this._response = value;
+        this._state = RequestState.Resolved;
+        this.forget();
         for (const callback of fulfilledCallbacks) {
             callback(this._response);
         }
     }
 
     private reject(error: any): void {
+        if (this._state !== RequestState.Unsettled) {
+            throw new Error(`Request was already settled as ${this._state}`)
+        }
         const rejectedCallbacks = this._rejectedCallbacks!;
         delete this._fulfilledCallbacks;
         delete this._rejectedCallbacks;
         this._error = error;
+        this._state = RequestState.Rejected;
+        this.forget();
         for (const callback of rejectedCallbacks) {
             callback(this._error);
         }
@@ -108,7 +125,7 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
         })
     }
 
-    unsubscribe(): void {
+    forget(): void {
         this._messageThing.removeEventListener("message", this._messageCallback);
     }
 }

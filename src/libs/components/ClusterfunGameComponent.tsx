@@ -1,7 +1,7 @@
 
 
 import { BaseGameModel, ISessionHelper, ITypeHelper, 
-    SessionHelper, ClusterFunSerializer, 
+    SessionHelper, 
     instantiateGame, getPresenterTypeHelper, 
     getClientTypeHelper, GeneralGameState, 
     GameInstanceProperties, IMessageThing, 
@@ -61,8 +61,7 @@ extends React.Component<ClusterFunGameProps>
         const sessionHelper = new SessionHelper(
             messageThing, 
             gameProperties.roomId, 
-            gameProperties.presenterId, 
-            new ClusterFunSerializer(),
+            gameProperties.presenterId,
             serverCall
             );
 

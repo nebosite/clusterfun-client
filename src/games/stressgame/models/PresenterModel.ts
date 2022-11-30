@@ -1,9 +1,9 @@
 import { action, makeObservable, observable } from "mobx"
-import {  StressatoPlayerActionMessage, StressatoServerActionMessage } from "./Messages";
 import { ClusterFunPlayer, ISessionHelper, 
     ClusterFunGameProps, ClusterfunPresenterModel, 
     ITelemetryLogger, IStorage, ITypeHelper, 
     PresenterGameState} from "libs";
+import { StressatoPresenterRelayEndpoint } from "./stressatoEndpoints";
 
 
 export enum StressatoPlayerStatus {
@@ -30,6 +30,8 @@ export enum StressatoGameEvent {
     ResponseReceived = "ResponseReceived",
 }
 
+// TODO: This should be a continuously generated random string -
+// this specific string might have a particular compression pattern
 const seedString = "_abcdefjhijklmnopqrstuvwxyzABCDEFJHIKJLMNOPQRSTUVWXYZ012345678909876543210abcdefjhijklmnopqrstuvwxyz.".repeat(100)
 
 // -------------------------------------------------------------------
@@ -135,7 +137,7 @@ export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoP
         storage: IStorage)
     {
         super("Stressato", sessionHelper, logger, storage);
-        sessionHelper.addListener(StressatoPlayerActionMessage, this, this.handlePlayerAction);
+        sessionHelper.listen(StressatoPresenterRelayEndpoint, this.handlePlayerAction);
         this.allowedJoinStates = [PresenterGameState.Gathering, StressatoGameState.Playing]
         this.minPlayers = 1;
 
@@ -204,16 +206,11 @@ export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoP
     // -------------------------------------------------------------------
     //  handlePlayerAction
     // -------------------------------------------------------------------
-    handlePlayerAction = (message: StressatoPlayerActionMessage) => {
-        //const player = this.players.find(p => p.playerId === message.sender);
+    handlePlayerAction = (sender: string, message: { returnSize: number, actionData: string }) => {
         if(message.returnSize) {
-            this.sendToEveryone((p) => {
-                const data = {
-                    sender: this.session.personalId, 
-                    actionData: seedString.substring(0,message.returnSize)
-                }
-                return new StressatoServerActionMessage(data)
-            })
+            return { actionData: seedString.substring(0, message.returnSize)};
+        } else {
+            return undefined;
         }
 
     }
