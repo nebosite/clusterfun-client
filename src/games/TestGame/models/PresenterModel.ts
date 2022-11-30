@@ -192,6 +192,7 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
             this.saveCheckpoint();
         }    
         else {
+            this.gameState = TestatoGameState.Playing;
             this.requestEveryone(InvalidateStateEndpoint, (p,ie) => ({}), true)
             this.saveCheckpoint();
         }

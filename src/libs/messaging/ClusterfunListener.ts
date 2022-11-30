@@ -33,7 +33,7 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
             Logger.warn("Improperly formatted message received");
             return;
         }
-        if (routing.route !== this.route && routing.role !== "request") {
+        if (routing.route !== this.route || routing.role !== "request") {
             return; // this message is not for us
         }
         try {
