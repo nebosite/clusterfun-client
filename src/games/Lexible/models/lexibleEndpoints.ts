@@ -21,7 +21,9 @@ export type LetterChain = {letter: string, coordinates: Vector2}[]
 
 export const LexibleOnboardClientEndpoint: MessageEndpoint<unknown, LexibleOnboardClientMessage> = {
     route: "/games/lexible/lifecycle/onboard-client",
-    responseRequired: true
+    responseRequired: true,
+    suggestedRetryIntervalMs: 10000,
+    suggestedTotalLifetimeMs: 60000
 }
 
 // ------------------------------------------------------------------------------------------
@@ -59,7 +61,9 @@ export interface LexibleWordHintResponse
 
 export const LexibleRequestWordHintsEndpoint: MessageEndpoint<LexibleWordHintRequest, LexibleWordHintResponse> = {
     route: "/games/lexible/gameplay/get-word-hints",
-    responseRequired: true
+    responseRequired: true,
+    suggestedRetryIntervalMs: 1000,
+    suggestedTotalLifetimeMs: 10000
 }
 
 export interface LexibleBoardUpdateNotification
@@ -72,7 +76,9 @@ export interface LexibleBoardUpdateNotification
 
 export const LexibleBoardUpdateEndpoint: MessageEndpoint<LexibleBoardUpdateNotification, unknown> = {
     route: "/games/lexible/gameplay/update-board",
-    responseRequired: false
+    responseRequired: false,
+    suggestedRetryIntervalMs: Number.POSITIVE_INFINITY,
+    suggestedTotalLifetimeMs: 30000
 }
 
 export interface LexibleWordSubmissionRequest
@@ -91,7 +97,9 @@ export const LexibleSubmitWordEndpoint: MessageEndpoint<
     LexibleWordSubmissionRequest,
     LexibleWordSubmissionResponse> = {
         route: "/games/lexible/gameplay/submit-word",
-        responseRequired: true
+        responseRequired: true,
+        suggestedRetryIntervalMs: 2000,
+        suggestedTotalLifetimeMs: 10000
     }
 
 export interface LexibleEndOfRoundMessage
@@ -102,5 +110,7 @@ export interface LexibleEndOfRoundMessage
 
 export const LexibleEndRoundEndpoint: MessageEndpoint<LexibleEndOfRoundMessage, unknown> = {
     route: "/games/lexible/lifecycle/end-round",
-    responseRequired: true
+    responseRequired: true,
+    suggestedRetryIntervalMs: 2000,
+    suggestedTotalLifetimeMs: 30000
 }

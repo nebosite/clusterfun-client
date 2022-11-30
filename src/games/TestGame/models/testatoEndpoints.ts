@@ -3,7 +3,9 @@ import { Vector2 } from "libs/types";
 
 export const TestatoOnboardClientEndpoint: MessageEndpoint<unknown, { roundNumber: number, customText: string, state: string }> = {
     route: "/games/testato/lifecycle/onboard",
-    responseRequired: true
+    responseRequired: true,
+    suggestedRetryIntervalMs: 5000,
+    suggestedTotalLifetimeMs: 30000
 }
 
 export const TestatoColorChangeActionEndpoint: MessageEndpoint<{ colorStyle: string }, unknown> = {

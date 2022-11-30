@@ -1,15 +1,18 @@
 import Logger from "js-logger";
 import { ClusterFunMessageHeader, ClusterFunRoutingHeader, parseMessage, stringifyMessage } from "libs/comms";
+import MessageEndpoint from "./MessageEndpoint";
 import { IMessageThing } from "./MessageThing";
 
 export default class ClusterfunListener<REQUEST, RESPONSE> {
-    route: string;
+    endpoint: MessageEndpoint<REQUEST, RESPONSE>
     private _messageThing: IMessageThing;
     private _apiCallback: (sender: string, value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>;
     private _messageCallback: (ev: { data: string; }) => void;
 
-    constructor(route: string, messageThing: IMessageThing, apiCallback: (sender: string, value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>) {
-        this.route = route;
+    constructor(endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        messageThing: IMessageThing, 
+        apiCallback: (sender: string, value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>) {
+        this.endpoint = endpoint;
         this._messageThing = messageThing;
         this._apiCallback = apiCallback;
         this._messageCallback = (ev: { data: string; }) => {
@@ -33,7 +36,7 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
             Logger.warn("Improperly formatted message received");
             return;
         }
-        if (routing.route !== this.route || routing.role !== "request") {
+        if (routing.route !== this.endpoint.route || routing.role !== "request") {
             return; // this message is not for us
         }
         try {
@@ -53,10 +56,12 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
                 const responseRouting: ClusterFunRoutingHeader = {
                     requestId: routing.requestId,
                     role: "response",
-                    route: this.route
+                    route: this.endpoint.route
                 }
                 const responseData = stringifyMessage(responseHeader, responseRouting, result);
                 this._messageThing.send(responseData, () => {});
+            } else if (this.endpoint.responseRequired) {
+                Logger.warn(`No response sent for route: ${this.endpoint.route}`);
             }
         } catch (e) {
             const responseHeader: ClusterFunMessageHeader = {
@@ -67,7 +72,7 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
             const responseRouting: ClusterFunRoutingHeader = {
                 requestId: routing.requestId,
                 role: "error",
-                route: this.route
+                route: this.endpoint.route
             }
             const responseData = stringifyMessage(responseHeader, responseRouting, e);
             this._messageThing.send(responseData, () => {});

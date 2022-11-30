@@ -89,7 +89,9 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         }
         
         if(this.gameState !== GeneralGameState.Destroyed) {
-            this.session.request(PingEndpoint, this.session.presenterId, { pingTime: Date.now() }).forget();
+            this.session.request(PingEndpoint, this.session.presenterId, { pingTime: Date.now() }).then(undefined, (err) => {
+                Logger.warn("Ping message was not received:", err);
+            })
             setTimeout(this.keepAlive, this.KEEPALIVE_INTERVAL_MS)
         }
         else {

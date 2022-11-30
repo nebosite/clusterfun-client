@@ -8,7 +8,9 @@ export const JoinEndpoint: MessageEndpoint<
     { isRejoin: boolean, didJoin: boolean, joinError?: string }
     > = {
     route: "/basic/handshake/join",
-    responseRequired: true
+    responseRequired: true,
+    suggestedRetryIntervalMs: 1000,
+    suggestedTotalLifetimeMs: 10000
 }
 
 /**
@@ -28,7 +30,9 @@ export const PingEndpoint: MessageEndpoint<
     { pingTime: number, localTime: number }
     > = {
     route: "/basic/ping",
-    responseRequired: true
+    responseRequired: true,
+    suggestedRetryIntervalMs: Number.POSITIVE_INFINITY,
+    suggestedTotalLifetimeMs: 5000
 }
 
 /**

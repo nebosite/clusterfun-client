@@ -1,4 +1,6 @@
+import Logger from "js-logger";
 import { ClusterFunMessageHeader, ClusterFunRoutingHeader, parseMessage, stringifyMessage } from "libs/comms";
+import MessageEndpoint from "./MessageEndpoint";
 import { IMessageThing } from "./MessageThing";
 
 enum RequestState {
@@ -11,10 +13,10 @@ enum RequestState {
  * Object tracking an outstanding request to another network participant.
  */
 export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike<RESPONSE> {
+    endpoint: MessageEndpoint<REQUEST, RESPONSE>
     request: REQUEST;
     sender: string;
     receiver: string;
-    route: string;
     id: string;
     private _messageThing: IMessageThing;
     private _state: RequestState;
@@ -22,13 +24,23 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
     private _error?: any;
     private _fulfilledCallbacks?: ((value: RESPONSE) => void)[];
     private _rejectedCallbacks?: ((error: any) => void)[];
-    private _messageCallback: (ev: { data: string; }) => void;
+    private _messageCallback?: (ev: { data: string; }) => void;
+    private _startTime: number;
+    private _lastSendTime: number;
+    private _timeout?: NodeJS.Timeout;
 
-    constructor(request: REQUEST, sender: string, receiver: string, route: string, id: string, messageThing: IMessageThing) {
+    constructor(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        request: REQUEST, 
+        sender: string, 
+        receiver: string,
+        id: string, 
+        messageThing: IMessageThing)
+    {
+        this.endpoint = endpoint;
         this.request = request;
         this.sender = sender;
         this.receiver = receiver;
-        this.route = route;
         this.id = id;
         this._messageThing = messageThing;
         this._state = RequestState.Unsettled;
@@ -39,7 +51,11 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
             this.respondToMessage(ev.data);
         }
         this._messageThing.addEventListener("message", this._messageCallback);
+
+        this._startTime = window.performance.now();
+        this._lastSendTime = window.performance.now();
         this.resend();
+        this.timerHandler();
     }
 
     then<TResult1 = RESPONSE, TResult2 = never>(
@@ -67,7 +83,7 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
 
     private respondToMessage(data: string): void {
         const { header, routing, payload } = parseMessage(data);
-        if (routing.route !== this.route || routing.requestId !== this.id) {
+        if (routing.route !== this.endpoint.route || routing.requestId !== this.id) {
             return; // this message is not for us
         }
         if (routing.role === "response") {
@@ -107,7 +123,29 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
         }
     }
 
+    private timerHandler = () => {
+        if (this._state !== RequestState.Unsettled) {
+            return; // we have a result, no need to send more messages
+        }
+        const now = window.performance.now();
+        const totalLifetime = ("suggestedTotalLifetimeMs" in this.endpoint ? this.endpoint.suggestedTotalLifetimeMs! : 30000);
+        if (this._startTime + totalLifetime < now) {
+            this.reject(new Error(`Could not receive a response for ${this.endpoint.route} from ${this.receiver}`));
+            return;
+        }
+        const retryInterval = ("suggestedRetryIntervalMs" in this.endpoint ? this.endpoint.suggestedRetryIntervalMs! : Number.POSITIVE_INFINITY);
+        if (this._lastSendTime + retryInterval < now) {
+            this.resend();
+        }
+        const nextTimeoutTime = Math.min(
+            this._startTime - now + totalLifetime,
+            this._lastSendTime - now + retryInterval
+        );
+        this._timeout = setTimeout(this.timerHandler, nextTimeoutTime);
+    }
+
     resend(): void {
+        this._lastSendTime = window.performance.now();
         const header: ClusterFunMessageHeader = {
             r: this.receiver,
             s: this.sender,
@@ -115,17 +153,26 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
         }
         const routing: ClusterFunRoutingHeader = {
             requestId: this.id,
-            route: this.route,
+            route: this.endpoint.route,
             role: "request"
         }
         const data = stringifyMessage(header, routing, this.request);
         this._messageThing.send(data, () => {
-            // TODO: This should utilize a timeout/retry count
-            this.reject(new Error("Failed to send message to relay server"))
+            Logger.warn("Could not send message to relay server, will retry")
         })
     }
 
     forget(): void {
-        this._messageThing.removeEventListener("message", this._messageCallback);
+        if (this._state === RequestState.Unsettled && this.endpoint.responseRequired) {
+            Logger.warn(`Called forget() on a request that requires a response (route ${this.endpoint.route})`)
+        }
+        if (this._timeout) {
+            clearTimeout(this._timeout);
+            this._timeout = undefined;
+        }
+        if (this._messageCallback) {
+            this._messageThing.removeEventListener("message", this._messageCallback);
+            this._messageCallback = undefined;
+        }
     }
 }

@@ -93,7 +93,7 @@ export class SessionHelper implements ISessionHelper {
         endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
         apiCallback: (sender: string, value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>
         ): ClusterfunListener<REQUEST, RESPONSE> {
-        return new ClusterfunListener<REQUEST, RESPONSE>(endpoint.route, this._messageThing, apiCallback);
+        return new ClusterfunListener<REQUEST, RESPONSE>(endpoint, this._messageThing, apiCallback);
     }
 
     //--------------------------------------------------------------------------------------
@@ -105,10 +105,10 @@ export class SessionHelper implements ISessionHelper {
         request: REQUEST
         ): ClusterfunRequest<REQUEST, RESPONSE> {
         return new ClusterfunRequest(
+            endpoint,
             request, 
             this.personalId, 
-            receiverId, 
-            endpoint.route, 
+            receiverId,
             (this._currentRequestId++).toString(), 
             this._messageThing);
     }
