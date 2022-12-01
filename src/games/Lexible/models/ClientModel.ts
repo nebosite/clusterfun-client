@@ -5,7 +5,7 @@ import { LexibleGameEvent } from "./PresenterModel";
 import { ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper } from "libs";
 import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
-import { LexibleBoardUpdateEndpoint, LexibleBoardUpdateNotification, LexibleEndOfRoundMessage, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, LexibleRecentlyTouchedLettersMessage, LexibleRequestTouchLetterEndpoint, LexibleShowRecentlyTouchedLettersEndpoint, LexibleSubmitWordEndpoint, LexibleWordSubmissionRequest, PlayBoard } from "./lexibleEndpoints";
+import { LexibleBoardUpdateEndpoint, LexibleBoardUpdateNotification, LexibleEndOfRoundMessage, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, LexibleRecentlyTouchedLettersMessage, LexibleRequestTouchLetterEndpoint, LexibleRequestWordHintsEndpoint, LexibleShowRecentlyTouchedLettersEndpoint, LexibleSubmitWordEndpoint, LexibleWordSubmissionRequest, PlayBoard } from "./lexibleEndpoints";
 
 
 // -------------------------------------------------------------------
@@ -97,15 +97,27 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     constructor(sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage) {
         super("LexibleClient", sessionHelper, playerName, logger, storage);
 
+        makeObservable(this);
+    }
+
+    // -------------------------------------------------------------------
+    // reconstitute 
+    // -------------------------------------------------------------------
+    reconstitute() {
+        super.reconstitute();
         this.listenToEndpoint(LexibleShowRecentlyTouchedLettersEndpoint, this.handleRecentlyTouchedMessage);
         this.listenToEndpoint(LexibleEndRoundEndpoint, this.handleEndOfRoundMessage);
         this.listenToEndpoint(LexibleBoardUpdateEndpoint, this.handleBoardUpdateMessage); 
-
-        makeObservable(this);
+        this.theGrid.processBlocks(b => this.setBlockHandlers(b))
     }
 
     async requestGameStateFromPresenter(): Promise<void> {
         const onboardState = await this.session.request(LexibleOnboardClientEndpoint, this.session.presenterId, {})
+        if (onboardState.gameState === "Gathering") {
+            this.gameState = GeneralClientGameState.WaitingToStart;
+        } else {
+            this.gameState = onboardState.gameState;
+        }
         if(this.gameState === GeneralClientGameState.WaitingToStart) {
             this.telemetryLogger.logEvent("Client", "Start");
         }
@@ -114,8 +126,6 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         this.startFromTeamArea = onboardState.settings.startFromTeamArea;
 
         this.setupPlayBoard(onboardState.playBoard)
-
-        this.gameState = LexibleClientState.Playing;
 
         this.saveCheckpoint();
     }
@@ -169,7 +179,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         this.letterChain[0].selectForPlayer(this.playerId, false);
     }
 
-        // -------------------------------------------------------------------
+    // -------------------------------------------------------------------
     //  checkForWin - a win is when there is a contiguous line of blocks
     //                from one side to the other for a single team. 
     //                Blocks are not continguous through corners.
@@ -286,6 +296,15 @@ export class LexibleClientModel extends ClusterfunClientModel  {
                 this.session.request(LexibleRequestTouchLetterEndpoint, this.session.presenterId, {
                     touchPoint: block.coordinates
                 }).forget();
+                this.session.request(LexibleRequestWordHintsEndpoint, this.session.presenterId, {
+                    currentWord: this.letterChain.map(block => ({
+                        letter: block.letter,
+                        coordinates: block.coordinates
+                    }))
+                }).then(hintResponse => {
+                    this.wordList = hintResponse.wordList;
+                    this.saveCheckpoint();
+                });
                 
                 this.saveCheckpoint();
             })()
@@ -301,12 +320,5 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         newGrid.deserialize(playBoard.gridData)
         newGrid.processBlocks(b => this.setBlockHandlers(b))
         action(()=>{this.theGrid = newGrid;})()
-    }
-
-    // -------------------------------------------------------------------
-    // reconstitute 
-    // -------------------------------------------------------------------
-    reconstitute() {
-        this.theGrid.processBlocks(b => this.setBlockHandlers(b))
     }
 }

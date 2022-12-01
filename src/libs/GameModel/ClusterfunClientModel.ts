@@ -48,15 +48,19 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         makeObservable(this);
         this._playerName = playerName;
 
+    }
+
+    reconstitute():void {
+        super.reconstitute();
         this.listenToEndpoint(InvalidateStateEndpoint, this.handleInvalidateStateMessage);
         this.listenToEndpoint(GameOverEndpoint, this.handleGameOverMessage);
         this.listenToEndpoint(TerminateGameEndpoint, this.handleTerminateGameMessage);
         this.listenToEndpoint(PauseGameEndpoint, this.handlePauseMessage);
         this.listenToEndpoint(ResumeGameEndpoint, this.handleResumeMessage);
 
-        sessionHelper.onError((err) => {
-            Logger.error(`Session error: ${err}`)
-        })
+        // this.session.onError((err) => {
+        //     Logger.error(`Session error: ${err}`)
+        // })
 
         this.subscribe(GeneralGameState.Destroyed, "GameDestroyed", () =>
         {
@@ -66,15 +70,13 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         })
 
         this.gameState = GeneralClientGameState.WaitingToStart;
-        sessionHelper.request(JoinEndpoint, sessionHelper.presenterId, { playerName }).then(ack => {
+        this.session.request(JoinEndpoint, this.session.presenterId, { playerName: this._playerName }).then(ack => {
             this.handleJoinAck(ack);
             this._stateIsInvalid = true;
             this.requestGameStateFromPresenter().then(() => this._stateIsInvalid = false);
         });
         this.keepAlive();
     }
-
-    abstract reconstitute():void;
     abstract requestGameStateFromPresenter(): Promise<void>;
 
     KEEPALIVE_INTERVAL_MS = 10 * 1000;  // ten seconds

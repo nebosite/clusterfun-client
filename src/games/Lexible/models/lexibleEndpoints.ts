@@ -12,6 +12,7 @@ export interface PlayBoard {
 // ------------------------------------------------------------------------------------------
 export interface LexibleOnboardClientMessage {
     roundNumber: number;
+    gameState: string;
     playBoard: PlayBoard;
     teamName: string;
     settings: { startFromTeamArea: boolean }

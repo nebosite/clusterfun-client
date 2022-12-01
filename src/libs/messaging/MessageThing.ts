@@ -102,6 +102,8 @@ export class WebSocketMessageThing implements IMessageThing {
 export class LocalMessageThing implements IMessageThing {
     personalId: string;
     personalSecret: string = "there is no queen of england";
+    simulatedMinPingMs: number;
+    simulatedMaxPingMs: number;
     get isOpen() { return true; }
     get isClosed() { return false; }
     get closeCode() { return 0; }
@@ -111,11 +113,16 @@ export class LocalMessageThing implements IMessageThing {
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(roomInhabitants:  Map<string, LocalMessageThing>, playerName: string, personalId: string )
+    constructor(
+        roomInhabitants: Map<string, LocalMessageThing>, 
+        personalId: string, 
+        simulatedMinPingMs: number, simulatedMaxPingMs: number)
     {
         this._room = roomInhabitants;
         this.personalId = personalId;
         this._room.set(personalId, this);
+        this.simulatedMinPingMs = simulatedMinPingMs;
+        this.simulatedMaxPingMs = simulatedMaxPingMs;
     }
 
     // -------------------------------------------------------------------
@@ -158,7 +165,7 @@ export class LocalMessageThing implements IMessageThing {
                     this._room.get(header.r)?.receiveMessage(payload)
                     resolve();
                 }
-            })
+            }, this.simulatedMinPingMs)
         })
 
     }
@@ -169,10 +176,9 @@ export class LocalMessageThing implements IMessageThing {
     receiveMessage(message: string){
         const listeners = this._listeners.get("message");
         if(listeners) {
-            for(const listener of listeners)
-            {
-                listener({data: message});
-            }
+            listeners.forEach(listener => {
+                setTimeout(() => { listener({ data: message }); }, Math.random() * (this.simulatedMaxPingMs - this.simulatedMinPingMs));
+            })
         }
     }
 }

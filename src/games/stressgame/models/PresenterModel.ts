@@ -137,7 +137,7 @@ export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoP
         storage: IStorage)
     {
         super("Stressato", sessionHelper, logger, storage);
-        this.listenToEndpoint(StressatoPresenterRelayEndpoint, this.handlePlayerAction);
+        
         this.allowedJoinStates = [PresenterGameState.Gathering, StressatoGameState.Playing]
         this.minPlayers = 1;
 
@@ -158,7 +158,10 @@ export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoP
     //  reconstitute - add code here to fix up saved game data that 
     //                 has been loaded after a refresh
     // -------------------------------------------------------------------
-    reconstitute() {}
+    reconstitute() {
+        super.reconstitute();
+        this.listenToEndpoint(StressatoPresenterRelayEndpoint, this.handlePlayerAction);
+    }
 
 
     // -------------------------------------------------------------------

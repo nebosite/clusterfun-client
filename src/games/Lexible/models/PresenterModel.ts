@@ -212,23 +212,11 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         super("Lexible", sessionHelper, logger, storage);
 
         this.allowedJoinStates.push(LexibleGameState.Playing, GeneralGameState.Paused)
-        this.subscribe(PresenterGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
-
-        this.listenToEndpoint(LexibleOnboardClientEndpoint, this.handleOnboardClient);
-        this.listenToEndpoint(LexibleRequestTouchLetterEndpoint, this.handleTouchLetterMessage);
-        this.listenToEndpoint(LexibleRequestWordHintsEndpoint, this.handleWordHintMessage);
-        this.listenToEndpoint(LexibleSubmitWordEndpoint, this.handleSubmitWordMessage);
-
-        sessionHelper.onError(err => {
-            Logger.error(`Session error: ${err}`)
-            this.quitApp();
-        })
         
         this.minPlayers = 2;
 
         this.wordTree = WordTree.create([]);
-        this.populateWordSet();
-
+        
         const savedSettingsValue = storage.get(LEXIBLE_SETTINGS_KEY);
         if (savedSettingsValue) {
             const savedSettings = JSON.parse(savedSettingsValue) as LexibleSettings;
@@ -245,6 +233,18 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     //                 has been loaded after a refresh
     // -------------------------------------------------------------------
     reconstitute() {
+        super.reconstitute();
+        this.populateWordSet();
+        this.subscribe(PresenterGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
+        this.listenToEndpoint(LexibleOnboardClientEndpoint, this.handleOnboardClient);
+        this.listenToEndpoint(LexibleRequestTouchLetterEndpoint, this.handleTouchLetterMessage);
+        this.listenToEndpoint(LexibleRequestWordHintsEndpoint, this.handleWordHintMessage);
+        this.listenToEndpoint(LexibleSubmitWordEndpoint, this.handleSubmitWordMessage);
+        // TODO: Make this method cleanuppable
+        // this.session.onError(err => {
+        //     Logger.error(`Session error: ${err}`)
+        //     this.quitApp();
+        // })
         this.theGrid.processBlocks((block)=>{this.setBlockHandlers(block)})
     }
 
@@ -629,8 +629,8 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             gridWidth: this.theGrid.width,
             gridData: this.theGrid.serialize()
         }
-        const payload = { 
-            sender: this.session.personalId,
+        const payload: LexibleOnboardClientMessage = { 
+            gameState: this.gameState,
             roundNumber: this.currentRound,
             playBoard,
             teamName: player.teamName,
@@ -689,7 +689,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             }
         }
         else {
-            Logger.info(`Failed word '${request.letters.join("")}' because ${(scoreTooLow ? "Low score" : "Not found" )}`)
+            Logger.info(`Failed word '${word}' because ${(scoreTooLow ? "Low score" : "Not found" )}`)
             return {
                 success: false,
                 letters: request.letters

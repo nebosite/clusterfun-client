@@ -92,25 +92,28 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     {
         super(name, sessionHelper, logger, storage);
         makeObservable(this);
+        
+        this.gameTime_ms = 0;
+
+        this.gameState = PresenterGameState.Gathering;
+    }
+
+    reconstitute(): void {
+        super.reconstitute();
         this.subscribe(GeneralGameState.Destroyed, "Presenter EndGame", async () =>
         {
             if(this._fullyInitialized){
                 await this.requestEveryone(TerminateGameEndpoint, (p, ie) => ({}) );  
                 setTimeout(()=>{
-                    sessionHelper.serverCall<void>("/api/terminategame", {  roomId: this.roomId, presenterSecret: this.session.personalSecret })           
+                    this.session.serverCall<void>("/api/terminategame", {  roomId: this.roomId, presenterSecret: this.session.personalSecret })           
                 },200)                
             }
         })
-        
-        this.gameTime_ms = 0;
         this.onTick.subscribe("PresenterState", ()=> this.manageState())
 
         this.listenToEndpoint(JoinEndpoint, this.handleJoinMessage);
         this.listenToEndpoint(QuitEndpoint, this.handlePlayerQuitMessage);
         this.listenToEndpoint(PingEndpoint, this.handlePing);
-
-        this.gameState = PresenterGameState.Gathering;
-
         setTimeout(()=>this._fullyInitialized = true, 500);
     }
 

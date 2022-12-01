@@ -75,7 +75,9 @@ export class TestatoClientModel extends ClusterfunClientModel  {
     //  reconstitute - add code here to fix up saved game data that 
     //                 has been loaded after a refresh
     // -------------------------------------------------------------------
-    reconstitute() {}
+    reconstitute() {
+        super.reconstitute();
+    }
 
     async requestGameStateFromPresenter(): Promise<void> {
         const response = await this.session.request(TestatoOnboardClientEndpoint, this.session.presenterId, {});

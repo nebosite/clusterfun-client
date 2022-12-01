@@ -68,6 +68,7 @@ function createSerializer(typeHelper: ITypeHelper)
                 switch(propertyName)
                 {
                     case "_scheduledEvents":
+                    case "_messageListeners":
                     case "_events":
                     case "_ticker":
                     case "_isCheckpointing":
@@ -153,7 +154,7 @@ export abstract class BaseGameModel  {
 
     //private _deserializeHelper: (propertyName: string, data: any) => any
     private _events = new Map<string, EventThing<any>>();
-    private _ticker: NodeJS.Timeout;
+    private _ticker?: NodeJS.Timeout;
     serializer?: BruteForceSerializer
     private _isCheckpointing = false;
     private _lastCheckpointTime = 0;
@@ -181,18 +182,6 @@ export abstract class BaseGameModel  {
         this.storage = storage;
 
         this._scheduledEvents = new Map<number, Array<() => void>>();
-        this.session.addClosedListener(this, code => this.onSessionClosed(code));
-   
-        // Set up a regular ticker to drive scheduled events and animations
-        let timeOfLastTick = Date.now();
-        this._ticker = setInterval(() => {
-            const now = Date.now();
-            this.tick(now - timeOfLastTick);
-            timeOfLastTick = now;
-        }, this.tickInterval_ms );
-
-        this.telemetryLogger.logPageView(name);
-
         debug_model_finalizer.register(this, this.name);
     }
 
@@ -209,14 +198,16 @@ export abstract class BaseGameModel  {
             try {
                 const savedDataJson = gameProps.storage.get(GAMESTATE_LABEL);
                 if(savedDataJson) {
+                    const oldSerializer = this.serializer;
                     const savedData = this.serializer!.parse<BaseGameModel>(savedDataJson);
                     if(savedData.gameState !== GeneralGameState.Destroyed)
                     {
                         Logger.info("Found a saved game.  Resuming ...")
-                        action(()=>{
-                            Object.assign(this, savedData)
-                            this.reconstitute();                          
-                        })()        
+                        action(() => { 
+                            Object.assign(this, savedData);
+                            this.serializer = oldSerializer;
+                        })
+                        savedData.shutdown();   
                     }
                     else {
                         Logger.info(`Saved game state was 'destroyed'.  Going with new game.`)
@@ -228,15 +219,28 @@ export abstract class BaseGameModel  {
                 gameProps.logger.logEvent("Error", "Failed Game Restore", (err as any).message )
                 Logger.error("getSavedGame: Could not restore game because: " + err);
             }
+            this.reconstitute();
             this._isLoading = false;
-        },50)
+        },0)
 
     }
 
 
     // This method is called after loading a saved game from memory.  Here is 
     // where to hook up stuff the serialize couldn't get back
-    abstract reconstitute():void
+    reconstitute():void {
+        this.session.addClosedListener(this, code => this.onSessionClosed(code));
+   
+        // Set up a regular ticker to drive scheduled events and animations
+        let timeOfLastTick = Date.now();
+        this._ticker = setInterval(() => {
+            const now = Date.now();
+            this.tick(now - timeOfLastTick);
+            timeOfLastTick = now;
+        }, this.tickInterval_ms );
+
+        this.telemetryLogger.logPageView(this.name);
+    }
 
     // -------------------------------------------------------------------
     //  quitApp
@@ -253,11 +257,14 @@ export abstract class BaseGameModel  {
     // -------------------------------------------------------------------
     shutdown = () => {
         Logger.info("Shutting down model");
-        clearInterval(this._ticker);
+        if (this._ticker) {
+            clearInterval(this._ticker);
+        }
         for (const listener of this._messageListeners) {
             listener.unsubscribe();
         }
         this._messageListeners = [];
+        this.session.removeClosedListener(this);
         this._events.clear();
         this._scheduledEvents.clear();
         this._isShutdown = true;

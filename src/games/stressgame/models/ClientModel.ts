@@ -50,6 +50,7 @@ export enum StressatoClientState {
 }
 
 const RATE_UNIT = 1000 * 60
+const SEED_STRING = "_abcdefjhijklmnopqrstuvwxyzABCDEFJHIKJLMNOPQRSTUVWXYZ012345678909876543210abcdefjhijklmnopqrstuvwxyz.".repeat(100)
 
 // -------------------------------------------------------------------
 // Client data and logic
@@ -82,17 +83,6 @@ export class StressatoClientModel extends ClusterfunClientModel  {
     constructor(sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage) {
         super("StressatoClient", sessionHelper, playerName, logger, storage);
 
-        const seedString = "_abcdefjhijklmnopqrstuvwxyzABCDEFJHIKJLMNOPQRSTUVWXYZ012345678909876543210abcdefjhijklmnopqrstuvwxyz.".repeat(100)
-        this.onTick.subscribe("TestClientTick", (t) => {
-            if(t > this.nextSend) {
-                this.sendAction(seedString.substring(0,this.messageSize))
-
-                this.nextSend = this.sendRate 
-                    ? t + (RATE_UNIT/this.sendRate)
-                    : t + 10000000000
-            }
-        })
-
         makeObservable(this);
     }
 
@@ -100,7 +90,18 @@ export class StressatoClientModel extends ClusterfunClientModel  {
     //  reconstitute - add code here to fix up saved game data that 
     //                 has been loaded after a refresh
     // -------------------------------------------------------------------
-    reconstitute() {}
+    reconstitute() {
+        super.reconstitute();
+        this.onTick.subscribe("TestClientTick", (t) => {
+            if(t > this.nextSend) {
+                this.sendAction(SEED_STRING.substring(0,this.messageSize))
+
+                this.nextSend = this.sendRate 
+                    ? t + (RATE_UNIT/this.sendRate)
+                    : t + 10000000000
+            }
+        })
+    }
 
     requestGameStateFromPresenter = (): Promise<void> => {
         return Promise.resolve(undefined);

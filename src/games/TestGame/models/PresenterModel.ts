@@ -102,11 +102,6 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
         super("Testato", sessionHelper, logger, storage);
         Logger.info(`Constructing TestatoPresenterModel ${this.gameState}`)
 
-        this.listenToEndpoint(TestatoOnboardClientEndpoint, this.handleOnboardClient);
-        this.listenToEndpoint(TestatoColorChangeActionEndpoint, this.handleColorChangeAction);
-        this.listenToEndpoint(TestatoMessageActionEndpoint, this.handleMessageAction);
-        this.listenToEndpoint(TestatoTapActionEndpoint, this.handleTapAction);
-
         this.allowedJoinStates = [PresenterGameState.Gathering, TestatoGameState.Playing]
 
         this.minPlayers = 2;
@@ -116,7 +111,13 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     //  reconstitute - add code here to fix up saved game data that 
     //                 has been loaded after a refresh
     // -------------------------------------------------------------------
-    reconstitute() {}
+    reconstitute() {
+        super.reconstitute();
+        this.listenToEndpoint(TestatoOnboardClientEndpoint, this.handleOnboardClient);
+        this.listenToEndpoint(TestatoColorChangeActionEndpoint, this.handleColorChangeAction);
+        this.listenToEndpoint(TestatoMessageActionEndpoint, this.handleMessageAction);
+        this.listenToEndpoint(TestatoTapActionEndpoint, this.handleTapAction);
+    }
 
 
     // -------------------------------------------------------------------
