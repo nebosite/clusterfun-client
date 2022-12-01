@@ -56,7 +56,7 @@ extends React.Component<ClusterFunGameProps>
         derivedClientTypeHelper: ( sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper
     )
     {
-        const {  gameProperties, messageThing,  onGameEnded, serverCall } = this.props;
+        const {  gameProperties, messageThing, serverCall } = this.props;
 
         const sessionHelper = new SessionHelper(
             messageThing, 
@@ -77,11 +77,14 @@ extends React.Component<ClusterFunGameProps>
             this.appModel = instantiateGame(
                 getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)))
         }
-    
-        this.appModel.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => onGameEnded());
+        
         document.title = `${gameProperties.gameName} / ClusterFun.tv`
-        this.appModel!.tryLoadOldGame(this.props);
         componentFinalizer.register(this, this.appModel!);
+    }
+
+    componentDidMount(): void {
+        this.appModel!.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => this.props.onGameEnded());
+        this.appModel!.tryLoadOldGame(this.props);
     }
 
     componentWillUnmount(): void {

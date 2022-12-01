@@ -124,7 +124,6 @@ export abstract class BaseGameModel  {
                 this.devFast = false;
             })()
             this.invokeEvent(value);
-            this.saveCheckpoint();       
         }
     }
 
@@ -191,7 +190,8 @@ export abstract class BaseGameModel  {
     tryLoadOldGame(gameProps: ClusterFunGameProps)
     {
         if(!this.serializer) throw Error("No serializer in tryLoadOldGame")
-        this._isLoading =true;
+        this._isLoading = true;
+        this._isCheckpointing = true;
 
         // Do this async so that we don't trip state dependencies during construction
         setTimeout(()=>{
@@ -202,25 +202,26 @@ export abstract class BaseGameModel  {
                     const savedData = this.serializer!.parse<BaseGameModel>(savedDataJson);
                     if(savedData.gameState !== GeneralGameState.Destroyed)
                     {
-                        Logger.info("Found a saved game.  Resuming ...")
+                        Logger.info(`Found a saved game for ${this.session.personalId} (${savedDataJson.length} bytes).  Resuming ...`)
                         action(() => { 
                             Object.assign(this, savedData);
                             this.serializer = oldSerializer;
-                        })
-                        savedData.shutdown();   
+                        })();
+                        savedData.shutdown();
                     }
                     else {
-                        Logger.info(`Saved game state was 'destroyed'.  Going with new game.`)
+                        Logger.info(`Saved game state for ${this.session.personalId} was 'destroyed'.  Going with new game.`)
                     } 
                 }      
             }
             catch(err) 
             {
                 gameProps.logger.logEvent("Error", "Failed Game Restore", (err as any).message )
-                Logger.error("getSavedGame: Could not restore game because: " + err);
+                Logger.error(`getSavedGame: Could not restore game for ${this.session.personalId} because: `, err);
             }
             this.reconstitute();
             this._isLoading = false;
+            this._isCheckpointing = false;
         },0)
 
     }
@@ -283,8 +284,6 @@ export abstract class BaseGameModel  {
             && code !== CLOSECODE_PLEASERETRY) {
             this.clearCheckpoint();
             this.quitApp();
-        } else {
-            this.saveCheckpoint();
         }
     }
 

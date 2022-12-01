@@ -210,9 +210,8 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                 && this.gameState !== PresenterGameState.Gathering) {
                 this.pauseGame();
             }
+            this.saveCheckpoint();
         }
-
-        this.saveCheckpoint();
     }
 
     // -------------------------------------------------------------------
