@@ -635,6 +635,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             teamName: player.teamName,
             settings: {startFromTeamArea: this.startFromTeamArea}
         }
+        this.telemetryLogger.logEvent("Presenter", "Onboard Client")
         return payload;
     }
 

@@ -201,6 +201,7 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     }
 
     handleOnboardClient = (sender: string, message: unknown): { roundNumber: number, customText: string, state: string } => {
+        this.telemetryLogger.logEvent("Presenter", "Onboard Client")
         return {
             roundNumber: this.currentRound,
             customText: "Hi There",
