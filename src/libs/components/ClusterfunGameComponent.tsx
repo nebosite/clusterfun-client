@@ -71,20 +71,24 @@ extends React.Component<ClusterFunGameProps>
         {
             this.UI = presenterType;
             this.appModel = instantiateGame(
-                getPresenterTypeHelper( derivedPresenterTypeHelper(sessionHelper, this.props)))
+                getPresenterTypeHelper(derivedPresenterTypeHelper(sessionHelper, this.props)), 
+                this.props.logger, 
+                this.props.storage)
         } else {
             this.UI = clientType;
             this.appModel = instantiateGame(
-                getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)))
+                getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)), 
+                this.props.logger, 
+                this.props.storage)
         }
-        
+
         document.title = `${gameProperties.gameName} / ClusterFun.tv`
         componentFinalizer.register(this, this.appModel!);
     }
 
     componentDidMount(): void {
         this.appModel!.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => this.props.onGameEnded());
-        this.appModel!.tryLoadOldGame(this.props);
+        this.appModel!.reconstitute();
     }
 
     componentWillUnmount(): void {

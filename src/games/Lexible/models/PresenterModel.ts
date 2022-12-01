@@ -460,11 +460,9 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         if(this.currentRound > this.totalRounds) {
             this.gameState = GeneralGameState.GameOver;
             this.requestEveryone(GameOverEndpoint, (p,ie) => ({}))
-            this.saveCheckpoint();
         }    
         else {
             this.requestEveryone(InvalidateStateEndpoint, (p, ie) => ({}), true);
-            this.saveCheckpoint();
         }
         this.saveCheckpoint();
     }
@@ -617,6 +615,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         } else {
             Logger.warn("WEIRD: Player with unknown teamname")
         }
+        this.saveCheckpoint();
     }
 
     handleOnboardClient = (sender: string, message: unknown): LexibleOnboardClientMessage => {

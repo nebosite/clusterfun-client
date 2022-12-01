@@ -1,4 +1,4 @@
-import { ClusterFunGameProps, ITypeHelper, ISessionHelper, ITelemetryLogger, 
+import { ITypeHelper, ISessionHelper, ITelemetryLogger, 
     IStorage, EventThing, 
     BaseAnimationController, BruteForceSerializer
 } from "../../libs";
@@ -29,9 +29,31 @@ export enum GeneralGameState
 // -------------------------------------------------------------------
 // get the saved game if available or create a new one
 // -------------------------------------------------------------------
-export function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper)
+export function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper, logger: ITelemetryLogger, storage: IStorage)
 {
     const serializer = createSerializer(typeHelper);
+
+    try {
+        const savedDataJson = storage.get(GAMESTATE_LABEL);
+        if (savedDataJson) {
+            const savedData = serializer.parse<BaseGameModel>(savedDataJson);
+            if(savedData.gameState !== GeneralGameState.Destroyed)
+            {
+                Logger.info(`Found a saved game (${savedDataJson.length} bytes).  Resuming ...`)
+                savedData.serializer = serializer;
+                return savedData;
+            }
+            else {
+                Logger.info(`Saved game state was 'destroyed'.  Going with new game.`)
+            } 
+        }
+    } 
+    catch(err) 
+    {
+        logger.logEvent("Error", "Failed Game Restore", (err as any).message )
+        Logger.error(`getSavedGame: Could not restore game because: `, err);
+    }
+
     const gameTypeName = typeHelper.rootTypeName;
     let returnMe: T | undefined;
 
@@ -183,49 +205,6 @@ export abstract class BaseGameModel  {
         this._scheduledEvents = new Map<number, Array<() => void>>();
         debug_model_finalizer.register(this, this.name);
     }
-
-    // -------------------------------------------------------------------
-    // get the saved game if available or create a new one
-    // -------------------------------------------------------------------
-    tryLoadOldGame(gameProps: ClusterFunGameProps)
-    {
-        if(!this.serializer) throw Error("No serializer in tryLoadOldGame")
-        this._isLoading = true;
-        this._isCheckpointing = true;
-
-        // Do this async so that we don't trip state dependencies during construction
-        setTimeout(()=>{
-            try {
-                const savedDataJson = gameProps.storage.get(GAMESTATE_LABEL);
-                if(savedDataJson) {
-                    const oldSerializer = this.serializer;
-                    const savedData = this.serializer!.parse<BaseGameModel>(savedDataJson);
-                    if(savedData.gameState !== GeneralGameState.Destroyed)
-                    {
-                        Logger.info(`Found a saved game for ${this.session.personalId} (${savedDataJson.length} bytes).  Resuming ...`)
-                        action(() => { 
-                            Object.assign(this, savedData);
-                            this.serializer = oldSerializer;
-                        })();
-                        savedData.shutdown();
-                    }
-                    else {
-                        Logger.info(`Saved game state for ${this.session.personalId} was 'destroyed'.  Going with new game.`)
-                    } 
-                }      
-            }
-            catch(err) 
-            {
-                gameProps.logger.logEvent("Error", "Failed Game Restore", (err as any).message )
-                Logger.error(`getSavedGame: Could not restore game for ${this.session.personalId} because: `, err);
-            }
-            this.reconstitute();
-            this._isLoading = false;
-            this._isCheckpointing = false;
-        },0)
-
-    }
-
 
     // This method is called after loading a saved game from memory.  Here is 
     // where to hook up stuff the serialize couldn't get back
