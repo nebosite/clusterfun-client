@@ -15,6 +15,12 @@ export const getStressatoClientTypeHelper = (
  {
      return {
         rootTypeName: "StressatoClientModel",
+        getTypeName(o) {
+            switch (o.constructor) {
+                case StressatoClientModel: return "StressatoClientModel";
+            }
+            return undefined;
+        },
         constructType(typeName: string):any {
             switch(typeName)
             {

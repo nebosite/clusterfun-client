@@ -46,8 +46,18 @@ export function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper
 // -------------------------------------------------------------------
 function createSerializer(typeHelper: ITypeHelper)
 {
-    const deepTypeHelper = {
+    const deepTypeHelper: ITypeHelper = {
         rootTypeName: "na",
+        getTypeName(o: object): string {
+            if (o.constructor === Object) return "Object";
+            if (o instanceof Map) return "Map";
+            if (o instanceof Set) return "Set";
+            const typeName = typeHelper.getTypeName(o);
+            if (!typeName) {
+                throw Error(`Object with constructor ${o.constructor.name} not added to getTypeName`);
+            }
+            return typeName;
+        },
         constructType(typeName: string) {
             const output = typeHelper.constructType(typeName);
             if(!output) {

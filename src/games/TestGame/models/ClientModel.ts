@@ -15,6 +15,12 @@ export const getTestatoClientTypeHelper = (
  {
      return {
         rootTypeName: "TestatoClientModel",
+        getTypeName(o: object) {
+            switch (o.constructor) {
+                case TestatoClientModel: return "TestatoClientModel";
+            }
+            return undefined;
+        },
         constructType(typeName: string):any {
             switch(typeName)
             {

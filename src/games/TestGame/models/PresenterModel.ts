@@ -47,6 +47,13 @@ export const getTestatoPresenterTypeHelper = (
  {
      return {
         rootTypeName: "TestatoPresenterModel",
+        getTypeName(o) {
+            switch (o.constructor) {
+                case TestatoPresenterModel: return "TestatoPresenterModel";
+                case TestatoPlayer: return "TestatoPlayer";
+            }
+            return undefined;
+        },
         constructType(typeName: string):any {
             switch(typeName)
             {

@@ -32,10 +32,16 @@ export class ClusterFunPlayer
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
 // -------------------------------------------------------------------
-export const getPresenterTypeHelper = (derivedClassHelper: ITypeHelper) =>
+export const getPresenterTypeHelper = (derivedClassHelper: ITypeHelper): ITypeHelper =>
  {
      return {
         rootTypeName: derivedClassHelper.rootTypeName,
+        getTypeName(o: object) {
+            switch(o.constructor) {
+                case ClusterFunPlayer: return "ClusterFunPlayer";
+            }
+            return derivedClassHelper.getTypeName(o);
+        },
         constructType(typeName: string):any { 
             switch(typeName){
                 case "ClusterFunPlayer": return new ClusterFunPlayer();

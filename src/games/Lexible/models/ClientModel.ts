@@ -18,6 +18,15 @@ export const getLexibleClientTypeHelper = (
  {
      return {
         rootTypeName: "LexibleClientModel",
+        getTypeName(o) {
+            switch (o.constructor) {
+                case LetterGridModel: return "LetterGridModel";
+                case LetterBlockModel: return "LetterBlockModel";
+                case Vector2: return "Vector2";
+                case LexibleClientModel: return "LexibleClientModel";
+                default: return undefined;
+            }
+        },
         constructType(typeName: string):any {
             switch(typeName)
             {

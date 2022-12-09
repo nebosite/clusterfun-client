@@ -81,6 +81,16 @@ export const getLexiblePresenterTypeHelper = (
  {
      return {
         rootTypeName: "LexiblePresenterModel",
+        getTypeName(o) {
+            switch (o.constructor) {
+                case LetterGridModel: return "LetterGridModel";
+                case LetterBlockModel: return "LetterBlockModel";
+                case LexiblePresenterModel: return "LexiblePresenterModel";
+                case LexiblePlayer: return "LexiblePlayer";
+                case Vector2: return "Vector2";
+            }
+            return undefined;
+        },
         constructType(typeName: string):any {
             switch(typeName)
             {
@@ -644,6 +654,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         } else {
             Logger.warn("WEIRD: Player with unknown teamname")
         }
+        this.saveCheckpoint();
     }
 
     // -------------------------------------------------------------------
