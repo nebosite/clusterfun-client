@@ -8,7 +8,7 @@ export class WordTree {
     static create()
     {
         return new WordTree({
-            branches: new Map(),
+            branches: {},
             isTerminator: false,
             letterCode: 0
         });
@@ -42,10 +42,10 @@ export class WordTree {
         if (indexCode === undefined) {
             throw new Error(`Word contains unsupported letter ${word.charAt(0)}`)
         }
-        if(!current.branches.has(indexCode)) {
+        if(!current.branches[indexCode]) {
             return false;
         }
-        return this.hasAt(current.branches.get(indexCode)!, word.substring(1));
+        return this.hasAt(current.branches[indexCode]!, word.substring(1));
     }
 
     private addAt(current: WordTreeNode, word: string) {
@@ -55,14 +55,14 @@ export class WordTree {
         }
 
         const indexCode = word.charCodeAt(0);
-        if(!current.branches.has(indexCode)) {
-            current.branches.set(indexCode, {
-                branches: new Map(),
+        if(!current.branches[indexCode]) {
+            current.branches[indexCode] = {
+                branches: {},
                 isTerminator: false,
                 letterCode: indexCode
-            });
+            };
         }
-        this.addAt(current.branches.get(indexCode)!, word.substring(1));
+        this.addAt(current.branches[indexCode]!, word.substring(1));
     }
 }
 
@@ -105,7 +105,7 @@ export class WordTreeSearcher {
         if (typeof letter === "string") {
             letter = letter.charCodeAt(0);
         }
-        const node = this._current.branches.get(letter)
+        const node = this._current.branches[letter]
         if (!node) {
             return undefined;
         }
@@ -116,5 +116,5 @@ export class WordTreeSearcher {
 export interface WordTreeNode {
     isTerminator: boolean;
     letterCode: number;
-    branches: Map<number, WordTreeNode>
+    branches: Record<number, WordTreeNode>
 }

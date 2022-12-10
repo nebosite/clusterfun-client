@@ -266,24 +266,33 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     // -------------------------------------------------------------------
     private async populateWordSet() {
         const worker = new Worker(new URL('./buildWordTree.worker', import.meta.url), { type: "module" });
-        worker.onmessage = (message: { data: {
-            wordListLength: number,
-            wordTreeNode: WordTreeNode, 
-            badWords: Set<string> }}) => {
-            if (this.isShutdown) { return; }
-            // NOTE: The vast majority of this function's runtime (up to 2 seconds in my testing)
-            // is due to cloning the message across the worker boundary. This is more blocking work
-            // than what the WordTree itself is doing, so unless we can cheapen the copy somehow,
-            // this won't result in time savings
-            this.wordTree = new WordTree(message.data.wordTreeNode);
-            this.badWords = message.data.badWords;
-            Logger.info(`Loaded ${message.data.wordListLength} words`)
-            Logger.info(`Loaded ${this.badWords.size} censored words`)
+        let json = "";
+        let lastI = -1;
+        const parse = (json: string): { wordListLength: number, wordTreeNode: WordTreeNode, badWords: string[] } => {
+            return JSON.parse(json)
         }
-        await this.waitForRealTime(100);
-        if (!this.isShutdown) {
-            worker.postMessage({});
+        const messageHandler = async (message: { data: { done: boolean, i: number, chunk: string }}) => {
+            if (this.isShutdown) {
+                worker.terminate();
+                return;
+            }
+            if (message.data.done) {
+                worker.terminate();
+                const result: { wordListLength: number, wordTreeNode: WordTreeNode, badWords: string[] } = parse(json);
+                this.wordTree = new WordTree(result.wordTreeNode);
+                this.badWords = new Set(result.badWords);
+                Logger.info(`Loaded ${result.wordListLength} words`)
+                Logger.info(`Loaded ${this.badWords.size} censored words`)
+            } else {
+                if (message.data.i < lastI) {
+                    throw new Error("Messages received out of order");
+                }
+                lastI = message.data.i;
+                json += message.data.chunk;
+            }            
         }
+        worker.addEventListener("message", messageHandler);
+        worker.postMessage({});
     }
 
     // -------------------------------------------------------------------
