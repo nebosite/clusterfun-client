@@ -14,7 +14,7 @@ import {
     LexibleRecentlyTouchedLettersMessage, } from "./Messages";
 import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
-import { WordTree } from "./WordTree";
+import { WordTree, WordTreeSearcher } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunPresenterModel, ITelemetryLogger, IStorage, GeneralGameState, PresenterGameEvent, PresenterGameState, ClusterFunGameOverMessage, ITypeHelper } from "libs";
 import Logger from "js-logger";
@@ -100,7 +100,7 @@ export const getLexiblePresenterTypeHelper = (
                 case "__blockid": 
                 case "failFade": 
                 case "wordTree":
-                case "wordSet": return false;
+                case "badWords": return false;
             } 
 
             return true;
@@ -178,7 +178,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     ];
 
     wordTree: WordTree;
-    wordSet = new Set<string>();
     badWords = new Set<string>();
 
     gameTimeLastSentTouchedLetters_ms = 0;
@@ -234,7 +233,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         
         this.minPlayers = 2;
 
-        this.wordTree = WordTree.create([]);
+        this.wordTree = WordTree.create();
         this.populateWordSet();
 
         const savedSettingsValue = storage.get(LEXIBLE_SETTINGS_KEY);
@@ -277,7 +276,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         const { wordList } = await wordListPromise;
         let lastAwaitTime = window.performance.now();
         const words = wordList.split('\n')
-        this.wordTree = new WordTree("", undefined);
         for (const word of words) {
             if (window.performance.now() - lastAwaitTime > 10) {
                 await this.waitForRealTime(0);
@@ -285,9 +283,8 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 lastAwaitTime = window.performance.now();
             }
             this.wordTree.add(word.trim());
-            this.wordSet.add(word.trim());
         }
-        Logger.info(`Loaded ${this.wordSet.size} words`)
+        Logger.info(`Loaded ${wordList.length} words`)
 
         const { badWordList } = await badWordsPromise;
         const badWords = badWordList.split('\n');
@@ -508,21 +505,22 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
         const selectedBlocks = new Set<number>();
 
-        const findHere = (block: LetterBlockModel, parentSpot: WordTree):string[] => {
+        const findHere = (block: LetterBlockModel, parentSpot: WordTreeSearcher):string[] => {
             const output: string[] = []
             // ignore blocks off the board or seleced block
             if(selectedBlocks.has(block.__blockid)) return output;
 
-            let wordSpot: WordTree | undefined = parentSpot;
+            let wordSpot: WordTreeSearcher | undefined = parentSpot;
             for(let i =0; i < block.letter.length; i++) {
-                wordSpot = wordSpot?.branch(block.letter[i].toUpperCase())
+                wordSpot = wordSpot?.child(block.letter[i].toUpperCase())
             }
             if(!wordSpot) return output;
-            
-            const word = wordSpot.myWord; 
-            
-            if(word && (word.length >= 3))  {
-                output.push(word)
+
+            if (wordSpot.isTerminator()) {
+                const word = wordSpot.currentWord(); 
+                if(word.length >= 3) {
+                    output.push(word)
+                }
             }
 
             selectedBlocks.add(block.__blockid);
@@ -540,7 +538,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             return output;
         }
 
-        const words = findHere(startBlock, this.wordTree)
+        const words = findHere(startBlock, this.wordTree.search())
         const returnMe: string[] = []
         words.forEach(w => {
             if(!returnMe.find(item => item === w)
@@ -672,7 +670,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         }).join("");
 
 
-        if(!scoreTooLow && this.wordSet.has(word.toUpperCase())) {
+        if(!scoreTooLow && this.wordTree.has(word.toUpperCase())) {
             this.placeSuccessfulWord(data, word, player);
         }
         else {

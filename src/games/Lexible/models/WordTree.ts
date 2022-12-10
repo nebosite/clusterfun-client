@@ -1,44 +1,116 @@
 
-
 // -------------------------------------------------------------------
 // A class for rapidly finding potential word matches
 // -------------------------------------------------------------------
 export class WordTree {
-    private _isTerminator = false;
-    private _branches = new Map<string, WordTree>()
-    private _letter: string
-    private _parent: WordTree | undefined
+    private _head: WordTreeNode;
 
-    get rootWord():string { return (this._parent?.rootWord ?? "") + this._letter}
-    get myWord() { return this._isTerminator ?  this.rootWord: undefined}
-
-    static create(words: string[])
+    static create()
     {
-        const output = new WordTree("", undefined);
-        words.forEach(w => output.add(w.toUpperCase()))
-        return output;
+        return new WordTree({
+            branches: new Map(),
+            isTerminator: false,
+            letterCode: 0
+        });
     }
 
-    constructor(letter: string, parent: WordTree | undefined){
-        this._letter = letter;
-        this._parent = parent;
+    constructor(head: WordTreeNode){
+        this._head = head;
     }
 
-    branch(letter: string) {
-        return this._branches.get(letter)
+    search() {
+        return new WordTreeSearcher(this._head, []);
+    }
+
+    has(word: string) {
+        return this.hasAt(this._head, word);
     }
 
     add(word: string) {
+        this.addAt(this._head, word);
+    }
+
+    private hasAt(current: WordTreeNode, word: string): boolean {
+        if (word.length === 0) {
+            return current.isTerminator;
+        }
+        const indexCode = word.charCodeAt(0);
+        if (indexCode === undefined) {
+            throw new Error(`Word contains unsupported letter ${word.charAt(0)}`)
+        }
+        if(!current.branches.has(indexCode)) {
+            return false;
+        }
+        return this.hasAt(current.branches.get(indexCode)!, word.substring(1));
+    }
+
+    private addAt(current: WordTreeNode, word: string) {
         if(word.length === 0) {
-            this._isTerminator = true;
+            current.isTerminator = true;
             return;
         }
 
-        const indexLetter = word[0];
-        word = word.substring(1)
-        if(!this._branches.has(indexLetter)) {
-            this._branches.set(indexLetter, new WordTree(indexLetter, this))
+        const indexCode = word.charCodeAt(0);
+        if(!current.branches.has(indexCode)) {
+            current.branches.set(indexCode, {
+                branches: new Map(),
+                isTerminator: false,
+                letterCode: indexCode
+            });
         }
-        this._branches.get(indexLetter)!.add(word);
+        this.addAt(current.branches.get(indexCode)!, word.substring(1));
     }
+}
+
+export class WordTreeSearcher {
+    private _current: WordTreeNode;
+    private _parents: WordTreeSearcher[];
+
+    constructor(current: WordTreeNode, parent: WordTreeSearcher[]) {
+        this._current = current;
+        this._parents = parent;
+    }
+
+    isTerminator(): boolean {
+        return this._current.isTerminator;
+    }
+
+    currentWord(): string {
+        let word = "";
+        for (const parent of this._parents) {
+            const parentCode = parent._current.letterCode;
+            if (parentCode) {
+                word += String.fromCharCode(parentCode);
+            }
+        }
+        const currentCode = this._current.letterCode;
+        if (currentCode) {
+            word += String.fromCharCode(this._current.letterCode);
+        }
+        return word;
+    }
+
+    parent(): WordTreeSearcher | undefined {
+        if (this._parents.length === 0) {
+            return undefined;
+        }
+        return this._parents[this._parents.length - 1];
+    }
+
+    child(letter: string | number): WordTreeSearcher | undefined {
+        if (typeof letter === "string") {
+            letter = letter.charCodeAt(0);
+        }
+        const node = this._current.branches.get(letter)
+        if (!node) {
+            return undefined;
+        }
+        return new WordTreeSearcher(node, this._parents.concat([this]));
+    }
+}
+
+export interface WordTreeNode {
+    isTerminator: boolean;
+    letterCode: number;
+    branches: Map<number, WordTreeNode>
 }
