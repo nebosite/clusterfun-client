@@ -114,9 +114,9 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     reconstitute() {
         super.reconstitute();
-        this.listenToEndpoint(LexibleShowRecentlyTouchedLettersEndpoint, this.handleRecentlyTouchedMessage);
-        this.listenToEndpoint(LexibleEndRoundEndpoint, this.handleEndOfRoundMessage);
-        this.listenToEndpoint(LexibleBoardUpdateEndpoint, this.handleBoardUpdateMessage); 
+        this.listenToEndpointFromPresenter(LexibleShowRecentlyTouchedLettersEndpoint, this.handleRecentlyTouchedMessage);
+        this.listenToEndpointFromPresenter(LexibleEndRoundEndpoint, this.handleEndOfRoundMessage);
+        this.listenToEndpointFromPresenter(LexibleBoardUpdateEndpoint, this.handleBoardUpdateMessage); 
         this.theGrid.processBlocks(b => this.setBlockHandlers(b))
     }
 
@@ -223,7 +223,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         }
     }
 
-    protected handleBoardUpdateMessage = (sender: string, message: LexibleBoardUpdateNotification) => {
+    protected handleBoardUpdateMessage = (message: LexibleBoardUpdateNotification) => {
         message.letters.forEach(l => {
             const block = this.theGrid.getBlock(l.coordinates)
             if(!block) Logger.warn(`WEIRD: No block at ${l.coordinates}`)
@@ -237,7 +237,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     // handleRecentlyTouchedMessage
     // -------------------------------------------------------------------
-    protected handleRecentlyTouchedMessage = (sender: string, message: LexibleRecentlyTouchedLettersMessage) => {
+    protected handleRecentlyTouchedMessage = (message: LexibleRecentlyTouchedLettersMessage) => {
         message.letterCoordinates.forEach(c => {
             const block = this.theGrid.getBlock(c)
             if(!block) {
@@ -250,7 +250,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     // handleEndOfRoundMessage
     // -------------------------------------------------------------------
-    protected handleEndOfRoundMessage = (sender: string, message: LexibleEndOfRoundMessage) => {
+    protected handleEndOfRoundMessage = (message: LexibleEndOfRoundMessage) => {
         this.winningTeam = message.winningTeam;
         this.gameState = LexibleClientState.EndOfRound;
 

@@ -16,6 +16,9 @@ export interface ISessionHelper {
         endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
         apiCallback: (sender: string, value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>
         ): ClusterfunListener<REQUEST, RESPONSE>;
+    listenPresenter<REQUEST, RESPONSE>(endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        apiCallback: (value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>
+        ): ClusterfunListener<REQUEST, RESPONSE>;
     request<REQUEST, RESPONSE>(
         endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
         receiverId: string, 
@@ -89,7 +92,7 @@ export class SessionHelper implements ISessionHelper {
     }
 
     //--------------------------------------------------------------------------------------
-    // 
+    // Listen for a request, responding using the provided callback
     //--------------------------------------------------------------------------------------
     listen<REQUEST, RESPONSE>(
         endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
@@ -99,7 +102,24 @@ export class SessionHelper implements ISessionHelper {
     }
 
     //--------------------------------------------------------------------------------------
-    // 
+    // Listen for a request specifically from the presenter. A request of this type sent
+    // from any other participant will have an error thrown back at it.
+    //--------------------------------------------------------------------------------------
+    listenPresenter<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        apiCallback: (value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>
+        ): ClusterfunListener<REQUEST, RESPONSE> {
+        return new ClusterfunListener<REQUEST, RESPONSE>(endpoint, this._messageThing, (sender: string, value: REQUEST) => {
+            if (sender === this._presenterId) {
+                return apiCallback(value);
+            } else {
+                throw new Error("Sender is not the presenter")
+            }
+        });
+    }
+
+    //--------------------------------------------------------------------------------------
+    // Make a request to a given endpoint on the given receiver
     //--------------------------------------------------------------------------------------
     request<REQUEST, RESPONSE>(
         endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
@@ -116,7 +136,7 @@ export class SessionHelper implements ISessionHelper {
     }
 
     //--------------------------------------------------------------------------------------
-    // 
+    // Make a request to a given endpoint on the presenter
     //--------------------------------------------------------------------------------------
     requestPresenter<REQUEST, RESPONSE>(endpoint: MessageEndpoint<REQUEST, RESPONSE>, request: REQUEST) {
         return this.request(endpoint, this._presenterId, request);
