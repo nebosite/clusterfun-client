@@ -305,17 +305,19 @@ export class LexibleClientModel extends ClusterfunClientModel  {
                 this.session.requestPresenter(LexibleRequestTouchLetterEndpoint, {
                     touchPoint: block.coordinates
                 }).forget();
-                this.session.requestPresenter(LexibleRequestWordHintsEndpoint, {
-                    currentWord: this.letterChain.map(block => ({
-                        letter: block.letter,
-                        coordinates: block.coordinates
-                    }))
-                }).then(hintResponse => {
-                    this.wordList = hintResponse.wordList;
-                    this.saveCheckpoint();
-                });
-                
-                this.saveCheckpoint();
+                if (isFirst) {
+                    this.session.requestPresenter(LexibleRequestWordHintsEndpoint, {
+                        currentWord: this.letterChain.map(block => ({
+                            letter: block.letter,
+                            coordinates: block.coordinates
+                        }))
+                    }).then(hintResponse => {
+                        action(() => { 
+                            this.wordList = hintResponse.wordList;
+                        })();
+                        this.saveCheckpoint();
+                    });
+                }
             })()
         }
     }
