@@ -68,12 +68,12 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         this.subscribe(GeneralGameState.Destroyed, "GameDestroyed", () =>
         {
             if(!this.gameTerminated) {
-                this.session.request(QuitEndpoint, this.session.presenterId, {}).forget();
+                this.session.requestPresenter(QuitEndpoint, {}).forget();
             }
         })
 
         this.gameState = GeneralClientGameState.WaitingToStart;
-        this.session.request(JoinEndpoint, this.session.presenterId, { playerName: this._playerName }).then(ack => {
+        this.session.requestPresenter(JoinEndpoint, { playerName: this._playerName }).then(ack => {
             this.handleJoinAck(ack);
             this._stateIsInvalid = true;
             this.requestGameStateFromPresenter().then(() => this._stateIsInvalid = false);
@@ -94,7 +94,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         }
         
         if(this.gameState !== GeneralGameState.Destroyed) {
-            this.session.request(PingEndpoint, this.session.presenterId, { pingTime: Date.now() }).then(undefined, (err) => {
+            this.session.requestPresenter(PingEndpoint, { pingTime: Date.now() }).then(undefined, (err) => {
                 Logger.warn("Ping message was not received:", err);
             })
             setTimeout(this.keepAlive, this.KEEPALIVE_INTERVAL_MS)

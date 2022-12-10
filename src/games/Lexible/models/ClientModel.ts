@@ -121,7 +121,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     }
 
     async requestGameStateFromPresenter(): Promise<void> {
-        const onboardState = await this.session.request(LexibleOnboardClientEndpoint, this.session.presenterId, {})
+        const onboardState = await this.session.requestPresenter(LexibleOnboardClientEndpoint, {})
         if (onboardState.gameState === "Gathering") {
             this.gameState = GeneralClientGameState.WaitingToStart;
         } else {
@@ -172,7 +172,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
             letters: this.letterChain.map(l => ({letter: l.letter, coordinates: l.coordinates}))
         }
 
-        const response = await this.session.request(LexibleSubmitWordEndpoint, this.session.presenterId, submissionData)
+        const response = await this.session.requestPresenter(LexibleSubmitWordEndpoint, submissionData)
         if (response.success) {
             this.invokeEvent(LexibleGameEvent.WordAccepted)
         } else {
@@ -302,10 +302,10 @@ export class LexibleClientModel extends ClusterfunClientModel  {
                     if(this.letterChain.length === 0) this.wordList = []
                 }
 
-                this.session.request(LexibleRequestTouchLetterEndpoint, this.session.presenterId, {
+                this.session.requestPresenter(LexibleRequestTouchLetterEndpoint, {
                     touchPoint: block.coordinates
                 }).forget();
-                this.session.request(LexibleRequestWordHintsEndpoint, this.session.presenterId, {
+                this.session.requestPresenter(LexibleRequestWordHintsEndpoint, {
                     currentWord: this.letterChain.map(block => ({
                         letter: block.letter,
                         coordinates: block.coordinates

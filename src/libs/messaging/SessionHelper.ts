@@ -12,7 +12,6 @@ export interface ISessionHelper {
     readonly roomId: string;
     readonly personalId: string;
     readonly personalSecret: string;
-    readonly presenterId: string;
     listen<REQUEST, RESPONSE>(
         endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
         apiCallback: (sender: string, value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>
@@ -20,6 +19,10 @@ export interface ISessionHelper {
     request<REQUEST, RESPONSE>(
         endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
         receiverId: string, 
+        request: REQUEST
+        ): ClusterfunRequest<REQUEST, RESPONSE>;
+    requestPresenter<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>,
         request: REQUEST
         ): ClusterfunRequest<REQUEST, RESPONSE>;
     addClosedListener(owner: object, listener: (code: number) => void): void;
@@ -42,7 +45,6 @@ export class SessionHelper implements ISessionHelper {
     public get personalId() { return this._messageThing.personalId }
     public get personalSecret() { return this._messageThing.personalSecret }
     private readonly _presenterId: string;
-    public get presenterId() { return this._presenterId }
     private _messageThing: IMessageThing;
     private _closedListeners = new Map<object, (code: number) => void>();
     private _errorSubs: ((err:string)=>void)[] = []
@@ -111,6 +113,13 @@ export class SessionHelper implements ISessionHelper {
             receiverId,
             (this._currentRequestId++).toString(), 
             this._messageThing);
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    requestPresenter<REQUEST, RESPONSE>(endpoint: MessageEndpoint<REQUEST, RESPONSE>, request: REQUEST) {
+        return this.request(endpoint, this._presenterId, request);
     }
 
     //--------------------------------------------------------------------------------------
