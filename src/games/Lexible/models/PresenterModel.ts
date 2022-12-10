@@ -266,30 +266,20 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     // -------------------------------------------------------------------
     private async populateWordSet() {
         const worker = new Worker(new URL('./buildWordTree.worker', import.meta.url), { type: "module" });
-        let json = "";
-        let lastI = -1;
         const parse = (json: string): { wordListLength: number, wordTreeNode: WordTreeNode, badWords: string[] } => {
             return JSON.parse(json)
         }
-        const messageHandler = async (message: { data: { done: boolean, i: number, chunk: string }}) => {
+        const messageHandler = async (message: { data: { json: string }}) => {
+            worker.terminate();
             if (this.isShutdown) {
-                worker.terminate();
                 return;
             }
-            if (message.data.done) {
-                worker.terminate();
-                const result: { wordListLength: number, wordTreeNode: WordTreeNode, badWords: string[] } = parse(json);
-                this.wordTree = new WordTree(result.wordTreeNode);
-                this.badWords = new Set(result.badWords);
-                Logger.info(`Loaded ${result.wordListLength} words`)
-                Logger.info(`Loaded ${this.badWords.size} censored words`)
-            } else {
-                if (message.data.i < lastI) {
-                    throw new Error("Messages received out of order");
-                }
-                lastI = message.data.i;
-                json += message.data.chunk;
-            }            
+            const json = message.data.json;
+            const result: { wordListLength: number, wordTreeNode: WordTreeNode, badWords: string[] } = parse(json);
+            this.wordTree = new WordTree(result.wordTreeNode);
+            this.badWords = new Set(result.badWords);
+            Logger.info(`Loaded ${result.wordListLength} words`)
+            Logger.info(`Loaded ${this.badWords.size} censored words`)
         }
         worker.addEventListener("message", messageHandler);
         worker.postMessage({});
