@@ -1,24 +1,13 @@
 import { action, makeObservable, observable } from "mobx"
-import { 
-    LexiblePlayRequestMessage,
-    LexiblePlayerActionMessage,
-    LexibleEndOfRoundMessage,
-    PlayBoard,
-    LexiblePlayerAction,
-    LetterSelectData,
-    WordSubmissionData,
-    LexibleFailedWordMessage,
-    LexibleScoredWordMessage,
-    LexibleWordHintMessage,
-    LetterChain,
-    LexibleRecentlyTouchedLettersMessage, } from "./Messages";
 import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree, WordTreeNode, WordTreeSearcher } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
-import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunPresenterModel, ITelemetryLogger, IStorage, GeneralGameState, PresenterGameEvent, PresenterGameState, ClusterFunGameOverMessage, ITypeHelper } from "libs";
+import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunPresenterModel, ITelemetryLogger, IStorage, GeneralGameState, PresenterGameEvent, PresenterGameState, ITypeHelper } from "libs";
 import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
+import { LetterChain, LexibleBoardUpdateEndpoint, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, LexibleOnboardClientMessage, LexibleRecentlyTouchedLettersMessage, LexibleRequestTouchLetterEndpoint, LexibleRequestWordHintsEndpoint, LexibleShowRecentlyTouchedLettersEndpoint, LexibleSubmitWordEndpoint, LexibleTouchLetterRequest, LexibleWordHintRequest, LexibleWordHintResponse, LexibleWordSubmissionRequest, LexibleWordSubmissionResponse, PlayBoard } from "./lexibleEndpoints";
+import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
 
 const LEXIBLE_SETTINGS_KEY = "lexible_settings";
 const SEND_RECENT_LETTERS_INTERVAL_MS = 200;
@@ -81,6 +70,16 @@ export const getLexiblePresenterTypeHelper = (
  {
      return {
         rootTypeName: "LexiblePresenterModel",
+        getTypeName(o) {
+            switch (o.constructor) {
+                case LetterGridModel: return "LetterGridModel";
+                case LetterBlockModel: return "LetterBlockModel";
+                case LexiblePresenterModel: return "LexiblePresenterModel";
+                case LexiblePlayer: return "LexiblePlayer";
+                case Vector2: return "Vector2";
+            }
+            return undefined;
+        },
         constructType(typeName: string):any {
             switch(typeName)
             {
@@ -222,15 +221,11 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         super("Lexible", sessionHelper, logger, storage);
 
         this.allowedJoinStates.push(LexibleGameState.Playing, GeneralGameState.Paused)
-        this.subscribe(PresenterGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
-
-        sessionHelper.addListener(LexiblePlayerActionMessage, this, this.handlePlayerAction);
         
         this.minPlayers = 2;
 
         this.wordTree = WordTree.create();
-        this.populateWordSet();
-
+        
         const savedSettingsValue = storage.get(LEXIBLE_SETTINGS_KEY);
         if (savedSettingsValue) {
             const savedSettings = JSON.parse(savedSettingsValue) as LexibleSettings;
@@ -241,11 +236,24 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         makeObservable(this);
     }
 
+
     // -------------------------------------------------------------------
     //  reconstitute - add code here to fix up saved game data that 
     //                 has been loaded after a refresh
     // -------------------------------------------------------------------
     reconstitute() {
+        super.reconstitute();
+        this.populateWordSet();
+        this.subscribe(PresenterGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
+        this.listenToEndpoint(LexibleOnboardClientEndpoint, this.handleOnboardClient);
+        this.listenToEndpoint(LexibleRequestTouchLetterEndpoint, this.handleTouchLetterMessage);
+        this.listenToEndpoint(LexibleRequestWordHintsEndpoint, this.handleWordHintMessage);
+        this.listenToEndpoint(LexibleSubmitWordEndpoint, this.handleSubmitWordMessage);
+        // TODO: Make this method cleanuppable
+        // this.session.onError(err => {
+        //     Logger.error(`Session error: ${err}`)
+        //     this.quitApp();
+        // })
         this.theGrid.processBlocks((block)=>{this.setBlockHandlers(block)})
     }
 
@@ -312,9 +320,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         }
 
         Logger.debug(`Joined game state: ${this.gameState}`)
-        if(this.gameState !== PresenterGameState.Gathering) {
-            this.sendToPlayer(player.playerId, this.createPlayRequestMessage(player.teamName))
-        }
     }
 
     // -------------------------------------------------------------------
@@ -414,8 +419,8 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 this.gameTimeLastSentTouchedLetters_ms = this.gameTime_ms;
                 const letterCoordinates = Array.from(this.recentlyTouchedLetters.values());
                 this.recentlyTouchedLetters.clear();
-                const message = new LexibleRecentlyTouchedLettersMessage({ sender: this.session.personalId, letterCoordinates });
-                this.sendToEveryone(() => message);
+                const message: LexibleRecentlyTouchedLettersMessage = { letterCoordinates }
+                this.requestEveryone(LexibleShowRecentlyTouchedLettersEndpoint, () => message, true);
             }
         }
     }
@@ -436,7 +441,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             teamName,
             settings: {startFromTeamArea: this.startFromTeamArea}
         }
-        return new LexiblePlayRequestMessage(payload)
+        return payload;
     }
 
     // -------------------------------------------------------------------
@@ -452,7 +457,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
         this.players.forEach((p,i) => {
             p.status = LexiblePlayerStatus.WaitingForStart;
-            p.pendingMessage = undefined;
             p.message = "";
             p.colorStyle = "white";
             p.x = .1;
@@ -461,35 +465,12 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
         if(this.currentRound > this.totalRounds) {
             this.gameState = GeneralGameState.GameOver;
-            this.sendToEveryone((p,ie) => new ClusterFunGameOverMessage({ sender: this.session.personalId }))
-            this.saveCheckpoint();
+            this.requestEveryone(GameOverEndpoint, (p,ie) => ({}))
         }    
         else {
-            this.sendToEveryone((p,ie) =>  this.createPlayRequestMessage(p.teamName))
-            this.saveCheckpoint();
+            this.requestEveryone(InvalidateStateEndpoint, (p, ie) => ({}), true);
         }
         this.saveCheckpoint();
-    }
-
-    // -------------------------------------------------------------------
-    //  handlePlayerAction 
-    // -------------------------------------------------------------------
-    handlePlayerLetterSelect = (playerId: string, data: LetterSelectData) => {
-        if(!data) throw Error("handlePlayerLetterSelect: No data")
-        if(!data?.coordinates) throw Error(`No coordinates passed to handlePlayerLetterSelect ${data.coordinates}`)
-        
-        const selectedBlock = this.theGrid.getBlock(data.coordinates);
-        if (!selectedBlock) {
-            Logger.warn("WEIRD: No block at:", data.coordinates);
-            return;
-        }
-        if(data.isFirst) {
-            Logger.debug(`First selection for ${playerId} is ${selectedBlock.letter}`)
-            const wordList = this.findWords(selectedBlock);
-            this.sendToPlayer(playerId, new LexibleWordHintMessage({ sender: this.session.personalId, wordList }))
-        }
-        selectedBlock.selectForPlayer(data.playerId, data.selectedValue);
-        this.recentlyTouchedLetters.set(selectedBlock.coordinates.x * 1000 + selectedBlock.coordinates.y, selectedBlock.coordinates)
     }
 
     // -------------------------------------------------------------------
@@ -594,13 +575,15 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         }
         this.gameState = LexibleGameState.EndOfRound
         this.invokeEvent(LexibleGameEvent.TeamWon, team)
-        this.sendToEveryone((p,ie) => new LexibleEndOfRoundMessage({ sender: this.session.personalId, roundNumber: this.currentRound, winningTeam: team}));
+        this.requestEveryone(LexibleEndRoundEndpoint, (p, ie) => {
+            return { roundNumber: this.currentRound, winningTeam: team }
+        }, true)
     }
     
     // -------------------------------------------------------------------
     //  placeSuccessfulWord 
     // -------------------------------------------------------------------
-    placeSuccessfulWord(data: WordSubmissionData, word: string, player: LexiblePlayer) {
+    placeSuccessfulWord(data: LexibleWordSubmissionRequest, word: string, player: LexiblePlayer) {
         const placedLetters: LetterChain = []
         data.letters.forEach(l => {
             const block = this.theGrid.getBlock(l.coordinates)
@@ -616,39 +599,80 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 block.setScore( Math.max(word.length, block.score), player.teamName);  
                 placedLetters.push(l);                
             }
-
+            // however, do mark redundant word submissions
+            if (word.length === block.score && block.team === player.teamName) {
+                placedLetters.push(l);
+            }
         })
 
         if(word.length > player.longestWord.length) player.longestWord = word;
 
-        this.sendToEveryone((p, isExited) => {
-            return new LexibleScoredWordMessage({
-                sender: this.session.personalId,
-                scoringPlayerId: player.playerId,
-                team: player.teamName,
+        this.requestEveryone(LexibleBoardUpdateEndpoint, (p, isExited) => {
+            return {
                 letters: placedLetters,
-                score: word.length
-            }) 
-        })
+                score: word.length,
+                scoringPlayerId: player.playerId,
+                scoringTeam: player.teamName
+            }
+        }, true);
+
         this.invokeEvent(LexibleGameEvent.WordAccepted, word.toLowerCase(), player)
         if (player.teamName === "A" || player.teamName === "B") {
             this.checkForWin();
         } else {
             Logger.warn("WEIRD: Player with unknown teamname")
         }
+        this.saveCheckpoint();
     }
 
-    // -------------------------------------------------------------------
-    //  handlePlayerWordSubmit 
-    // -------------------------------------------------------------------
-    handlePlayerWordSubmit = (playerId: string, data: WordSubmissionData) => {
-        if(!data) throw Error("handlePlayerWordSubmit: No data")
-        const player = this.players.find(p => p.playerId === playerId);
+    handleOnboardClient = (sender: string, message: unknown): LexibleOnboardClientMessage => {
+        const player = this.players.find(p => p.playerId === sender);
+        if (!player) {
+            throw new Error("Sending player has not joined yet");
+        }
+        const playBoard:PlayBoard = {
+            gridHeight: this.theGrid.height,
+            gridWidth: this.theGrid.width,
+            gridData: this.theGrid.serialize()
+        }
+        const payload: LexibleOnboardClientMessage = { 
+            gameState: this.gameState,
+            roundNumber: this.currentRound,
+            playBoard,
+            teamName: player.teamName,
+            settings: {startFromTeamArea: this.startFromTeamArea}
+        }
+        this.telemetryLogger.logEvent("Presenter", "Onboard Client")
+        return payload;
+    }
+
+    handleWordHintMessage = (sender: string, message: LexibleWordHintRequest): LexibleWordHintResponse => {
+        if (message.currentWord.length < 1) throw Error("No word submitted");
+
+        const block = this.theGrid.getBlock(message.currentWord[0].coordinates);
+        if (!block) throw Error("Word coordinate does not correspond to an existing block");
+        if (block.letter !== message.currentWord[0].letter) throw Error("Desync: client thinks letter is different");
+
+        const wordList = this.findWords(block);
+        return { wordList };
+    }
+
+    handleTouchLetterMessage = (sender: string, message: LexibleTouchLetterRequest): void => {
+        if (message.touchPoint.x < 0 || message.touchPoint.x >= this.theGrid.width
+            || message.touchPoint.y < 0 || message.touchPoint.y >= this.theGrid.height) {
+                Logger.warn("Touched letter coordinates are out of bounds");
+                return;
+            }
+        this.recentlyTouchedLetters.set(message.touchPoint.x * 1000 + message.touchPoint.y, message.touchPoint);
+    }
+
+    handleSubmitWordMessage = (sender: string, request: LexibleWordSubmissionRequest): LexibleWordSubmissionResponse => {
+        const player = this.players.find(p => p.playerId === sender);
         if (!player) throw Error("Unknown player attempted to submit a word");
 
         let scoreTooLow = false;
-        const word = data.letters.map((l,index) => {
-            if(!l.coordinates) throw Error(`No coordinate on submitted letter: ${JSON.stringify(data)}`)
+        const word = request.letters.map((l,index) => {
+            if(!l.coordinates) throw Error(`No coordinate on submitted letter: ${JSON.stringify(l)}`)
             const block = this.theGrid.getBlock(l.coordinates);
             if(!block)  return "#"
             if(this.startFromTeamArea
@@ -663,43 +687,19 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             else return "#"
         }).join("");
 
-
         if(!scoreTooLow && this.wordTree.has(word.toUpperCase())) {
-            this.placeSuccessfulWord(data, word, player);
+            this.placeSuccessfulWord(request, word, player);
+            return {
+                success: true,
+                letters: request.letters
+            }
         }
         else {
-            Logger.info(`Failed word '${data.letters.join("")}' because ${(scoreTooLow ? "Low score" : "Not found" )}`)
-            const rejectMessage = new LexibleFailedWordMessage({
-                sender: this.session.personalId,
-                letters: data.letters
-            })
-            this.sendToPlayer(playerId, rejectMessage)
+            Logger.info(`Failed word '${word}' because ${(scoreTooLow ? "Low score" : "Not found" )}`)
+            return {
+                success: false,
+                letters: request.letters
+            };
         }
     }
-
-
-    // -------------------------------------------------------------------
-    //  handlePlayerAction
-    // -------------------------------------------------------------------
-    handlePlayerAction = (message: LexiblePlayerActionMessage) => {
-        const player = this.players.find(p => p.playerId === message.sender);
-        if(!player) {
-            Logger.warn("No player found for message: " + JSON.stringify(message));
-            this.telemetryLogger.logEvent("Presenter", "AnswerMessage", "Deny");
-            return;
-        }
-
-        switch(message.action)
-        {
-            case LexiblePlayerAction.LetterSelect: 
-                this.handlePlayerLetterSelect(message.sender, message.actionData as LetterSelectData) 
-                break;
-            case LexiblePlayerAction.WordSubmit:
-                this.handlePlayerWordSubmit(message.sender, message.actionData as WordSubmissionData)
-                break;
-        }
-
-        this.saveCheckpoint();
-    }
-
 }

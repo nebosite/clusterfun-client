@@ -1,11 +1,9 @@
 import { observable } from "mobx"
-import { 
-    TestatoPlayRequestMessage,
-    TestatoPlayerActionMessage,
-    TestatoEndOfRoundMessage, } from "./Messages";
 import { PLAYTIME_MS } from "./GameSettings";
-import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, ITypeHelper, PresenterGameState, GeneralGameState, ClusterFunGameOverMessage } from "libs";
+import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, ITypeHelper, PresenterGameState, GeneralGameState, Vector2 } from "libs";
 import Logger from "js-logger";
+import { TestatoColorChangeActionEndpoint, TestatoMessageActionEndpoint, TestatoOnboardClientEndpoint, TestatoTapActionEndpoint } from "./testatoEndpoints";
+import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
 
 
 export enum TestatoPlayerStatus {
@@ -47,6 +45,13 @@ export const getTestatoPresenterTypeHelper = (
  {
      return {
         rootTypeName: "TestatoPresenterModel",
+        getTypeName(o) {
+            switch (o.constructor) {
+                case TestatoPresenterModel: return "TestatoPresenterModel";
+                case TestatoPlayer: return "TestatoPlayer";
+            }
+            return undefined;
+        },
         constructType(typeName: string):any {
             switch(typeName)
             {
@@ -104,8 +109,6 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
         super("Testato", sessionHelper, logger, storage);
         Logger.info(`Constructing TestatoPresenterModel ${this.gameState}`)
 
-        sessionHelper.addListener(TestatoPlayerActionMessage, this, this.handlePlayerAction);
-
         this.allowedJoinStates = [PresenterGameState.Gathering, TestatoGameState.Playing]
 
         this.minPlayers = 2;
@@ -115,7 +118,13 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     //  reconstitute - add code here to fix up saved game data that 
     //                 has been loaded after a refresh
     // -------------------------------------------------------------------
-    reconstitute() {}
+    reconstitute() {
+        super.reconstitute();
+        this.listenToEndpoint(TestatoOnboardClientEndpoint, this.handleOnboardClient);
+        this.listenToEndpoint(TestatoColorChangeActionEndpoint, this.handleColorChangeAction);
+        this.listenToEndpoint(TestatoMessageActionEndpoint, this.handleMessageAction);
+        this.listenToEndpoint(TestatoTapActionEndpoint, this.handleTapAction);
+    }
 
 
     // -------------------------------------------------------------------
@@ -165,7 +174,7 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     // -------------------------------------------------------------------
     finishPlayingRound() {
         this.gameState = TestatoGameState.EndOfRound;
-        this.sendToEveryone((p,ie) => new TestatoEndOfRoundMessage({ sender: this.session.personalId, roundNumber: this.currentRound}));
+        this.requestEveryone(InvalidateStateEndpoint, (p,ie) => ({}), true)
     }
 
     // -------------------------------------------------------------------
@@ -179,7 +188,6 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
 
         this.players.forEach((p,i) => {
             p.status = TestatoPlayerStatus.WaitingForStart;
-            p.pendingMessage = undefined;
             p.message = "";
             p.colorStyle = "white";
             p.x = .1;
@@ -188,45 +196,58 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
 
         if(this.currentRound > this.totalRounds) {
             this.gameState = GeneralGameState.GameOver;
-            this.sendToEveryone((p,ie) => new ClusterFunGameOverMessage({ sender: this.session.personalId }))
+            this.requestEveryone(GameOverEndpoint, (p,ie) => ({}), true)
             this.saveCheckpoint();
         }    
         else {
-            const payload = { sender: this.session.personalId, customText: "Hi THere", roundNumber: this.currentRound}
-            this.sendToEveryone((p,ie) =>  new TestatoPlayRequestMessage(payload))
+            this.gameState = TestatoGameState.Playing;
+            this.requestEveryone(InvalidateStateEndpoint, (p,ie) => ({}), true)
             this.saveCheckpoint();
         }
 
     }
 
-    // -------------------------------------------------------------------
-    //  handlePlayerAction
-    // -------------------------------------------------------------------
-    handlePlayerAction = (message: TestatoPlayerActionMessage) => {
-        const player = this.players.find(p => p.playerId === message.sender);
+    handleOnboardClient = (sender: string, message: unknown): { roundNumber: number, customText: string, state: string } => {
+        this.telemetryLogger.logEvent("Presenter", "Onboard Client")
+        return {
+            roundNumber: this.currentRound,
+            customText: "Hi There",
+            state: this.gameState
+        }
+    }
+
+
+    handleColorChangeAction = (sender: string, message: { colorStyle: string }) => {
+        const player = this.players.find(p => p.playerId === sender);
         if(!player) {
             Logger.warn("No player found for message: " + JSON.stringify(message));
             this.telemetryLogger.logEvent("Presenter", "AnswerMessage", "Deny");
             return;
         }
+        player.colorStyle = message.colorStyle;
+        this.saveCheckpoint();
+    }
 
-        switch(message.action)
-        {
-            case "ColorChange": 
-                this.invokeEvent("ColorChange"); 
-                player.colorStyle = message.actionData.colorStyle;
-                break;
-            case "Message": 
-                player.message = message.actionData.text; 
-                break;
-            case "Tap": 
-                player.x = message.actionData.x;
-                player.y = message.actionData.y;
-                break;
+    handleMessageAction = (sender: string, message: { message: string }) => {
+        const player = this.players.find(p => p.playerId === sender);
+        if(!player) {
+            Logger.warn("No player found for message: " + JSON.stringify(message));
+            this.telemetryLogger.logEvent("Presenter", "AnswerMessage", "Deny");
+            return;
         }
+        player.message = message.message;
+        this.saveCheckpoint();
+    }
 
-        player.pendingMessage = undefined;
-
+    handleTapAction = (sender: string, message: { point: Vector2 }) => {
+        const player = this.players.find(p => p.playerId === sender);
+        if(!player) {
+            Logger.warn("No player found for message: " + JSON.stringify(message));
+            this.telemetryLogger.logEvent("Presenter", "AnswerMessage", "Deny");
+            return;
+        }
+        player.x = message.point.x;
+        player.y = message.point.y;
         this.saveCheckpoint();
     }
 
