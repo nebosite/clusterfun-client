@@ -140,6 +140,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     handleGameOverMessage = (message: unknown) => {
         this.gameState = GeneralGameState.GameOver;
         this.saveCheckpoint();
+        return {};
     }
 
     // -------------------------------------------------------------------
@@ -149,6 +150,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         Logger.info("Presenter has terminated the game")
         this.gameTerminated = true;
         this.quitApp();
+        return {};
     }
 
     prepauseState: string = GeneralGameState.Unknown

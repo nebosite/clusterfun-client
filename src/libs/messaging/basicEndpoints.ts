@@ -51,7 +51,7 @@ export const InvalidateStateEndpoint: MessageEndpoint<unknown, unknown> = {
  */
 export const GameOverEndpoint: MessageEndpoint<unknown, unknown> = {
     route: "/basic/lifecycle/gameover",
-    responseRequired: false
+    responseRequired: true
 }
 
 /**
@@ -59,7 +59,7 @@ export const GameOverEndpoint: MessageEndpoint<unknown, unknown> = {
  */
 export const TerminateGameEndpoint: MessageEndpoint<unknown, unknown> = {
     route: "/basic/lifecycle/terminate",
-    responseRequired: false
+    responseRequired: true
 }
 
 /**
@@ -67,7 +67,7 @@ export const TerminateGameEndpoint: MessageEndpoint<unknown, unknown> = {
  */
 export const PauseGameEndpoint: MessageEndpoint<unknown, unknown> = {
     route: "/basic/lifecycle/pause",
-    responseRequired: false
+    responseRequired: true
 }
 
 /**
@@ -75,5 +75,5 @@ export const PauseGameEndpoint: MessageEndpoint<unknown, unknown> = {
  */
  export const ResumeGameEndpoint: MessageEndpoint<unknown, unknown> = {
     route: "/basic/lifecycle/resume",
-    responseRequired: false
+    responseRequired: true
 }
