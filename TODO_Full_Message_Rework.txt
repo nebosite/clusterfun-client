@@ -55,8 +55,8 @@ Architecture idea: frame messages as request and response:
   does not arrive.
 
 TODO:
-[ ] Move the `ClusterFunJoinMessage` from the server to the client
-    [ ] When a client first joins the game, it sends the Join message to the presenter
+[x] Move the `ClusterFunJoinMessage` from the server to the client
+    [x] When a client first joins the game, it sends the Join message to the presenter
     [ ] The server no longer sends this message
     [ ] Also remove all code from the server that parses anything beyond the header
 [ ] Use the Clusterfun BruteForceSerializer to serialize/deserialize payloads
