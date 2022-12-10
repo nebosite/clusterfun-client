@@ -266,6 +266,13 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     // -------------------------------------------------------------------
     private async populateWordSet() {
         const worker = new Worker(new URL('./buildWordTree.worker', import.meta.url), { type: "module" });
+        let tinyTailEndAllocation: any;
+        const reserveHeapSpace = () => {
+            // allocate a 100 MB buffer solely to take up space - a single garbage collection will get rid of it
+            const spaceWastingBuffer = new ArrayBuffer(100_000_000);
+            // then allocate another object at the end of the heap so that it doesn't sbrk back down
+            tinyTailEndAllocation = { a: "Put that thing back", b: "where it came from", c: "or so help me" }
+        }
         const parse = (json: string): { wordListLength: number, wordTreeNode: WordTreeNode, badWords: string[] } => {
             return JSON.parse(json)
         }
@@ -274,6 +281,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             if (this.isShutdown) {
                 return;
             }
+            reserveHeapSpace();
             const json = message.data.json;
             const result: { wordListLength: number, wordTreeNode: WordTreeNode, badWords: string[] } = parse(json);
             this.wordTree = new WordTree(result.wordTreeNode);
