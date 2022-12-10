@@ -70,7 +70,7 @@ TODO:
     [x] NOT NEEDED: The main reason we went with message classes was to provide routing
         on the message type. Since the new message system will use named routes,
         a simple JSON parser will do instead.
-[ ] Arrange messages into requests and responses
+[x] Arrange messages into requests and responses
     [x] Add listeners for request types, as before. 
         (We may just want to name them / give them string routes)
     [x] Add a request function on the session helper
