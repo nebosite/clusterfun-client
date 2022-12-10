@@ -57,57 +57,64 @@ Architecture idea: frame messages as request and response:
 TODO:
 [x] Move the `ClusterFunJoinMessage` from the server to the client
     [x] When a client first joins the game, it sends the Join message to the presenter
-    [ ] The server no longer sends this message
-    [ ] Also remove all code from the server that parses anything beyond the header
-[ ] Use the Clusterfun BruteForceSerializer to serialize/deserialize payloads
-    [ ] Side enhancement: Allow the serializer to work with Sets
-    [ ] Have each client/presenter model register the messages it intends to serialize
+    [x] The server no longer sends this message
+    [x] Also remove all code from the server that parses anything beyond the header
+[-] Use the Clusterfun BruteForceSerializer to serialize/deserialize payloads
+    [-] Side enhancement: Allow the serializer to work with Sets
+    [-] Have each client/presenter model register the messages it intends to serialize
         in the brute force serializer
-    [ ] Use this brute force serializer to read and write the message after peeling
+    [-] Use this brute force serializer to read and write the message after peeling
         the header off/before sticking it on.
-    [ ] (NOTE: If done before having the client send the join message, the server can
+    [-] (NOTE: If done before having the client send the join message, the server can
          be changed to construct the correct join message manually)
-[ ] Arrange messages into requests and responses
-    [ ] Add listeners for request types, as before. 
+    [x] NOT NEEDED: The main reason we went with message classes was to provide routing
+        on the message type. Since the new message system will use named routes,
+        a simple JSON parser will do instead.
+[x] Arrange messages into requests and responses
+    [x] Add listeners for request types, as before. 
         (We may just want to name them / give them string routes)
-    [ ] Add a request function on the session helper
-        [ ] The interface takes a route, a message, and a recipient ID. It returns
+    [x] Add a request function on the session helper
+        [x] The interface takes a route, a message, and a recipient ID. It returns
             a promise that resolves or rejects to a response from the recipient.
-        [ ] The listener API function should return this promise, which will be translated
+        [x] The listener API function should return this promise, which will be translated
             into a return message over the relay server
-        [ ] Requests should be able to last multiple seconds. For games with quiz prompts,
+        [x] Requests should be able to last multiple seconds. For games with quiz prompts,
             the presenter should send a request for answers to each client, which request
             will remain outstanding and eventually be fulfilled by the answer that the
             user types into the input field that the client shows.
-    [ ] Both the request and listener functions return handles that allow for cleanup,
+    [x] Both the request and listener functions return handles that allow for cleanup,
         serialization, and cancellation.
-        [ ] The likely best route is to make these our own Promise implementation with these
+        [x] The likely best route is to make these our own Promise implementation with these
             extra features - the "await" operator will convert these to a vanilla Promise
             for us (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables)
-    [ ] Sending the same request multiple times should more or less be idempotent
-        [ ] All requests have a unique ID number (perhaps a GUID)
-        [ ] If a request would change state, sending the same request multiple times
+    [x] Sending the same request multiple times should more or less be idempotent
+        [x] All requests have a unique ID number (perhaps a GUID)
+        [x] If a request would change state, sending the same request multiple times
             should be the same as sending it once, as far as is reasonable. (For instance,
             if you submit a word in Lexible, tiles that are your color and have the same
             score as the original word should succeed - this allows sending the same
             word multiple times in a row and having it always report success).
-        [ ] Requests should also return the same data from the same ID as much as possible,
+        [x] Requests should also return the same data from the same ID as much as possible,
             or should fail with a note that the requester should send an updated message.
-        [ ] If a receiver is currently showing UI to respond to a user data request,
+        [x] If a receiver is currently showing UI to respond to a user data request,
             receiving the same ID for that request should not change anything. (This allows
             the presenter to ping a long-running user data request every few seconds
             to re-poll it after disconnects)
-[ ] Have game models keep track of all outstanding requests.
-    [ ] When a request that needs a response times out, the game model can resend it
-    [ ] On resume from serialized state, the game model resends all pending requests
-    [ ] Ensure this interface is exposed to the game model in a reasonable way, so that
+[-] Have game models keep track of all outstanding requests.
+    [/] When a request that needs a response times out, the game model can resend it
+    [-] On resume from serialized state, the game model resends all pending requests
+    [x] Ensure this interface is exposed to the game model in a reasonable way, so that
         it can control what messages to keep and which ones to throw away.
-[ ] Clients should ask for a full state resync every time they are refreshed
-    [ ] Clients should save enough state to reconnect after a refresh
-    [ ] Once they reconnect, they should send a request to the server for the full game state
+    [/] NOT EXACTLY NEEDED for three reasons:
+        - Requests handle timeout and retry internally, and reject on timeout
+        - Clients don't resend requests, since they fully invalidate state on refresh
+        - Presenters can't restore from checkpoints anyway right now (though we should fix that)
+[x] Clients should ask for a full state resync every time they are refreshed
+    [x] Clients should save enough state to reconnect after a refresh
+    [x] Once they reconnect, they should send a request to the server for the full game state
         that they need, and then completely overwrite what they have after a refresh.
         (Note that while this is a significant amount of state for Lexible, games where
         the phone acts as a simple controller will require far less)
-    [ ] Clients should also request full state if they suspect something to be very
+    [x] Clients should also request full state if they suspect something to be very
         wrong with their saved state.
-    [ ] Log a telemetry event every time this full state is requested.
+    [x] Log a telemetry event every time this full state is requested.

@@ -108,7 +108,7 @@ export class GameTestModel {
     // -------------------------------------------------------------------
     getMessageThing(id: string, name: string) {
         if(!this._cachedMessageThings.has(id)){
-            const newThing = new LocalMessageThing( this._roomInhabitants, name, id )
+            const newThing = new LocalMessageThing( this._roomInhabitants, id, 10, 20)
             this._cachedMessageThings.set( id, newThing)
         }
         return this._cachedMessageThings.get(id)!;
