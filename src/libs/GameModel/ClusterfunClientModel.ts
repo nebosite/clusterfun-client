@@ -14,10 +14,13 @@ export enum GeneralClientGameState {
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
 // -------------------------------------------------------------------
-export const getClientTypeHelper = (derivedClassHelper: ITypeHelper) =>
+export const getClientTypeHelper = (derivedClassHelper: ITypeHelper): ITypeHelper =>
  {
      return {
         rootTypeName: derivedClassHelper.rootTypeName,
+        getTypeName(o: object) {
+            return derivedClassHelper.getTypeName(o);
+        },
         constructType(typeName: string):any 
             { return derivedClassHelper.constructType(typeName); },
         shouldStringify(typeName: string, propertyName: string, object: any):boolean 

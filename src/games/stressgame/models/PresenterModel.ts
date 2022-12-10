@@ -44,6 +44,13 @@ export const getStressatoPresenterTypeHelper = (
  {
      return {
         rootTypeName: "StressatoPresenterModel",
+        getTypeName(o: object) {
+            switch (o.constructor) {
+                case StressatoPresenterModel: return "StressatoPresenterModel";
+                case StressatoPlayer: return "StressatoPlayer";
+            }
+            return undefined;
+        },
         constructType(typeName: string):any {
             switch(typeName)
             {
