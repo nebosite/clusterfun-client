@@ -5,7 +5,10 @@
     "lib": [
       "dom",
       "dom.iterable",
-      "esnext"
+      "esnext",
+      "WebWorker",
+      "WebWorker.ImportScripts",
+      "Webworker.Iterable",
     ],
     "sourceMap": true,
     "allowJs": true,

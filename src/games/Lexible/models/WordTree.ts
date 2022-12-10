@@ -18,6 +18,10 @@ export class WordTree {
         this._head = head;
     }
 
+    export(): WordTreeNode {
+        return this._head;
+    }
+
     search() {
         return new WordTreeSearcher(this._head, []);
     }

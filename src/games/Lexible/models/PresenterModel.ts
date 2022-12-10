@@ -14,7 +14,7 @@ import {
     LexibleRecentlyTouchedLettersMessage, } from "./Messages";
 import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
-import { WordTree, WordTreeSearcher } from "./WordTree";
+import { WordTree, WordTreeNode, WordTreeSearcher } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunPresenterModel, ITelemetryLogger, IStorage, GeneralGameState, PresenterGameEvent, PresenterGameState, ClusterFunGameOverMessage, ITypeHelper } from "libs";
 import Logger from "js-logger";
@@ -225,11 +225,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         this.subscribe(PresenterGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
 
         sessionHelper.addListener(LexiblePlayerActionMessage, this, this.handlePlayerAction);
-
-        sessionHelper.onError(err => {
-            Logger.error(`Session error: ${err}`)
-            this.quitApp();
-        })
         
         this.minPlayers = 2;
 
@@ -270,33 +265,25 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     //                    word list
     // -------------------------------------------------------------------
     private async populateWordSet() {
-        const wordListPromise = import("../assets/words/Collins_Scrabble_2019");
-        const badWordsPromise = import("../assets/words/badwords");
-
-        const { wordList } = await wordListPromise;
-        let lastAwaitTime = window.performance.now();
-        const words = wordList.split('\n')
-        for (const word of words) {
-            if (window.performance.now() - lastAwaitTime > 10) {
-                await this.waitForRealTime(0);
-                if (this.isShutdown) return;
-                lastAwaitTime = window.performance.now();
-            }
-            this.wordTree.add(word.trim());
+        const worker = new Worker(new URL('./buildWordTree.worker', import.meta.url), { type: "module" });
+        worker.onmessage = (message: { data: {
+            wordListLength: number,
+            wordTreeNode: WordTreeNode, 
+            badWords: Set<string> }}) => {
+            if (this.isShutdown) { return; }
+            // NOTE: The vast majority of this function's runtime (up to 2 seconds in my testing)
+            // is due to cloning the message across the worker boundary. This is more blocking work
+            // than what the WordTree itself is doing, so unless we can cheapen the copy somehow,
+            // this won't result in time savings
+            this.wordTree = new WordTree(message.data.wordTreeNode);
+            this.badWords = message.data.badWords;
+            Logger.info(`Loaded ${message.data.wordListLength} words`)
+            Logger.info(`Loaded ${this.badWords.size} censored words`)
         }
-        Logger.info(`Loaded ${wordList.length} words`)
-
-        const { badWordList } = await badWordsPromise;
-        const badWords = badWordList.split('\n');
-        for (const badWord of badWords) {
-            if (window.performance.now() - lastAwaitTime > 5) {
-                await this.waitForRealTime(0);
-                if (this.isShutdown) return;
-                lastAwaitTime = window.performance.now();
-            }
-            this.badWords.add(badWord.trim());
+        await this.waitForRealTime(100);
+        if (!this.isShutdown) {
+            worker.postMessage({});
         }
-        Logger.info(`Loaded ${this.badWords.size} censored words`)
     }
 
     // -------------------------------------------------------------------
