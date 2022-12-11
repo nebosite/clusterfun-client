@@ -117,9 +117,14 @@ export class StressatoClientModel extends ClusterfunClientModel  {
     // sendAction 
     // -------------------------------------------------------------------
     protected async sendAction(actionData: any = null) {
-        await this.session.request(StressatoPresenterRelayEndpoint, this.session.presenterId, {
+        const request = this.session.request(StressatoPresenterRelayEndpoint, this.session.presenterId, {
             returnSize: this.returnMessageSize,
             actionData
         });
+        if (!this.returnMessageSize) {
+            request.forget();
+        } else {
+            await request;
+        }
     }
 }
