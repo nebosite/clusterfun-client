@@ -149,8 +149,7 @@ export class Slider extends React.Component<SliderProps>
         }
 
         const childStyle = {
-            left: `${this.st.offsetX}px`,
-            top: `${this.st.offsetY}px`,
+            transform: `translate(${this.st.offsetX}px, ${this.st.offsetY}px)`
         }
 
         return (
