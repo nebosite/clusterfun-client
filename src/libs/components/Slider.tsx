@@ -99,47 +99,51 @@ export class Slider extends React.Component<SliderProps>
 
         const onDragEnd = (ev: TouchableDragEndEvent) => {
             this.touching = false;
-            const animationRate_fps = 30;
             if(this.props.onDragEnd) {
                 this.props.onDragEnd();
             }
            
-            const momentum = {
-                x: ev.momentum.x / animationRate_fps, 
-                y: ev.momentum.y / animationRate_fps}
+            const momentum = {x: ev.momentum.x, y: ev.momentum.y}
 
             Logger.debug(`Momentum: ${momentum.x} ${momentum.y}`)
 
             // Now let the child float a little bit
-            const decay = 0.90
+            const decay = -2 // this percentage should be left after 1 millisecond
+            let lastFrameTime = window.performance.now() / 1000;
+
             const drift = () => {
-                if(this.props.onDrift) {
-                    this.props.onDrift({momentum, delta: {x:0, y:0}, offset: {x: this.st.offsetX, y:this.st.offsetY}})
+                const thisFrameTime = window.performance.now() / 1000;
+                const delta = thisFrameTime - lastFrameTime;
+                lastFrameTime = thisFrameTime;
+
+                momentum.x *= Math.exp(decay * delta)
+                momentum.y *= Math.exp(decay * delta)
+
+                const frameMomentum = {
+                    x: momentum.x * delta,
+                    y: momentum.y * delta
                 }
 
-                momentum.x *= decay
-                momentum.y *= decay
-                const magnitude = (Math.abs(momentum.x) + Math.abs(momentum.y))
+                const frameMagnitude = Math.sqrt(frameMomentum.x * frameMomentum.x + frameMomentum.y * frameMomentum.y)
 
-                if(magnitude > (this.props.dragStartDistance ?? 15) ){
+                if(frameMagnitude > (this.props.dragStartDistance ?? 1) ){
                     action(() => {
-                        const dx = momentum.x 
-                        const dy = momentum.y 
+                        const dx = frameMomentum.x 
+                        const dy = frameMomentum.y 
                         this.st.offsetX += dx
                         this.st.offsetY += dy
 
                         fixOffset();
                         if(this.props.onDrift) {
-                            this.props.onDrift({momentum, delta: {x:dx, y:dy}, offset: {x: this.st.offsetX, y:this.st.offsetY}})
+                            this.props.onDrift({momentum: frameMomentum, delta: {x:dx, y:dy}, offset: {x: this.st.offsetX, y:this.st.offsetY}})
                         }
-                        Logger.debug(`drift: ${this.st.offsetX.toFixed(0)} ${this.st.offsetY.toFixed(0)} -- ${dx.toFixed(2)} ${dy.toFixed(2)}`)
+                        Logger.debug(`drift: ${this.st.offsetX.toFixed(0)} ${this.st.offsetY.toFixed(0)} -- ${dx.toFixed(2)} ${dy.toFixed(2)} -- delta: ${delta}`)
 
                     })()
-                    if(!this.touching)  setTimeout(drift, 1000 / animationRate_fps)
+                    if(!this.touching) requestAnimationFrame(drift)
                 }
             }
-            drift();
-
+            requestAnimationFrame(drift);
         }
 
         const style = {
