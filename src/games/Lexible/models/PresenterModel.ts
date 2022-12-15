@@ -723,7 +723,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
-    handleSwitchTeam(sender: string, request: LexibleSwitchTeamRequest) : LexibleSwitchTeamResponse {
+    handleSwitchTeam = (sender: string, request: LexibleSwitchTeamRequest) : LexibleSwitchTeamResponse => {
         const player = this.players.find(p => p.playerId === sender);
         if (!player) throw Error("Unknown player attempted to switch teams");
 

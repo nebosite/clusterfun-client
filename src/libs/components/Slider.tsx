@@ -93,7 +93,7 @@ export class Slider extends React.Component<SliderProps>
             this.st.offsetX += ev.delta.x;
             this.st.offsetY += ev.delta.y;
             fixOffset();
-            Logger.debug(`move: ${this.st.offsetX.toFixed(0)} ${this.st.offsetY.toFixed(0)}`)
+            //Logger.debug(`move: ${this.st.offsetX.toFixed(0)} ${this.st.offsetY.toFixed(0)}`)
 
         }
 
@@ -105,7 +105,7 @@ export class Slider extends React.Component<SliderProps>
            
             const momentum = {x: ev.momentum.x, y: ev.momentum.y}
 
-            Logger.debug(`Momentum: ${momentum.x} ${momentum.y}`)
+            //Logger.debug(`Momentum: ${momentum.x} ${momentum.y}`)
 
             // Now let the child float a little bit
             const decay = -2 // this percentage should be left after 1 millisecond
@@ -137,7 +137,7 @@ export class Slider extends React.Component<SliderProps>
                         if(this.props.onDrift) {
                             this.props.onDrift({momentum: frameMomentum, delta: {x:dx, y:dy}, offset: {x: this.st.offsetX, y:this.st.offsetY}})
                         }
-                        Logger.debug(`drift: ${this.st.offsetX.toFixed(0)} ${this.st.offsetY.toFixed(0)} -- ${dx.toFixed(2)} ${dy.toFixed(2)} -- delta: ${delta}`)
+                        //Logger.debug(`drift: ${this.st.offsetX.toFixed(0)} ${this.st.offsetY.toFixed(0)} -- ${dx.toFixed(2)} ${dy.toFixed(2)} -- delta: ${delta}`)
 
                     })()
                     if(!this.touching) requestAnimationFrame(drift)
