@@ -322,7 +322,6 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
         return (
             <div className={classNames(styles.divRow)}>
                 <button className={classNames(styles.quitButton)} 
-                    style={{marginRight: "30px", fontSize:"10px"}}
                     onClick={()=> appModel.quitApp()}>X</button>
                 <div className={classNames(styles.roomCode)}>
                     <div>Room Code:</div>
@@ -355,10 +354,14 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
         }
 
         const stats = appModel.session.stats;
-        const sendRate = stats.sentCount / appModel.roundTimeMinutes;
-        const recieveRate = stats.recievedCount / appModel.roundTimeMinutes;
+        const sendRate = stats.sentCount / appModel.gameTimeMinutes;
+        const recieveRate = stats.recievedCount / appModel.gameTimeMinutes;
         const sendSize = stats.bytesSent / stats.sentCount / 1000;
         const receiveSize = stats.bytesRecieved / stats.sentCount / 1000;
+
+        const debugClick = () => {
+            appModel.showDebugInfo = !appModel.showDebugInfo;
+        }
 
         return (
             <UINormalizer
@@ -367,14 +370,20 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
                 virtualHeight={1080}
                 virtualWidth={1920}>
                     {this.renderFrame()}
-                    <DevUI style={{position: "absolute", left: "30%", bottom: "0px", fontSize: "50%"}} context={appModel} >
+                    <DevUI style={{position: "absolute", left: "50%", bottom: "0px", fontSize: "50%"}} context={appModel} >
                         <button onClick={()=>appModel.handleGameWin("A")}>Win: A</button>
                         <button onClick={()=>appModel.handleGameWin("B")}>Win: B</button>
                     </DevUI>
-                    <div style={{position: "absolute", left: "0", bottom: "0px", fontSize: "50%"}} >
-                        Sent: {stats.sentCount}  {sendRate.toFixed(1)}/min ({(stats.bytesSent / 1000).toFixed(1)}KB, {sendSize.toFixed(1)}/msg)
-                        Recv: {stats.recievedCount} {recieveRate.toFixed(1)}/min ({(stats.bytesRecieved / 1000).toFixed(1)}KB, {sendSize.toFixed(1)}/msg)
-                    </div>
+                    <button className={styles.debugButton} onClick={debugClick}/>
+                    {
+                        appModel.showDebugInfo
+                            ?   <div className={styles.debugtext} >
+                                    Sent: {stats.sentCount}  {sendRate.toFixed(1)}/min ({(stats.bytesSent / 1000).toFixed(1)}KB, {sendSize.toFixed(1)}/msg)
+                                    Recv: {stats.recievedCount} {recieveRate.toFixed(1)}/min ({(stats.bytesRecieved / 1000).toFixed(1)}KB, {receiveSize.toFixed(1)}/msg)
+                                </div>
+                            :   null
+                    }
+                    
 
                     <div style={{margin: "15px"}}>
                         <Row className={styles.presenterRow}>

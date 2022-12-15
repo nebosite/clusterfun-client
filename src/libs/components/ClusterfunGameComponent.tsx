@@ -1,7 +1,7 @@
 
 
 import { BaseGameModel, ISessionHelper, ITypeHelper, 
-    SessionHelper, ClusterFunSerializer, 
+    SessionHelper, 
     instantiateGame, getPresenterTypeHelper, 
     getClientTypeHelper, GeneralGameState, 
     GameInstanceProperties, IMessageThing, 
@@ -30,6 +30,13 @@ class DummyComponent extends React.Component<{ appModel?: any, uiProperties: UIP
     render() { return <div>DUMDUMDUM</div>}
 }
 
+const componentFinalizer = new FinalizationRegistry((model: BaseGameModel) => {
+    if (!model.isShutdown) {
+        Logger.warn("Component was finalized before model was shut down");
+        model.shutdown();
+    }
+})
+
 
 // -------------------------------------------------------------------
 // Main Game Page
@@ -49,13 +56,12 @@ extends React.Component<ClusterFunGameProps>
         derivedClientTypeHelper: ( sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper
     )
     {
-        const {  gameProperties, messageThing,  onGameEnded, serverCall } = this.props;
+        const {  gameProperties, messageThing, serverCall } = this.props;
 
         const sessionHelper = new SessionHelper(
             messageThing, 
             gameProperties.roomId, 
-            gameProperties.presenterId, 
-            new ClusterFunSerializer(),
+            gameProperties.presenterId,
             serverCall
             );
 
@@ -65,16 +71,28 @@ extends React.Component<ClusterFunGameProps>
         {
             this.UI = presenterType;
             this.appModel = instantiateGame(
-                getPresenterTypeHelper( derivedPresenterTypeHelper(sessionHelper, this.props)))
+                getPresenterTypeHelper(derivedPresenterTypeHelper(sessionHelper, this.props)), 
+                this.props.logger, 
+                this.props.storage)
         } else {
             this.UI = clientType;
             this.appModel = instantiateGame(
-                getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)))
+                getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)), 
+                this.props.logger, 
+                this.props.storage)
         }
-    
-        this.appModel.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => onGameEnded());
+
         document.title = `${gameProperties.gameName} / ClusterFun.tv`
-        this.appModel!.tryLoadOldGame(this.props);
+        componentFinalizer.register(this, this.appModel!);
+    }
+
+    componentDidMount(): void {
+        this.appModel!.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => this.props.onGameEnded());
+        this.appModel!.reconstitute();
+    }
+
+    componentWillUnmount(): void {
+        this.appModel?.shutdown();
     }
     
 

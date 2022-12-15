@@ -95,7 +95,7 @@ export class BruteForceSerializer
         // Each new object has an id and a type name
         const output:any = {
             __i: this._objectCount++,
-            __t: normalizeMe.constructor?.name ?? "__unk__"
+            __t: this.typeHelper.getTypeName(normalizeMe)
         };
 
         // Remember that we have seen this object
@@ -109,6 +109,11 @@ export class BruteForceSerializer
             Array.from(normalizeMe.keys()).forEach(k => 
                 output.__kv.push( [this.normalize(k,`${path}.key:`,lookup), this.normalize(normalizeMe.get(k),`${path}.value`,lookup)])
             );
+            return output;
+        }
+
+        if (normalizeMe instanceof Set) {
+            output.__kv = Array.from(normalizeMe.values()).map(v => this.normalize(v, `${path}.value:`, lookup));
             return output;
         }
 
@@ -174,6 +179,9 @@ export class BruteForceSerializer
                             outputMap.set(key,value)
                         }
                         return outputMap;
+                    case "Set":
+                        const outputSet = new Set(node.__kv.map(parseData));
+                        return outputSet;
                     case "Object":
                         nodeObject = {};
                         break;
@@ -222,6 +230,9 @@ export class BruteForceSerializer
 export interface ITypeHelper{
     // Gives the name for the root model type that will be used to instantiate the game
     rootTypeName: string;
+
+    // Return the type name to use for the given object
+    getTypeName(o: object): string | undefined;
 
     // This return a clean construction for the specified type
     constructType(typeName: string): object;

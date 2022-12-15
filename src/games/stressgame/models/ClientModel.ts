@@ -2,7 +2,7 @@ import { ISessionHelper, ClusterFunGameProps,
     ClusterfunClientModel, ITelemetryLogger, 
     IStorage, ITypeHelper } from "libs";
 import { action, makeObservable, observable } from "mobx";
-import { StressatoPlayerActionMessage, StressatoServerActionMessage } from "./Messages";
+import { StressatoPresenterRelayEndpoint } from "./stressatoEndpoints";
 
 
 // -------------------------------------------------------------------
@@ -15,6 +15,12 @@ export const getStressatoClientTypeHelper = (
  {
      return {
         rootTypeName: "StressatoClientModel",
+        getTypeName(o) {
+            switch (o.constructor) {
+                case StressatoClientModel: return "StressatoClientModel";
+            }
+            return undefined;
+        },
         constructType(typeName: string):any {
             switch(typeName)
             {
@@ -50,6 +56,7 @@ export enum StressatoClientState {
 }
 
 const RATE_UNIT = 1000 * 60
+const SEED_STRING = "_abcdefjhijklmnopqrstuvwxyzABCDEFJHIKJLMNOPQRSTUVWXYZ012345678909876543210abcdefjhijklmnopqrstuvwxyz.".repeat(100)
 
 // -------------------------------------------------------------------
 // Client data and logic
@@ -82,18 +89,6 @@ export class StressatoClientModel extends ClusterfunClientModel  {
     constructor(sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage) {
         super("StressatoClient", sessionHelper, playerName, logger, storage);
 
-        const seedString = "_abcdefjhijklmnopqrstuvwxyzABCDEFJHIKJLMNOPQRSTUVWXYZ012345678909876543210abcdefjhijklmnopqrstuvwxyz.".repeat(100)
-        this.onTick.subscribe("TestClientTick", (t) => {
-            if(t > this.nextSend) {
-                this.sendAction(seedString.substring(0,this.messageSize))
-
-                this.nextSend = this.sendRate 
-                    ? t + (RATE_UNIT/this.sendRate)
-                    : t + 10000000000
-            }
-        })
-
-        sessionHelper.addListener(StressatoServerActionMessage, playerName, this.handleActionMessage);
         makeObservable(this);
     }
 
@@ -101,33 +96,35 @@ export class StressatoClientModel extends ClusterfunClientModel  {
     //  reconstitute - add code here to fix up saved game data that 
     //                 has been loaded after a refresh
     // -------------------------------------------------------------------
-    reconstitute() {}
+    reconstitute() {
+        super.reconstitute();
+        this.onTick.subscribe("TestClientTick", (t) => {
+            if(t > this.nextSend) {
+                this.sendAction(SEED_STRING.substring(0,this.messageSize))
 
-    
-    // -------------------------------------------------------------------
-    //  
-    // -------------------------------------------------------------------
-    assignClientStateFromServerState(serverState: string) { }
+                this.nextSend = this.sendRate 
+                    ? t + (RATE_UNIT/this.sendRate)
+                    : t + 10000000000
+            }
+        })
+    }
 
-    // -------------------------------------------------------------------
-    // handleEndOfRoundMessage
-    // -------------------------------------------------------------------
-    protected handleActionMessage = (message: StressatoServerActionMessage) => {
-
+    requestGameStateFromPresenter = (): Promise<void> => {
+        return Promise.resolve(undefined);
     }
 
     // -------------------------------------------------------------------
     // sendAction 
     // -------------------------------------------------------------------
-    protected sendAction(actionData: any = null) {
-        const message = new StressatoPlayerActionMessage(
-            {
-                sender: this.session.personalId,
-                returnSize: this.returnMessageSize,
-                actionData
-            }
-        );
-
-        this.session.sendMessageToPresenter(message);
+    protected async sendAction(actionData: any = null) {
+        const request = this.session.requestPresenter(StressatoPresenterRelayEndpoint, this.session.presenterId, {
+            returnSize: this.returnMessageSize,
+            actionData
+        });
+        if (!this.returnMessageSize) {
+            request.forget();
+        } else {
+            await request;
+        }
     }
 }
