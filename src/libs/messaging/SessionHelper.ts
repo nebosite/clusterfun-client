@@ -1,13 +1,9 @@
 import Logger from "js-logger";
 import { action, makeAutoObservable } from "mobx";
-import { ClusterFunSerializer, ClusterFunMessageConstructor, ClusterFunMessageBase } from "../../libs"
+import ClusterfunListener from "./ClusterfunListener";
+import ClusterfunRequest from "./ClusterfunRequest";
+import MessageEndpoint from "./MessageEndpoint";
 import { IMessageThing } from './MessageThing';
-
-export interface IMessageReceipt
-{
-    id: number,
-    message: ClusterFunMessageBase
-}
 
 // -------------------------------------------------------------------
 // SessionHelper
@@ -16,19 +12,24 @@ export interface ISessionHelper {
     readonly roomId: string;
     readonly personalId: string;
     readonly personalSecret: string;
-    sendMessage(receiver: string, payload: object): Promise<IMessageReceipt>;
-    sendMessageToPresenter(payload: object): Promise<IMessageReceipt>;
-    resendMessage(receiver: string, oldMessage: IMessageReceipt): void;
-    addListener<P, M extends ClusterFunMessageBase>(
-        messageClass: ClusterFunMessageConstructor<P, M>, 
-        owner: object, 
-        listener: (message: M) => unknown): void;
+    listen<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        apiCallback: (sender: string, value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>
+        ): ClusterfunListener<REQUEST, RESPONSE>;
+    listenPresenter<REQUEST, RESPONSE>(endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        apiCallback: (value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>
+        ): ClusterfunListener<REQUEST, RESPONSE>;
+    request<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        receiverId: string, 
+        request: REQUEST
+        ): ClusterfunRequest<REQUEST, RESPONSE>;
+    requestPresenter<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>,
+        request: REQUEST
+        ): ClusterfunRequest<REQUEST, RESPONSE>;
     addClosedListener(owner: object, listener: (code: number) => void): void;
-    removeListener<P, M extends ClusterFunMessageBase>(
-        messageClass: ClusterFunMessageConstructor<P, M>, 
-        owner: object): void;
     removeClosedListener(owner: object): void;
-    removeAllListenersForOwner(owner: object): void;
     onError(doThis: (err:string) => void): void;
     serverCall: <T>(url: string, payload: any ) => Promise<T>;
     stats: {
@@ -44,13 +45,13 @@ export interface ISessionHelper {
 // -------------------------------------------------------------------
 export class SessionHelper implements ISessionHelper {
     public readonly roomId: string;
-    public get personalId() { return this._messageThing.personalId}
-    public get personalSecret() { return this._messageThing.personalSecret}
+    public get personalId() { return this._messageThing.personalId }
+    public get personalSecret() { return this._messageThing.personalSecret }
     private readonly _presenterId: string;
-    private readonly _serializer: ClusterFunSerializer;
     private _messageThing: IMessageThing;
-    private _listeners = new Map<ClusterFunMessageConstructor<unknown, ClusterFunMessageBase>, Map<object, (message: ClusterFunMessageBase) => void>>()
     private _closedListeners = new Map<object, (code: number) => void>();
+    private _errorSubs: ((err:string)=>void)[] = []
+    private _currentRequestId: number;
     sessionError?:string;
     serverCall: <T>(url: string, payload: any) => Promise<T>;
     stats = {
@@ -63,40 +64,22 @@ export class SessionHelper implements ISessionHelper {
     // -------------------------------------------------------------------
     // ctor
     // ------------------------------------------------------------------- 
-    constructor(messageThing: IMessageThing, roomId: string, presenterId: string, serializer: ClusterFunSerializer, serverCall: <T>(url: string, payload: any) => Promise<T>) {
+    constructor(messageThing: IMessageThing, roomId: string, presenterId: string, serverCall: <T>(url: string, payload: any) => Promise<T>) {
         this.roomId = roomId;
-        this._serializer = serializer;
         this._presenterId = presenterId;
         this.serverCall = serverCall;
         this._messageThing = messageThing;
+        this._currentRequestId = Math.floor(Math.random() * 0xffffffff);
 
         this._messageThing.addEventListener("open", () => {
             Logger.debug("Socket Opened")
         });
 
         this._messageThing.addEventListener("message", (ev: { data: string; }) => {
-            let message: ClusterFunMessageBase;
             action(()=>{
                 this.stats.recievedCount++;
                 this.stats.bytesRecieved += ev.data.length;
             })()
-            try {
-                message = this._serializer.deserialize(ev.data);
-            } catch (e) {
-                Logger.error("Error happened during deserialization", e);
-                return;
-            }
-
-            Logger.debug(`RECV: ${message.messageId} from ${message.sender}`)
-
-            const listenersForMessage = this._listeners.get(
-                message.constructor as ClusterFunMessageConstructor<unknown, ClusterFunMessageBase>);
-            if (listenersForMessage) {
-                const listenerFunctions = listenersForMessage.values()
-                for (const listener of listenerFunctions) {
-                    listener(message); 
-                }
-            }
         })
 
         this._messageThing.addEventListener("close", (ev: { code: number }) => {
@@ -108,63 +91,62 @@ export class SessionHelper implements ISessionHelper {
         makeAutoObservable(this.stats);
     }
 
-    // -------------------------------------------------------------------
-    // sendMessageToPresenter
-    // ------------------------------------------------------------------- 
-    async sendMessageToPresenter(message: ClusterFunMessageBase) {
-        return this.sendMessage(this._presenterId, message);
+    //--------------------------------------------------------------------------------------
+    // Listen for a request, responding using the provided callback
+    //--------------------------------------------------------------------------------------
+    listen<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        apiCallback: (sender: string, value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>
+        ): ClusterfunListener<REQUEST, RESPONSE> {
+        return new ClusterfunListener<REQUEST, RESPONSE>(endpoint, this._messageThing, apiCallback);
     }
 
-    private _errorSubs: ((err:string)=>void)[] = []
+    //--------------------------------------------------------------------------------------
+    // Listen for a request specifically from the presenter. A request of this type sent
+    // from any other participant will have an error thrown back at it.
+    //--------------------------------------------------------------------------------------
+    listenPresenter<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        apiCallback: (value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>
+        ): ClusterfunListener<REQUEST, RESPONSE> {
+        return new ClusterfunListener<REQUEST, RESPONSE>(endpoint, this._messageThing, (sender: string, value: REQUEST) => {
+            if (sender === this._presenterId) {
+                return apiCallback(value);
+            } else {
+                throw new Error("Sender is not the presenter")
+            }
+        });
+    }
+
+    //--------------------------------------------------------------------------------------
+    // Make a request to a given endpoint on the given receiver
+    //--------------------------------------------------------------------------------------
+    request<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        receiverId: string, 
+        request: REQUEST
+        ): ClusterfunRequest<REQUEST, RESPONSE> {
+        return new ClusterfunRequest(
+            endpoint,
+            request, 
+            this.personalId, 
+            receiverId,
+            (this._currentRequestId++).toString(), 
+            this._messageThing);
+    }
+
+    //--------------------------------------------------------------------------------------
+    // Make a request to a given endpoint on the presenter
+    //--------------------------------------------------------------------------------------
+    requestPresenter<REQUEST, RESPONSE>(endpoint: MessageEndpoint<REQUEST, RESPONSE>, request: REQUEST) {
+        return this.request(endpoint, this._presenterId, request);
+    }
 
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
     onError(doThis: (err: string) => void) {
         this._errorSubs.push(doThis);
-    }
-
-    // -------------------------------------------------------------------
-    // sendMessage
-    // ------------------------------------------------------------------- 
-    async sendMessage(receiver: string, message: ClusterFunMessageBase) {
-        const contents = this._serializer.serialize(receiver, this.personalId, message);
-        Logger.debug(`SEND: ${contents}`)
-
-        action(()=>{
-            this.stats.sentCount++;
-            this.stats.bytesSent += contents.length;
-        })()
-    
-        await this._messageThing.send(contents, () => this._errorSubs.forEach(e => e(`Message send failure`)))
-                .catch(err => {
-                    this._errorSubs.forEach(e => e(`${err}`))
-                })
-        
-        return {id: message.messageId, message} as IMessageReceipt;
-    }
-
-    // -------------------------------------------------------------------
-    // ResendMessage - oldMessage comes from the output of a previous sendMessage()
-    // ------------------------------------------------------------------- 
-    resendMessage(receiver: string, oldMessage: IMessageReceipt) {
-        this.sendMessage(receiver, oldMessage.message);
-    }
-
-    // -------------------------------------------------------------------
-    // addListener
-    // ------------------------------------------------------------------- 
-    addListener<P, M extends ClusterFunMessageBase>(messageClass: ClusterFunMessageConstructor<P, M>, owner: object, listener: (message: M) => unknown) {
-        if(!this._listeners.has(messageClass as ClusterFunMessageConstructor<unknown, M>))
-        {
-            // Create the set of listeners for the new class,
-            // also ensuring the class is registered in the hydrator
-            this._listeners.set(messageClass as ClusterFunMessageConstructor<unknown, M>, new Map());
-            this._serializer.register(messageClass);
-            Logger.debug("REGISTERING: " + messageClass.messageTypeName)
-        }
-        const listenersForType = this._listeners.get(messageClass as ClusterFunMessageConstructor<unknown, M>) as Map<object, (message: M) => unknown>;
-        listenersForType.set(owner, listener);
     }
 
     // -------------------------------------------------------------------
@@ -179,34 +161,9 @@ export class SessionHelper implements ISessionHelper {
     }
 
     // -------------------------------------------------------------------
-    // removeListener
-    // ------------------------------------------------------------------- 
-    removeListener<P, M extends ClusterFunMessageBase>(messageClass: ClusterFunMessageConstructor<P, M>, owner: object) {
-        if(this._listeners.has(messageClass as ClusterFunMessageConstructor<unknown, M>))
-        {
-            const listenersForType = this._listeners.get(messageClass as ClusterFunMessageConstructor<unknown, M>)!;
-            listenersForType.delete(owner);
-            if (listenersForType.size === 0) {
-                this._listeners.delete(messageClass as ClusterFunMessageConstructor<unknown, M>);
-                Logger.debug("UNREGISTERING: " + messageClass.messageTypeName)
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------
     // removeClosedListener
     // ------------------------------------------------------------------- 
     removeClosedListener(owner: object) {
         this._closedListeners.delete(owner);
-    }
-
-    // -------------------------------------------------------------------
-    // removeAllListenersForOwner
-    // ------------------------------------------------------------------- 
-    removeAllListenersForOwner(owner: object) {
-        for (const messageType of this._listeners.keys()) {
-            this.removeListener(messageType, owner);
-        }
-        this.removeClosedListener(owner);
     }
 }

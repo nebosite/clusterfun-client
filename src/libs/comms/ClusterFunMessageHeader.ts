@@ -3,11 +3,6 @@
  */
 export interface ClusterFunMessageHeader {
     /**
-     * The message's type, used to inform the recipient which constructor
-     * to use to deserialize the data
-     */
-    t: string
-    /**
      * The receiver of the message - either a player ID
      * or "@everyone" to mean everyone but the sender
      */
@@ -19,5 +14,5 @@ export interface ClusterFunMessageHeader {
     /**
      * A unique ID attached the message
      */
-    id?: string | number
+    id?: string
 }
