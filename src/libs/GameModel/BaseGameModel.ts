@@ -21,6 +21,8 @@ const STASH_LABEL = "__stash_game_state";
 export enum GeneralGameState 
 {
     Unknown = "Unknown",
+    Instructions = "Instructions",
+    Playing = "Playing",
     Paused = "Paused",
     GameOver = "GameOver",
     Destroyed = "Destroyed"
