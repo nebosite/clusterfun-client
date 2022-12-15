@@ -1,4 +1,5 @@
 import { action, makeObservable, observable } from "mobx"
+
 import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
@@ -6,7 +7,14 @@ import { LetterGridModel } from "./LetterGridModel";
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunPresenterModel, ITelemetryLogger, IStorage, GeneralGameState, PresenterGameEvent, PresenterGameState, ITypeHelper } from "libs";
 import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
-import { LetterChain, LexibleBoardUpdateEndpoint, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, LexibleOnboardClientMessage, LexibleRecentlyTouchedLettersMessage, LexibleRequestTouchLetterEndpoint, LexibleRequestWordHintsEndpoint, LexibleShowRecentlyTouchedLettersEndpoint, LexibleSubmitWordEndpoint, LexibleTouchLetterRequest, LexibleWordHintRequest, LexibleWordHintResponse, LexibleWordSubmissionRequest, LexibleWordSubmissionResponse, PlayBoard } from "./lexibleEndpoints";
+import { LetterChain, LexibleBoardUpdateEndpoint, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, 
+    LexibleOnboardClientMessage, LexibleRecentlyTouchedLettersMessage, LexibleReportTouchLetterEndpoint, 
+    LexibleRequestWordHintsEndpoint, LexibleServerRecentlyTouchedLettersEndpoint, LexibleSubmitWordEndpoint, 
+    LexibleSwitchTeamEndpoint, 
+    LexibleSwitchTeamRequest, 
+    LexibleSwitchTeamResponse, 
+    LexibleTouchLetterRequest, LexibleWordHintRequest, LexibleWordHintResponse, 
+    LexibleWordSubmissionRequest, LexibleWordSubmissionResponse, PlayBoard } from "./lexibleEndpoints";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
 
 const LEXIBLE_SETTINGS_KEY = "lexible_settings";
@@ -33,7 +41,6 @@ export class LexiblePlayer extends ClusterFunPlayer {
 // The Game state  
 // -------------------------------------------------------------------
 export enum LexibleGameState {
-    Playing = "Playing",
     EndOfRound = "EndOfRound",
 }
 
@@ -141,9 +148,8 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         this.saveSettings();
     })()}
 
-    private _roundStartTime = 0;
-    get roundTimeMinutes() {
-        return (this.gameTime_ms - this._roundStartTime) / (60000)
+    get gameTimeMinutes() {
+        return this.gameTime_ms / (60000)
     }
     
 
@@ -221,7 +227,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     {
         super("Lexible", sessionHelper, logger, storage);
 
-        this.allowedJoinStates.push(LexibleGameState.Playing, GeneralGameState.Paused)
+        this.allowedJoinStates.push(GeneralGameState.Playing, GeneralGameState.Paused, GeneralGameState.Instructions)
         
         this.minPlayers = 2;
 
@@ -247,9 +253,10 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         this.populateWordSet();
         this.subscribe(PresenterGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
         this.listenToEndpoint(LexibleOnboardClientEndpoint, this.handleOnboardClient);
-        this.listenToEndpoint(LexibleRequestTouchLetterEndpoint, this.handleTouchLetterMessage);
+        this.listenToEndpoint(LexibleReportTouchLetterEndpoint, this.handleTouchLetterMessage);
         this.listenToEndpoint(LexibleRequestWordHintsEndpoint, this.handleWordHintMessage);
         this.listenToEndpoint(LexibleSubmitWordEndpoint, this.handleSubmitWordMessage);
+        this.listenToEndpoint(LexibleSwitchTeamEndpoint, this.handleSwitchTeam);
         // TODO: Make this method cleanuppable
         // this.session.onError(err => {
         //     Logger.error(`Session error: ${err}`)
@@ -424,7 +431,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 const letterCoordinates = Array.from(this.recentlyTouchedLetters.values());
                 this.recentlyTouchedLetters.clear();
                 const message: LexibleRecentlyTouchedLettersMessage = { letterCoordinates }
-                this.requestEveryoneAndForget(LexibleShowRecentlyTouchedLettersEndpoint, () => message);
+                this.requestEveryoneAndForget(LexibleServerRecentlyTouchedLettersEndpoint, () => message);
             }
         }
     }
@@ -448,16 +455,22 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         return payload;
     }
 
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    doneGathering(){
+        this.gameState = GeneralGameState.Instructions;
+    }
+
     // -------------------------------------------------------------------
     //  startNextRound
     // -------------------------------------------------------------------
     startNextRound = () =>
     {
         this.prepareFreshRound();
-        this.gameState = LexibleGameState.Playing;
+        this.gameState = GeneralGameState.Playing;
         this.timeOfStageEnd = this.gameTime_ms + PLAYTIME_MS;
         this.currentRound++;
-        this._roundStartTime = this.gameTime_ms;
 
         this.players.forEach((p,i) => {
             p.status = LexiblePlayerStatus.WaitingForStart;
@@ -705,5 +718,29 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 letters: request.letters
             };
         }
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    handleSwitchTeam = (sender: string, request: LexibleSwitchTeamRequest) : LexibleSwitchTeamResponse => {
+        const player = this.players.find(p => p.playerId === sender);
+        if (!player) throw Error("Unknown player attempted to switch teams");
+
+        const TeamA = this.players.filter(p => p.teamName === "A")
+        const TeamB = this.players.filter(p => p.teamName === "B")
+
+        if(request.desiredTeam === "A" 
+            && !TeamA.find(p => p.playerId === player.playerId)
+            && TeamB.length > 1) {
+                player.teamName = request.desiredTeam
+        }
+        if(request.desiredTeam === "B" 
+            && !TeamB.find(p => p.playerId === player.playerId)
+            && TeamA.length > 1) {
+                player.teamName = request.desiredTeam
+        }
+
+        return {currentTeam: player.teamName}
     }
 }

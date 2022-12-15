@@ -1,6 +1,5 @@
 import StressatoAssets from "games/stressgame/assets/Assets";
 import TestatoAssets from "games/TestGame/assets/Assets";
-import React from "react";
 import { GameDescriptor } from "./GameDescriptor";
 import releaseGames from "./gamesListRelease";
 

@@ -95,7 +95,6 @@ export class WebSocketMessageThing implements IMessageThing {
     }
 }
 
-
 // -------------------------------------------------------------------
 // LocalMessageThing
 // -------------------------------------------------------------------

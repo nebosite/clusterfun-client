@@ -21,6 +21,8 @@ const STASH_LABEL = "__stash_game_state";
 export enum GeneralGameState 
 {
     Unknown = "Unknown",
+    Instructions = "Instructions",
+    Playing = "Playing",
     Paused = "Paused",
     GameOver = "GameOver",
     Destroyed = "Destroyed"
@@ -300,6 +302,8 @@ export abstract class BaseGameModel  {
         })
     }
 
+    private _lastCheckpointFinishTime = Date.now();
+
     // -------------------------------------------------------------------
     // export class properties to JSON in storage
     // -------------------------------------------------------------------
@@ -307,7 +311,18 @@ export abstract class BaseGameModel  {
         if(this.gameState === GeneralGameState.Destroyed) return;
         if(this._isLoading) { return; }
 
-        if(this.serializer && !this._isCheckpointing)
+        if(this._isCheckpointing) {
+            const timeSinceLastSuccess = Date.now() - this._lastCheckpointFinishTime;
+            if(timeSinceLastSuccess > 3000) {
+                Logger.warn(`WEIRD: Last checkpoint did not appear to finish.  Took ${(timeSinceLastSuccess/1000).toFixed(1)} seconds`)
+                this._isCheckpointing = false;
+            }
+            else {
+                return;
+            }
+        }
+
+        if(this.serializer)
         {
             this._isCheckpointing = true;
             const timeSinceLastCheckpoint = Date.now() - this._lastCheckpointTime;
@@ -323,7 +338,11 @@ export abstract class BaseGameModel  {
                 }
                 this._isCheckpointing = false;
                 this._lastCheckpointTime = Date.now();
+                this._lastCheckpointFinishTime = Date.now();
             },delay);
+        }
+        else {
+            Logger.warn(`WEIRD: No serializer??`)
         }
     }
 

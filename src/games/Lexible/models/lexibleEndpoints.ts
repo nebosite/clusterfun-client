@@ -1,15 +1,19 @@
 import MessageEndpoint from "libs/messaging/MessageEndpoint";
 import { Vector2 } from "libs";
 
+
+export type LetterChain = {letter: string, coordinates: Vector2}[]
+
+// ------------------------------------------------------------------------------------------
+// Onboard Client
+// ------------------------------------------------------------------------------------------
+
 export interface PlayBoard {
     gridWidth: number
     gridHeight: number
     gridData: string
 }
 
-// ------------------------------------------------------------------------------------------
-// LexiblePlayRequestMessage
-// ------------------------------------------------------------------------------------------
 export interface LexibleOnboardClientMessage {
     roundNumber: number;
     gameState: string;
@@ -18,7 +22,6 @@ export interface LexibleOnboardClientMessage {
     settings: { startFromTeamArea: boolean }
 }
 
-export type LetterChain = {letter: string, coordinates: Vector2}[]
 
 export const LexibleOnboardClientEndpoint: MessageEndpoint<unknown, LexibleOnboardClientMessage> = {
     route: "/games/lexible/lifecycle/onboard-client",
@@ -27,29 +30,60 @@ export const LexibleOnboardClientEndpoint: MessageEndpoint<unknown, LexibleOnboa
     suggestedTotalLifetimeMs: 60000
 }
 
+//--------------------------------------------------------------------------------------
+// Switch Teams
+//--------------------------------------------------------------------------------------
+export interface LexibleSwitchTeamRequest
+{
+    desiredTeam: string
+}
+
+export interface LexibleSwitchTeamResponse
+{
+    currentTeam: string
+}
+
+
+export const LexibleSwitchTeamEndpoint: MessageEndpoint<
+    LexibleSwitchTeamRequest,
+    LexibleSwitchTeamResponse> = {
+        route: "/games/lexible/lifecycle/switch-team",
+        responseRequired: true,
+        suggestedRetryIntervalMs: 2000,
+        suggestedTotalLifetimeMs: 10000
+    }
+
+
 // ------------------------------------------------------------------------------------------
-// LexibleRecentlyTouchedLettersMessage
+// Hey Client, these letters have been touched recently
+// TODO: Could combine with the other endpoint to make this communication simpler
 // ------------------------------------------------------------------------------------------
 export interface LexibleRecentlyTouchedLettersMessage
 {
     letterCoordinates: Vector2[];
 }
 
-export const LexibleShowRecentlyTouchedLettersEndpoint: MessageEndpoint<LexibleRecentlyTouchedLettersMessage, unknown> = {
+export const LexibleServerRecentlyTouchedLettersEndpoint: MessageEndpoint<LexibleRecentlyTouchedLettersMessage, unknown> = {
     route: "/games/lexible/juice/recently-touched-letters",
     responseRequired: false
 }
 
+//--------------------------------------------------------------------------------------
+// Hey server, I touched some letters!
+//--------------------------------------------------------------------------------------
 export interface LexibleTouchLetterRequest
 {
     touchPoint: Vector2
 }
 
-export const LexibleRequestTouchLetterEndpoint: MessageEndpoint<LexibleTouchLetterRequest, unknown> = {
+export const LexibleReportTouchLetterEndpoint: MessageEndpoint<LexibleTouchLetterRequest, unknown> = {
     route: "/games/lexible/juice/touch-letter",
     responseRequired: false
 }
 
+//--------------------------------------------------------------------------------------
+// Word hints
+//--------------------------------------------------------------------------------------
 export interface LexibleWordHintRequest
 {
     currentWord: LetterChain
@@ -67,6 +101,9 @@ export const LexibleRequestWordHintsEndpoint: MessageEndpoint<LexibleWordHintReq
     suggestedTotalLifetimeMs: 10000
 }
 
+//--------------------------------------------------------------------------------------
+// Board updates
+//--------------------------------------------------------------------------------------
 export interface LexibleBoardUpdateNotification
 {
     letters: LetterChain
@@ -82,6 +119,9 @@ export const LexibleBoardUpdateEndpoint: MessageEndpoint<LexibleBoardUpdateNotif
     suggestedTotalLifetimeMs: 30000
 }
 
+//--------------------------------------------------------------------------------------
+// Word Submissions
+//--------------------------------------------------------------------------------------
 export interface LexibleWordSubmissionRequest
 {
     letters: LetterChain
@@ -103,6 +143,9 @@ export const LexibleSubmitWordEndpoint: MessageEndpoint<
         suggestedTotalLifetimeMs: 10000
     }
 
+//--------------------------------------------------------------------------------------
+// End of round
+//--------------------------------------------------------------------------------------
 export interface LexibleEndOfRoundMessage
 {
     roundNumber: number,

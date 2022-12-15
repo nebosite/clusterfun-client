@@ -75,6 +75,11 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     @observable currentRound = 0;
     @observable totalRounds = 3;
 
+    @observable  private _showDebugInfo = false;
+    get showDebugInfo() {return this._showDebugInfo}
+    set showDebugInfo(value) {action(()=>{this._showDebugInfo = value})()}
+    
+
     // General Game Settings
     minPlayers = 3;
     maxPlayers = 8; 
@@ -254,6 +259,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     //  startGame
     // -------------------------------------------------------------------
     startGame = () => {
+        this.gameState = GeneralGameState.Playing;
         this.prepareFreshRound();
         this.startNextRound();
         this.saveCheckpoint();

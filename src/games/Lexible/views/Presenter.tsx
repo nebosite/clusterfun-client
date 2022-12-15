@@ -9,22 +9,36 @@ import { LetterBlockModel } from "../models/LetterBlockModel";
 import LetterBlock from "./LetterBlock";
 import { LexiblePresenterModel, MapSize, LexibleGameEvent, LexiblePlayer, LexibleGameState } from "../models/PresenterModel";
 import { Row, MediaHelper, SpeechHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, UINormalizer, DevUI } from "libs";
+import { action, makeAutoObservable } from "mobx";
 
 @inject("appModel") @observer
 class GameSettings  extends React.Component<{appModel?: LexiblePresenterModel}> {
-    // -------------------------------------------------------------------
-    // render
-    // -------------------------------------------------------------------
-    render() {
+    myState = {
+        showSettings: false
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    constructor(props: {appModel?: LexiblePresenterModel}) {
+        super(props);
+
+        makeAutoObservable(this.myState);
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    renderSettingsItems() {
         const {appModel} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>
 
         const handleStartFromTeamAreaChange = () => {
             appModel.startFromTeamArea = !appModel.startFromTeamArea
         }
+        
         return (
             <div className={styles.settingsArea} >
-                <div><b>Settings</b></div>
                 <Row>
                     <input
                         className={styles.settingsCheckbox}
@@ -61,11 +75,31 @@ class GameSettings  extends React.Component<{appModel?: LexiblePresenterModel}> 
 
             </div>
         );
+    }
 
+    // -------------------------------------------------------------------
+    // render
+    // -------------------------------------------------------------------
+    render() {
+        const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
+
+        const toggleShow = () => action(()=>this.myState.showSettings = !this.myState.showSettings)()
+
+        return (
+            <div>
+                <div onClick={toggleShow} className={styles.settingsButton}>Settings</div>
+                { this.myState.showSettings
+                    ? this.renderSettingsItems()
+                    : null
+                }
+            </div>   
+        );
     }
 }
 
-@inject("appModel") @observer
+@inject("appModel") 
+@observer
 class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenterModel}> {
     // -------------------------------------------------------------------
     // render
@@ -76,28 +110,114 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenter
 
         return (
             <div className={styles.instructionArea} >
-                <h3>Welcome to {appModel.name}</h3>
-                <p>To Join: go to http://{ window.location.host} and enter this room code: {appModel.roomId}</p>
-                {
-                    appModel.players.length > 0
-                    ?   <div><p style={{fontWeight: 600}}>Joined team members:</p>
-                            <div className={styles.divRow}>
-                                {appModel.players.map(player => (<div className={styles.nameBox} key={player.playerId}>{player.name}</div>))}
-                            </div>
-                        </div>
-                    : null 
-                }
+                <h1>Welcome to {appModel.name}</h1>
+                <div className={styles.joinBlock}>
+                    <p><b>To Join:</b> go to http://{ window.location.host}
+                    &nbsp;&nbsp;&nbsp;(room code: <b>{appModel.roomId}</b>)</p>
+                </div>
                 
                 {appModel.players.length < appModel.minPlayers
-                    ? <div>{`Waiting for at least ${appModel.minPlayers} players to join ...`}</div>
-                    : <button className={styles.presenterButton} onClick={() => appModel.startGame()}> Click here to start! </button>
+                    ? <div className={styles.waitingText}>{`Waiting for at least ${appModel.minPlayers} players to join ...`}</div>
+                    : <button className={styles.startButton} onClick={() => appModel.doneGathering()}> 
+                        Click here to start! 
+                    </button>
                 }          
-                <GameSettings/>     
+                <div className={styles.settingsBox}>
+                    <GameSettings/> 
+                </div>
             </div>
         );
 
     }
 }
+
+
+@inject("appModel") @observer class InstructionsPage 
+    extends React.Component<{appModel?: LexiblePresenterModel}> {
+
+    myState = {
+        instructionsPage: 0
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    constructor(props: {appModel?: LexiblePresenterModel}) {
+        super(props);
+
+        makeAutoObservable(this.myState);
+    }    
+
+    // -------------------------------------------------------------------
+    // render
+    // -------------------------------------------------------------------
+    render() {
+        const {appModel} = this.props;
+        const {instructionsPage} = this.myState;
+        if (!appModel) return <div>NO APP MODEL</div>
+
+        const renderInstructionsPage = () => {
+            switch(instructionsPage) {
+                case 0: return (<div>
+                        <p className={styles.instructionParagraph}>
+                            1. Claim tiles by spelling a word with adjacent letters.
+                            Tiles you claim will get a point value equal to the length of the word.
+                        </p>
+                        <img src={LexibleAssets.images.instructions1} alt="instructions" style={{width: "280px", height: "280px"}} />
+                    </div>);
+                case 1: return (<div>
+                        <p className={styles.instructionParagraph}>
+                            2. You can claim the other team's tiles, but make sure your word is long enough! 
+                            If the word is not longer than a tile's score, it will not be claimed.
+                        </p>
+                        <img src={LexibleAssets.images.instructions2}  alt="instructions" style={{width: "480px", height: "280px", marginLeft: "30px"}} />
+                    </div>);
+                case 2: return (<div>
+                        <p className={styles.instructionParagraph}>
+                        3. TO WIN: Build a bridge of tiles that connect your team's side to the other side of the grid. </p>
+                        <img src={LexibleAssets.images.instructions3} alt="instructions" style={{width: "800px", marginLeft: "100px"}} />
+                    </div>);
+                default: return (<div>Let's play!</div>)
+            }
+
+        }
+
+        const turnPage = (count: number) => {
+            const newPage = instructionsPage + count;
+            if(newPage >= 0 && newPage <= 3) {
+                action(()=>this.myState.instructionsPage = newPage)();
+            }
+        }
+
+        const buttonStyle: React.CSSProperties = {
+            width: "200px"
+        }
+        return (
+            <div className={styles.instructionFrame}>
+                <p><b>How to play</b></p>
+                <div>
+                    { renderInstructionsPage() }
+                </div>
+                <Row style={{position: "absolute", bottom: "150px"}}>
+                {
+                    instructionsPage > 0 
+                        ? <button style={buttonStyle} onClick={() => turnPage(-1)}>◀</button>
+                        : <div style={buttonStyle}></div>
+                }                
+                <button style={{margin: "40px"}} onClick={() => appModel.startGame()}>Ready!</button>
+                {
+                    instructionsPage < 3
+                        ? <button style={buttonStyle} onClick={() => turnPage(1)}>▶</button>
+                        : <div style={buttonStyle}></div>
+                }
+                </Row>
+
+            </div>
+        );
+    }
+} 
+
+
 
 @inject("appModel") @observer
 class PausedGamePage  extends React.Component<{appModel?: LexiblePresenterModel}> {
@@ -277,7 +397,7 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
         let timeAlertLoaded = false;
         appModel.onTick.subscribe("Timer Watcher", ()=>{
             if(appModel.secondsLeftInStage > 10) timeAlertLoaded = true; 
-            if( (appModel.gameState === LexibleGameState.Playing)
+            if( (appModel.gameState === GeneralGameState.Playing)
                 && timeAlertLoaded 
                 && appModel.secondsLeftInStage <= 10) {
                 timeAlertLoaded = false 
@@ -288,7 +408,7 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
         appModel.subscribe(LexibleGameEvent.ResponseReceived,  "play response received sound", ()=> this.media.playSound(LexibleAssets.sounds.response, {volume: sfxVolume}));
     }
 
-    // -------------------------------------------------------------------
+    // ------------------------------------------------------------------- 
     // renderPlayArea
     // -------------------------------------------------------------------
     private renderPlayArea() {
@@ -301,8 +421,10 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
         {
             case PresenterGameState.Gathering:
                 return <GatheringPlayersPage />
+            case GeneralGameState.Instructions:
+                return <InstructionsPage />
             case LexibleGameState.EndOfRound:
-            case LexibleGameState.Playing:
+            case GeneralGameState.Playing:
                 return <PlayingPage media={this.media} />
             case GeneralGameState.GameOver:
                 return <EndOfRoundPage />
@@ -322,7 +444,6 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
         return (
             <div className={classNames(styles.divRow)}>
                 <button className={classNames(styles.quitButton)} 
-                    style={{marginRight: "30px", fontSize:"10px"}}
                     onClick={()=> appModel.quitApp()}>X</button>
                 <div className={classNames(styles.roomCode)}>
                     <div>Room Code:</div>
@@ -355,10 +476,14 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
         }
 
         const stats = appModel.session.stats;
-        const sendRate = stats.sentCount / appModel.roundTimeMinutes;
-        const recieveRate = stats.recievedCount / appModel.roundTimeMinutes;
+        const sendRate = stats.sentCount / appModel.gameTimeMinutes;
+        const recieveRate = stats.recievedCount / appModel.gameTimeMinutes;
         const sendSize = stats.bytesSent / stats.sentCount / 1000;
         const receiveSize = stats.bytesRecieved / stats.sentCount / 1000;
+
+        const debugClick = () => {
+            appModel.showDebugInfo = !appModel.showDebugInfo;
+        }
 
         return (
             <UINormalizer
@@ -367,14 +492,20 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
                 virtualHeight={1080}
                 virtualWidth={1920}>
                     {this.renderFrame()}
-                    <DevUI style={{position: "absolute", left: "30%", bottom: "0px", fontSize: "50%"}} context={appModel} >
+                    <DevUI style={{position: "absolute", left: "50%", bottom: "0px", fontSize: "50%"}} context={appModel} >
                         <button onClick={()=>appModel.handleGameWin("A")}>Win: A</button>
                         <button onClick={()=>appModel.handleGameWin("B")}>Win: B</button>
                     </DevUI>
-                    <div style={{position: "absolute", left: "0", bottom: "0px", fontSize: "50%"}} >
-                        Sent: {stats.sentCount}  {sendRate.toFixed(1)}/min ({(stats.bytesSent / 1000).toFixed(1)}KB, {sendSize.toFixed(1)}/msg)
-                        Recv: {stats.recievedCount} {recieveRate.toFixed(1)}/min ({(stats.bytesRecieved / 1000).toFixed(1)}KB, {sendSize.toFixed(1)}/msg)
-                    </div>
+                    <button className={styles.debugButton} onClick={debugClick}/>
+                    {
+                        appModel.showDebugInfo
+                            ?   <div className={styles.debugtext} >
+                                    Sent: {stats.sentCount}  {sendRate.toFixed(1)}/min ({(stats.bytesSent / 1000).toFixed(1)}KB, {sendSize.toFixed(1)}/msg)
+                                    Recv: {stats.recievedCount} {recieveRate.toFixed(1)}/min ({(stats.bytesRecieved / 1000).toFixed(1)}KB, {receiveSize.toFixed(1)}/msg)
+                                </div>
+                            :   null
+                    }
+                    
 
                     <div style={{margin: "15px"}}>
                         <Row className={styles.presenterRow}>

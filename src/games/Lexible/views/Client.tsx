@@ -5,9 +5,62 @@ import { LexibleClientModel, LexibleClientState } from "../models/ClientModel";
 import styles from './Client.module.css';
 import classNames from "classnames";
 import { observable } from "mobx";
-import { UIProperties, GeneralGameState, SafeBrowser, GeneralClientGameState, UINormalizer, ErrorBoundary } from "libs";
+import { UIProperties, GeneralGameState, SafeBrowser, GeneralClientGameState, UINormalizer, ErrorBoundary, Row } from "libs";
 import LexibleClientGameComponent from "./ClientGameComponent";
+import LexibleAssets from "../assets/Assets";
 
+
+interface InstructionsComponentProps {
+    appModel?: LexibleClientModel
+}
+
+// -------------------------------------------------------------------
+// Client Page
+// -------------------------------------------------------------------
+@inject("appModel")
+@observer
+class InstructionsComponent 
+  extends React.Component<InstructionsComponentProps> {
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    render() {
+        const {appModel} = this.props;
+        if (!appModel) return <div>NO APP MODEL</div>
+
+        const switchTeam = () => {
+            appModel.requestSwitchTeam();
+        }
+
+        return <div>
+            <div className={styles.wait_text}>
+                Waiting for the host to start...
+            </div>
+            <Row>
+                <div>You are on Team {appModel.myTeam}</div>
+                <button onClick={switchTeam} style={{fontSize: "80%", marginLeft: "50px"}}>Switch Team</button>
+            </Row>
+            <p><b>How to play</b></p>
+            <div className={styles.instructionsRow}>
+                <p>
+                    1. Claim tiles by spelling a word with adjacent letters. 
+                    Tiles you claim will get a point value equal to the length of the word.
+                </p>
+                <img src={LexibleAssets.images.instructions1} alt="instructions" style={{width: "280px", height: "280px"}} />
+            </div>
+            <div className={styles.instructionsRow}>
+                <p>
+                    2. You can claim the other team's tiles, but make sure your word is long enough! 
+                    If the word is not longer than a tile's score, it will not be claimed.
+                </p>
+                <img src={LexibleAssets.images.instructions2}  alt="instructions" style={{width: "480px", height: "280px", marginLeft: "30px"}} />
+            </div>
+            <p>3. TO WIN: Build a bridge of tiles that connect your team's side to the other side of the grid. </p>
+            <img src={LexibleAssets.images.instructions3} alt="instructions" style={{width: "800px", marginLeft: "100px"}} />
+        </div>
+    }
+}
  
 class LexibleClientUIState {
     @observable mouseScale = 1;
@@ -60,16 +113,8 @@ export default class Client
         if (!appModel) return <div>NO APP MODEL</div>
 
         switch(appModel.gameState) {
-            case GeneralClientGameState.WaitingToStart:
-                return (<React.Fragment>
-                    <div className={styles.wait_text}>
-                    Sit tight, we are waiting for the host to start the game...
-                    </div>
-                </React.Fragment>);  
-            case GeneralClientGameState.Paused: 
-                return <>
-                    <div>Game has been paused</div>
-                </>
+            case GeneralClientGameState.WaitingToStart: return <InstructionsComponent />
+            case GeneralClientGameState.Paused:  return  <div>Game has been paused</div> 
             case LexibleClientState.Playing:
                 this.alertUser();
                 return <LexibleClientGameComponent 

@@ -20,10 +20,48 @@
     padding: 5px;
 }
 
+.gamepresenter .instructionFrame {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 50px;
+    top: 50px;
+    font-size: 150%;
+}
+
+.gamepresenter .instructionParagraph {
+    white-space: initial;
+}
+
+
+
+.gamepresenter .debugButton {
+    position: absolute;
+    left: 0px;
+    bottom: 0px;
+    width:30px;
+    height:30px;
+    background-color: #00000010;
+    border-color: transparent;
+}
+
 .gamepresenter .quitButton {
     position: absolute;
+    font-size: 80%;
+    font-weight: 800;
     top: 10px;
-    right: 0px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 20px;
+    background: #dd9999;
+}
+
+.gamepresenter .debugtext {
+    position: absolute;
+    left: 80px;
+    bottom: 0px;
+    font-size: 50%;
 }
 
 .gamepresenter input {
@@ -87,8 +125,29 @@
 
 .gamepresenter .instructionArea {    
     height: 100%;
+    width: 100%;
     margin: 20px;
+    margin-top: 150px;
+    display: flex;
+    flex-direction: column;
+}
 
+.gamepresenter .waitingText {    
+    padding: 40px;
+    font-size: 200%;
+}
+
+.gamepresenter .startButton {    
+    padding: 40px;
+    font-size: 200%;
+}
+
+.gamepresenter .instructionArea .joinBlock {
+    border: 1px solid black;
+    margin: 20px;
+    padding: 20px;
+    background: #ffffff40;
+    font-size: 120%;
 }
 
 .gamepresenter .gameCanvas {
@@ -103,8 +162,10 @@
 
 .gamepresenter .teamColumn {
     width: 250px;
-    height: 100%;
-    font-size: 80%;
+    margin-top: 80px;
+    margin-bottom: 100px;
+    height: 80%;
+    font-size: 110%;
     overflow: hidden;
 }
 .gamepresenter .playColumn {
@@ -159,4 +220,23 @@
     width: 30px;
     height: 30px;
     margin: 10px;
+}
+
+.gamepresenter .settingsBox {
+    border: 1px solid black;
+    position: absolute;
+    padding: 20px;
+    bottom: 30px;
+}
+
+.gamepresenter .settingsButton {
+    border: 1px solid black;
+    padding: 5px;
+    font-weight: 800;
+    background: limegreen;
+    border-radius: 10px;
+    user-select: none;
+}
+.gamepresenter .settingsButton :hover{
+    cursor: pointer;
 }
