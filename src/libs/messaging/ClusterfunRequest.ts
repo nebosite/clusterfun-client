@@ -82,7 +82,7 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
     }
 
     private respondToMessage(data: string): void {
-        const { header, routing, payload } = parseMessage(data);
+        const { routing, payload } = parseMessage(data);
         if (routing.route !== this.endpoint.route || routing.requestId !== this.id) {
             return; // this message is not for us
         }

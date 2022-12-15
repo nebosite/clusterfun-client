@@ -1,6 +1,5 @@
 import { ClusterFunGameProps } from './libs';
 import React from 'react';
-import Logger from 'js-logger';
 import { GameDescriptor, GameManifestItem } from 'games/lists/GameDescriptor';
 
 const gameListPromise: Promise<{default: GameDescriptor[]}> = (process.env.REACT_APP_SHOW_DEBUG_GAMES)
@@ -18,7 +17,7 @@ export async function getGameListPromise(): Promise<GameDescriptor[]> {
 // getGameComponent
 // -------------------------------------------------------------------
 export function getGameComponent(descriptor: GameManifestItem, config: ClusterFunGameProps) {
-    Logger.debug(`Creating component for ${descriptor.name} ${config.gameProperties.role} ${config.gameProperties.personalId}`)
+    //Logger.debug(`Creating component for ${descriptor.name} ${config.gameProperties.role} ${config.gameProperties.personalId}`)
     if (!lazyTypeCache.has(descriptor.name)) {
         lazyTypeCache.set(descriptor.name, React.lazy(async () => {
             const gameList = await getGameListPromise();

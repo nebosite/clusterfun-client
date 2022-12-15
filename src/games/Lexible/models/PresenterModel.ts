@@ -1,4 +1,5 @@
 import { action, makeObservable, observable } from "mobx"
+
 import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
@@ -6,7 +7,14 @@ import { LetterGridModel } from "./LetterGridModel";
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunPresenterModel, ITelemetryLogger, IStorage, GeneralGameState, PresenterGameEvent, PresenterGameState, ITypeHelper } from "libs";
 import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
-import { LetterChain, LexibleBoardUpdateEndpoint, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, LexibleOnboardClientMessage, LexibleRecentlyTouchedLettersMessage, LexibleRequestTouchLetterEndpoint, LexibleRequestWordHintsEndpoint, LexibleShowRecentlyTouchedLettersEndpoint, LexibleSubmitWordEndpoint, LexibleTouchLetterRequest, LexibleWordHintRequest, LexibleWordHintResponse, LexibleWordSubmissionRequest, LexibleWordSubmissionResponse, PlayBoard } from "./lexibleEndpoints";
+import { LetterChain, LexibleBoardUpdateEndpoint, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, 
+    LexibleOnboardClientMessage, LexibleRecentlyTouchedLettersMessage, LexibleReportTouchLetterEndpoint, 
+    LexibleRequestWordHintsEndpoint, LexibleServerRecentlyTouchedLettersEndpoint, LexibleSubmitWordEndpoint, 
+    LexibleSwitchTeamEndpoint, 
+    LexibleSwitchTeamRequest, 
+    LexibleSwitchTeamResponse, 
+    LexibleTouchLetterRequest, LexibleWordHintRequest, LexibleWordHintResponse, 
+    LexibleWordSubmissionRequest, LexibleWordSubmissionResponse, PlayBoard } from "./lexibleEndpoints";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
 
 const LEXIBLE_SETTINGS_KEY = "lexible_settings";
@@ -86,7 +94,6 @@ export const getLexiblePresenterTypeHelper = (
                 case "LetterBlockModel": return new LetterBlockModel("_");
                 case "LexiblePresenterModel": return new LexiblePresenterModel( sessionHelper, gameProps.logger, gameProps.storage);
                 case "LexiblePlayer": return new LexiblePlayer();
-                case "LexibleScoredWordMessage": return new LexibleScoredWordMessage({letters: [], score: 0, scoringPlayerId: "", sender: "", team: "", messageId: 0});
                 case "Vector2": return new Vector2(0,0);
                 // TODO: add your custom type handlers here
             }
@@ -246,9 +253,10 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         this.populateWordSet();
         this.subscribe(PresenterGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
         this.listenToEndpoint(LexibleOnboardClientEndpoint, this.handleOnboardClient);
-        this.listenToEndpoint(LexibleRequestTouchLetterEndpoint, this.handleTouchLetterMessage);
+        this.listenToEndpoint(LexibleReportTouchLetterEndpoint, this.handleTouchLetterMessage);
         this.listenToEndpoint(LexibleRequestWordHintsEndpoint, this.handleWordHintMessage);
         this.listenToEndpoint(LexibleSubmitWordEndpoint, this.handleSubmitWordMessage);
+        this.listenToEndpoint(LexibleSwitchTeamEndpoint, this.handleSwitchTeam);
         // TODO: Make this method cleanuppable
         // this.session.onError(err => {
         //     Logger.error(`Session error: ${err}`)
@@ -423,7 +431,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 const letterCoordinates = Array.from(this.recentlyTouchedLetters.values());
                 this.recentlyTouchedLetters.clear();
                 const message: LexibleRecentlyTouchedLettersMessage = { letterCoordinates }
-                this.requestEveryoneAndForget(LexibleShowRecentlyTouchedLettersEndpoint, () => message);
+                this.requestEveryoneAndForget(LexibleServerRecentlyTouchedLettersEndpoint, () => message);
             }
         }
     }
@@ -710,5 +718,29 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 letters: request.letters
             };
         }
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    handleSwitchTeam = (sender: string, request: LexibleSwitchTeamRequest) : LexibleSwitchTeamResponse => {
+        const player = this.players.find(p => p.playerId === sender);
+        if (!player) throw Error("Unknown player attempted to switch teams");
+
+        const TeamA = this.players.filter(p => p.teamName === "A")
+        const TeamB = this.players.filter(p => p.teamName === "B")
+
+        if(request.desiredTeam === "A" 
+            && !TeamA.find(p => p.playerId === player.playerId)
+            && TeamB.length > 1) {
+                player.teamName = request.desiredTeam
+        }
+        if(request.desiredTeam === "B" 
+            && !TeamB.find(p => p.playerId === player.playerId)
+            && TeamA.length > 1) {
+                player.teamName = request.desiredTeam
+        }
+
+        return {currentTeam: player.teamName}
     }
 }
