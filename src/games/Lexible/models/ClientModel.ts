@@ -1,11 +1,11 @@
 import { action, makeObservable, observable } from "mobx";
-import { LetterSelectData, LexibleEndOfRoundMessage, LexibleFailedWordMessage, LexiblePlayerAction, LexiblePlayerActionMessage, LexiblePlayRequestMessage, LexibleRecentlyTouchedLettersMessage, LexibleScoredWordMessage, LexibleWordHintMessage, PlayBoard, SwitchTeamData, WordSubmissionData } from "./Messages";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { LetterGridModel } from "./LetterGridModel";
 import { LexibleGameEvent } from "./PresenterModel";
 import { ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, GeneralGameState } from "libs";
 import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
+import { LexibleBoardUpdateEndpoint, LexibleBoardUpdateNotification, LexibleEndOfRoundMessage, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, LexibleRecentlyTouchedLettersMessage, LexibleReportTouchLetterEndpoint, LexibleRequestWordHintsEndpoint, LexibleServerRecentlyTouchedLettersEndpoint, LexibleSubmitWordEndpoint, LexibleSwitchTeamEndpoint, LexibleWordSubmissionRequest, PlayBoard } from "./lexibleEndpoints";
 
 
 // -------------------------------------------------------------------
@@ -18,6 +18,15 @@ export const getLexibleClientTypeHelper = (
  {
      return {
         rootTypeName: "LexibleClientModel",
+        getTypeName(o) {
+            switch (o.constructor) {
+                case LetterGridModel: return "LetterGridModel";
+                case LetterBlockModel: return "LetterBlockModel";
+                case Vector2: return "Vector2";
+                case LexibleClientModel: return "LexibleClientModel";
+                default: return undefined;
+            }
+        },
         constructType(typeName: string):any {
             switch(typeName)
             {
@@ -97,24 +106,40 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     constructor(sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage) {
         super("LexibleClient", sessionHelper, playerName, logger, storage);
 
-        sessionHelper.addListener(LexiblePlayRequestMessage, this, this.handlePlayRequestMessage);
-        sessionHelper.addListener(LexibleRecentlyTouchedLettersMessage, this, this.handleRecentlyTouchedMessage);
-        sessionHelper.addListener(LexibleEndOfRoundMessage, this, this.handleEndOfRoundMessage);
-        sessionHelper.addListener(LexibleScoredWordMessage, this, this.handleScoredWordMessage);
-        sessionHelper.addListener(LexibleFailedWordMessage, this, this.handleFailedWordMessage);
-        sessionHelper.addListener(LexibleWordHintMessage, this, this.handleWordHintMessage);
-
         makeObservable(this);
     }
 
     // -------------------------------------------------------------------
-    //  
+    // reconstitute 
     // -------------------------------------------------------------------
-    assignClientStateFromServerState(serverState: string): void {
-        switch(serverState) {
-            case "Gathering": this.gameState = GeneralClientGameState.WaitingToStart; break;
-            default: this.gameState = serverState
+    reconstitute() {
+        super.reconstitute();
+        this.listenToEndpointFromPresenter(LexibleServerRecentlyTouchedLettersEndpoint, this.handleRecentlyTouchedMessage);
+        this.listenToEndpointFromPresenter(LexibleEndRoundEndpoint, this.handleEndOfRoundMessage);
+        this.listenToEndpointFromPresenter(LexibleBoardUpdateEndpoint, this.handleBoardUpdateMessage); 
+        this.theGrid.processBlocks(b => this.setBlockHandlers(b))
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    async requestGameStateFromPresenter(): Promise<void> {
+        const onboardState = await this.session.requestPresenter(LexibleOnboardClientEndpoint, {})
+        if (onboardState.gameState === "Gathering") {
+            this.gameState = GeneralClientGameState.WaitingToStart;
+        } else {
+            this.gameState = onboardState.gameState;
         }
+        if(this.gameState === GeneralClientGameState.WaitingToStart) {
+            this.telemetryLogger.logEvent("Client", "Start");
+        }
+        this.roundNumber = onboardState.roundNumber;
+        this.myTeam = onboardState.teamName;
+        this.startFromTeamArea = onboardState.settings.startFromTeamArea;
+
+        this.setupPlayBoard(onboardState.playBoard)
+
+        this.saveCheckpoint();
     }
 
     //--------------------------------------------------------------------------------------
@@ -140,22 +165,33 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     // submitWord 
     // -------------------------------------------------------------------
-    submitWord() {
+    async submitWord() {
         if(this.letterChain.length === 0) {
             Logger.warn("WEIRD:  should have been letters in the letter chain")
             return;
         }
 
-        const submissionData: WordSubmissionData = {
+        const submissionData: LexibleWordSubmissionRequest = {
             letters: this.letterChain.map(l => ({letter: l.letter, coordinates: l.coordinates}))
         }
 
-        this.sendAction(LexiblePlayerAction.WordSubmit, submissionData)
+        const response = await this.session.requestPresenter(LexibleSubmitWordEndpoint, submissionData)
+        if (response.success) {
+            this.invokeEvent(LexibleGameEvent.WordAccepted)
+        } else {
+            response.letters.forEach(l => {
+                const block = this.theGrid.getBlock(l.coordinates)
+                if(!block) {
+                    Logger.warn(`WEIRD: No block at ${JSON.stringify(l.coordinates)}`)
+                }
+                else block.fail()
+            })
+        }
 
         this.letterChain[0].selectForPlayer(this.playerId, false);
     }
 
-        // -------------------------------------------------------------------
+    // -------------------------------------------------------------------
     //  checkForWin - a win is when there is a contiguous line of blocks
     //                from one side to the other for a single team. 
     //                Blocks are not continguous through corners.
@@ -190,32 +226,15 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         }
     }
 
-    // -------------------------------------------------------------------
-    // handleScoredWordMessage
-    // -------------------------------------------------------------------
-    protected handleScoredWordMessage = (message: LexibleScoredWordMessage) => {
+    protected handleBoardUpdateMessage = (message: LexibleBoardUpdateNotification) => {
         message.letters.forEach(l => {
             const block = this.theGrid.getBlock(l.coordinates)
             if(!block) Logger.warn(`WEIRD: No block at ${l.coordinates}`)
-            else block.setScore( Math.max(message.score, block.score), message.team);
+            else block.setScore( Math.max(message.score, block.score), message.scoringTeam);
         })
         this.updateWinningPaths();
         this.saveCheckpoint();
-        this.ackMessage(message);  
-        this.invokeEvent(LexibleGameEvent.WordAccepted)
-    }
-
-    // -------------------------------------------------------------------
-    // handleFailedWordMessage
-    // -------------------------------------------------------------------
-    protected handleFailedWordMessage = (message: LexibleFailedWordMessage) => {
-        message.letters.forEach(w => {
-            const block = this.theGrid.getBlock(w.coordinates)
-            if(!block) {
-                Logger.warn(`WEIRD: No block at ${JSON.stringify(w.coordinates)}`)
-            }
-            else block.fail()
-        })
+        this.invokeEvent(LexibleGameEvent.WordAccepted);
     }
 
     // -------------------------------------------------------------------
@@ -232,16 +251,6 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     }
 
     // -------------------------------------------------------------------
-    // handleWordHintMessage
-    // -------------------------------------------------------------------
-    protected handleWordHintMessage = (message: LexibleWordHintMessage) => {
-        this.wordList = message.wordList;
-        Logger.debug(`Received Wordlist with ${message.wordList?.length} words`)
-        this.saveCheckpoint();
-        this.ackMessage(message);
-    }
-
-    // -------------------------------------------------------------------
     // handleEndOfRoundMessage
     // -------------------------------------------------------------------
     protected handleEndOfRoundMessage = (message: LexibleEndOfRoundMessage) => {
@@ -249,29 +258,6 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         this.gameState = LexibleClientState.EndOfRound;
 
         this.saveCheckpoint();
-        this.ackMessage(message);
-    }
-
-    // -------------------------------------------------------------------
-    // handlePlayRequestMessage 
-    // -------------------------------------------------------------------
-    protected handlePlayRequestMessage = (message: LexiblePlayRequestMessage) => {
-        if(this.gameState === GeneralClientGameState.WaitingToStart) {
-            this.telemetryLogger.logEvent("Client", "Start");
-        }
-
-        this.myTeam = message.teamName;
-
-        this.roundNumber = message.roundNumber;
-        this.startFromTeamArea = message.settings.startFromTeamArea;
-
-        if(message.roundNumber > 0) {
-            this.setupPlayBoard(message.playBoard)
-            this.gameState = GeneralGameState.Playing;
-        }
-
-        this.saveCheckpoint();
-        this.ackMessage(message);
     }
 
     // -------------------------------------------------------------------
@@ -319,13 +305,22 @@ export class LexibleClientModel extends ClusterfunClientModel  {
                     if(this.letterChain.length === 0) this.wordList = []
                 }
 
-                this.sendAction(LexiblePlayerAction.LetterSelect, {
-                    coordinates:block.coordinates, 
-                    playerId, 
-                    selectedValue: selectedValue,
-                    isFirst
-                })
-                this.saveCheckpoint();
+                this.session.requestPresenter(LexibleReportTouchLetterEndpoint, {
+                    touchPoint: block.coordinates
+                }).forget();
+                if (isFirst) {
+                    this.session.requestPresenter(LexibleRequestWordHintsEndpoint, {
+                        currentWord: this.letterChain.map(block => ({
+                            letter: block.letter,
+                            coordinates: block.coordinates
+                        }))
+                    }).then(hintResponse => {
+                        action(() => { 
+                            this.wordList = hintResponse.wordList;
+                        })();
+                        this.saveCheckpoint();
+                    });
+                }
             })()
         }
     }
@@ -342,32 +337,11 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     }
 
     // -------------------------------------------------------------------
-    // reconstitute 
-    // -------------------------------------------------------------------
-    reconstitute() {
-        this.theGrid.processBlocks(b => this.setBlockHandlers(b))
-    }
-
-    // -------------------------------------------------------------------
-    // sendAction 
-    // -------------------------------------------------------------------
-    protected sendAction(action: LexiblePlayerAction, actionData: LetterSelectData | WordSubmissionData | SwitchTeamData | {}) {
-        const message = new LexiblePlayerActionMessage(
-            {
-                sender: this.session.personalId,
-                roundNumber: this.roundNumber,
-                action,
-                actionData
-            }
-        );
-
-        this.session.sendMessageToPresenter(message);
-    }
-
-    // -------------------------------------------------------------------
     // 
     // -------------------------------------------------------------------
-    requestSwitchTeam(){
-        this.sendAction(LexiblePlayerAction.SwitchTeam, { desiredTeam: this.myTeam === "A" ? "B" : "A"})
+    async requestSwitchTeam(){
+        const response = await this.session.requestPresenter(LexibleSwitchTeamEndpoint, {desiredTeam:this.myTeam === "A" ? "B" : "A" })
+
+        this.myTeam = response.currentTeam;
     }
 }

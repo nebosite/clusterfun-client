@@ -1,6 +1,6 @@
 import { action, makeObservable, observable } from "mobx";
 import { LobbyModel, ILobbyDependencies } from "../../lobby/models/LobbyModel";
-import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, ClusterFunSerializer, IMessageThing, getStorage, GameInstanceProperties, ClusterFunJoinMessage } from "../../libs";
+import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, IMessageThing, getStorage, GameInstanceProperties } from "../../libs";
 import Logger from "js-logger";
 
 const names = [
@@ -51,7 +51,6 @@ export class GameTestModel {
 
     private _loggerFactory: ITelemetryLoggerFactory;
     private _storage: IStorage;
-    private _serializer: ClusterFunSerializer;
     
     private _cachedMessageThings = new  Map<string, IMessageThing>();
 
@@ -64,7 +63,6 @@ export class GameTestModel {
 
         this._storage = storage;
         this._loggerFactory = loggerFactory;
-        this._serializer = new ClusterFunSerializer();
         this.loadState();
 
         this.presenterModel = new LobbyModel(
@@ -110,7 +108,7 @@ export class GameTestModel {
     // -------------------------------------------------------------------
     getMessageThing(id: string, name: string) {
         if(!this._cachedMessageThings.has(id)){
-            const newThing = new LocalMessageThing( this._roomInhabitants, name, id )
+            const newThing = new LocalMessageThing( this._roomInhabitants, id, 10, 20)
             this._cachedMessageThings.set( id, newThing)
         }
         return this._cachedMessageThings.get(id)!;
@@ -225,14 +223,6 @@ export class GameTestModel {
                 personalSecret: `client${this.joinCount}_secret`
             }       
             this.joinCount++;
-    
-            this._roomInhabitants.get(gameProperties.presenterId)?.receiveMessage(
-                this._serializer.serialize(
-                    gameProperties.presenterId, 
-                    gameProperties.personalId, 
-                    new ClusterFunJoinMessage({ sender: gameProperties.personalId, name: payload.playerName })
-                )
-            );
             this.saveState();
             return Promise.resolve(gameProperties as unknown as T);
         }
