@@ -5,6 +5,7 @@ import { LobbyMainPage } from "../../lobby/views/LobbyMainPage";
 import { LobbyModel } from "../../lobby/models/LobbyModel";
 import styles from './GameTestComponent.module.css';
 import { GameDescriptor } from "games/lists/GameDescriptor";
+import { action, makeAutoObservable } from "mobx";
 
 const HD_RATIO = 1080/1920;
 
@@ -77,6 +78,19 @@ export interface GameTestComponentProps {
 @observer
 export class GameTestComponent extends React.Component<GameTestComponentProps> {
 
+    myState: {presenterKey: string} 
+    keyCounter = 0;
+
+    constructor(props: GameTestComponentProps) {
+        super(props);
+
+        const state = {
+            presenterKey: "testPresenterKey"
+        }
+
+        makeAutoObservable(state);
+        this.myState = state;
+    }
 
     private sizeChangeHandler = () => {
         this.updatePresenterSize(window.innerWidth);
@@ -115,6 +129,10 @@ export class GameTestComponent extends React.Component<GameTestComponentProps> {
         const {gameTestModel, games} = this.props;
         if(gameTestModel.presenterSize === 0) this.updatePresenterSize(window.innerWidth);
 
+        const handlePresenterRefresh = () => {
+            action(this.myState.presenterKey = "testPresenterKey" + this.keyCounter++)
+        }
+
         return (
             <div>
                 <div className={styles.rTable} style={{border: "2px black", backgroundColor: "#eee"}}>
@@ -141,9 +159,17 @@ export class GameTestComponent extends React.Component<GameTestComponentProps> {
                         onClick={()=> { sessionStorage.clear(); window.location.reload()}}>
                             Clear ALL Memory
                     </button>
+                    <button 
+                        className={styles.utilityButton}
+                        style={{marginLeft:"20px"}} 
+                        onClick={handlePresenterRefresh}>
+                            Refresh
+                    </button>
                 </div>
 
-                <div style={{
+                <div 
+                    key={this.myState.presenterKey}
+                    style={{
                         background: "lightgray", 
                         height: `${gameTestModel.presenterSize * 1080 / 1920}px`, 
                         width: `${gameTestModel.presenterSize}px`}}>
