@@ -1,11 +1,9 @@
-import { IMessageReceipt, ITypeHelper, ISessionHelper, ITelemetryLogger, 
-    IStorage, ClusterFunTerminateGameMessage, ClusterFunJoinMessage, ClusterFunQuitMessage, 
-    ClusterFunReceiptAckMessage, ClusterFunKeepAliveMessage, ClusterFunServerStateMessage, 
-    ClusterFunJoinAckMessage, ClusterFunGameResumeMessage, ClusterFunGamePauseMessage, ClusterFunMessageBase 
-} from "../../libs";
+import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage } from "../../libs";
 import { action, makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 import Logger from "js-logger";
+import { JoinEndpoint, PauseGameEndpoint, PingEndpoint, QuitEndpoint, ResumeGameEndpoint, TerminateGameEndpoint } from "libs/messaging/basicEndpoints";
+import MessageEndpoint from "libs/messaging/MessageEndpoint";
 
 // All games have these states which are managed 
 // in the base classes
@@ -26,16 +24,21 @@ export class ClusterFunPlayer
 {
     playerId: string = "";
     @observable name: string = "";
-    pendingMessage?: IMessageReceipt = undefined;
 }
 
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
 // -------------------------------------------------------------------
-export const getPresenterTypeHelper = (derivedClassHelper: ITypeHelper) =>
+export const getPresenterTypeHelper = (derivedClassHelper: ITypeHelper): ITypeHelper =>
  {
      return {
         rootTypeName: derivedClassHelper.rootTypeName,
+        getTypeName(o: object) {
+            switch(o.constructor) {
+                case ClusterFunPlayer: return "ClusterFunPlayer";
+            }
+            return derivedClassHelper.getTypeName(o);
+        },
         constructType(typeName: string):any { 
             switch(typeName){
                 case "ClusterFunPlayer": return new ClusterFunPlayer();
@@ -100,26 +103,28 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     {
         super(name, sessionHelper, logger, storage);
         makeObservable(this);
+        
+        this.gameTime_ms = 0;
+
+        this.gameState = PresenterGameState.Gathering;
+    }
+
+    reconstitute(): void {
+        super.reconstitute();
         this.subscribe(GeneralGameState.Destroyed, "Presenter EndGame", async () =>
         {
             if(this._fullyInitialized){
-                await this.sendToEveryone((p, ie) => new ClusterFunTerminateGameMessage({ sender: this.session.personalId }));  
+                await this.requestEveryone(TerminateGameEndpoint, (p, ie) => ({}) );  
                 setTimeout(()=>{
-                    sessionHelper.serverCall<void>("/api/terminategame", {  roomId: this.roomId, presenterSecret: this.session.personalSecret })           
+                    this.session.serverCall<void>("/api/terminategame", {  roomId: this.roomId, presenterSecret: this.session.personalSecret })           
                 },200)                
             }
         })
-        
-        this.gameTime_ms = 0;
         this.onTick.subscribe("PresenterState", ()=> this.manageState())
 
-        sessionHelper.addListener(ClusterFunJoinMessage, "playerJoin", this.handleJoinMessage);
-        sessionHelper.addListener(ClusterFunQuitMessage, "playerQuit", this.handlePlayerQuitMessage);
-        sessionHelper.addListener(ClusterFunReceiptAckMessage, "playerAck", this.handleReceipts)
-        sessionHelper.addListener(ClusterFunKeepAliveMessage, "keepAliveSignal", this.handleKeepAlive)
-
-        this.gameState = PresenterGameState.Gathering;
-
+        this.listenToEndpoint(JoinEndpoint, this.handleJoinMessage);
+        this.listenToEndpoint(QuitEndpoint, this.handlePlayerQuitMessage);
+        this.listenToEndpoint(PingEndpoint, this.handlePing);
         setTimeout(()=>this._fullyInitialized = true, 500);
     }
 
@@ -127,112 +132,87 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     // -------------------------------------------------------------------
     //  handleJoinMessage
     // -------------------------------------------------------------------
-    handleJoinMessage = async (message: ClusterFunJoinMessage) => {
-        Logger.info(`Join message from ${message.sender}`)
+    handleJoinMessage = async (sender: string, message: { playerName: string }): Promise<{ isRejoin: boolean, didJoin: boolean, joinError?: string }> => {
+        Logger.info(`Join message from ${sender}`)
 
-        // Find a player with a matching id - we know this one is an exact match
-        let returningPlayer = this._exitedPlayers.find(p => p.playerId === message.sender) as unknown as PlayerType;
-
-        // Maybe they rebooted their device and don't have the id any more - then we will try to 
-        // match on the player name. 
-        if(!returningPlayer && this.allowRejoinOnNameOnly) {
-            returningPlayer = this._exitedPlayers.find(p => p.name === message.name) as unknown as PlayerType;
+        // If a player has already joined, any additional Join messages should be idempotent.
+        // Do send an Ack in case it's needed, though.
+        let resendingPlayer = this.players.find(p => p.playerId === sender) as unknown as PlayerType;
+        if (resendingPlayer) {
+            Logger.debug(`Repeated join message: ${resendingPlayer.name}`)
+            return {
+                didJoin: true,
+                isRejoin: true
+            }
         }
 
-        const notifyState = () => {
-            const isPaused = this.gameState === GeneralGameState.Paused 
-            const state = isPaused  ? this._stateBeforePause : this.gameState;
+        // If the player isn't currently in the game, but joined previously,
+        // find them by playerID first
+        let returningPlayer = this._exitedPlayers.find(p => p.playerId === sender) as unknown as PlayerType;
 
-            if(this.gameState === GeneralGameState.Paused) {
-            }
-            Logger.info(`Sending state to ${message.sender}...`)
-            setTimeout(()=>{
-                this.session.sendMessage(
-                    message.sender,
-                    new ClusterFunServerStateMessage({sender: this.session.personalId, state, isPaused})
-                )                    
-            },100)
+        // It's possible that the player has rebooted their device and doesn't have the player ID anymore -
+        // if this is the case and we want to accomodate it, try matching on the player name
+        if(!returningPlayer && this.allowRejoinOnNameOnly) {
+            returningPlayer = this._exitedPlayers.find(p => p.name === message.playerName) as unknown as PlayerType;
         }
 
         if(returningPlayer) {
             Logger.info(`Returning player: ${returningPlayer.name}`)
-            returningPlayer.playerId = message.sender;
-            this.session.sendMessage(
-                message.sender,
-                new ClusterFunJoinAckMessage({ sender: this.session.personalId, didJoin: true, isRejoin: true})
-            )
-            if(returningPlayer.pendingMessage) {
-                const pendingMessage = returningPlayer.pendingMessage
-                const playerId = returningPlayer.playerId
-                setTimeout(()=>{
-                    Logger.info("Resending Pending message to " + playerId)
-                    this.session.resendMessage(playerId, pendingMessage);
-                },50)
-            }
-
+            returningPlayer.playerId = sender;
             const index = this._exitedPlayers.indexOf(returningPlayer);
             this._exitedPlayers.splice(index,1);
             this.players.push(returningPlayer);
             this.telemetryLogger.logEvent("Presenter", "JoinRequest", "ApproveRejoin");
             this.invokeEvent(PresenterGameEvent.PlayerJoined, returningPlayer);
-            setTimeout(() => {notifyState()}, 250)
+            return {
+                didJoin: true,
+                isRejoin: true
+            }
         }
         else if (this.allowedJoinStates.find(s => s === this.gameState)) {
             Logger.info(`New Player`)
             if(this.players.length < this.maxPlayers)
             {
-                let existingPlayer = this.players.find(p => p.name === message.name) as unknown as PlayerType;
+                let existingPlayer = this.players.find(p => p.name === message.playerName) as unknown as PlayerType;
                 Logger.info(`Existing Player:: ${existingPlayer?.name}`)
                 if(existingPlayer) {
                     Logger.info(`Denying join because name exists`)
-                    this.session.sendMessage(
-                        message.sender,
-                        new ClusterFunJoinAckMessage({ sender: this.session.personalId, didJoin: false, isRejoin: false, joinError: `That name is taken`})   
-                    )
-    
                     this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Name Taken)" );
+                    return { didJoin: false, isRejoin: false, joinError: `That name is taken`};
                 }
                 else {
-                    const entry = this.createFreshPlayerEntry(message.name, message.sender);
+                    const entry = this.createFreshPlayerEntry(message.playerName, sender);
                     this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve");
                     action(()=>{this.players.push(entry)})();                
-
-                    this.session.sendMessage(
-                        message.sender,
-                        new ClusterFunJoinAckMessage({ sender: this.session.personalId, didJoin: true, isRejoin: false})
-                    )
-                    notifyState();
-
                     this.saveCheckpoint();
                     this.invokeEvent(PresenterGameEvent.PlayerJoined, entry);     
                     this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve new player" );
+                    return { didJoin: true, isRejoin: false }
                 }
             }
             else {
-                this.session.sendMessage(
-                    message.sender,
-                    new ClusterFunJoinAckMessage({ sender: this.session.personalId, didJoin: false, isRejoin: false, joinError: "The room is full"})
-                )
                 this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Full)" );
+                return {
+                    didJoin: false,
+                    isRejoin: false,
+                    joinError: "The room is full"
+                }
             }
         }
         else {
-            this.session.sendMessage(
-                message.sender,
-                new ClusterFunJoinAckMessage({ sender: this.session.personalId, didJoin: false, isRejoin: false, joinError: `The room is currently closed (game state: ${this.gameState})`})
-            )
-            this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Not Allowed)");          
+            this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Not Allowed)");
+            return { didJoin: false, isRejoin: false, joinError: `The room is currently closed (game state: ${this.gameState})`}    
         }
     }
 
     // -------------------------------------------------------------------
     //  handlePlayerQuitMessage
     // -------------------------------------------------------------------
-    handlePlayerQuitMessage = (message: ClusterFunQuitMessage) => {
+    handlePlayerQuitMessage = (sender: string, message: any) => {
         if(this.gameState === GeneralGameState.Destroyed) return;
-        Logger.info("received quit message from " + message.sender)
+        Logger.info("received quit message from " + sender)
         this.telemetryLogger.logEvent("Presenter", "QuitRequest");
-        const player = this.players.find(p => p.playerId === message.sender);
+        const player = this.players.find(p => p.playerId === sender);
         if(player) {
             this.players.remove(player);
             this._exitedPlayers.push(player);
@@ -241,9 +221,8 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                 && this.gameState !== PresenterGameState.Gathering) {
                 this.pauseGame();
             }
+            this.saveCheckpoint();
         }
-
-        this.saveCheckpoint();
     }
 
     // -------------------------------------------------------------------
@@ -323,7 +302,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         }
         else {
             this.gameState = this._stateBeforePause;
-            this.sendToEveryone((p,exited) => new ClusterFunGameResumeMessage({sender: this.session.personalId}))
+            this.requestEveryone(ResumeGameEndpoint, (p,exited) => ({}))
         }
         this.isPaused = false;
     }
@@ -334,59 +313,62 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     pauseGame = () => {
         this._stateBeforePause = this.gameState;
         this.gameState = GeneralGameState.Paused;
-        this.sendToEveryone((p,exited) => new ClusterFunGamePauseMessage({sender: this.session.personalId}))
+        this.requestEveryone(PauseGameEndpoint, (p,exited) => ({}));
         this.isPaused = true;
     }
 
     // -------------------------------------------------------------------
-    //  handleKeepAlive
+    //  handle a ping message from the player
     // -------------------------------------------------------------------
-    handleKeepAlive = (message: ClusterFunKeepAliveMessage) => {
-        // FIXME: Maybe do something to be proactive about clients
-        // that are no longer keeping alive - like, remove from game ?
-    }
-   
-    // -------------------------------------------------------------------
-    //  handleReceipts
-    // -------------------------------------------------------------------
-    handleReceipts = (message: ClusterFunReceiptAckMessage) => {
-        for(const p of this.players)  {
-            if(p.pendingMessage 
-                && p.playerId === message.sender
-                && p.pendingMessage.id === message.ackedMessageId) { 
-                p.pendingMessage = undefined;
-                return;
-            }
-        }
-        Logger.warn(`Weird: got a message Ack for a message not pending: ` + JSON.stringify(message))
-    }
-   
-    // -------------------------------------------------------------------
-    //  sendToPlayer - send a message to a player
-    // -------------------------------------------------------------------
-    async sendToPlayer(playerId: string, message:ClusterFunMessageBase) {
-        const player = this.players.find(p => p.playerId === playerId);
-        if(player) {
-            player.pendingMessage = await this.session.sendMessage(playerId, message);
-        }
+    handlePing = (sender: string, message: { pingTime: number }): { pingTime: number, localTime: number } => {
+        return { pingTime: message.pingTime, localTime: Date.now() };
     }
 
     // -------------------------------------------------------------------
-    //  sendToEveryone - send a message to all players
-    //  generateMessage should return null if a message should not go
+    //  requestEveryone - make a request to all players, bundling the responses
+    //  in a Promise.all() style array
+    //  generateMessage should return falsy if a message should not go
     //  to that player
     // -------------------------------------------------------------------
-    async sendToEveryone(generateMessage: (player: PlayerType, isExited: boolean) => ClusterFunMessageBase) {
-        const sendToPlayer = (isExited: boolean) => async (player:PlayerType) => {
+    async requestEveryone<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        generateRequest: (player: PlayerType, isExited: boolean) => REQUEST | undefined): Promise<(RESPONSE | undefined)[]> {
+
+        const sendToPlayer = (isExited: boolean) => async (player:PlayerType): Promise<RESPONSE | undefined> => {
             // Don't send to self
             if(player.playerId !== this.session.personalId) {
-                const message = generateMessage(player, isExited);
-                if(message) {
-                    player.pendingMessage = await this.session.sendMessage(player.playerId, message);
+                const request = generateRequest(player, isExited);
+                if(request) {
+                    const promise = this.session.request(endpoint, player.playerId, request);
+                    return promise;
+                } else {
+                    return Promise.resolve(undefined)
                 }
             }
         }
         
-        await Promise.all(this.players.map(sendToPlayer(false)));
+        return Promise.all(this.players.map(sendToPlayer(false)));
+    }
+
+    // -------------------------------------------------------------------
+    //  requestEveryoneAndForget - make a request to all players that we promptly forget
+    //  generateMessage should return falsy if a message should not go
+    //  to that player
+    // -------------------------------------------------------------------
+    async requestEveryoneAndForget<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        generateRequest: (player: PlayerType, isExited: boolean) => REQUEST | undefined): Promise<void> {
+
+        const sendToPlayer = (isExited: boolean) => async (player:PlayerType): Promise<void> => {
+            // Don't send to self
+            if(player.playerId !== this.session.personalId) {
+                const request = generateRequest(player, isExited);
+                if(request) {
+                    this.session.request(endpoint, player.playerId, request).forget();
+                }
+            }
+        }
+        
+        this.players.forEach(sendToPlayer(false));
     }
 }

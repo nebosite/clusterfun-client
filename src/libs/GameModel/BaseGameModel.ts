@@ -1,10 +1,18 @@
-import { ClusterFunGameProps, ITypeHelper, ISessionHelper, ITelemetryLogger, 
-    IStorage, EventThing, ClusterFunMessageBase, ClusterFunMessageConstructor, 
-    BaseAnimationController, ClusterFunReceiptAckMessage, BruteForceSerializer
+import { ITypeHelper, ISessionHelper, ITelemetryLogger, 
+    IStorage, EventThing, 
+    BaseAnimationController, BruteForceSerializer
 } from "../../libs";
 
 import { action, makeObservable, observable } from "mobx";
 import Logger from "js-logger";
+import ClusterfunListener from "libs/messaging/ClusterfunListener";
+import MessageEndpoint from "libs/messaging/MessageEndpoint";
+
+// Finalizer to track whether models have been properly cleared
+// Remove when debugging makes us confident of this
+const debug_model_finalizer = new FinalizationRegistry((name) => {
+    Logger.info(`Model with ${name} successfully garbage collected`);
+})
 
 
 const GAMESTATE_LABEL = "game_state";
@@ -21,9 +29,31 @@ export enum GeneralGameState
 // -------------------------------------------------------------------
 // get the saved game if available or create a new one
 // -------------------------------------------------------------------
-export function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper)
+export function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper, logger: ITelemetryLogger, storage: IStorage)
 {
     const serializer = createSerializer(typeHelper);
+
+    try {
+        const savedDataJson = storage.get(GAMESTATE_LABEL);
+        if (savedDataJson) {
+            const savedData = serializer.parse<BaseGameModel>(savedDataJson);
+            if(savedData.gameState !== GeneralGameState.Destroyed)
+            {
+                Logger.info(`Found a saved game (${savedDataJson.length} bytes).  Resuming ...`)
+                savedData.serializer = serializer;
+                return savedData;
+            }
+            else {
+                Logger.info(`Saved game state was 'destroyed'.  Going with new game.`)
+            } 
+        }
+    } 
+    catch(err) 
+    {
+        logger.logEvent("Error", "Failed Game Restore", (err as any).message )
+        Logger.error(`getSavedGame: Could not restore game because: `, err);
+    }
+
     const gameTypeName = typeHelper.rootTypeName;
     let returnMe: T | undefined;
 
@@ -40,8 +70,18 @@ export function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper
 // -------------------------------------------------------------------
 function createSerializer(typeHelper: ITypeHelper)
 {
-    const deepTypeHelper = {
+    const deepTypeHelper: ITypeHelper = {
         rootTypeName: "na",
+        getTypeName(o: object): string {
+            if (o.constructor === Object) return "Object";
+            if (o instanceof Map) return "Map";
+            if (o instanceof Set) return "Set";
+            const typeName = typeHelper.getTypeName(o);
+            if (!typeName) {
+                throw Error(`Object with constructor ${o.constructor.name} not added to getTypeName`);
+            }
+            return typeName;
+        },
         constructType(typeName: string) {
             const output = typeHelper.constructType(typeName);
             if(!output) {
@@ -60,11 +100,13 @@ function createSerializer(typeHelper: ITypeHelper)
                 switch(propertyName)
                 {
                     case "_scheduledEvents":
+                    case "_messageListeners":
                     case "_events":
                     case "_ticker":
                     case "_isCheckpointing":
                     case "_lastCheckpointTime":
-                    case "logger":
+                    case "_isShutdown":
+                    case "telemetryLogger":
                     case "onTick":
                     case "serializer":
                     case "session":
@@ -114,7 +156,6 @@ export abstract class BaseGameModel  {
                 this.devFast = false;
             })()
             this.invokeEvent(value);
-            this.saveCheckpoint();       
         }
     }
 
@@ -135,10 +176,16 @@ export abstract class BaseGameModel  {
 
     public onTick = new EventThing<number>("BaseGameModel");
     private _scheduledEvents: Map<number, Array<() => void>>;
+    private _messageListeners: ClusterfunListener<unknown, unknown>[] = [];
+    
+    private _isShutdown = false;
+    public get isShutdown() { return this._isShutdown; }
+
+    
 
     //private _deserializeHelper: (propertyName: string, data: any) => any
     private _events = new Map<string, EventThing<any>>();
-    private _ticker: NodeJS.Timeout;
+    private _ticker?: NodeJS.Timeout;
     serializer?: BruteForceSerializer
     private _isCheckpointing = false;
     private _lastCheckpointTime = 0;
@@ -166,7 +213,13 @@ export abstract class BaseGameModel  {
         this.storage = storage;
 
         this._scheduledEvents = new Map<number, Array<() => void>>();
-        this.session.addClosedListener(code => this.onSessionClosed(code));
+        debug_model_finalizer.register(this, this.name);
+    }
+
+    // This method is called after loading a saved game from memory.  Here is 
+    // where to hook up stuff the serialize couldn't get back
+    reconstitute():void {
+        this.session.addClosedListener(this, code => this.onSessionClosed(code));
    
         // Set up a regular ticker to drive scheduled events and animations
         let timeOfLastTick = Date.now();
@@ -176,50 +229,8 @@ export abstract class BaseGameModel  {
             timeOfLastTick = now;
         }, this.tickInterval_ms );
 
-        this.telemetryLogger.logPageView(name);
+        this.telemetryLogger.logPageView(this.name);
     }
-
-    // -------------------------------------------------------------------
-    // get the saved game if available or create a new one
-    // -------------------------------------------------------------------
-    tryLoadOldGame(gameProps: ClusterFunGameProps)
-    {
-        if(!this.serializer) throw Error("No serializer in tryLoadOldGame")
-        this._isLoading =true;
-
-        // Do this async so that we don't trip state dependencies during construction
-        setTimeout(()=>{
-            try {
-                const savedDataJson = gameProps.storage.get(GAMESTATE_LABEL);
-                if(savedDataJson) {
-                    const savedData = this.serializer!.parse<BaseGameModel>(savedDataJson);
-                    if(savedData.gameState !== GeneralGameState.Destroyed)
-                    {
-                        Logger.info("Found a saved game.  Resuming ...")
-                        action(()=>{
-                            Object.assign(this, savedData)
-                            this.reconstitute();                          
-                        })()        
-                    }
-                    else {
-                        Logger.info(`Saved game state was 'destroyed'.  Going with new game.`)
-                    } 
-                }      
-            }
-            catch(err) 
-            {
-                gameProps.logger.logEvent("Error", "Failed Game Restore", (err as any).message )
-                Logger.error("getSavedGame: Could not restore game because: " + err);
-            }
-            this._isLoading = false;
-        },50)
-
-    }
-
-
-    // This method is called after loading a saved game from memory.  Here is 
-    // where to hook up stuff the serialize couldn't get back
-    abstract reconstitute():void
 
     // -------------------------------------------------------------------
     //  quitApp
@@ -227,8 +238,26 @@ export abstract class BaseGameModel  {
     quitApp = () => {
         Logger.info("Quitting the app")
         this.gameState = GeneralGameState.Destroyed;
-        clearInterval(this._ticker);
         this.storage.remove(GAMESTATE_LABEL);
+        this.shutdown();
+    }
+
+    // -------------------------------------------------------------------
+    //  shutdown - Shut down the model without destroying saved state
+    // -------------------------------------------------------------------
+    shutdown = () => {
+        Logger.info("Shutting down model");
+        if (this._ticker) {
+            clearInterval(this._ticker);
+        }
+        for (const listener of this._messageListeners) {
+            listener.unsubscribe();
+        }
+        this._messageListeners = [];
+        this.session.removeClosedListener(this);
+        this._events.clear();
+        this._scheduledEvents.clear();
+        this._isShutdown = true;
     }
 
     // -------------------------------------------------------------------
@@ -244,8 +273,6 @@ export abstract class BaseGameModel  {
             && code !== CLOSECODE_PLEASERETRY) {
             this.clearCheckpoint();
             this.quitApp();
-        } else {
-            this.saveCheckpoint();
         }
     }
 
@@ -261,23 +288,13 @@ export abstract class BaseGameModel  {
     }
 
     // -------------------------------------------------------------------
-    // addMessageListener - register a listening for a specific clusterfun
-    // message type.
-    // -------------------------------------------------------------------
-    addMessageListener<P, M extends ClusterFunMessageBase>(
-        messageClass: ClusterFunMessageConstructor<P, M>, 
-        name: string, 
-        listener: (message: M) => unknown) {
-        this.session.addListener(messageClass, name, listener);
-    }
-
-    // -------------------------------------------------------------------
     // invokeEvent - force an event to trigger
     // -------------------------------------------------------------------
     invokeEvent(event: string, ...args: any[]) {
+        const eventFunction = this._events.get(event);
         return new Promise<void>(resolve => {
             setTimeout(() => {
-                this._events.get(event)?.invoke(...args);
+                eventFunction?.invoke(...args);
                 resolve();
             },1)            
         })
@@ -396,16 +413,6 @@ export abstract class BaseGameModel  {
     }
 
     // -------------------------------------------------------------------
-    // acknowledge a message
-    // ------------------------------------------------------------------- 
-    ackMessage(message: ClusterFunMessageBase) {
-        this.session.sendMessage(message.sender, new ClusterFunReceiptAckMessage({
-            sender: this.session.personalId,
-            ackedMessageId: message.messageId ?? 0
-        }))
-    }
-
-    // -------------------------------------------------------------------
     // return a promise that goes off after x game time milliseconds
     // ------------------------------------------------------------------- 
     protected waitForGameTime(ms: number): Promise<void> {
@@ -421,6 +428,30 @@ export abstract class BaseGameModel  {
         return new Promise((resolve, _reject) => {
             setTimeout(resolve, ms);
         })
+    }
+
+    // -------------------------------------------------------------------
+    // Create a request listener, registering it for removal when the
+    // model is shut down
+    // ------------------------------------------------------------------- 
+    protected listenToEndpoint<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>,
+        apiCallback: (sender: string, request: REQUEST) => RESPONSE | PromiseLike<RESPONSE>) {
+        const listener = this.session.listen(endpoint, apiCallback);
+        this._messageListeners.push(listener as ClusterfunListener<unknown, unknown>);
+        return listener;
+    }
+
+    // -------------------------------------------------------------------
+    // Create a request listener specifically for a presenter - a request
+    // from any other caller has an error thrown back at it
+    // ------------------------------------------------------------------- 
+    protected listenToEndpointFromPresenter<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>,
+        apiCallback: (request: REQUEST) => RESPONSE | PromiseLike<RESPONSE>) {
+        const listener = this.session.listenPresenter(endpoint, apiCallback);
+        this._messageListeners.push(listener as ClusterfunListener<unknown, unknown>);
+        return listener;
     }
 
     // -------------------------------------------------------------------
@@ -456,6 +487,4 @@ export abstract class BaseGameModel  {
     {
         return items[this.randomInt(items.length)]
     }
-    
-
 }
