@@ -35,6 +35,7 @@ export class LexiblePlayer extends ClusterFunPlayer {
 export enum LexibleGameState {
     Playing = "Playing",
     EndOfRound = "EndOfRound",
+    Instructions = "Instructions",
 }
 
 // -------------------------------------------------------------------
