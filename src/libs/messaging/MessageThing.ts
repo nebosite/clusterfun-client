@@ -1,5 +1,5 @@
 import Logger from "js-logger";
-import { ClusterFunSerializer } from "../../libs"
+import { parseHeaderOnly } from "libs/comms";
 
 // -------------------------------------------------------------------
 // IMessageThing
@@ -8,6 +8,7 @@ export interface IMessageThing {
     personalId: string;
     personalSecret: string;
     addEventListener: (eventName: string, handler: (event?: any) => void) => void;
+    removeEventListener: (eventName: string, handler: (event?: any) => void) => void;
     send: (payload: string, onFailure: ()=>void) => Promise<void>;
     readonly isOpen: boolean;
     readonly isClosed: boolean;
@@ -54,6 +55,14 @@ export class WebSocketMessageThing implements IMessageThing {
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
+    removeEventListener(eventName: string, handler: (event?: any) => void) {
+        this._websocket.removeEventListener(eventName, handler)
+    }
+
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
     async send(payload: string, onFailure: ()=>void) {
         let retries = 8;
         let backoffTime = 50;
@@ -93,22 +102,27 @@ export class WebSocketMessageThing implements IMessageThing {
 export class LocalMessageThing implements IMessageThing {
     personalId: string;
     personalSecret: string = "there is no queen of england";
+    simulatedMinPingMs: number;
+    simulatedMaxPingMs: number;
     get isOpen() { return true; }
     get isClosed() { return false; }
     get closeCode() { return 0; }
     private _listeners = new Map<string, any[]>();
     private _room: Map<string, LocalMessageThing>;
-    private _serializer: ClusterFunSerializer;
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(roomInhabitants:  Map<string, LocalMessageThing>, playerName: string, personalId: string )
+    constructor(
+        roomInhabitants: Map<string, LocalMessageThing>, 
+        personalId: string, 
+        simulatedMinPingMs: number, simulatedMaxPingMs: number)
     {
         this._room = roomInhabitants;
         this.personalId = personalId;
         this._room.set(personalId, this);
-        this._serializer = new ClusterFunSerializer();
+        this.simulatedMinPingMs = simulatedMinPingMs;
+        this.simulatedMaxPingMs = simulatedMaxPingMs;
     }
 
     // -------------------------------------------------------------------
@@ -122,10 +136,23 @@ export class LocalMessageThing implements IMessageThing {
     }
 
     // -------------------------------------------------------------------
+    // addEventListener
+    // -------------------------------------------------------------------
+    removeEventListener(eventName: string, handler: (event?: any) => void) {
+        if(this._listeners.has(eventName)) {
+            const eventListeners = this._listeners.get(eventName)!;
+            const index = eventListeners.indexOf(handler);
+            if (index !== -1) {
+                eventListeners.splice(index, 1);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------
     // send
     // -------------------------------------------------------------------
-    async send(payload: string, onFailure: ()=>void) {
-        const header = this._serializer.deserializeHeaderOnly(payload);
+    async send(payload: string, _onFailure: ()=>void) {
+        const header = parseHeaderOnly(payload);
         if (header.s !== this.personalId) {
             throw new SyntaxError("Sender of header must match personal ID")
         }
@@ -138,7 +165,7 @@ export class LocalMessageThing implements IMessageThing {
                     this._room.get(header.r)?.receiveMessage(payload)
                     resolve();
                 }
-            })
+            }, this.simulatedMinPingMs)
         })
 
     }
@@ -149,10 +176,9 @@ export class LocalMessageThing implements IMessageThing {
     receiveMessage(message: string){
         const listeners = this._listeners.get("message");
         if(listeners) {
-            for(const listener of listeners)
-            {
-                listener({data: message});
-            }
+            listeners.forEach(listener => {
+                setTimeout(() => { listener({ data: message }); }, Math.random() * (this.simulatedMaxPingMs - this.simulatedMinPingMs));
+            })
         }
     }
 }
