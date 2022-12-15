@@ -320,14 +320,14 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     }
 
     // -------------------------------------------------------------------
-    //  sendToEveryone - make a request to all players
+    //  requestEveryone - make a request to all players, bundling the responses
+    //  in a Promise.all() style array
     //  generateMessage should return falsy if a message should not go
     //  to that player
     // -------------------------------------------------------------------
     async requestEveryone<REQUEST, RESPONSE>(
         endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
-        generateRequest: (player: PlayerType, isExited: boolean) => REQUEST | undefined,
-        shouldForget: boolean = false): Promise<(RESPONSE | undefined)[]> {
+        generateRequest: (player: PlayerType, isExited: boolean) => REQUEST | undefined): Promise<(RESPONSE | undefined)[]> {
 
         const sendToPlayer = (isExited: boolean) => async (player:PlayerType): Promise<RESPONSE | undefined> => {
             // Don't send to self
@@ -335,7 +335,6 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                 const request = generateRequest(player, isExited);
                 if(request) {
                     const promise = this.session.request(endpoint, player.playerId, request);
-                    if (shouldForget) promise.forget();
                     return promise;
                 } else {
                     return Promise.resolve(undefined)
@@ -344,5 +343,27 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         }
         
         return Promise.all(this.players.map(sendToPlayer(false)));
+    }
+
+    // -------------------------------------------------------------------
+    //  requestEveryoneAndForget - make a request to all players that we promptly forget
+    //  generateMessage should return falsy if a message should not go
+    //  to that player
+    // -------------------------------------------------------------------
+    async requestEveryoneAndForget<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        generateRequest: (player: PlayerType, isExited: boolean) => REQUEST | undefined): Promise<void> {
+
+        const sendToPlayer = (isExited: boolean) => async (player:PlayerType): Promise<void> => {
+            // Don't send to self
+            if(player.playerId !== this.session.personalId) {
+                const request = generateRequest(player, isExited);
+                if(request) {
+                    this.session.request(endpoint, player.playerId, request).forget();
+                }
+            }
+        }
+        
+        this.players.forEach(sendToPlayer(false));
     }
 }

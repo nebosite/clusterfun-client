@@ -55,11 +55,11 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
 
     reconstitute():void {
         super.reconstitute();
-        this.listenToEndpoint(InvalidateStateEndpoint, this.handleInvalidateStateMessage);
-        this.listenToEndpoint(GameOverEndpoint, this.handleGameOverMessage);
-        this.listenToEndpoint(TerminateGameEndpoint, this.handleTerminateGameMessage);
-        this.listenToEndpoint(PauseGameEndpoint, this.handlePauseMessage);
-        this.listenToEndpoint(ResumeGameEndpoint, this.handleResumeMessage);
+        this.listenToEndpointFromPresenter(InvalidateStateEndpoint, this.handleInvalidateStateMessage);
+        this.listenToEndpointFromPresenter(GameOverEndpoint, this.handleGameOverMessage);
+        this.listenToEndpointFromPresenter(TerminateGameEndpoint, this.handleTerminateGameMessage);
+        this.listenToEndpointFromPresenter(PauseGameEndpoint, this.handlePauseMessage);
+        this.listenToEndpointFromPresenter(ResumeGameEndpoint, this.handleResumeMessage);
 
         // this.session.onError((err) => {
         //     Logger.error(`Session error: ${err}`)
@@ -68,12 +68,12 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         this.subscribe(GeneralGameState.Destroyed, "GameDestroyed", () =>
         {
             if(!this.gameTerminated) {
-                this.session.request(QuitEndpoint, this.session.presenterId, {}).forget();
+                this.session.requestPresenter(QuitEndpoint, {}).forget();
             }
         })
 
         this.gameState = GeneralClientGameState.WaitingToStart;
-        this.session.request(JoinEndpoint, this.session.presenterId, { playerName: this._playerName }).then(ack => {
+        this.session.requestPresenter(JoinEndpoint, { playerName: this._playerName }).then(ack => {
             this.handleJoinAck(ack);
             this._stateIsInvalid = true;
             this.requestGameStateFromPresenter().then(() => this._stateIsInvalid = false);
@@ -94,7 +94,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         }
         
         if(this.gameState !== GeneralGameState.Destroyed) {
-            this.session.request(PingEndpoint, this.session.presenterId, { pingTime: Date.now() }).then(undefined, (err) => {
+            this.session.requestPresenter(PingEndpoint, { pingTime: Date.now() }).then(undefined, (err) => {
                 Logger.warn("Ping message was not received:", err);
             })
             setTimeout(this.keepAlive, this.KEEPALIVE_INTERVAL_MS)
@@ -129,7 +129,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // -------------------------------------------------------------------
     //  handleInvalidateStateMessage
     // -------------------------------------------------------------------
-    handleInvalidateStateMessage = (sender: string, message: unknown) => {
+    handleInvalidateStateMessage = (message: unknown) => {
         this._stateIsInvalid = true;
         this.requestGameStateFromPresenter().then(() => this._stateIsInvalid = false);
     }
@@ -137,25 +137,27 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // -------------------------------------------------------------------
     //  
     // -------------------------------------------------------------------
-    handleGameOverMessage = (sender: string, message: unknown) => {
+    handleGameOverMessage = (message: unknown) => {
         this.gameState = GeneralGameState.GameOver;
         this.saveCheckpoint();
+        return {};
     }
 
     // -------------------------------------------------------------------
     //  
     // -------------------------------------------------------------------
-    handleTerminateGameMessage = (sender: string, message: unknown) => {
+    handleTerminateGameMessage = (message: unknown) => {
         Logger.info("Presenter has terminated the game")
         this.gameTerminated = true;
         this.quitApp();
+        return {};
     }
 
     prepauseState: string = GeneralGameState.Unknown
     // -------------------------------------------------------------------
     // 
     // -------------------------------------------------------------------
-    protected handlePauseMessage = (sender: string, message: unknown): any => {
+    protected handlePauseMessage = (message: unknown): any => {
         this.prepauseState = this.gameState;
         this.gameState = GeneralClientGameState.Paused
         this.saveCheckpoint();
@@ -165,7 +167,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // -------------------------------------------------------------------
     // 
     // -------------------------------------------------------------------
-    protected handleResumeMessage = (sender: string, message: unknown): any => {
+    protected handleResumeMessage = (message: unknown): any => {
         if(this.prepauseState !== GeneralGameState.Unknown) {
             this.gameState = this.prepauseState;
             this.saveCheckpoint();

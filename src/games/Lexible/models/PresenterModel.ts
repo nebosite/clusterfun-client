@@ -424,7 +424,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 const letterCoordinates = Array.from(this.recentlyTouchedLetters.values());
                 this.recentlyTouchedLetters.clear();
                 const message: LexibleRecentlyTouchedLettersMessage = { letterCoordinates }
-                this.requestEveryone(LexibleShowRecentlyTouchedLettersEndpoint, () => message, true);
+                this.requestEveryoneAndForget(LexibleShowRecentlyTouchedLettersEndpoint, () => message);
             }
         }
     }
@@ -472,7 +472,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             this.requestEveryone(GameOverEndpoint, (p,ie) => ({}))
         }    
         else {
-            this.requestEveryone(InvalidateStateEndpoint, (p, ie) => ({}), true);
+            this.requestEveryoneAndForget(InvalidateStateEndpoint, (p, ie) => ({}));
         }
         this.saveCheckpoint();
     }
@@ -578,9 +578,9 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         }
         this.gameState = LexibleGameState.EndOfRound
         this.invokeEvent(LexibleGameEvent.TeamWon, team)
-        this.requestEveryone(LexibleEndRoundEndpoint, (p, ie) => {
+        this.requestEveryoneAndForget(LexibleEndRoundEndpoint, (p, ie) => {
             return { roundNumber: this.currentRound, winningTeam: team }
-        }, true)
+        })
     }
     
     // -------------------------------------------------------------------
@@ -610,14 +610,14 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
         if(word.length > player.longestWord.length) player.longestWord = word;
 
-        this.requestEveryone(LexibleBoardUpdateEndpoint, (p, isExited) => {
+        this.requestEveryoneAndForget(LexibleBoardUpdateEndpoint, (p, isExited) => {
             return {
                 letters: placedLetters,
                 score: word.length,
                 scoringPlayerId: player.playerId,
                 scoringTeam: player.teamName
             }
-        }, true);
+        });
 
         this.invokeEvent(LexibleGameEvent.WordAccepted, word.toLowerCase(), player)
         if (player.teamName === "A" || player.teamName === "B") {

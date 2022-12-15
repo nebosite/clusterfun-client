@@ -86,7 +86,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
     }
 
     async requestGameStateFromPresenter(): Promise<void> {
-        const response = await this.session.request(TestatoOnboardClientEndpoint, this.session.presenterId, {});
+        const response = await this.session.requestPresenter(TestatoOnboardClientEndpoint, {});
         this.roundNumber = response.roundNumber;
         switch(response.state) {
             case TestatoGameState.Playing: this.gameState = TestatoGameState.Playing; break;
@@ -136,7 +136,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
         const hex = Array.from("0123456789ABCDEF");
         let colorStyle = "#";
         for(let i = 0; i < 6; i++) colorStyle += this.randomItem(hex);
-        this.session.request(TestatoColorChangeActionEndpoint, this.session.presenterId, { colorStyle }).forget();
+        this.session.requestPresenter(TestatoColorChangeActionEndpoint, { colorStyle }).forget();
     }
    
     // -------------------------------------------------------------------
@@ -144,7 +144,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     doMessage(){
         const messages = ["Hi!", "Bye?", "What's up?", "Oh No!", "Hoooooweeee!!", "More gum."]
-        this.session.request(TestatoMessageActionEndpoint, this.session.presenterId, { message: this.randomItem(messages)}).forget();
+        this.session.requestPresenter(TestatoMessageActionEndpoint, { message: this.randomItem(messages)}).forget();
     }
    
     // -------------------------------------------------------------------
@@ -154,6 +154,6 @@ export class TestatoClientModel extends ClusterfunClientModel  {
         x = Math.floor(x * 1000)/1000;
         y = Math.floor(y * 1000)/1000;
         
-        this.session.request(TestatoTapActionEndpoint, this.session.presenterId, { point: new Vector2(x, y) }).forget();
+        this.session.requestPresenter(TestatoTapActionEndpoint, { point: new Vector2(x, y) }).forget();
     }
 }
