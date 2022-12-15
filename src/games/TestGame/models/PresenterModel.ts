@@ -174,7 +174,7 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     // -------------------------------------------------------------------
     finishPlayingRound() {
         this.gameState = TestatoGameState.EndOfRound;
-        this.requestEveryone(InvalidateStateEndpoint, (p,ie) => ({}), true)
+        this.requestEveryoneAndForget(InvalidateStateEndpoint, (p,ie) => ({}))
     }
 
     // -------------------------------------------------------------------
@@ -196,12 +196,12 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
 
         if(this.currentRound > this.totalRounds) {
             this.gameState = GeneralGameState.GameOver;
-            this.requestEveryone(GameOverEndpoint, (p,ie) => ({}), true)
+            this.requestEveryone(GameOverEndpoint, (p,ie) => ({}))
             this.saveCheckpoint();
         }    
         else {
             this.gameState = TestatoGameState.Playing;
-            this.requestEveryone(InvalidateStateEndpoint, (p,ie) => ({}), true)
+            this.requestEveryoneAndForget(InvalidateStateEndpoint, (p,ie) => ({}))
             this.saveCheckpoint();
         }
 

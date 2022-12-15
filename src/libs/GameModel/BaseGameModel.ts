@@ -443,6 +443,18 @@ export abstract class BaseGameModel  {
     }
 
     // -------------------------------------------------------------------
+    // Create a request listener specifically for a presenter - a request
+    // from any other caller has an error thrown back at it
+    // ------------------------------------------------------------------- 
+    protected listenToEndpointFromPresenter<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>,
+        apiCallback: (request: REQUEST) => RESPONSE | PromiseLike<RESPONSE>) {
+        const listener = this.session.listenPresenter(endpoint, apiCallback);
+        this._messageListeners.push(listener as ClusterfunListener<unknown, unknown>);
+        return listener;
+    }
+
+    // -------------------------------------------------------------------
     // scheduleEvent
     // -------------------------------------------------------------------
     protected scheduleEvent(time: number, event: () => void) {
