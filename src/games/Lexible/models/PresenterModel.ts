@@ -11,7 +11,8 @@ import {
     LexibleScoredWordMessage,
     LexibleWordHintMessage,
     LetterChain,
-    LexibleRecentlyTouchedLettersMessage, } from "./Messages";
+    LexibleRecentlyTouchedLettersMessage,
+    SwitchTeamData, } from "./Messages";
 import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
@@ -690,13 +691,20 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
-    handleSwitchTeam(player: LexiblePlayer) {
+    handleSwitchTeam(player: LexiblePlayer, data: SwitchTeamData) {
         const TeamA = this.players.filter(p => p.teamName === "A")
         const TeamB = this.players.filter(p => p.teamName === "B")
 
-        if(player.teamName === "A" && TeamA.length < 2) return;
-        if(player.teamName === "B" && TeamB.length < 2) return;
-        player.teamName = player.teamName === "A" ? "B" : "A";
+        if(data.desiredTeam === "A" 
+            && !TeamA.find(p => p.playerId === player.playerId)
+            && TeamB.length > 1) {
+                player.teamName = data.desiredTeam
+        }
+        if(data.desiredTeam === "B" 
+            && !TeamB.find(p => p.playerId === player.playerId)
+            && TeamA.length > 1) {
+                player.teamName = data.desiredTeam
+        }
 
         this.sendToPlayer(player.playerId, this.createPlayRequestMessage(player.teamName))
     }
@@ -721,7 +729,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 this.handlePlayerWordSubmit(message.sender, message.actionData as WordSubmissionData)
                 break;
             case LexiblePlayerAction.SwitchTeam:
-                this.handleSwitchTeam(player);
+                this.handleSwitchTeam(player, message.actionData as SwitchTeamData);
                 break;
         }
 

@@ -108,6 +108,10 @@ export interface LetterSelectData {
     isFirst: boolean
 }
 
+export interface SwitchTeamData {
+    desiredTeam: string
+}
+
 export interface WordSubmissionData {
     letters: LetterChain
 }
@@ -115,7 +119,7 @@ export class LexiblePlayerActionMessageData extends ClusterFunMessageBase
 {
     roundNumber: number = 0;
     action: LexiblePlayerAction = LexiblePlayerAction.WordSubmit;
-    actionData: LetterSelectData | WordSubmissionData | {} = { letters:[] };
+    actionData: LetterSelectData | WordSubmissionData | SwitchTeamData | {} = { letters:[] };
 }
 export class LexiblePlayerActionMessage extends LexiblePlayerActionMessageData {
     static readonly messageTypeName = "LexiblePlayerActionMessage";

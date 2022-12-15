@@ -163,19 +163,19 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenter
                             1. Claim tiles by spelling a word with adjacent letters.
                             Tiles you claim will get a point value equal to the length of the word.
                         </p>
-                        <img src={LexibleAssets.images.instructions1} style={{width: "280px", height: "280px"}} />
+                        <img src={LexibleAssets.images.instructions1} alt="instructions" style={{width: "280px", height: "280px"}} />
                     </div>);
                 case 1: return (<div>
                         <p className={styles.instructionParagraph}>
                             2. You can claim the other team's tiles, but make sure your word is long enough! 
                             If the word is not longer than a tile's score, it will not be claimed.
                         </p>
-                        <img src={LexibleAssets.images.instructions2}  style={{width: "480px", height: "280px", marginLeft: "30px"}} />
+                        <img src={LexibleAssets.images.instructions2}  alt="instructions" style={{width: "480px", height: "280px", marginLeft: "30px"}} />
                     </div>);
                 case 2: return (<div>
                         <p className={styles.instructionParagraph}>
                         3. TO WIN: Build a bridge of tiles that connect your team's side to the other side of the grid. </p>
-                        <img src={LexibleAssets.images.instructions3} style={{width: "800px", marginLeft: "100px"}} />
+                        <img src={LexibleAssets.images.instructions3} alt="instructions" style={{width: "800px", marginLeft: "100px"}} />
                     </div>);
                 default: return (<div>Let's play!</div>)
             }

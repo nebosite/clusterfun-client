@@ -1,5 +1,5 @@
 import { action, makeObservable, observable } from "mobx";
-import { LetterSelectData, LexibleEndOfRoundMessage, LexibleFailedWordMessage, LexiblePlayerAction, LexiblePlayerActionMessage, LexiblePlayRequestMessage, LexibleRecentlyTouchedLettersMessage, LexibleScoredWordMessage, LexibleWordHintMessage, PlayBoard, WordSubmissionData } from "./Messages";
+import { LetterSelectData, LexibleEndOfRoundMessage, LexibleFailedWordMessage, LexiblePlayerAction, LexiblePlayerActionMessage, LexiblePlayRequestMessage, LexibleRecentlyTouchedLettersMessage, LexibleScoredWordMessage, LexibleWordHintMessage, PlayBoard, SwitchTeamData, WordSubmissionData } from "./Messages";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { LetterGridModel } from "./LetterGridModel";
 import { LexibleGameEvent } from "./PresenterModel";
@@ -351,7 +351,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     // sendAction 
     // -------------------------------------------------------------------
-    protected sendAction(action: LexiblePlayerAction, actionData: LetterSelectData | WordSubmissionData | {}) {
+    protected sendAction(action: LexiblePlayerAction, actionData: LetterSelectData | WordSubmissionData | SwitchTeamData | {}) {
         const message = new LexiblePlayerActionMessage(
             {
                 sender: this.session.personalId,
@@ -368,6 +368,6 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // 
     // -------------------------------------------------------------------
     requestSwitchTeam(){
-        this.sendAction(LexiblePlayerAction.SwitchTeam, {})
+        this.sendAction(LexiblePlayerAction.SwitchTeam, { desiredTeam: this.myTeam === "A" ? "B" : "A"})
     }
 }
