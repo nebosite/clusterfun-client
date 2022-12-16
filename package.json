@@ -1,6 +1,6 @@
 {
   "name": "clusterfun-client",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": false,
   "proxy": "http://localhost:8080",
   "scripts": {
