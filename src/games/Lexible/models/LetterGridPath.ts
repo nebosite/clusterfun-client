@@ -8,14 +8,6 @@ export interface PathCost {
     enemy: number
 }
 
-function comparePathCostElements(a: PathCost, b: PathCost) {
-    const aTotal = a.enemy + a.neutral;
-    const bTotal = b.enemy + b.neutral;
-    if (aTotal !== bTotal) return aTotal - bTotal;
-    if (a.enemy !== b.enemy) return a.enemy - b.enemy;
-    return a.ally - b.ally;
-}
-
 export interface LetterGridPath {
     nodes: Vector2[];
     cost: PathCost;
@@ -91,6 +83,12 @@ class Vector2Map<V> implements Map<Vector2, V> {
     }
 }
 
+interface QueueElement {
+    cost: PathCost;
+    location: Vector2;
+    previous?: QueueElement;
+}
+
 // ---------------------------------------------------------
 // findHotPathInGrid - Find the shortest hot path in the
 //   grid for the given team. This is defined as the path
@@ -110,25 +108,23 @@ export function findHotPathInGrid(grid: LetterGridModel, team: "A" | "B"): Lette
         winx = 0;
     }
 
-    // A map indicating the previous element on a path search
-    const cameFrom = new Vector2Map<Vector2>();
-    // A map of (x, (y, cost)) indicating the shortest path from start to n
-    const truePathScore = new Vector2Map<PathCost>();
-    // A map of (x, (y, cost)) indicating the current best guess for a path's
-    // cost from start to finish if it goes through n
-    const guessPathScore = new Vector2Map<PathCost>();
-    // A map of (x, (y)) indicating whether a certain coordinate
-    // is in the search queue (since the queue itself is not
-    // directly searchable)
-    const searchQueuePresence = new Vector2Map<boolean>();
+    // A set indicating whether a coordinate has been visited
+    const visited = new Vector2Map<boolean>();
     // A priority queue indicating which coordinates to search next
-    const searchQueue = new PriorityQueue<Vector2>((a, b) => {
-        const aCost = guessPathScore.get(a);
-        const bCost = guessPathScore.get(b);
-        if (aCost && bCost) return comparePathCostElements(aCost, bCost);
-        else if (aCost) return 1;
-        else if (bCost) return -1;
-        else return 0;
+    const searchQueue = new PriorityQueue<QueueElement>((a, b) => {
+        // The true cost of searching a node is a combination
+        // of the enemy, neutral, and ally squares crossed,
+        // compared in that order (like Stars and Coins in Mario Party).
+        // The A* search heuristic is the minimum possible distance
+        // we can have left, which occurs if we have a straight shot
+        // from the current location to the winning side in
+        // allied squares.
+        const aTotal = a.cost.enemy + a.cost.neutral;
+        const bTotal = b.cost.enemy + b.cost.neutral;
+        if (aTotal !== bTotal) return aTotal - bTotal;
+        if (a.cost.enemy !== b.cost.enemy) return a.cost.enemy - b.cost.enemy;
+        return (a.cost.ally + Math.abs(winx - a.location.x)) 
+            - (b.cost.ally + Math.abs(winx - b.location.x));
     });
 
     // Start on the startx, giving the true and estimated costs
@@ -139,67 +135,36 @@ export function findHotPathInGrid(grid: LetterGridModel, team: "A" | "B"): Lette
             neutral: block.team === "_" ? 1 : 0,
             enemy: block.team !== team && block.team !== "_" ? 1 : 0
         };
-        const guessCost = {
-            ally: trueCost.ally + grid.width - 1,
-            neutral: trueCost.neutral,
-            enemy: trueCost.enemy
-        };
         const vector = new Vector2(startx, y);
-        searchQueue.enqueue(new Vector2(startx, y));
-        truePathScore.set(vector, trueCost);
-        guessPathScore.set(vector, guessCost);
-        searchQueuePresence.set(vector, true);
+        searchQueue.enqueue({ cost: trueCost, location: vector });
+        visited.set(vector, true);
     }
 
     while (!searchQueue.isEmpty()) {
         let current = searchQueue.dequeue();
-        searchQueuePresence.delete(current);
-        if (current.x === winx) {
-            const nodes: Vector2[] = [ current ];
-            const cost: PathCost = truePathScore.get(current)!;
-            while (cameFrom.has(current)) {
-                // TODO: In tests, the path and the node cost are ocassionally off by one.
-                // Figure out why this is.
-                current = cameFrom.get(current)!;
-                nodes.push(new Vector2(current.x, current.y));
+        
+        if (current.location.x === winx) {
+            const cost = current.cost;
+            const nodes: Vector2[] = [ current.location ];
+            while (current.previous) {
+                current = current.previous;
+                nodes.push(new Vector2(current.location.x, current.location.y));
             }
             nodes.reverse();
             return { nodes, cost };
         }
 
         for (const dir of [[-1,0],[1,0],[0,-1],[0,1]]) {
-            const neighbor = current.add(new Vector2(dir[0], dir[1]));
+            const neighbor = current.location.add(new Vector2(dir[0], dir[1]));
+            if (visited.has(neighbor)) continue;
             const block = grid.getBlock(neighbor);
             if (!block) continue;
 
-            if (!truePathScore.has(neighbor)) {
-                truePathScore.set(neighbor, { 
-                    ally: Number.POSITIVE_INFINITY, 
-                    neutral: Number.POSITIVE_INFINITY, 
-                    enemy: Number.POSITIVE_INFINITY 
-                });
-                guessPathScore.set(neighbor, { 
-                    ally: Number.POSITIVE_INFINITY, 
-                    neutral: Number.POSITIVE_INFINITY, 
-                    enemy: Number.POSITIVE_INFINITY 
-                });
-            }
-
-            const tenativeTrueScore = {...truePathScore.get(current)!};
+            const neighborCost = {...current.cost};
             const propertyToAdd = block.team === team ? "ally" : block.team === "_" ? "neutral" : "enemy";
-            tenativeTrueScore[propertyToAdd] += 1;
-
-            if (comparePathCostElements(tenativeTrueScore, truePathScore.get(neighbor)!) < 0) {
-                cameFrom.set(neighbor, current);
-                truePathScore.set(neighbor, tenativeTrueScore);
-                const neighborGuessScore = {...tenativeTrueScore};
-                neighborGuessScore.ally += Math.abs(neighbor.x - winx);
-                guessPathScore.set(neighbor, neighborGuessScore);
-                if (!searchQueuePresence.has(neighbor)) {
-                    searchQueuePresence.set(neighbor, true);
-                    searchQueue.enqueue(neighbor);
-                }
-            }
+            neighborCost[propertyToAdd] += 1;
+            searchQueue.enqueue({ cost: neighborCost, location: neighbor, previous: current });
+            visited.set(current.location, true);
         }
     }
 
