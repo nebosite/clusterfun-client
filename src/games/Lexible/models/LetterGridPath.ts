@@ -129,15 +129,15 @@ export function findHotPathInGrid(grid: LetterGridModel, team: "A" | "B"): Lette
 
     // Start on the startx, giving the true and estimated costs
     for (let y = 0; y < grid.height; y++) {
-        const block = grid.getBlock(new Vector2(startx, y))!;
-        const trueCost = {
+        const location = new Vector2(startx, y);
+        const block = grid.getBlock(location)!;
+        const cost = {
             ally: block.team === team ? 1 : 0,
             neutral: block.team === "_" ? 1 : 0,
             enemy: block.team !== team && block.team !== "_" ? 1 : 0
         };
-        const vector = new Vector2(startx, y);
-        searchQueue.enqueue({ cost: trueCost, location: vector });
-        visited.set(vector, true);
+        searchQueue.enqueue({ cost, location });
+        visited.set(location, true);
     }
 
     while (!searchQueue.isEmpty()) {
@@ -148,14 +148,14 @@ export function findHotPathInGrid(grid: LetterGridModel, team: "A" | "B"): Lette
             const nodes: Vector2[] = [ current.location ];
             while (current.previous) {
                 current = current.previous;
-                nodes.push(new Vector2(current.location.x, current.location.y));
+                nodes.push(current.location);
             }
             nodes.reverse();
             return { nodes, cost };
         }
 
         for (const dir of [[-1,0],[1,0],[0,-1],[0,1]]) {
-            const neighbor = current.location.add(new Vector2(dir[0], dir[1]));
+            const neighbor = new Vector2(current.location.x + dir[0], current.location.y + dir[1]);
             if (visited.has(neighbor)) continue;
             const block = grid.getBlock(neighbor);
             if (!block) continue;
@@ -164,7 +164,7 @@ export function findHotPathInGrid(grid: LetterGridModel, team: "A" | "B"): Lette
             const propertyToAdd = block.team === team ? "ally" : block.team === "_" ? "neutral" : "enemy";
             neighborCost[propertyToAdd] += 1;
             searchQueue.enqueue({ cost: neighborCost, location: neighbor, previous: current });
-            visited.set(current.location, true);
+            visited.set(neighbor, true);
         }
     }
 
