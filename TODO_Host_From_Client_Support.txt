@@ -11,6 +11,12 @@ from client devices once a device begins hosting a game.
 
 VIP CLIENT:
 
+Priority: High (necessary for host from client)
+
+This feature designates a VIP in each game that is responsible for starting games and changing
+settings. This allows 1) the game to be controlled from a client phone without touching the presenter,
+and 2) the game to be controlled from a client host.
+
 [ ] Add a "vip" property for players
     [ ] Assign this property from the relay server to the first presenter or client device that joins a room
         [ ] At this stage, this should always be the host device, since the UI thread
@@ -42,7 +48,13 @@ VIP CLIENT:
             in order to provide the initial state of the buttons
     [ ] Allow operating the instructions slideshow
 
-SEPARATE HOST:
+WEB WORKER HOST:
+
+Priority: High (necessary for host from client)
+
+This code moves the hosting duties for a game to a separate "host" role
+that runs on a background thread. This both reduces load on the UI thread
+and is a prerequisite for running the host on a client device.
 
 [ ] Allow SessionHelper to store a separate MessageThing for each participant.
     [ ] Start with a default message thing, much as we have now
@@ -61,8 +73,6 @@ SEPARATE HOST:
     [ ] Connect other events as well, such as closed ports for terminated WebWorkers.
     [ ] Rename LocalMessageThing as needed - this should explicitly indicate that it
         stays in the same thread.
-[ ] Where possible, always display the room code on client devices. (This allows the
-    room code to remain visible even if no presenter exists)
 [ ] Create a headless Presenter for Stressato
     [ ] Create a (dedicated) WebWorker module that:
         [ ] Connects to the Stressato game room
@@ -71,18 +81,15 @@ SEPARATE HOST:
             when the port is initialized
     [ ] Initialize this worker, getting its created port. The main "postMessage" is used to
         issue commands, and the port is used to send messages.
-    [ ] Put a button on the main client screen that starts a game of Stressato with a headless
-        Presenter.
-        [ ] Create the worker, getting its created port to create a MessageThing for it
-        [ ] Use the native postMessage() API to send commands, the port to send messages
-        [ ] Start a client UI/model, using this connection to send messages to the presenter
+    [ ] Ensure that the host restores and keeps its state across refreshes
+    [ ] Create a dummy component to host this host worker, only providing a button to close it.
+        (You could factor in the VIP system here)
 [ ] Change Presenter to Host throughout the model sections of the codebase
-    [ ] NOTE: Leave the Presenter UI components alone - we will fix those later
-    [ ] NOTE: I believe this breaks Lexible and Testato at this point - we will also fix those later
     [ ] Change the "presenter" role to the "host" role
     [ ] Change all APIs mentioning "presenter" to mention "host" instead - in general,
         any messages that would have been sent by clients to the "presenter" will go to the
         host instead
+    [ ] NOTE: Leave the Presenter UI components alone - we will fix those later
 [ ] Reintroduce Presenter as a separate concept
     [ ] Recreate the "presenter" role, with none of the original meaning it carried on the server
     [ ] Create a separate presenter model that _only_ presents the game - it does not run
@@ -93,8 +100,8 @@ SEPARATE HOST:
     [ ] FOR NOW: Only allow one presenter - the relay server should reject any more
 [ ] When hosting a new game of Stressato from a presenter device, create a background host
     and foreground Presenter
-    [ ] The presenter is attached to Stressato's presenter UI
-    [ ] The host is in the background, as it is with a hosting client
+    [ ] The presenter model is attached to Stressato's presenter UI
+    [ ] The host is in a background thread
     [ ] Every time the host updates its statistics, it sends them to the presenter
 [ ] Implement the host/presenter distinction changes for Testato
     [ ] Broadcast the player list from the host to the VIP client
@@ -110,39 +117,66 @@ SEPARATE HOST:
     [ ] Broadcast board updates to the presenter, much as we already do for clients
     [ ] Broadcast game state changes to the presenter, such as winning a round or match,
         much as we already do for clients
-[ ] Revamp the hosting UI to officially support these new possibilities
+
+HOST FROM CLIENT:
+
+Priority: High (allows playing Lexible without an extra presenter device, making it easier
+to demo)
+
+This feature allows for hosting a game from a client device without a presenter at all.
+For instance, this allows Lexible to be played around a dinner or restaurant table
+where an extra device is either difficult or impossible to secure.
+
+[ ] Where possible, always display the room code on client devices. (This allows the
+    room code to remain visible even if no presenter exists)
+[ ] For testing, put a button on the main client screen that starts a game of Stressato with a headless
+    Presenter.
+    [ ] Create the worker, getting its created port to create a MessageThing for it
+    [ ] Use the native postMessage() API to send commands, the port to send messages
+    [ ] Start a client UI/model, using this connection to send messages to the presenter
+[ ] Do the same tests for Testato
+    [ ] Verify that the VIP is properly assigned and the hosting device can start the game
+[ ] Do the same tests for Lexible
+    [ ] Verify that the VIP is properly assigned
+[ ] Modify the client's UI to officially support hosting from client
     [ ] Add a portrait version of the game list for hosting a game from client
         [ ] Accessible through the "I want to host a game" button - add a separate
             button to go to the landscape "presenter" page
-        [ ] Each game button hosts that game and starts it from client
-    [ ] Add a room code field and "Present" button on the landscape "presenter" page.
-        [ ] Put this field and button to the left of the game buttons
-        [ ] Label both sections accordingly ("host a game" and "present an existing game")
-[ ] Add fields to our game metadata to indicate the following:
-    [ ] Whether they can be played without a presenter ("optional-presenter")
-        [ ] Lexible, Testato, and Stressato can all be played without a presenter
-        [ ] PERHAPS: Add a copy of Testato that can't be played without a presenter
-    [ ] Whether, if there is a presenter, it can be on a different device from the host ("separate-presenter")
-        [ ] Lexible, Testato, and Stressato can all separate their presenters from the host
-    [ ] If:
-        [ ] "optional-presenter" and "separate-presenter", allow hosting from client, 
-            hosting from presenter, and creating presenter after host
-        [ ] "optional-presenter" but not "separate-presenter", allow hosting from client,
-            but not creating presenter after host (Note that this is likely rare)
-        [ ] "separate-presenter" but not "optional-presenter", allow hosting from client
-            or presenter, but do not allow starting the game until a presenter is connected
-        [ ] neither "optional-presenter" nor "separate-presenter", only allow hosting
-            from presenter. (These games should be grayed out on the portrait "host from client"
-            page with an explanatory tooltip)
+        [ ] Each game button hosts that game and starts a client/host pair    
+[ ] IF NEEDED: If we have a game where the presenter _must_ exist, disable these games
+    on the client hosting page.
+    [ ] Add an explanatory help text
 
-LATER:
+SEPARATE PRESENTER:
 
-[ ] Allow more than one Presenter
-    [ ] Anyone can create a Presenter for a game as long as they have a room code
-    [ ] The host streams update data to all of them
-    [ ] PERHAPS: Include an upper cap on the number of Presenters on the relay server
-        (perhaps no more than the number of players) to avoid overwhelming the system.
-[ ] PERHAPS: Tell the host and clients when no Presenter is running
+Priority: Low (could be useful for Lexible or Stressato)
+
+Once we allow hosting a game from client, this feature allows creating one or more presenters
+after the fact. This feature takes advantage of the fact that a message channel is already used
+to connect the host and presenter - if that channel is changed to a Web Socket, it should still work
+as long as not too much data is sent.
+
+[ ] Change the presenter main menu to allow connecting to an existing game
+    [ ] Add a room code field and "Present" button to the left of the game list
+    [ ] Label both sections accordingly ("host a game" and "present an existing game")
+[ ] When an existing game is joined from the presenter main menu, start a Presenter UI
+    that connects to that game
+    [ ] Have the host recognize the new presenter, get it up to speed, and stream updates as before
+[ ] IF NEEDED: If we have a game that sends too much data from host to presenter for the
+    Web Socket connection to work well, cause the after-the-fact presenter join to fail with an
+    appropriate error message.
+[ ] PERHAPS, IF NEEDED: If we have a game where a presenter must exist, but where not too much data is sent
+    from host to presenter, allow hosting the game from the client, but do not allow the game to start
+    until a presenter is connected.
+
+NON-PRESENTER AFFORDANCES:
+
+Priority: Low (could be useful for Lexible's minimap)
+
+This is for games where important data is displayed on the presenter, but where it can
+appear on the client if there isn't one.
+
+[ ] Tell the host and clients when no Presenter is running
     [ ] NOTE: This might not be important if we allow multiple Presenters to exist at once,
         since players can create tabbed Presenters to view Presenter-specific information.
         We might also specifically discourage non-Presenter play by removing associated
@@ -153,7 +187,14 @@ LATER:
     [ ] Implement this for Lexible 
         [ ] Allow a minimap on client devices when a Presenter can't show the full map
 
-EVEN LATER, AS NEEDED:
+TRANSFER LIST:
+
+Priority: Very Low (none of our games need this yet)
+
+This is for games that send lots of data from host to presenter (e.g. graphics- and audio-
+intensive games) and need to run them on the same computer. The transfer list feature
+of Web Worker messages allows these messages to be sent without copying, thus reducing
+the load on the device.
 
 [ ] Add a transfer list to requests and responses - alongside the actual message object,
     store a list of members that should be moved instead of copied.
@@ -166,34 +207,31 @@ EVEN LATER, AS NEEDED:
         [ ] In "WebSocket compatibility mode", do not use the transfer list
         [ ] In "MessagePort compatibility mode", use the transfer list and call
             structuredClone() to duplicate the message.
-    [ ] When setting our "if there is a presenter" metadata, any game that places
-        an object on the transfer list for any of its messages should indicate that,
-        if there is a presenter, it must run on the same device as the host.
-[ ] Allow cloning certain objects that appear on the transfer list when sending a
-    message over a WebSocket.
-    [ ] In general, objects that are cloned this way should contain a Base64 payload
-        and some metadata to convert the object back. Put this handling in the
-        MessageThing implementation.
-    [ ] ArrayBuffer
-    [ ] ImageBitmap
-    [ ] OffscreenCanvas (extract the ImageBitmap)
-    [ ] Provide some runtime indication to the model of whether true transfering is
-        supported. This allows the model to restructure its messages or compress
-        image data on the fly.
+[ ] Allow the host to tell when the transfer list feature is available (i.e. it is
+    when the presenter is connected over a Web Worker, and is not when the presenter
+    is available over a web socket).
+[ ] If there is a game that needs the transfer list, and cannot adequately compress
+    the information over a non-transfer-list channel, ensure that it is marked as
+    requiring a presenter and not being able to start a presenter after the fact.
+
+TRULY HEADLESS HOST:
+
+Priority: Very Low (none of our games need this yet)
+
+This feature allows the host code to be run on a headless device. This would be used
+to either run a host over SSH, or run host code on the Clusterfun server itself to
+avoid deploying it.
+
 [ ] Allow a truly headless host
-    [ ] NOTE: The situation in which you would use this is very niche. It would mainly
-        be done to allow hosting a game in a spotty environment, where hosting from
-        a phone would be difficult, but this can usually be done by starting a host
-        presenter computer and just not paying attention to it. The truly headless
-        host would allow not displaying anything for a lower-power experience.
-    [ ] Add a mode on the presenter homepage that enables this mode
-        [ ] Add a checkbox on the presenter homepage for this
-        [ ] When enabled, instead of creating a presenter role and UI, just show
-            a page that offers control buttons and plays an animation to assure you
-            that the host is working (perhaps it joins as a separate role and pings
-            the host to do this)
-    [ ] PERHAPS: Publish a CLI executable that creates a truly headless
-        Clusterfun host (for running over SSH)
+    [ ] Publish a CLI executable that creates a truly headless
+        Clusterfun host (for running over SSH or on the server)
         [ ] The executable starts a host worker and prints its room code.
         [ ] CTRL+C or appropriate termination signals end the game
         [ ] Package with Node or Deno
+[ ] PERHAPS: Add a mode on the presenter homepage that enables a low-power mode
+    [ ] Add a checkbox on the presenter homepage for this
+    [ ] When enabled, instead of creating a presenter role and UI, just show
+        a page that offers control buttons and plays an animation to assure you
+        that the host is working (perhaps it joins as a separate role and pings
+        the host to do this)
+
