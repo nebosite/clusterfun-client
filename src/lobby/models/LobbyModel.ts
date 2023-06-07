@@ -1,5 +1,5 @@
 
-import { EventThing, GameInstanceProperties, IMessageThing, IStorage, ITelemetryLogger, ITelemetryLoggerFactory, UIProperties } from "../../libs";
+import { EventThing, JoinResponse, IMessageThing, IStorage, ITelemetryLogger, ITelemetryLoggerFactory, UIProperties } from "../../libs";
 import { action, makeObservable, observable } from "mobx";
 import Logger from "js-logger";
 
@@ -21,7 +21,7 @@ export interface ILobbyDependencies {
     serverCall: <T>(this: unknown, url: string, payload: any) => Promise<T>;
     storage: IStorage;
     telemetryFactory: ITelemetryLoggerFactory;
-    messageThingFactory: (this: unknown, gameProperties: GameInstanceProperties) => IMessageThing;
+    messageThingFactory: (this: unknown, joinResponse: JoinResponse) => IMessageThing;
     onGameEnded: () => void
 }
 
@@ -83,9 +83,9 @@ export class LobbyModel {
     }
     onUserChoseAMode = new EventThing("User Mode Selection");
 
-    @observable  private _gameProperties = observable<GameInstanceProperties | null>([null]);
-    get gameProperties() {return this._gameProperties[0]}
-    set gameProperties(value) {action(()=>{this._gameProperties[0] = value})()}
+    @observable  private _joinResponse = observable<JoinResponse | null>([null]);
+    get joinResponse() {return this._joinResponse[0]}
+    set joinResponse(value) {action(()=>{this._joinResponse[0] = value})()}
     
 
     @observable  private _lobbyErrorMessage: string| undefined = ""
@@ -98,7 +98,7 @@ export class LobbyModel {
     private _telemetry: ITelemetryLoggerFactory;
     private _logger: ITelemetryLogger;
     private _serverCall: <T>(url: string, payload: any) => Promise<T>;
-    private _messageThingFactory: (gameProperties: GameInstanceProperties) => IMessageThing;
+    private _messageThingFactory: (gameProperties: JoinResponse) => IMessageThing;
     private _onGameEnded: () => void
     private _storage: IStorage
     private _dependencies: ILobbyDependencies 
@@ -136,12 +136,12 @@ export class LobbyModel {
     // getGameConfig 
     // -------------------------------------------------------------------
     public getGameConfig(uiProperties: UIProperties) {
-        if(!this.gameProperties) throw Error("getGameConfig called when there were no game properties")
+        if(!this.joinResponse) throw Error("getGameConfig called when there were no game properties")
         return {
             uiProperties,
-            gameProperties:     this.gameProperties,
+            joinResponse:       this.joinResponse,
             playerName:         this.playerName,
-            messageThing:       this._messageThingFactory(this.gameProperties!),  
+            messageThing:       this._messageThingFactory(this.joinResponse!),  
             logger:             this.getGameLogger(),    
             storage:            this._storage,
             onGameEnded:        this.onGameEnded,
@@ -156,7 +156,7 @@ export class LobbyModel {
         Logger.debug("Gameover signalled")
         this.lobbyState = LobbyState.Fresh;
         if(this._onGameEnded) this._onGameEnded();
-        this.gameProperties = null;
+        this.joinResponse = null;
         this.saveState();
     }
 
@@ -164,7 +164,7 @@ export class LobbyModel {
     // getGameLogger 
     // -------------------------------------------------------------------
     public getGameLogger() {
-        return this._telemetry.getLogger(this.gameProperties?.gameName ?? "unknown_game");
+        return this._telemetry.getLogger(this.joinResponse?.gameName ?? "unknown_game");
     }
 
     // -------------------------------------------------------------------
@@ -198,10 +198,10 @@ export class LobbyModel {
         this._logger.logEvent("Start Game", "Started " + gameName)
 
         const payload: any = { gameName }
-        const previousData = sessionStorage.getItem("clusterfun_roominfo")
+        const previousData = sessionStorage.getItem("clusterfun_joinResponse")
         if(previousData) {
             Logger.info(`Found previous data: ${previousData}`)
-            const oldProps = JSON.parse(previousData) as GameInstanceProperties
+            const oldProps = JSON.parse(previousData) as JoinResponse
             payload.existingRoom = {
                 id: oldProps.roomId,
                 presenterId: oldProps.presenterId,
@@ -209,13 +209,13 @@ export class LobbyModel {
             }
         }
         
-        this._serverCall<GameInstanceProperties>("/api/startgame", payload)
-            .then(properties =>
+        this._serverCall<JoinResponse>("/api/startgame", payload)
+            .then(response =>
                 {
-                    this.gameProperties = properties;
-                    const data = JSON.stringify(properties)
+                    this.joinResponse = response;
+                    const data = JSON.stringify(response)
                     Logger.info(`Storing ${data}`)
-                    sessionStorage.setItem("clusterfun_roominfo", data)
+                    sessionStorage.setItem("clusterfun_joinResponse", data)
                     this.lobbyState = LobbyState.ReadyToPlay
                     this.lobbyErrorMessage = undefined;
                     this.saveState();
@@ -238,7 +238,7 @@ export class LobbyModel {
             _playerName: this._playerName,
             playerId: this.playerId,
             _roomId: this._roomId,
-            gameProperties: this.gameProperties,
+            gameProperties: this.joinResponse,
             _lobbyState: this._lobbyState,
             _rootKey: this._rootKey,
         }
@@ -255,7 +255,7 @@ export class LobbyModel {
             const stateJson = this._storage.get(LOBBY_STATE_NAME);
             if(stateJson) {
                 Object.assign(this, JSON.parse(stateJson) )
-                if(!this.gameProperties) this.lobbyState = LobbyState.Fresh;
+                if(!this.joinResponse) this.lobbyState = LobbyState.Fresh;
             }
         }
         catch(err)
@@ -273,10 +273,10 @@ export class LobbyModel {
         sessionStorage.setItem("clusterfun_playername",this.playerName) 
         sessionStorage.setItem("clusterfun_roomid",this.roomId) 
         // Note: this does not establish a web socket
-        this._serverCall<GameInstanceProperties>("/api/joingame", { roomId: this.roomId, playerName: this.playerName })
+        this._serverCall<JoinResponse>("/api/joingame", { roomId: this.roomId, playerName: this.playerName })
             .then(properties =>
                 {
-                    this.gameProperties = properties;
+                    this.joinResponse = properties;
                     this.lobbyState = LobbyState.ReadyToPlay
                     this.lobbyErrorMessage = undefined;
                     this.saveState();

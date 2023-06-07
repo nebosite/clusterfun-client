@@ -12,6 +12,7 @@ export interface ISessionHelper {
     readonly roomId: string;
     readonly personalId: string;
     readonly personalSecret: string;
+    readonly isVip: boolean;
     listen<REQUEST, RESPONSE>(
         endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
         apiCallback: (sender: string, value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>
@@ -48,6 +49,8 @@ export class SessionHelper implements ISessionHelper {
     public get personalId() { return this._messageThing.personalId }
     public get personalSecret() { return this._messageThing.personalSecret }
     private readonly _presenterId: string;
+    private readonly _isVip: boolean;
+    public get isVip() { return this._isVip }
     private _messageThing: IMessageThing;
     private _closedListeners = new Map<object, (code: number) => void>();
     private _errorSubs: ((err:string)=>void)[] = []
@@ -64,9 +67,10 @@ export class SessionHelper implements ISessionHelper {
     // -------------------------------------------------------------------
     // ctor
     // ------------------------------------------------------------------- 
-    constructor(messageThing: IMessageThing, roomId: string, presenterId: string, serverCall: <T>(url: string, payload: any) => Promise<T>) {
+    constructor(messageThing: IMessageThing, roomId: string, presenterId: string, isVip: boolean, serverCall: <T>(url: string, payload: any) => Promise<T>) {
         this.roomId = roomId;
         this._presenterId = presenterId;
+        this._isVip = isVip;
         this.serverCall = serverCall;
         this._messageThing = messageThing;
         this._currentRequestId = Math.floor(Math.random() * 0xffffffff);

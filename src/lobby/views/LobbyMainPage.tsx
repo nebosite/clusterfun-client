@@ -71,7 +71,7 @@ export class LobbyMainPage
                     innerChild = <LobbyComponent uiProperties={uiProperties} games={this.props.games} />;
                     break;
                 case LobbyState.ReadyToPlay:
-                    const gameName = lobbyModel.gameProperties!.gameName
+                    const gameName = lobbyModel.joinResponse!.gameName
                     const descriptor = games.find(i => i.name === gameName)
                     if(!descriptor) throw Error(`Could not find game '${gameName}'`)
                     innerChild = getGameComponent(descriptor!, lobbyModel.getGameConfig(uiProperties))

@@ -3,7 +3,7 @@ import {createRoot} from 'react-dom/client'
 import { GLOBALS } from './Globals';
 import { getGameListPromise } from 'GameChooser';
 import { GameDescriptor, GameManifestItem } from 'games/lists/GameDescriptor';
-import { GameInstanceProperties } from 'libs/config/GameInstanceProperties';
+import { JoinResponse } from 'libs/config/JoinResponse';
 import { WebSocketMessageThing } from 'libs/messaging/MessageThing';
 import 'index.css'
 import React from 'react';
@@ -128,7 +128,7 @@ else {
         let cachedMessageThings = new Map<string, WebSocketMessageThing>()
         const lobbyModel = new LobbyModel(
             {
-                messageThingFactory: (gp: GameInstanceProperties) => {
+                messageThingFactory: (gp: JoinResponse) => {
                     let cachedThing = cachedMessageThings.get(gp.personalSecret);
                     if(!cachedThing || cachedThing.isClosed)
                     {

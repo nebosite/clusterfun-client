@@ -442,6 +442,9 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
         if (!appModel) return <div>NO APP MODEL</div>
         return (
             <div className={classNames(styles.divRow)}>
+                {
+                    appModel.session.isVip ? <span>VIP</span> : undefined
+                }
                 <button className={classNames(styles.quitButton)} 
                     onClick={()=> appModel.quitApp()}>X</button>
                 <div className={classNames(styles.roomCode)}>

@@ -4,7 +4,7 @@ import { BaseGameModel, ISessionHelper, ITypeHelper,
     SessionHelper, 
     instantiateGame, getPresenterTypeHelper, 
     getClientTypeHelper, GeneralGameState, 
-    GameInstanceProperties, IMessageThing, 
+    JoinResponse, IMessageThing, 
     IStorage, ITelemetryLogger } from "../../libs";
 import { UIProperties } from "libs/types/UIProperties";
 import { observer, Provider } from "mobx-react";
@@ -16,7 +16,7 @@ import Logger from "js-logger";
 // -------------------------------------------------------------------
 export interface ClusterFunGameProps {
     playerName?: string;
-    gameProperties: GameInstanceProperties;
+    joinResponse: JoinResponse;
     uiProperties: UIProperties;
     messageThing: IMessageThing;
     logger: ITelemetryLogger;
@@ -56,18 +56,19 @@ extends React.Component<ClusterFunGameProps>
         derivedClientTypeHelper: ( sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper
     )
     {
-        const {  gameProperties, messageThing, serverCall } = this.props;
+        const {  joinResponse, messageThing, serverCall } = this.props;
 
         const sessionHelper = new SessionHelper(
             messageThing, 
-            gameProperties.roomId, 
-            gameProperties.presenterId,
+            joinResponse.roomId, 
+            joinResponse.presenterId,
+            joinResponse.isVip,
             serverCall
             );
 
         Logger.info(`INIT ${this.props.playerName}`)
 
-        if(gameProperties.role === "presenter")
+        if(joinResponse.role === "presenter")
         {
             this.UI = presenterType;
             this.appModel = instantiateGame(
@@ -82,7 +83,7 @@ extends React.Component<ClusterFunGameProps>
                 this.props.storage)
         }
 
-        document.title = `${gameProperties.gameName} / ClusterFun.tv`
+        document.title = `${joinResponse.gameName} / ClusterFun.tv`
         componentFinalizer.register(this, this.appModel!);
     }
 
