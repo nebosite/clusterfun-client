@@ -1,0 +1,42 @@
+# Full List of Presenter Game Inputs
+
+## Testato
+
+[ ] Start Game from Gathering State
+[ ] Resume from Pause
+[ ] Play Again from End of Game
+[ ] Start Next Round from End of Round
+[ ] Pause (any time)
+[x] Quit Game (any time)
+
+## Stressato
+
+[x] Quit Game (any time)
+[ ] Pause (any time)
+
+## Lexible
+
+[ ] Settings
+    [ ] Start from Team Area
+    [ ] Small Grid
+    [ ] Medium Grid
+    [ ] Large Grid
+[ ] Start Game from Gathering State
+[ ] Start Game from Instructions Screen
+[ ] Instruction Paging
+    [ ] Next
+    [ ] Previous
+[ ] Resume from Pause
+[ ] Start Next Round from End of Round
+[ ] Play Again from End of Game
+[x] Quit Game (any time)
+[ ] Debug UI
+    [ ] Quick Win as team A
+    [ ] Quick Win as team B
+    [ ] Show Debug Stats
+
+TODO: Since there are a lot of lifecycle management inputs here,
+consider carefully how you want to implement the communications.
+Note that we actually have to do have to implement the whole lifecycle
+(rather than just starting the game, as in Jackbox) because we need
+to be able to control it when a controllable presenter is not available.

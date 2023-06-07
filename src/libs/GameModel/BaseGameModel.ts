@@ -7,6 +7,7 @@ import { action, makeObservable, observable } from "mobx";
 import Logger from "js-logger";
 import ClusterfunListener from "libs/messaging/ClusterfunListener";
 import MessageEndpoint from "libs/messaging/MessageEndpoint";
+import { VipEndGameCommandEndpoint } from "libs/messaging/vipCommandEndpoints";
 
 // Finalizer to track whether models have been properly cleared
 // Remove when debugging makes us confident of this
@@ -238,6 +239,15 @@ export abstract class BaseGameModel  {
     //  quitApp
     // -------------------------------------------------------------------
     quitApp = () => {
+        // If the VIP quits, everyone quits
+        // TODO: Make sure this works properly across refreshes
+        if (this.session && this.session.isVip) {
+            // TODO: There may be a better choice than window.confirm()
+            if (window.confirm && !window.confirm("This will end the game. Are you sure?")) {
+                return;
+            }
+            this.session.requestPresenter(VipEndGameCommandEndpoint, true);
+        }
         Logger.info("Quitting the app")
         this.gameState = GeneralGameState.Destroyed;
         this.storage.remove(GAMESTATE_LABEL);

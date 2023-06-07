@@ -4,6 +4,7 @@ import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 import Logger from "js-logger";
 import { JoinEndpoint, PauseGameEndpoint, PingEndpoint, QuitEndpoint, ResumeGameEndpoint, TerminateGameEndpoint } from "libs/messaging/basicEndpoints";
 import MessageEndpoint from "libs/messaging/MessageEndpoint";
+import { VipEndGameCommandEndpoint, VipPauseCommandEndpoint, VipResumeCommandEndpoint } from "libs/messaging/vipCommandEndpoints";
 
 // All games have these states which are managed 
 // in the base classes
@@ -125,6 +126,9 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         this.listenToEndpoint(JoinEndpoint, this.handleJoinMessage);
         this.listenToEndpoint(QuitEndpoint, this.handlePlayerQuitMessage);
         this.listenToEndpoint(PingEndpoint, this.handlePing);
+        this.listenToEndpointFromVip(VipPauseCommandEndpoint, this.handleVipPause);
+        this.listenToEndpointFromVip(VipResumeCommandEndpoint, this.handleVipResume);
+        this.listenToEndpointFromVip(VipEndGameCommandEndpoint, this.handleVipEndGame);
         setTimeout(()=>this._fullyInitialized = true, 500);
     }
 
@@ -332,6 +336,31 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     // -------------------------------------------------------------------
     handlePing = (sender: string, message: { pingTime: number }): { pingTime: number, localTime: number } => {
         return { pingTime: message.pingTime, localTime: Date.now() };
+    }
+
+    // -------------------------------------------------------------------
+    //  handle the VIP pausing the game
+    // -------------------------------------------------------------------
+    handleVipPause = (_message: unknown) => {
+        if (this.gameState !== GeneralGameState.Paused) {
+            this.pauseGame();
+        }
+    }
+
+    // -------------------------------------------------------------------
+    //  handle the VIP resuming the game
+    // -------------------------------------------------------------------
+    handleVipResume = (_message: unknown) => {
+        if (this.gameState === GeneralGameState.Paused) {
+            this.resumeGame();
+        }
+    }
+
+    // -------------------------------------------------------------------
+    //  handle the VIP ending the game
+    // -------------------------------------------------------------------
+    handleVipEndGame = (_message: unknown) => {
+        this.quitApp();
     }
 
     // -------------------------------------------------------------------
