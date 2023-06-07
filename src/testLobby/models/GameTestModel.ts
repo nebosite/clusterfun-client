@@ -1,6 +1,6 @@
 import { action, makeObservable, observable } from "mobx";
 import { LobbyModel, ILobbyDependencies } from "../../lobby/models/LobbyModel";
-import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, IMessageThing, getStorage, JoinResponse, GameRole } from "../../libs";
+import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, IMessageThing, getStorage, JoinResponse, GameRole, RoomInfoResponse } from "../../libs";
 import Logger from "js-logger";
 
 const names = [
@@ -124,7 +124,7 @@ export class GameTestModel {
             const gameProperties: JoinResponse = {
                 gameName: payload.gameName,
                 role: GameRole.Presenter,
-                isVip: true,
+                isVip: false,
                 roomId: ["BEEF", "FIRE", "SHIP", "PORT", "SEAT"][Math.floor(Math.random() * 5)],
                 presenterId: "presenter_id",
                 personalId: "presenter_id",
@@ -218,7 +218,7 @@ export class GameTestModel {
             const gameProperties: JoinResponse = {
                 gameName: this.gameName,
                 role: GameRole.Client,
-                isVip: false,
+                isVip: (this.joinCount === 0),
                 roomId: payload.roomId,
                 presenterId: "presenter_id", 
                 personalId: `client${this.joinCount}_id`,
@@ -227,6 +227,17 @@ export class GameTestModel {
             this.joinCount++;
             this.saveState();
             return Promise.resolve(gameProperties as unknown as T);
+        }
+        else if(url.startsWith("/api/get_room_info")) {
+            const roomInfo: RoomInfoResponse = {
+                game: this.gameName,
+                userCount: this.joinCount,
+            }
+            if (payload.personalId === "presenter_id") {
+                roomInfo.vipId = "client0_id";
+                // TODO: Add accurate dummy values for the other fields as we need them
+            }
+            return Promise.resolve(roomInfo as unknown as T);
         }
         else throw new Error("Did not understand this url: " + url)
     }

@@ -171,6 +171,9 @@ export default class Client
                             <span className={classNames(styles.gametitle)}>Lexible</span> 
                             <span>{appModel.playerName}</span>
                             <button className={classNames(styles.quitbutton)} onClick={()=>appModel.quitApp()}>X</button>
+                            {
+                                appModel.session.isVip ? <span>VIP</span> : undefined
+                            }
                         </div>
                         <ErrorBoundary>
                             {this.renderSubScreen()}

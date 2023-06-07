@@ -73,7 +73,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         })
 
         this.gameState = GeneralClientGameState.WaitingToStart;
-        this.session.requestPresenter(JoinEndpoint, { playerName: this._playerName }).then(ack => {
+        this.session.requestPresenter(JoinEndpoint, { playerName: this._playerName, isVip: this.session.isVip }).then(ack => {
             this.handleJoinAck(ack);
             this._stateIsInvalid = true;
             this.requestGameStateFromPresenter().then(() => this._stateIsInvalid = false);

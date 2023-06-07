@@ -132,8 +132,17 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     // -------------------------------------------------------------------
     //  handleJoinMessage
     // -------------------------------------------------------------------
-    handleJoinMessage = async (sender: string, message: { playerName: string }): Promise<{ isRejoin: boolean, didJoin: boolean, joinError?: string }> => {
+    handleJoinMessage = async (sender: string, message: { playerName: string, isVip: boolean }): Promise<{ isRejoin: boolean, didJoin: boolean, joinError?: string }> => {
         Logger.info(`Join message from ${sender}`)
+
+        // First, if the player claims to be the VIP, double-check that with the server
+        // and immediately reject the join request if they aren't the VIP
+        if (message.isVip) {
+            const vipId = await this.session.updateVip();
+            if (vipId !== sender) {
+                return { didJoin: false, isRejoin: false, joinError: "Player falsely claimed to be VIP" }
+            }
+        }
 
         // If a player has already joined, any additional Join messages should be idempotent.
         // Do send an Ack in case it's needed, though.

@@ -197,7 +197,8 @@ export class LobbyModel {
         }
         this._logger.logEvent("Start Game", "Started " + gameName)
 
-        const payload: any = { gameName }
+        // TODO: Deferring the VIP should be dependent on a system setting
+        const payload: any = { gameName, shouldDeferVip: true }
         const previousData = sessionStorage.getItem("clusterfun_joinResponse")
         if(previousData) {
             Logger.info(`Found previous data: ${previousData}`)
