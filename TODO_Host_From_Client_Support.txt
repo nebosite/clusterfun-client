@@ -11,26 +11,35 @@ from client devices once a device begins hosting a game.
 
 VIP CLIENT:
 
-[ ] Add a "vip-client" role
-    [ ] This role is assigned to the first player who joins the game, as in Jackbox
-        [ ] NOTE: If the player is hosting from a client device, the VIP client should
-            _always_ be their device
-        [ ] NOTE: We may want to later implement a privlege system to prevent the first
-            joiner from getting VIP client if needed
-        [ ] Add a setting on the main host screen that disables the VIP client and requires
-            the presenter's input devices to start the game
-    [ ] If the VIP client leaves a lobby, reassign it to the next available player
+[ ] Add a "vip" property for players
+    [ ] Assign this property from the relay server to the first presenter or client device that joins a room
+        [ ] At this stage, this should always be the host device, since the UI thread
+            of that device will immediately join the game before showing the room code
+    [ ] When a device joins a room, inform them if they have VIP status
+    [ ] Add a setting, defaulting to ON, in the presenter main menu, which causes the server
+        to wait to assign VIP until the first client joins
+        [ ] This reflects the default behavior of the VIP setting in Jackbox, which is
+            assigned to the first actual player who joins the game
+        [ ] PERHAPS: Consider a security setting that only assigns VIP to a specific player
+            or first in a set of players
+    [ ] If the VIP player leaves a lobby, reassign it to the next available player
         [ ] It might be permissible to make players leave and come back to get the VIP client title
-    [ ] The VIP client mostly acts like a normal client, but is given affordances
-        to start the game, change settings, and otherwise control what is going on on-screen
-        [ ] (NOTE: no effect for Stressato, implementation for Testato and Lexible are given below)
-[ ] (NOTE: no effect for Stressato)
+[ ] The player with the VIP property, be it client or presenter, is the one with the
+    UI controls to start a game and change settings
+    [ ] Add appropriate infrastructure in the base communications to inform the host
+        of who the VIP is. (Note that it needs trust from the server to do this)
+    [ ] Grant easy access to the VIP's personal ID in the host game model, in order to
+        send privleged messages
+    [ ] Allow the VIP to quit the game (clicking the Quit button that every game has)
+[ ] (NOTE: the VIP dynamic has no effect on Stressato other than the Quit button, since
+    the presenter has no controls)
 [ ] Implement the VIP client affordances for Testato
     [ ] Allow starting the game from the lobby screen
 [ ] Implement the VIP client affordances for Lexible
     [ ] Allow starting the game from the lobby screen
     [ ] Allow changing the settings from the lobby screen
         [ ] Request the current settings from the host/presenter
+            in order to provide the initial state of the buttons
     [ ] Allow operating the instructions slideshow
 
 SEPARATE HOST:
@@ -75,7 +84,7 @@ SEPARATE HOST:
         any messages that would have been sent by clients to the "presenter" will go to the
         host instead
 [ ] Reintroduce Presenter as a separate concept
-    [ ] Recreate the "presenter" role, with none of its original meaning
+    [ ] Recreate the "presenter" role, with none of the original meaning it carried on the server
     [ ] Create a separate presenter model that _only_ presents the game - it does not run
         game logic
     [ ] Attach the Presenter UI to this new model
