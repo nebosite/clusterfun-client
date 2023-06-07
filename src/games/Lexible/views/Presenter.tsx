@@ -119,9 +119,10 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenter
                 
                 {appModel.players.length < appModel.minPlayers
                     ? <div className={styles.waitingText}>{`Waiting for at least ${appModel.minPlayers} players to join ...`}</div>
-                    : <button className={styles.startButton} onClick={() => appModel.doneGathering()}> 
-                        Click here to start! 
-                    </button>
+                    : (appModel.session.isVip 
+                        ? <button className={styles.startButton} onClick={() => appModel.doneGathering()}>Click here to start!</button>
+                        : <div className={styles.waitingText}>{`Waiting for the VIP to start!`}</div>
+                    )
                 }          
                 <div className={styles.settingsBox}>
                     <GameSettings/> 

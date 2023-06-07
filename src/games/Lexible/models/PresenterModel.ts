@@ -9,7 +9,7 @@ import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
 import { LetterChain, LexibleBoardUpdateEndpoint, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, 
     LexibleOnboardClientMessage, LexibleRecentlyTouchedLettersMessage, LexibleReportTouchLetterEndpoint, 
-    LexibleRequestWordHintsEndpoint, LexibleServerRecentlyTouchedLettersEndpoint, LexibleSubmitWordEndpoint, 
+    LexibleRequestWordHintsEndpoint, LexibleServerRecentlyTouchedLettersEndpoint, LexibleStartGameEndpoint, LexibleSubmitWordEndpoint, 
     LexibleSwitchTeamEndpoint, 
     LexibleSwitchTeamRequest, 
     LexibleSwitchTeamResponse, 
@@ -257,6 +257,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         this.listenToEndpoint(LexibleRequestWordHintsEndpoint, this.handleWordHintMessage);
         this.listenToEndpoint(LexibleSubmitWordEndpoint, this.handleSubmitWordMessage);
         this.listenToEndpoint(LexibleSwitchTeamEndpoint, this.handleSwitchTeam);
+        this.listenToEndpointFromVip(LexibleStartGameEndpoint, this.handleStartGame);
         // TODO: Make this method cleanuppable
         // this.session.onError(err => {
         //     Logger.error(`Session error: ${err}`)
@@ -742,5 +743,15 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         }
 
         return {currentTeam: player.teamName}
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    handleStartGame = (request: unknown): unknown => {
+        if (this.gameState === PresenterGameState.Gathering || this.gameState === GeneralGameState.Instructions) {
+            this.startGame();
+        }
+        return true;
     }
 }

@@ -5,7 +5,7 @@ import { LexibleGameEvent } from "./PresenterModel";
 import { ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper } from "libs";
 import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
-import { LexibleBoardUpdateEndpoint, LexibleBoardUpdateNotification, LexibleEndOfRoundMessage, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, LexibleRecentlyTouchedLettersMessage, LexibleReportTouchLetterEndpoint, LexibleRequestWordHintsEndpoint, LexibleServerRecentlyTouchedLettersEndpoint, LexibleSubmitWordEndpoint, LexibleSwitchTeamEndpoint, LexibleWordSubmissionRequest, PlayBoard } from "./lexibleEndpoints";
+import { LexibleBoardUpdateEndpoint, LexibleBoardUpdateNotification, LexibleEndOfRoundMessage, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, LexibleRecentlyTouchedLettersMessage, LexibleReportTouchLetterEndpoint, LexibleRequestWordHintsEndpoint, LexibleServerRecentlyTouchedLettersEndpoint, LexibleStartGameEndpoint, LexibleSubmitWordEndpoint, LexibleSwitchTeamEndpoint, LexibleWordSubmissionRequest, PlayBoard } from "./lexibleEndpoints";
 
 
 // -------------------------------------------------------------------
@@ -343,5 +343,15 @@ export class LexibleClientModel extends ClusterfunClientModel  {
         const response = await this.session.requestPresenter(LexibleSwitchTeamEndpoint, {desiredTeam:this.myTeam === "A" ? "B" : "A" })
 
         this.myTeam = response.currentTeam;
+    }
+
+    async requestStartGame(){
+        try {
+            await this.session.requestPresenter(LexibleStartGameEndpoint, true);
+        } catch (e) {
+            // TODO: Disable the button if there aren't enough players
+            // TODO: Reveal why starting the game didn't work
+            console.error(e);
+        }
     }
 }

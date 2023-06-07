@@ -30,6 +30,17 @@ export const LexibleOnboardClientEndpoint: MessageEndpoint<unknown, LexibleOnboa
     suggestedTotalLifetimeMs: 60000
 }
 
+// ------------------------------------------------------------------------------------------
+// Start Game from VIP
+// ------------------------------------------------------------------------------------------
+
+export const LexibleStartGameEndpoint: MessageEndpoint<unknown, unknown> = {
+    route: "/games/lexible/lifecycle/start-game",
+    responseRequired: true,
+    suggestedRetryIntervalMs: 1000,
+    suggestedTotalLifetimeMs: 6000
+}
+
 //--------------------------------------------------------------------------------------
 // Switch Teams
 //--------------------------------------------------------------------------------------

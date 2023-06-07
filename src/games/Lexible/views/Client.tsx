@@ -34,9 +34,11 @@ class InstructionsComponent
         }
 
         return <div>
-            <div className={styles.wait_text}>
-                Waiting for the host to start...
-            </div>
+            {
+                appModel.session.isVip ? 
+                    <button className={styles.startButton} onClick={() => appModel.requestStartGame()}>Click here to start!</button>
+                    : <div className={styles.wait_text}>Waiting for the VIP to start...</div>
+            }
             <Row>
                 <div>You are on Team {appModel.myTeam}</div>
                 <button onClick={switchTeam} style={{fontSize: "80%", marginLeft: "50px"}}>Switch Team</button>

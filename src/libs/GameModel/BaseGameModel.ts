@@ -474,6 +474,18 @@ export abstract class BaseGameModel  {
     }
 
     // -------------------------------------------------------------------
+    // Create a request listener specifically for a VIP - a request
+    // from any other caller has an error thrown back at it
+    // ------------------------------------------------------------------- 
+    protected listenToEndpointFromVip<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>,
+        apiCallback: (request: REQUEST) => RESPONSE | PromiseLike<RESPONSE>) {
+        const listener = this.session.listenVip(endpoint, apiCallback);
+        this._messageListeners.push(listener as ClusterfunListener<unknown, unknown>);
+        return listener;
+    }
+
+    // -------------------------------------------------------------------
     // scheduleEvent
     // -------------------------------------------------------------------
     protected scheduleEvent(time: number, event: () => void) {
