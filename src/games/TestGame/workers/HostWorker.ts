@@ -1,6 +1,6 @@
 // Host Worker for Testato
 // Initialize with new Worker("./path/to/HostWorker", { type: "module" })
-// and use Comlink.wrap() to get an object of type Comlink.Remote<TestatoHostWorkerInterface>
+// and use Comlink.wrap() to get an object of type Comlink.Remote<IClusterfunHostGameInitializer<ITestatoHostWorkerLifecycleController>>
 
 import * as Comlink from "comlink";
 import { ITestatoHostWorkerLifecycleController } from "./IHostWorkerLifecycleController";

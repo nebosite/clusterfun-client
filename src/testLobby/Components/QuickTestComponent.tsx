@@ -1,16 +1,16 @@
 import React from "react";
 import { observer } from "mobx-react";
 import * as Comlink from "comlink";
-import { ITestatoHostWorkerLifecycleController } from "games/TestGame/workers/IHostWorkerLifecycleController";
 import { IClusterfunHostGameInitializer } from "libs/worker/IClusterfunHostGameInitializer";
 import { GameInstanceProperties } from "libs/config/GameInstanceProperties";
 import { GameRole } from "libs/config/GameRole";
 import Logger from "js-logger";
+import { ILexibleHostWorkerLifecycleController } from "games/Lexible/workers/IHostWorkerLifecycleController";
 
 class QuickState {
-    initializer = Comlink.wrap(/* webpackChunkName: "quick-test-worker" */ new Worker(new URL("../../games/TestGame/workers/HostWorker", import.meta.url), { type: "module" })) as 
-        unknown as Comlink.Remote<IClusterfunHostGameInitializer<ITestatoHostWorkerLifecycleController>>;
-    controller?: Comlink.Remote<ITestatoHostWorkerLifecycleController>;
+    initializer = Comlink.wrap(/* webpackChunkName: "quick-test-worker" */ new Worker(new URL("../../games/Lexible/workers/HostWorker", import.meta.url), { type: "module" })) as 
+        unknown as Comlink.Remote<IClusterfunHostGameInitializer<ILexibleHostWorkerLifecycleController>>;
+    controller?: Comlink.Remote<ILexibleHostWorkerLifecycleController>;
     roomId?: string;
 }
 
@@ -80,7 +80,7 @@ function mockServerCall<T>(url: string, payload: any): Promise<T> {
                 "ws://localhost:8080",
                 Comlink.proxy(() => {})
             );
-            this.st.controller = Comlink.wrap(bundle.lifecycleControllerPort) as Comlink.Remote<ITestatoHostWorkerLifecycleController>;
+            this.st.controller = Comlink.wrap(bundle.lifecycleControllerPort) as Comlink.Remote<ILexibleHostWorkerLifecycleController>;
             this.st.roomId = bundle.roomId;
             Logger.info("Controller successfully obtained");
             this.forceUpdate();
@@ -100,10 +100,12 @@ function mockServerCall<T>(url: string, payload: any): Promise<T> {
                 { !!this.st.controller
                     ? (
                         <div>
+                            <button onClick={() => this.st.controller!.doneGathering()}>Show Instructions</button>
                             <button onClick={() => this.st.controller!.startGame()}>Start Game</button>
-                            <button onClick={() => this.st.controller!.startNextRound()}>Start Next Round</button>
                             <button onClick={() => this.st.controller!.pauseGame()}>Pause Game</button>
                             <button onClick={() => this.st.controller!.resumeGame()}>Resume Game</button>
+                            <button onClick={() => this.st.controller!.startNextRound()}>Start Next Round</button>
+                            <button onClick={() => this.st.controller!.playAgain(false)}>Play Again</button>
                             <button onClick={() => endGame()}>End Game</button>
                         </div>
                     )
