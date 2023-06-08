@@ -52,8 +52,8 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
         }
         this._messageThing.addEventListener("message", this._messageCallback);
 
-        this._startTime = window.performance.now();
-        this._lastSendTime = window.performance.now();
+        this._startTime = performance.now();
+        this._lastSendTime = performance.now();
         this.resend();
         this.timerHandler();
     }
@@ -127,7 +127,7 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
         if (this._state !== RequestState.Unsettled) {
             return; // we have a result, no need to send more messages
         }
-        const now = window.performance.now();
+        const now = performance.now();
         const totalLifetime = ("suggestedTotalLifetimeMs" in this.endpoint ? this.endpoint.suggestedTotalLifetimeMs! : 30000);
         if (this._startTime + totalLifetime < now) {
             this.reject(new Error(`Could not receive a response for ${this.endpoint.route} from ${this.receiver}`));
@@ -145,7 +145,7 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
     }
 
     resend(): void {
-        this._lastSendTime = window.performance.now();
+        this._lastSendTime = performance.now();
         const header: ClusterFunMessageHeader = {
             r: this.receiver,
             s: this.sender,

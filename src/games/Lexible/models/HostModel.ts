@@ -286,14 +286,14 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
         const badWordsPromise = import("../assets/words/badwords");
 
         const { wordList } = await wordListPromise;
-        let lastAwaitTime = window.performance.now();
+        let lastAwaitTime = performance.now();
         const words = wordList.split('\n')
         this.wordTree = new WordTree("", undefined);
         for (const word of words) {
-            if (window.performance.now() - lastAwaitTime > 10) {
+            if (performance.now() - lastAwaitTime > 10) {
                 await this.waitForRealTime(0);
                 if (this.isShutdown) return;
-                lastAwaitTime = window.performance.now();
+                lastAwaitTime = performance.now();
             }
             this.wordTree.add(word.trim());
             this.wordSet.add(word.trim());
@@ -303,10 +303,10 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
         const { badWordList } = await badWordsPromise;
         const badWords = badWordList.split('\n');
         for (const badWord of badWords) {
-            if (window.performance.now() - lastAwaitTime > 5) {
+            if (performance.now() - lastAwaitTime > 5) {
                 await this.waitForRealTime(0);
                 if (this.isShutdown) return;
-                lastAwaitTime = window.performance.now();
+                lastAwaitTime = performance.now();
             }
             this.badWords.add(badWord.trim());
         }

@@ -129,11 +129,12 @@ else {
         const lobbyModel = new LobbyModel(
             {
                 messageThingFactory: (gp: GameInstanceProperties) => {
+                    const origin = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + window.location.host;
                     let cachedThing = cachedMessageThings.get(gp.personalSecret);
                     if(!cachedThing || cachedThing.isClosed)
                     {
                         Logger.debug(`Caching a new web socket for ${gp.personalSecret}...`)
-                        cachedThing = new WebSocketMessageThing_class(gp.roomId, gp.personalId, gp.personalSecret)
+                        cachedThing = new WebSocketMessageThing_class(origin, gp.roomId, gp.personalId, gp.personalSecret)
                         cachedMessageThings.set(gp.personalSecret, cachedThing)
                     }
                     return cachedThing;

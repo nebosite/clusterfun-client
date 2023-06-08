@@ -6,7 +6,11 @@ import * as Comlink from "comlink";
 import { ITestatoHostWorkerLifecycleController } from "./IHostWorkerLifecycleController";
 import { TestatoHostModel, getTestatoHostTypeHelper } from "../models/HostModel";
 import { ClusterfunHostGameInitializer } from "../../../libs/worker/ClusterfunHostGameInitializer";
-import { IClusterfunHostGameControllerBundle, IClusterfunHostGameInitializer } from "libs/worker/IClusterfunHostGameInitializer";
+import Logger from "js-logger";
+
+// eslint-disable-next-line
+Logger.useDefaults();
+Logger.setLevel(Logger.DEBUG);
 
 class TestatoHostGameInitializer extends ClusterfunHostGameInitializer<
     ITestatoHostWorkerLifecycleController, TestatoHostModel> {
@@ -24,6 +28,7 @@ class TestatoHostGameInitializer extends ClusterfunHostGameInitializer<
             pauseGame: () => appModel.pauseGame(),
             resumeGame: () => appModel.resumeGame(),
             endGame: () => appModel.quitApp(),
+            startNextRound: () => appModel.startNextRound(),
         }
     }
     

@@ -29,9 +29,9 @@ export class WebSocketMessageThing implements IMessageThing {
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
-    constructor(roomId: string, personalId: string, personalSecret: string )
+    constructor(origin: string, roomId: string, personalId: string, personalSecret: string )
     {
-        const url = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + window.location.host + "/talk/" + roomId + "/" + personalId;
+        const url = origin + "/talk/" + roomId + "/" + personalId;
         this._websocket = new WebSocket(url, ['Secret' + personalSecret]);
         this.personalId = personalId;
         this.personalSecret = personalSecret;

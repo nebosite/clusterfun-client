@@ -6,8 +6,12 @@ import { ITypeHelper } from "libs/storage/BruteForceSerializer";
 import { GameInstanceProperties } from "libs/config/GameInstanceProperties";
 import { MockTelemetryLogger } from "libs/telemetry";
 import { getStorage } from "libs/storage";
-import { BaseGameModel, getHostTypeHelper, instantiateGame } from "libs/GameModel";
+import { BaseGameModel, GeneralGameState, getHostTypeHelper, instantiateGame } from "libs/GameModel";
 import * as Comlink from "comlink";
+
+// A Set to keep alive message ports.
+// TODO: Clean this up when app models are removed
+const keepAliveSet = new Set<MessagePort>();
 
 export abstract class ClusterfunHostGameInitializer<
     TController extends IClusterfunHostLifecycleController,
@@ -45,9 +49,13 @@ export abstract class ClusterfunHostGameInitializer<
             logger,
             storage) as TAppModel;
 
+        appModel.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => onGameEnded());
+        appModel.reconstitute();
+
         const lifecycleController = this.createLifecycleController(appModel);
         const lifecycleControllerChannel = new MessageChannel();
         Comlink.expose(lifecycleController, lifecycleControllerChannel.port1);
+        keepAliveSet.add(lifecycleControllerChannel.port1);
         // NOTE: Proxy bundling does not mix well when stacked too far.
         // A good Get-Out-of-Jail-Free card, however, is to send MessagePort objects,
         // which are transferable, for new proxied objects.
@@ -70,7 +78,7 @@ export abstract class ClusterfunHostGameInitializer<
         gameProperties: GameInstanceProperties, 
         serverSocketEndpoint: string | MessagePort): IMessageThing {
         if (typeof serverSocketEndpoint === "string") {
-            return new WebSocketMessageThing(gameProperties.roomId, gameProperties.personalId, gameProperties.personalSecret);
+            return new WebSocketMessageThing(serverSocketEndpoint, gameProperties.roomId, gameProperties.personalId, gameProperties.personalSecret);
         } else {
             return new MessagePortMessageThing(serverSocketEndpoint, gameProperties.personalId);
         }
