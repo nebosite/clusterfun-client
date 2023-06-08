@@ -2,7 +2,7 @@
 
 import { BaseGameModel, ISessionHelper, ITypeHelper, 
     SessionHelper, 
-    instantiateGame, getPresenterTypeHelper, 
+    instantiateGame, getHostTypeHelper, 
     getClientTypeHelper, GeneralGameState, 
     GameInstanceProperties, IMessageThing, 
     IStorage, ITelemetryLogger } from "../../libs";
@@ -10,6 +10,7 @@ import { UIProperties } from "libs/types/UIProperties";
 import { observer, Provider } from "mobx-react";
 import React from "react";
 import Logger from "js-logger";
+import { GameRole } from "libs/config/GameRole";
 
 // -------------------------------------------------------------------
 // ClusterFunGameProps
@@ -52,7 +53,7 @@ extends React.Component<ClusterFunGameProps>
     init(
         presenterType: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>,
         clientType: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>,
-        derivedPresenterTypeHelper: ( sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper,
+        derivedHostTypeHelper: ( sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper,
         derivedClientTypeHelper: ( sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper
     )
     {
@@ -61,25 +62,27 @@ extends React.Component<ClusterFunGameProps>
         const sessionHelper = new SessionHelper(
             messageThing, 
             gameProperties.roomId, 
-            gameProperties.presenterId,
+            gameProperties.hostId,
             serverCall
             );
 
         Logger.info(`INIT ${this.props.playerName}`)
 
-        if(gameProperties.role === "presenter")
+        if(gameProperties.role === GameRole.Host)
         {
             this.UI = presenterType;
             this.appModel = instantiateGame(
-                getPresenterTypeHelper(derivedPresenterTypeHelper(sessionHelper, this.props)), 
+                getHostTypeHelper(derivedHostTypeHelper(sessionHelper, this.props)), 
                 this.props.logger, 
                 this.props.storage)
-        } else {
+        } else if (gameProperties.role === GameRole.Client) {
             this.UI = clientType;
             this.appModel = instantiateGame(
                 getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)), 
                 this.props.logger, 
                 this.props.storage)
+        } else {
+            throw new Error("Unhandled role " + gameProperties.role)
         }
 
         document.title = `${gameProperties.gameName} / ClusterFun.tv`

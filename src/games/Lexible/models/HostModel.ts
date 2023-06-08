@@ -4,7 +4,7 @@ import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
-import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunPresenterModel, ITelemetryLogger, IStorage, GeneralGameState, PresenterGameEvent, PresenterGameState, ITypeHelper } from "libs";
+import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunHostModel, ITelemetryLogger, IStorage, GeneralGameState, HostGameEvent, HostGameState, ITypeHelper } from "libs";
 import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
 import { LetterChain, LexibleBoardUpdateEndpoint, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, 
@@ -70,18 +70,18 @@ interface LexibleSettings {
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
 // -------------------------------------------------------------------
-export const getLexiblePresenterTypeHelper = (
+export const getLexibleHostTypeHelper = (
     sessionHelper: ISessionHelper, 
     gameProps: ClusterFunGameProps
     ): ITypeHelper =>
  {
      return {
-        rootTypeName: "LexiblePresenterModel",
+        rootTypeName: "LexibleHostModel",
         getTypeName(o) {
             switch (o.constructor) {
                 case LetterGridModel: return "LetterGridModel";
                 case LetterBlockModel: return "LetterBlockModel";
-                case LexiblePresenterModel: return "LexiblePresenterModel";
+                case LexibleHostModel: return "LexibleHostModel";
                 case LexiblePlayer: return "LexiblePlayer";
                 case Vector2: return "Vector2";
             }
@@ -92,7 +92,7 @@ export const getLexiblePresenterTypeHelper = (
             {
                 case "LetterGridModel": return new LetterGridModel();
                 case "LetterBlockModel": return new LetterBlockModel("_");
-                case "LexiblePresenterModel": return new LexiblePresenterModel( sessionHelper, gameProps.logger, gameProps.storage);
+                case "LexibleHostModel": return new LexibleHostModel( sessionHelper, gameProps.logger, gameProps.storage);
                 case "LexiblePlayer": return new LexiblePlayer();
                 case "Vector2": return new Vector2(0,0);
                 // TODO: add your custom type handlers here
@@ -124,9 +124,9 @@ export const getLexiblePresenterTypeHelper = (
 }
 
 // -------------------------------------------------------------------
-// presenter data and logic
+// host data and logic
 // -------------------------------------------------------------------
-export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlayer> {
+export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
 
     @observable theGrid = new LetterGridModel();
 
@@ -251,7 +251,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     reconstitute() {
         super.reconstitute();
         this.populateWordSet();
-        this.subscribe(PresenterGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
+        this.subscribe(HostGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
         this.listenToEndpoint(LexibleOnboardClientEndpoint, this.handleOnboardClient);
         this.listenToEndpoint(LexibleReportTouchLetterEndpoint, this.handleTouchLetterMessage);
         this.listenToEndpoint(LexibleRequestWordHintsEndpoint, this.handleWordHintMessage);
@@ -363,7 +363,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     //  
     // -------------------------------------------------------------------
     prepareFreshGame = () => {
-        this.gameState = PresenterGameState.Gathering;
+        this.gameState = HostGameState.Gathering;
         this.currentRound = 0;
         this._teamPoints.fill(0)
     }
@@ -658,7 +658,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             teamName: player.teamName,
             settings: {startFromTeamArea: this.startFromTeamArea}
         }
-        this.telemetryLogger.logEvent("Presenter", "Onboard Client")
+        this.telemetryLogger.logEvent("Host", "Onboard Client")
         return payload;
     }
 

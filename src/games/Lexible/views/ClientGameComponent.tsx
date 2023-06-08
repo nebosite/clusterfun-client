@@ -4,7 +4,7 @@ import { inject, observer } from "mobx-react";
 import React from "react";
 import { LetterBlockModel } from "../models/LetterBlockModel";
 import { LexibleClientModel } from "../models/ClientModel";
-import { LexibleGameEvent } from "../models/PresenterModel";
+import { LexibleGameEvent } from "../models/HostModel";
 import LetterBlock from "./LetterBlock";
 import styles from './Client.module.css';
 

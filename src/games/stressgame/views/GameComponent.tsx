@@ -1,5 +1,5 @@
 // App Navigation handled here
-import {  getStressatoPresenterTypeHelper } from "../models/PresenterModel";
+import {  getStressatoHostTypeHelper } from "../models/HostModel";
 import {  getStressatoClientTypeHelper } from "../models/ClientModel";
 import React from "react";
 import { ClusterfunGameComponent, ClusterFunGameProps } from "libs";
@@ -20,7 +20,7 @@ export default class StressatoGameComponent extends ClusterfunGameComponent {
         this.init(
             lazyPresenter, 
             lazyClient, 
-            getStressatoPresenterTypeHelper, 
+            getStressatoHostTypeHelper, 
             getStressatoClientTypeHelper)
     }
 }

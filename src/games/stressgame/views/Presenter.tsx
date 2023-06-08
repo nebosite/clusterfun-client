@@ -4,16 +4,16 @@ import { observer, inject } from "mobx-react";
 import styles from "./Presenter.module.css"
 import classNames from "classnames";
 import { StressatoVersion } from "../models/GameSettings";
-import { MediaHelper, UIProperties, PresenterGameState, DevUI, UINormalizer, Row } from "libs";
-import { StressatoPresenterModel, StressatoGameState } from "../models/PresenterModel";
+import { MediaHelper, UIProperties, HostGameState, DevUI, UINormalizer, Row } from "libs";
+import { StressatoHostModel, StressatoGameState } from "../models/HostModel";
 
 @inject("appModel") @observer class MonitoringPage 
-    extends React.Component<{appModel?: StressatoPresenterModel }> {
+    extends React.Component<{appModel?: StressatoHostModel }> {
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(props: Readonly<{ appModel?: StressatoPresenterModel, media: MediaHelper }>) {
+    constructor(props: Readonly<{ appModel?: StressatoHostModel, media: MediaHelper }>) {
         super(props);
 
         props.appModel!.onTick.subscribe("animate", (e) => this.animateFrame(e)) 
@@ -71,12 +71,12 @@ import { StressatoPresenterModel, StressatoGameState } from "../models/Presenter
 @inject("appModel")
 @observer
 export default class Presenter 
-extends React.Component<{appModel?: StressatoPresenterModel, uiProperties: UIProperties}> {
+extends React.Component<{appModel?: StressatoHostModel, uiProperties: UIProperties}> {
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(props: Readonly<{ appModel?: StressatoPresenterModel; uiProperties: UIProperties; }>) {
+    constructor(props: Readonly<{ appModel?: StressatoHostModel; uiProperties: UIProperties; }>) {
         super(props);
 
         const {appModel} = this.props;
@@ -107,7 +107,7 @@ extends React.Component<{appModel?: StressatoPresenterModel, uiProperties: UIPro
                         Quit
                 </button>                       
                 <button className={classNames(styles.button)} 
-                    disabled={appModel.gameState === PresenterGameState.Gathering}
+                    disabled={appModel.gameState === HostGameState.Gathering}
                     style={{marginRight: "30px"}}
                     onClick={()=>appModel.pauseGame()}>
                         Pause

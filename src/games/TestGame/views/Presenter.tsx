@@ -6,12 +6,12 @@ import classNames from "classnames";
 import { observable } from "mobx";
 import TestatoAssets from "../assets/Assets";
 import { TestatoVersion } from "../models/GameSettings";
-import { BaseAnimationController, MediaHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, DevUI, UINormalizer } from "libs";
-import { TestatoPresenterModel, TestatoGameState, TestatoGameEvent } from "../models/PresenterModel";
+import { BaseAnimationController, MediaHelper, UIProperties, HostGameEvent, HostGameState, GeneralGameState, DevUI, UINormalizer } from "libs";
+import { TestatoHostModel, TestatoGameState, TestatoGameEvent } from "../models/PresenterModel";
 
 
 @inject("appModel") @observer
-class GatheringPlayersPage  extends React.Component<{appModel?: TestatoPresenterModel}> {
+class GatheringPlayersPage  extends React.Component<{appModel?: TestatoHostModel}> {
     // -------------------------------------------------------------------
     // render
     // -------------------------------------------------------------------
@@ -45,7 +45,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: TestatoPresenter
 }
 
 @inject("appModel") @observer
-class PausedGamePage  extends React.Component<{appModel?: TestatoPresenterModel}> {
+class PausedGamePage  extends React.Component<{appModel?: TestatoHostModel}> {
 
     // -------------------------------------------------------------------
     // resumeGame
@@ -103,13 +103,13 @@ class PlayStartAnimationController  extends BaseAnimationController {
 }
 
 @inject("appModel") @observer class PlayingPage 
-    extends React.Component<{appModel?: TestatoPresenterModel, media: MediaHelper }> {
+    extends React.Component<{appModel?: TestatoHostModel, media: MediaHelper }> {
     private _playStartAnimation: PlayStartAnimationController;
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(props: Readonly<{ appModel?: TestatoPresenterModel, media: MediaHelper }>) {
+    constructor(props: Readonly<{ appModel?: TestatoHostModel, media: MediaHelper }>) {
         super(props);
         this._playStartAnimation = new  PlayStartAnimationController(()=>{});
         props.appModel!.registerAnimation(this._playStartAnimation);
@@ -169,7 +169,7 @@ class PlayStartAnimationController  extends BaseAnimationController {
 }
 
 @inject("appModel") @observer class EndOfRoundPage 
-    extends React.Component<{appModel?: TestatoPresenterModel}> {
+    extends React.Component<{appModel?: TestatoHostModel}> {
     // -------------------------------------------------------------------
     // render
     // -------------------------------------------------------------------
@@ -200,13 +200,13 @@ class PlayStartAnimationController  extends BaseAnimationController {
 @inject("appModel")
 @observer
 export default class Presenter 
-extends React.Component<{appModel?: TestatoPresenterModel, uiProperties: UIProperties}> {
+extends React.Component<{appModel?: TestatoHostModel, uiProperties: UIProperties}> {
     media: MediaHelper;
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(props: Readonly<{ appModel?: TestatoPresenterModel; uiProperties: UIProperties; }>) {
+    constructor(props: Readonly<{ appModel?: TestatoHostModel; uiProperties: UIProperties; }>) {
         super(props);
 
         const {appModel} = this.props;
@@ -230,7 +230,7 @@ extends React.Component<{appModel?: TestatoPresenterModel, uiProperties: UIPrope
                 this.media.repeatSound("ding.wav", 5, 100);
             }
         })
-        appModel?.subscribe(PresenterGameEvent.PlayerJoined,     "play joined sound", ()=> this.media.playSound(TestatoAssets.sounds.hello, {volume: sfxVolume * .2}));
+        appModel?.subscribe(HostGameEvent.PlayerJoined,     "play joined sound", ()=> this.media.playSound(TestatoAssets.sounds.hello, {volume: sfxVolume * .2}));
         appModel?.subscribe(TestatoGameEvent.ResponseReceived,  "play response received sound", ()=> this.media.playSound(TestatoAssets.sounds.response, {volume: sfxVolume}));
 
     }
@@ -246,7 +246,7 @@ extends React.Component<{appModel?: TestatoPresenterModel, uiProperties: UIPrope
 
         switch(appModel.gameState)
         {
-            case PresenterGameState.Gathering:
+            case HostGameState.Gathering:
                 return <GatheringPlayersPage />
             case TestatoGameState.Playing:
                 return <PlayingPage media={this.media} />
@@ -274,7 +274,7 @@ extends React.Component<{appModel?: TestatoPresenterModel, uiProperties: UIPrope
                         Quit
                 </button>                       
                 <button className={classNames(styles.button)} 
-                    disabled={appModel.gameState === PresenterGameState.Gathering}
+                    disabled={appModel.gameState === HostGameState.Gathering}
                     style={{marginRight: "30px"}}
                     onClick={()=>appModel.pauseGame()}>
                         Pause

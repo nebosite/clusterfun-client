@@ -204,8 +204,8 @@ export class LobbyModel {
             const oldProps = JSON.parse(previousData) as GameInstanceProperties
             payload.existingRoom = {
                 id: oldProps.roomId,
-                presenterId: oldProps.presenterId,
-                presenterSecret: oldProps.personalSecret
+                hostId: oldProps.hostId,
+                hostSecret: oldProps.personalSecret
             }
         }
         

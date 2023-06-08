@@ -1,5 +1,5 @@
 // App Navigation handled here
-import {  getTestatoPresenterTypeHelper } from "../models/PresenterModel";
+import {  getTestatoHostTypeHelper } from "../models/PresenterModel";
 import {  getTestatoClientTypeHelper } from "../models/ClientModel";
 import React from "react";
 import { ClusterfunGameComponent, ClusterFunGameProps } from "libs";
@@ -20,7 +20,7 @@ export default class TestatoGameComponent extends ClusterfunGameComponent {
         this.init(
             lazyPresenter, 
             lazyClient, 
-            getTestatoPresenterTypeHelper, 
+            getTestatoHostTypeHelper, 
             getTestatoClientTypeHelper)
     }
 }

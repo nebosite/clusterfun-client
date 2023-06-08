@@ -7,13 +7,13 @@ import LexibleAssets from "../assets/Assets";
 import { LexibleVersion } from "../models/GameSettings";
 import { LetterBlockModel } from "../models/LetterBlockModel";
 import LetterBlock from "./LetterBlock";
-import { LexiblePresenterModel, MapSize, LexibleGameEvent, LexiblePlayer, LexibleGameState } from "../models/PresenterModel";
-import { Row, MediaHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, UINormalizer, DevUI } from "libs";
+import { LexibleHostModel, MapSize, LexibleGameEvent, LexiblePlayer, LexibleGameState } from "../models/HostModel";
+import { Row, MediaHelper, UIProperties, HostGameEvent, HostGameState, GeneralGameState, UINormalizer, DevUI } from "libs";
 import { action, makeAutoObservable } from "mobx";
 import SamJs from "sam-js";
 
 @inject("appModel") @observer
-class GameSettings  extends React.Component<{appModel?: LexiblePresenterModel}> {
+class GameSettings  extends React.Component<{appModel?: LexibleHostModel}> {
     myState = {
         showSettings: false
     }
@@ -21,7 +21,7 @@ class GameSettings  extends React.Component<{appModel?: LexiblePresenterModel}> 
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
-    constructor(props: {appModel?: LexiblePresenterModel}) {
+    constructor(props: {appModel?: LexibleHostModel}) {
         super(props);
 
         makeAutoObservable(this.myState);
@@ -101,7 +101,7 @@ class GameSettings  extends React.Component<{appModel?: LexiblePresenterModel}> 
 
 @inject("appModel") 
 @observer
-class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenterModel}> {
+class GatheringPlayersPage  extends React.Component<{appModel?: LexibleHostModel}> {
     // -------------------------------------------------------------------
     // render
     // -------------------------------------------------------------------
@@ -134,7 +134,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenter
 
 
 @inject("appModel") @observer class InstructionsPage 
-    extends React.Component<{appModel?: LexiblePresenterModel}> {
+    extends React.Component<{appModel?: LexibleHostModel}> {
 
     myState = {
         instructionsPage: 0
@@ -143,7 +143,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenter
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
-    constructor(props: {appModel?: LexiblePresenterModel}) {
+    constructor(props: {appModel?: LexibleHostModel}) {
         super(props);
 
         makeAutoObservable(this.myState);
@@ -221,7 +221,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenter
 
 
 @inject("appModel") @observer
-class PausedGamePage  extends React.Component<{appModel?: LexiblePresenterModel}> {
+class PausedGamePage  extends React.Component<{appModel?: LexibleHostModel}> {
 
     // -------------------------------------------------------------------
     // resumeGame
@@ -267,12 +267,12 @@ const teamBTaunts = [
 ]
 
 @inject("appModel") @observer class PlayingPage 
-    extends React.Component<{appModel?: LexiblePresenterModel, media: MediaHelper }> {
+    extends React.Component<{appModel?: LexibleHostModel, media: MediaHelper }> {
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(props: Readonly<{ appModel?: LexiblePresenterModel, media: MediaHelper }>) {
+    constructor(props: Readonly<{ appModel?: LexibleHostModel, media: MediaHelper }>) {
         super(props);
 
         const teamAVoice = new SamJs({ speed: 72, pitch: 64, throat: 128, mouth: 128 }); // default SAM/V1
@@ -343,7 +343,7 @@ const teamBTaunts = [
 }
 
 @inject("appModel") @observer class EndOfRoundPage 
-    extends React.Component<{appModel?: LexiblePresenterModel}> {
+    extends React.Component<{appModel?: LexibleHostModel}> {
     // -------------------------------------------------------------------
     // render
     // -------------------------------------------------------------------
@@ -372,13 +372,13 @@ const teamBTaunts = [
 @inject("appModel")
 @observer
 export default class Presenter 
-extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIProperties}> {
+extends React.Component<{appModel?: LexibleHostModel, uiProperties: UIProperties}> {
     media: MediaHelper;
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(props: Readonly<{ appModel?: LexiblePresenterModel; uiProperties: UIProperties; }>) {
+    constructor(props: Readonly<{ appModel?: LexibleHostModel; uiProperties: UIProperties; }>) {
         super(props);
 
         const {appModel} = this.props;
@@ -403,7 +403,7 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
                 this.media.repeatSound("ding.wav", 5, 100);
             }
         })
-        appModel.subscribe(PresenterGameEvent.PlayerJoined,     "play joined sound", ()=> this.media.playSound(LexibleAssets.sounds.hello, {volume: sfxVolume * .2}));
+        appModel.subscribe(HostGameEvent.PlayerJoined,     "play joined sound", ()=> this.media.playSound(LexibleAssets.sounds.hello, {volume: sfxVolume * .2}));
         appModel.subscribe(LexibleGameEvent.ResponseReceived,  "play response received sound", ()=> this.media.playSound(LexibleAssets.sounds.response, {volume: sfxVolume}));
     }
 
@@ -418,7 +418,7 @@ extends React.Component<{appModel?: LexiblePresenterModel, uiProperties: UIPrope
 
         switch(appModel.gameState)
         {
-            case PresenterGameState.Gathering:
+            case HostGameState.Gathering:
                 return <GatheringPlayersPage />
             case GeneralGameState.Instructions:
                 return <InstructionsPage />

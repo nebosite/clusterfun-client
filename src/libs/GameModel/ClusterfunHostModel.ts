@@ -1,4 +1,4 @@
-import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage } from "../../libs";
+import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage } from "..";
 import { action, makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 import Logger from "js-logger";
@@ -7,7 +7,7 @@ import MessageEndpoint from "libs/messaging/MessageEndpoint";
 
 // All games have these states which are managed 
 // in the base classes
-export enum PresenterGameState 
+export enum HostGameState 
 {
     Gathering = "Gathering",
 }
@@ -15,7 +15,7 @@ export enum PresenterGameState
 // -------------------------------------------------------------------
 // Game events
 // -------------------------------------------------------------------
-export enum PresenterGameEvent {
+export enum HostGameEvent {
     PlayerJoined = "PlayerJoined",
 }
 
@@ -29,7 +29,7 @@ export class ClusterFunPlayer
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
 // -------------------------------------------------------------------
-export const getPresenterTypeHelper = (derivedClassHelper: ITypeHelper): ITypeHelper =>
+export const getHostTypeHelper = (derivedClassHelper: ITypeHelper): ITypeHelper =>
  {
      return {
         rootTypeName: derivedClassHelper.rootTypeName,
@@ -59,12 +59,12 @@ export const getPresenterTypeHelper = (derivedClassHelper: ITypeHelper): ITypeHe
 }
 
 // -------------------------------------------------------------------
-// Base class for all clusterfun game presenters.  
+// Base class for all clusterfun game hosts.  
 // This handles: 
 //      - Player list management, joining, rejoinging, etx. 
 //      - General game lifecycle control
 // -------------------------------------------------------------------
-export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlayer> extends BaseGameModel {
+export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> extends BaseGameModel {
     players = observable<PlayerType>([]);
     _exitedPlayers = new Array<PlayerType>();
     public get isStageOver() {return this.gameTime_ms > this.timeOfStageEnd}
@@ -84,7 +84,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     minPlayers = 3;
     maxPlayers = 8; 
     allowRejoinOnNameOnly = true;
-    allowedJoinStates:string[] = [PresenterGameState.Gathering];
+    allowedJoinStates:string[] = [HostGameState.Gathering];
 
     private _stateBeforePause:string = "";
     private _fullyInitialized = false;
@@ -106,21 +106,21 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         
         this.gameTime_ms = 0;
 
-        this.gameState = PresenterGameState.Gathering;
+        this.gameState = HostGameState.Gathering;
     }
 
     reconstitute(): void {
         super.reconstitute();
-        this.subscribe(GeneralGameState.Destroyed, "Presenter EndGame", async () =>
+        this.subscribe(GeneralGameState.Destroyed, "Host EndGame", async () =>
         {
             if(this._fullyInitialized){
                 await this.requestEveryone(TerminateGameEndpoint, (p, ie) => ({}) );  
                 setTimeout(()=>{
-                    this.session.serverCall<void>("/api/terminategame", {  roomId: this.roomId, presenterSecret: this.session.personalSecret })           
+                    this.session.serverCall<void>("/api/terminategame", {  roomId: this.roomId, hostSecret: this.session.personalSecret })           
                 },200)                
             }
         })
-        this.onTick.subscribe("PresenterState", ()=> this.manageState())
+        this.onTick.subscribe("HostState", ()=> this.manageState())
 
         this.listenToEndpoint(JoinEndpoint, this.handleJoinMessage);
         this.listenToEndpoint(QuitEndpoint, this.handlePlayerQuitMessage);
@@ -162,8 +162,8 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
             const index = this._exitedPlayers.indexOf(returningPlayer);
             this._exitedPlayers.splice(index,1);
             this.players.push(returningPlayer);
-            this.telemetryLogger.logEvent("Presenter", "JoinRequest", "ApproveRejoin");
-            this.invokeEvent(PresenterGameEvent.PlayerJoined, returningPlayer);
+            this.telemetryLogger.logEvent("Host", "JoinRequest", "ApproveRejoin");
+            this.invokeEvent(HostGameEvent.PlayerJoined, returningPlayer);
             return {
                 didJoin: true,
                 isRejoin: true
@@ -177,21 +177,21 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                 Logger.info(`Existing Player:: ${existingPlayer?.name}`)
                 if(existingPlayer) {
                     Logger.info(`Denying join because name exists`)
-                    this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Name Taken)" );
+                    this.telemetryLogger.logEvent("Host", "JoinRequest", "Deny (Name Taken)" );
                     return { didJoin: false, isRejoin: false, joinError: `That name is taken`};
                 }
                 else {
                     const entry = this.createFreshPlayerEntry(message.playerName, sender);
-                    this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve");
+                    this.telemetryLogger.logEvent("Host", "JoinRequest", "Approve");
                     action(()=>{this.players.push(entry)})();                
                     this.saveCheckpoint();
-                    this.invokeEvent(PresenterGameEvent.PlayerJoined, entry);     
-                    this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve new player" );
+                    this.invokeEvent(HostGameEvent.PlayerJoined, entry);     
+                    this.telemetryLogger.logEvent("Host", "JoinRequest", "Approve new player" );
                     return { didJoin: true, isRejoin: false }
                 }
             }
             else {
-                this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Full)" );
+                this.telemetryLogger.logEvent("Host", "JoinRequest", "Deny (Full)" );
                 return {
                     didJoin: false,
                     isRejoin: false,
@@ -200,7 +200,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
             }
         }
         else {
-            this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Not Allowed)");
+            this.telemetryLogger.logEvent("Host", "JoinRequest", "Deny (Not Allowed)");
             return { didJoin: false, isRejoin: false, joinError: `The room is currently closed (game state: ${this.gameState})`}    
         }
     }
@@ -211,14 +211,14 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     handlePlayerQuitMessage = (sender: string, message: any) => {
         if(this.gameState === GeneralGameState.Destroyed) return;
         Logger.info("received quit message from " + sender)
-        this.telemetryLogger.logEvent("Presenter", "QuitRequest");
+        this.telemetryLogger.logEvent("Host", "QuitRequest");
         const player = this.players.find(p => p.playerId === sender);
         if(player) {
             this.players.remove(player);
             this._exitedPlayers.push(player);
 
             if(this.players.length < this.minPlayers 
-                && this.gameState !== PresenterGameState.Gathering) {
+                && this.gameState !== HostGameState.Gathering) {
                 this.pauseGame();
             }
             this.saveCheckpoint();
@@ -249,7 +249,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         players.forEach(player => {
             this.players.push(this.createFreshPlayerEntry(player.name, player.playerId))
         });
-        this.telemetryLogger.logEvent("Presenter", "PlayAgain");
+        this.telemetryLogger.logEvent("Host", "PlayAgain");
 
         this.prepareFreshGame()
         this.startGame();
@@ -263,7 +263,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         this.prepareFreshRound();
         this.startNextRound();
         this.saveCheckpoint();
-        this.telemetryLogger.logEvent("Presenter", "Start");
+        this.telemetryLogger.logEvent("Host", "Start");
     }
 
     // -------------------------------------------------------------------

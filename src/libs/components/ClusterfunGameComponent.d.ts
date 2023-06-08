@@ -1,5 +1,5 @@
 import { BaseGameModel, ISessionHelper, ITypeHelper } from "../../libs";
-import { UIProperties } from "libs/types/UIProperties";
+import { UIProperties } from "../../libs/types/UIProperties";
 import React from "react";
 import { ClusterFunGameProps } from "./GameChooser";
 export declare class ClusterfunGameComponent extends React.Component<ClusterFunGameProps> {
@@ -14,6 +14,6 @@ export declare class ClusterfunGameComponent extends React.Component<ClusterFunG
     }>, clientType: React.ComponentType<{
         appModel?: any;
         uiProperties: UIProperties;
-    }>, derivedPresenterTypeHelper: (sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper, derivedClientTypeHelper: (sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper): void;
+    }>, derivedHostTypeHelper: (sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper, derivedClientTypeHelper: (sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper): void;
     render(): JSX.Element;
 }

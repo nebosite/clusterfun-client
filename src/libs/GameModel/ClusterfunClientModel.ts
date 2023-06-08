@@ -55,11 +55,11 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
 
     reconstitute():void {
         super.reconstitute();
-        this.listenToEndpointFromPresenter(InvalidateStateEndpoint, this.handleInvalidateStateMessage);
-        this.listenToEndpointFromPresenter(GameOverEndpoint, this.handleGameOverMessage);
-        this.listenToEndpointFromPresenter(TerminateGameEndpoint, this.handleTerminateGameMessage);
-        this.listenToEndpointFromPresenter(PauseGameEndpoint, this.handlePauseMessage);
-        this.listenToEndpointFromPresenter(ResumeGameEndpoint, this.handleResumeMessage);
+        this.listenToEndpointFromHost(InvalidateStateEndpoint, this.handleInvalidateStateMessage);
+        this.listenToEndpointFromHost(GameOverEndpoint, this.handleGameOverMessage);
+        this.listenToEndpointFromHost(TerminateGameEndpoint, this.handleTerminateGameMessage);
+        this.listenToEndpointFromHost(PauseGameEndpoint, this.handlePauseMessage);
+        this.listenToEndpointFromHost(ResumeGameEndpoint, this.handleResumeMessage);
 
         // this.session.onError((err) => {
         //     Logger.error(`Session error: ${err}`)
@@ -68,19 +68,19 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         this.subscribe(GeneralGameState.Destroyed, "GameDestroyed", () =>
         {
             if(!this.gameTerminated) {
-                this.session.requestPresenter(QuitEndpoint, {}).forget();
+                this.session.requestHost(QuitEndpoint, {}).forget();
             }
         })
 
         this.gameState = GeneralClientGameState.WaitingToStart;
-        this.session.requestPresenter(JoinEndpoint, { playerName: this._playerName }).then(ack => {
+        this.session.requestHost(JoinEndpoint, { playerName: this._playerName }).then(ack => {
             this.handleJoinAck(ack);
             this._stateIsInvalid = true;
-            this.requestGameStateFromPresenter().then(() => this._stateIsInvalid = false);
+            this.requestGameStateFromHost().then(() => this._stateIsInvalid = false);
         });
         this.keepAlive();
     }
-    abstract requestGameStateFromPresenter(): Promise<void>;
+    abstract requestGameStateFromHost(): Promise<void>;
 
     KEEPALIVE_INTERVAL_MS = 10 * 1000;  // ten seconds
 
@@ -94,7 +94,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         }
         
         if(this.gameState !== GeneralGameState.Destroyed) {
-            this.session.requestPresenter(PingEndpoint, { pingTime: Date.now() }).then(undefined, (err) => {
+            this.session.requestHost(PingEndpoint, { pingTime: Date.now() }).then(undefined, (err) => {
                 Logger.warn("Ping message was not received:", err);
             })
             setTimeout(this.keepAlive, this.KEEPALIVE_INTERVAL_MS)
@@ -131,7 +131,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // -------------------------------------------------------------------
     handleInvalidateStateMessage = (message: unknown) => {
         this._stateIsInvalid = true;
-        this.requestGameStateFromPresenter().then(() => this._stateIsInvalid = false);
+        this.requestGameStateFromHost().then(() => this._stateIsInvalid = false);
     }
 
     // -------------------------------------------------------------------

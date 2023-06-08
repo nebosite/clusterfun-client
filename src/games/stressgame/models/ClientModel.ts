@@ -2,7 +2,7 @@ import { ISessionHelper, ClusterFunGameProps,
     ClusterfunClientModel, ITelemetryLogger, 
     IStorage, ITypeHelper } from "libs";
 import { action, makeObservable, observable } from "mobx";
-import { StressatoPresenterRelayEndpoint } from "./stressatoEndpoints";
+import { StressatoHostRelayEndpoint } from "./stressatoEndpoints";
 
 
 // -------------------------------------------------------------------
@@ -109,7 +109,7 @@ export class StressatoClientModel extends ClusterfunClientModel  {
         })
     }
 
-    requestGameStateFromPresenter = (): Promise<void> => {
+    requestGameStateFromHost = (): Promise<void> => {
         return Promise.resolve(undefined);
     }
 
@@ -117,7 +117,7 @@ export class StressatoClientModel extends ClusterfunClientModel  {
     // sendAction 
     // -------------------------------------------------------------------
     protected async sendAction(actionData: any = null) {
-        const request = this.session.requestPresenter(StressatoPresenterRelayEndpoint, {
+        const request = this.session.requestHost(StressatoHostRelayEndpoint, {
             returnSize: this.returnMessageSize,
             actionData
         });

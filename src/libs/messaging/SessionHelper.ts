@@ -16,7 +16,7 @@ export interface ISessionHelper {
         endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
         apiCallback: (sender: string, value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>
         ): ClusterfunListener<REQUEST, RESPONSE>;
-    listenPresenter<REQUEST, RESPONSE>(endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+    listenHost<REQUEST, RESPONSE>(endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
         apiCallback: (value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>
         ): ClusterfunListener<REQUEST, RESPONSE>;
     request<REQUEST, RESPONSE>(
@@ -24,7 +24,7 @@ export interface ISessionHelper {
         receiverId: string, 
         request: REQUEST
         ): ClusterfunRequest<REQUEST, RESPONSE>;
-    requestPresenter<REQUEST, RESPONSE>(
+    requestHost<REQUEST, RESPONSE>(
         endpoint: MessageEndpoint<REQUEST, RESPONSE>,
         request: REQUEST
         ): ClusterfunRequest<REQUEST, RESPONSE>;
@@ -47,7 +47,7 @@ export class SessionHelper implements ISessionHelper {
     public readonly roomId: string;
     public get personalId() { return this._messageThing.personalId }
     public get personalSecret() { return this._messageThing.personalSecret }
-    private readonly _presenterId: string;
+    private readonly _hostId: string;
     private _messageThing: IMessageThing;
     private _closedListeners = new Map<object, (code: number) => void>();
     private _errorSubs: ((err:string)=>void)[] = []
@@ -64,9 +64,9 @@ export class SessionHelper implements ISessionHelper {
     // -------------------------------------------------------------------
     // ctor
     // ------------------------------------------------------------------- 
-    constructor(messageThing: IMessageThing, roomId: string, presenterId: string, serverCall: <T>(url: string, payload: any) => Promise<T>) {
+    constructor(messageThing: IMessageThing, roomId: string, hostId: string, serverCall: <T>(url: string, payload: any) => Promise<T>) {
         this.roomId = roomId;
-        this._presenterId = presenterId;
+        this._hostId = hostId;
         this.serverCall = serverCall;
         this._messageThing = messageThing;
         this._currentRequestId = Math.floor(Math.random() * 0xffffffff);
@@ -102,18 +102,18 @@ export class SessionHelper implements ISessionHelper {
     }
 
     //--------------------------------------------------------------------------------------
-    // Listen for a request specifically from the presenter. A request of this type sent
+    // Listen for a request specifically from the host. A request of this type sent
     // from any other participant will have an error thrown back at it.
     //--------------------------------------------------------------------------------------
-    listenPresenter<REQUEST, RESPONSE>(
+    listenHost<REQUEST, RESPONSE>(
         endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
         apiCallback: (value: REQUEST) => RESPONSE | PromiseLike<RESPONSE>
         ): ClusterfunListener<REQUEST, RESPONSE> {
         return new ClusterfunListener<REQUEST, RESPONSE>(endpoint, this._messageThing, (sender: string, value: REQUEST) => {
-            if (sender === this._presenterId) {
+            if (sender === this._hostId) {
                 return apiCallback(value);
             } else {
-                throw new Error("Sender is not the presenter")
+                throw new Error("Sender is not the host")
             }
         });
     }
@@ -136,10 +136,10 @@ export class SessionHelper implements ISessionHelper {
     }
 
     //--------------------------------------------------------------------------------------
-    // Make a request to a given endpoint on the presenter
+    // Make a request to a given endpoint on the host
     //--------------------------------------------------------------------------------------
-    requestPresenter<REQUEST, RESPONSE>(endpoint: MessageEndpoint<REQUEST, RESPONSE>, request: REQUEST) {
-        return this.request(endpoint, this._presenterId, request);
+    requestHost<REQUEST, RESPONSE>(endpoint: MessageEndpoint<REQUEST, RESPONSE>, request: REQUEST) {
+        return this.request(endpoint, this._hostId, request);
     }
 
     //--------------------------------------------------------------------------------------

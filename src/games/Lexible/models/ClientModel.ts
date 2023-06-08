@@ -1,7 +1,7 @@
 import { action, makeObservable, observable } from "mobx";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { LetterGridModel } from "./LetterGridModel";
-import { LexibleGameEvent } from "./PresenterModel";
+import { LexibleGameEvent } from "./HostModel";
 import { ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper } from "libs";
 import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
@@ -114,17 +114,17 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     reconstitute() {
         super.reconstitute();
-        this.listenToEndpointFromPresenter(LexibleServerRecentlyTouchedLettersEndpoint, this.handleRecentlyTouchedMessage);
-        this.listenToEndpointFromPresenter(LexibleEndRoundEndpoint, this.handleEndOfRoundMessage);
-        this.listenToEndpointFromPresenter(LexibleBoardUpdateEndpoint, this.handleBoardUpdateMessage); 
+        this.listenToEndpointFromHost(LexibleServerRecentlyTouchedLettersEndpoint, this.handleRecentlyTouchedMessage);
+        this.listenToEndpointFromHost(LexibleEndRoundEndpoint, this.handleEndOfRoundMessage);
+        this.listenToEndpointFromHost(LexibleBoardUpdateEndpoint, this.handleBoardUpdateMessage); 
         this.theGrid.processBlocks(b => this.setBlockHandlers(b))
     }
 
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
-    async requestGameStateFromPresenter(): Promise<void> {
-        const onboardState = await this.session.requestPresenter(LexibleOnboardClientEndpoint, {})
+    async requestGameStateFromHost(): Promise<void> {
+        const onboardState = await this.session.requestHost(LexibleOnboardClientEndpoint, {})
         if (onboardState.gameState === "Gathering") {
             this.gameState = GeneralClientGameState.WaitingToStart;
         } else {
@@ -175,7 +175,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
             letters: this.letterChain.map(l => ({letter: l.letter, coordinates: l.coordinates}))
         }
 
-        const response = await this.session.requestPresenter(LexibleSubmitWordEndpoint, submissionData)
+        const response = await this.session.requestHost(LexibleSubmitWordEndpoint, submissionData)
         if (response.success) {
             this.invokeEvent(LexibleGameEvent.WordAccepted)
         } else {
@@ -305,11 +305,11 @@ export class LexibleClientModel extends ClusterfunClientModel  {
                     if(this.letterChain.length === 0) this.wordList = []
                 }
 
-                this.session.requestPresenter(LexibleReportTouchLetterEndpoint, {
+                this.session.requestHost(LexibleReportTouchLetterEndpoint, {
                     touchPoint: block.coordinates
                 }).forget();
                 if (isFirst) {
-                    this.session.requestPresenter(LexibleRequestWordHintsEndpoint, {
+                    this.session.requestHost(LexibleRequestWordHintsEndpoint, {
                         currentWord: this.letterChain.map(block => ({
                             letter: block.letter,
                             coordinates: block.coordinates
@@ -340,7 +340,7 @@ export class LexibleClientModel extends ClusterfunClientModel  {
     // 
     // -------------------------------------------------------------------
     async requestSwitchTeam(){
-        const response = await this.session.requestPresenter(LexibleSwitchTeamEndpoint, {desiredTeam:this.myTeam === "A" ? "B" : "A" })
+        const response = await this.session.requestHost(LexibleSwitchTeamEndpoint, {desiredTeam:this.myTeam === "A" ? "B" : "A" })
 
         this.myTeam = response.currentTeam;
     }

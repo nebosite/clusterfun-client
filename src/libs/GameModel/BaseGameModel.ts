@@ -129,9 +129,9 @@ function createSerializer(typeHelper: ITypeHelper)
     return new BruteForceSerializer(deepTypeHelper);
 }
 
-// -------------------------------------------------------------------
-// Handle basic operations for any game instance, client or presenter
-// -------------------------------------------------------------------
+// -------------------------------------------------------------------------
+// Handle basic operations for any game instance, client, presenter, or host
+// -------------------------------------------------------------------------
 export abstract class BaseGameModel  {
     name: string;
     @observable  private _gameTime_ms = 0
@@ -462,13 +462,13 @@ export abstract class BaseGameModel  {
     }
 
     // -------------------------------------------------------------------
-    // Create a request listener specifically for a presenter - a request
+    // Create a request listener specifically for the host - a request
     // from any other caller has an error thrown back at it
     // ------------------------------------------------------------------- 
-    protected listenToEndpointFromPresenter<REQUEST, RESPONSE>(
+    protected listenToEndpointFromHost<REQUEST, RESPONSE>(
         endpoint: MessageEndpoint<REQUEST, RESPONSE>,
         apiCallback: (request: REQUEST) => RESPONSE | PromiseLike<RESPONSE>) {
-        const listener = this.session.listenPresenter(endpoint, apiCallback);
+        const listener = this.session.listenHost(endpoint, apiCallback);
         this._messageListeners.push(listener as ClusterfunListener<unknown, unknown>);
         return listener;
     }

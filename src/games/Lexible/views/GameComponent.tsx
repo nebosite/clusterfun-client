@@ -1,5 +1,5 @@
 // App Navigation handled here
-import {  getLexiblePresenterTypeHelper } from "../models/PresenterModel";
+import {  getLexibleHostTypeHelper } from "../models/HostModel";
 import {  getLexibleClientTypeHelper } from "../models/ClientModel";
 import React from "react";
 import { ClusterfunGameComponent, ClusterFunGameProps } from "libs";
@@ -20,7 +20,7 @@ export default class LexibleGameComponent extends ClusterfunGameComponent {
         this.init(
             lazyPresenter, 
             lazyClient, 
-            getLexiblePresenterTypeHelper, 
+            getLexibleHostTypeHelper, 
             getLexibleClientTypeHelper)
     }
 }

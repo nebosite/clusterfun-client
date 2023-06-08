@@ -1,9 +1,9 @@
 import { action, makeObservable, observable } from "mobx"
 import { ClusterFunPlayer, ISessionHelper, 
-    ClusterFunGameProps, ClusterfunPresenterModel, 
+    ClusterFunGameProps, ClusterfunHostModel, 
     ITelemetryLogger, IStorage, ITypeHelper, 
-    PresenterGameState} from "libs";
-import { StressatoPresenterRelayEndpoint } from "./stressatoEndpoints";
+    HostGameState} from "libs";
+import { StressatoHostRelayEndpoint } from "./stressatoEndpoints";
 
 
 export enum StressatoPlayerStatus {
@@ -37,16 +37,16 @@ const seedString = "_abcdefjhijklmnopqrstuvwxyzABCDEFJHIKJLMNOPQRSTUVWXYZ0123456
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
 // -------------------------------------------------------------------
-export const getStressatoPresenterTypeHelper = (
+export const getStressatoHostTypeHelper = (
     sessionHelper: ISessionHelper, 
     gameProps: ClusterFunGameProps
     ): ITypeHelper =>
  {
      return {
-        rootTypeName: "StressatoPresenterModel",
+        rootTypeName: "StressatoHostModel",
         getTypeName(o: object) {
             switch (o.constructor) {
-                case StressatoPresenterModel: return "StressatoPresenterModel";
+                case StressatoHostModel: return "StressatoHostModel";
                 case StressatoPlayer: return "StressatoPlayer";
             }
             return undefined;
@@ -54,7 +54,7 @@ export const getStressatoPresenterTypeHelper = (
         constructType(typeName: string):any {
             switch(typeName)
             {
-                case "StressatoPresenterModel": return new StressatoPresenterModel( sessionHelper, gameProps.logger, gameProps.storage);
+                case "StressatoHostModel": return new StressatoHostModel( sessionHelper, gameProps.logger, gameProps.storage);
                 case "StressatoPlayer": return new StressatoPlayer();
                 // TODO: add your custom type handlers here
             }
@@ -62,11 +62,11 @@ export const getStressatoPresenterTypeHelper = (
         },
         shouldStringify(typeName: string, propertyName: string, object: any):boolean
         {
-            if(object instanceof StressatoPresenterModel)
+            if(object instanceof StressatoHostModel)
             {
                 const doNotSerializeMe = 
                 [
-                    "Name_of_presenter_property_to_not_serialize",
+                    "Name_of_host_property_to_not_serialize",
                     // TODO:  put names of properties here that should not be part
                     //        of the saved game state  
                 ]
@@ -77,7 +77,7 @@ export const getStressatoPresenterTypeHelper = (
         },
         reconstitute(typeName: string, propertyName: string, rehydratedObject: any)
         {
-            if(typeName === "StressatoPresenterModel")
+            if(typeName === "StressatoHostModel")
             {
                 // TODO: if there are any properties that need special treatment on 
                 // deserialization, you can override it here.  e.g.:
@@ -127,9 +127,9 @@ export interface ServerHealthInfo {
 }
 
 // -------------------------------------------------------------------
-// presenter data and logic
+// host data and logic
 // -------------------------------------------------------------------
-export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoPlayer> {
+export class StressatoHostModel extends ClusterfunHostModel<StressatoPlayer> {
 
     @observable  private _serverHealth = {} as ServerHealthInfo
     get serverHealth() {return this._serverHealth}
@@ -145,7 +145,7 @@ export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoP
     {
         super("Stressato", sessionHelper, logger, storage);
         
-        this.allowedJoinStates = [PresenterGameState.Gathering, StressatoGameState.Playing]
+        this.allowedJoinStates = [HostGameState.Gathering, StressatoGameState.Playing]
         this.minPlayers = 1;
 
         setTimeout(this.pingServerHealth,0);
@@ -167,7 +167,7 @@ export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoP
     // -------------------------------------------------------------------
     reconstitute() {
         super.reconstitute();
-        this.listenToEndpoint(StressatoPresenterRelayEndpoint, this.handlePlayerAction);
+        this.listenToEndpoint(StressatoHostRelayEndpoint, this.handlePlayerAction);
     }
 
 
@@ -193,7 +193,7 @@ export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoP
     //  prepareFreshGame
     // -------------------------------------------------------------------
     prepareFreshGame = () => {
-        this.gameState = PresenterGameState.Gathering;
+        this.gameState = HostGameState.Gathering;
         this.currentRound = 0;
     }
 

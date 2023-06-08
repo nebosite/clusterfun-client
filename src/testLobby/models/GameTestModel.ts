@@ -2,6 +2,7 @@ import { action, makeObservable, observable } from "mobx";
 import { LobbyModel, ILobbyDependencies } from "../../lobby/models/LobbyModel";
 import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, IMessageThing, getStorage, GameInstanceProperties } from "../../libs";
 import Logger from "js-logger";
+import { GameRole } from "libs/config/GameRole";
 
 const names = [
     // Names with weird latin characters
@@ -123,11 +124,11 @@ export class GameTestModel {
         if(url===("/api/startgame")) {
             const gameProperties: GameInstanceProperties = {
                 gameName: payload.gameName,
-                role: "presenter",
+                role: GameRole.Host,
                 roomId: ["BEEF", "FIRE", "SHIP", "PORT", "SEAT"][Math.floor(Math.random() * 5)],
-                presenterId: "presenter_id",
-                personalId: "presenter_id",
-                personalSecret: "presenter_secret"
+                hostId: "host_id",
+                personalId: "host_id",
+                personalSecret: "host_secret"
             }       
             this.gameName = payload.gameName;
             this.clientModels.forEach(m => m.roomId = gameProperties.roomId);  
@@ -209,16 +210,16 @@ export class GameTestModel {
             return Promise.resolve(healthdata as T);
         }
         else if(url===("/api/terminategame")) {
-            Logger.info("Terminating game with room id: " + payload.roomId + " ... " + payload.presenterSecret)      
+            Logger.info("Terminating game with room id: " + payload.roomId + " ... " + payload.hostSecret)      
             return Promise.resolve({} as T);
         }
         else if(url.startsWith("/api/joingame")) {
             // { roomId: this.roomId, playerName: this.playerName }
             const gameProperties: GameInstanceProperties = {
                 gameName: this.gameName,
-                role: "client",
+                role: GameRole.Client,
                 roomId: payload.roomId,
-                presenterId: "presenter_id", 
+                hostId: "host_id", 
                 personalId: `client${this.joinCount}_id`,
                 personalSecret: `client${this.joinCount}_secret`
             }       

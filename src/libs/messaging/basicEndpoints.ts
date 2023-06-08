@@ -14,7 +14,7 @@ export const JoinEndpoint: MessageEndpoint<
 }
 
 /**
- * Endpoint for informing the presenter that a client
+ * Endpoint for informing the host that a client
  * has quit
  */
 export const QuitEndpoint: MessageEndpoint<unknown, unknown> = {
@@ -36,7 +36,7 @@ export const PingEndpoint: MessageEndpoint<
 }
 
 /**
- * Endpoint for the presenter to inform a client that their
+ * Endpoint for the host to inform a client that their
  * current state is invalid. The client will respond to this
  * message by invoking the game-specific endpoint to fully
  * resync state.
@@ -47,7 +47,7 @@ export const InvalidateStateEndpoint: MessageEndpoint<unknown, unknown> = {
 }
 
 /**
- * Endpoint for the presenter to inform the clients that a game has ended
+ * Endpoint for the host to inform the clients that a game has ended
  */
 export const GameOverEndpoint: MessageEndpoint<unknown, unknown> = {
     route: "/basic/lifecycle/gameover",
@@ -55,7 +55,7 @@ export const GameOverEndpoint: MessageEndpoint<unknown, unknown> = {
 }
 
 /**
- * Endpoint for the presenter to force-terminate a client
+ * Endpoint for the host to force-terminate a client
  */
 export const TerminateGameEndpoint: MessageEndpoint<unknown, unknown> = {
     route: "/basic/lifecycle/terminate",
@@ -63,7 +63,7 @@ export const TerminateGameEndpoint: MessageEndpoint<unknown, unknown> = {
 }
 
 /**
- * Endpoint for the presenter to pause all clients
+ * Endpoint for the host to pause all clients
  */
 export const PauseGameEndpoint: MessageEndpoint<unknown, unknown> = {
     route: "/basic/lifecycle/pause",
@@ -71,7 +71,7 @@ export const PauseGameEndpoint: MessageEndpoint<unknown, unknown> = {
 }
 
 /**
- * Endpoint for the presenter to resume all clients
+ * Endpoint for the host to resume all clients
  */
  export const ResumeGameEndpoint: MessageEndpoint<unknown, unknown> = {
     route: "/basic/lifecycle/resume",
