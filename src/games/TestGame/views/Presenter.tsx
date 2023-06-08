@@ -7,7 +7,7 @@ import { observable } from "mobx";
 import TestatoAssets from "../assets/Assets";
 import { TestatoVersion } from "../models/GameSettings";
 import { BaseAnimationController, MediaHelper, UIProperties, HostGameEvent, HostGameState, GeneralGameState, DevUI, UINormalizer } from "libs";
-import { TestatoHostModel, TestatoGameState, TestatoGameEvent } from "../models/PresenterModel";
+import { TestatoHostModel, TestatoGameState, TestatoGameEvent } from "../models/HostModel";
 
 
 @inject("appModel") @observer

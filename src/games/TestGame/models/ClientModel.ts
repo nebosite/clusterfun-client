@@ -1,7 +1,7 @@
 import Logger from "js-logger";
 import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, Vector2 } from "libs";
 import { observable } from "mobx";
-import { TestatoGameState } from "./PresenterModel";
+import { TestatoGameState } from "./HostModel";
 import { TestatoColorChangeActionEndpoint, TestatoMessageActionEndpoint, TestatoOnboardClientEndpoint, TestatoTapActionEndpoint } from "./testatoEndpoints";
 
 

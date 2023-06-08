@@ -1,5 +1,5 @@
 // App Navigation handled here
-import {  getTestatoHostTypeHelper } from "../models/PresenterModel";
+import {  getTestatoHostTypeHelper } from "../models/HostModel";
 import {  getTestatoClientTypeHelper } from "../models/ClientModel";
 import React from "react";
 import { ClusterfunGameComponent, ClusterFunGameProps } from "libs";
