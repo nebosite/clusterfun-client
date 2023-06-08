@@ -1,14 +1,16 @@
 import React from "react";
 import { observer } from "mobx-react";
-import { makeObservable } from "mobx";
-import { SliderDriftEventParameters, Slider } from "../../libs";
-
+import * as Comlink from "comlink";
+import { ITestatoHostWorkerLifecycleController } from "games/TestGame/workers/IHostWorkerLifecycleController";
+import { IClusterfunHostGameControllerBundle, IClusterfunHostGameInitializer } from "libs/worker/IClusterfunHostGameInitializer";
+import { GameInstanceProperties } from "libs/config/GameInstanceProperties";
+import { GameRole } from "libs/config/GameRole";
 
 class QuickState {
-    drift = makeObservable({momentum: {x:0, y: 0},
-        delta: {x:0, y: 0},
-        offset: {x:0, y: 0} });
-    
+    initializer = Comlink.wrap(/* webpackChunkName: "quick-test-worker" */ new Worker(new URL("../../games/TestGame/workers/HostWorker", import.meta.url), { type: "module" })) as 
+        unknown as Comlink.Remote<IClusterfunHostGameInitializer<ITestatoHostWorkerLifecycleController>>;
+    controller?: Comlink.Remote<ITestatoHostWorkerLifecycleController>;
+    roomId?: string;
 }
 
 // -------------------------------------------------------------------
@@ -22,31 +24,45 @@ class QuickState {
     // -------------------------------------------------------------------
     render() {
 
-        const onDrift = (ev: SliderDriftEventParameters) => {
-            this.st.drift = ev;
-        }
-
-        const toCoords = (raw: {x:number, y:number}) => {
-            if(!raw) return "---"
-            return `${raw.x.toFixed(2)},${raw.y.toFixed(2)}`
+        const generateController = async () => {
+            const port = new MessageChannel().port1;
+            console.log("Requesting init");
+            const bundle = await this.st.initializer.init(
+                Comlink.proxy(function serverCall<T>(url: string, payload: any): Promise<T> {
+                    if(url===("/api/startgame")) {
+                        const gameProperties: GameInstanceProperties = {
+                            gameName: payload.gameName,
+                            role: GameRole.Host,
+                            roomId: ["BEEF", "FIRE", "SHIP", "PORT", "SEAT"][Math.floor(Math.random() * 5)],
+                            hostId: "host_id",
+                            personalId: "host_id",
+                            personalSecret: "host_secret"
+                        }
+                        return Promise.resolve(gameProperties as unknown as T);
+                    } else {
+                        throw new Error("Unknown API " + url);
+                    }
+                 }),
+                Comlink.transfer(port, [port]),
+                Comlink.proxy(() => {})
+            );
+            this.st.controller = Comlink.wrap(bundle.lifecycleControllerPort) as Comlink.Remote<ITestatoHostWorkerLifecycleController>;
+            this.st.roomId = bundle.roomId;
+            console.log("Controller successfully obtained", this.st.controller);
+            this.forceUpdate();
         }
 
         return (
             <div >
-                <Slider
-                    onDrift={onDrift}
-                    style={{background: "grey"}} 
-                    sliderId="Test" width={800} height={800} 
-                    contentWidth={2000} contentHeight={1200}>
-                    <div style={{fontSize: "40px", fontWeight: 700
-                        ,width: "2000px", height:"1200px"
-                        ,background: "linear-gradient(45deg, red, yellow, blue, orange)"}}>
-                            <div>SRUFF</div>
-                            <div>Delta: {toCoords(this.st.drift?.delta)}</div>
-                            <div>Momentum: {toCoords(this.st.drift?.momentum)}</div>
-                            <div>Offset: {toCoords(this.st.drift?.offset)}</div>
-                        </div>
-                </Slider>
+                { !!this.st.roomId && <div>{this.st.roomId}</div>}
+                { !!this.st.controller
+                    ? (
+                        <button onClick={() => this.st.controller!.startGame()}>Start Game</button>
+                    )
+                    : (
+                        <button onClick={generateController}>Generate Controller</button>
+                    ) 
+                }
 
             </div>
         )

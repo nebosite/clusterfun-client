@@ -3,10 +3,10 @@ import Logger from "js-logger";
 
 export function getStorage(id: string) : IStorage
 {
-    const storageAvailble = typeof(SessionStorage) !== "undefined";
+    const storageAvailable = "sessionStorage" in global;
 
-    Logger.debug(`Creating storage for '${id}' as ${storageAvailble ? "Local" : "Mocked" }`)
-    return (storageAvailble)
+    Logger.debug(`Creating storage for '${id}' as ${storageAvailable ? "Local" : "Mocked" }`)
+    return (storageAvailable)
         ? new SessionStorage(id, sessionStorage)
         : new SessionStorage(id, new MemoryAccessor());
 }

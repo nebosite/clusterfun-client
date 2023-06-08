@@ -3,28 +3,15 @@
 import { BaseGameModel, ISessionHelper, ITypeHelper, 
     SessionHelper, 
     instantiateGame, getHostTypeHelper, 
-    getClientTypeHelper, GeneralGameState, 
-    GameInstanceProperties, IMessageThing, 
-    IStorage, ITelemetryLogger } from "../../libs";
+    getClientTypeHelper, GeneralGameState } from "../../libs";
 import { UIProperties } from "libs/types/UIProperties";
 import { observer, Provider } from "mobx-react";
 import React from "react";
 import Logger from "js-logger";
 import { GameRole } from "libs/config/GameRole";
+import { ClusterFunGameAndUIProps, ClusterFunGameProps } from "libs/config/ClusterFunGameProps";
 
-// -------------------------------------------------------------------
-// ClusterFunGameProps
-// -------------------------------------------------------------------
-export interface ClusterFunGameProps {
-    playerName?: string;
-    gameProperties: GameInstanceProperties;
-    uiProperties: UIProperties;
-    messageThing: IMessageThing;
-    logger: ITelemetryLogger;
-    storage: IStorage;
-    onGameEnded: () => void;
-    serverCall: <T>(url: string, payload: any) => Promise<T>
-}
+
 
 class DummyComponent extends React.Component<{ appModel?: any, uiProperties: UIProperties }>
 {
@@ -44,7 +31,7 @@ const componentFinalizer = new FinalizationRegistry((model: BaseGameModel) => {
 // -------------------------------------------------------------------
 @observer
 export class ClusterfunGameComponent 
-extends React.Component<ClusterFunGameProps>
+extends React.Component<ClusterFunGameAndUIProps>
 {
 
     appModel?: BaseGameModel;

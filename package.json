@@ -41,6 +41,7 @@
     "@types/react": "^18.2.8",
     "@types/react-dom": "^18.2.4",
     "classnames": "^2.3.2",
+    "comlink": "^4.4.1",
     "enzyme": "^3.11.0",
     "js-logger": "^1.6.1",
     "mobx": "^6.9.0",

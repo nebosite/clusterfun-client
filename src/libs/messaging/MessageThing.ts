@@ -96,6 +96,48 @@ export class WebSocketMessageThing implements IMessageThing {
 }
 
 // -------------------------------------------------------------------
+// MessagePortMessageThing
+// -------------------------------------------------------------------
+export class MessagePortMessageThing implements IMessageThing {
+    readonly personalId: string;
+    get personalSecret(): string { return "N/A" };
+    
+    // NOTE: These are not quite correct - it is indeed possible to close
+    // a MessagePort. We don't get an event for it, though.
+    get isOpen() { return true; }
+    get isClosed() { return true; }
+    get closeCode() { return 0; }
+
+    private _messagePort: MessagePort;
+
+    constructor(messagePort: MessagePort, personalId: string) {
+        this._messagePort = messagePort;
+        this.personalId = personalId;
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    addEventListener(eventName: string, handler: (event?: any) => void) {
+        this._messagePort.addEventListener(eventName, handler)
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    removeEventListener(eventName: string, handler: (event?: any) => void) {
+        this._messagePort.removeEventListener(eventName, handler)
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    async send (payload: string, onFailure: () => void) {
+        this._messagePort.postMessage(payload);
+    }
+}
+
+// -------------------------------------------------------------------
 // LocalMessageThing
 // -------------------------------------------------------------------
 export class LocalMessageThing implements IMessageThing {

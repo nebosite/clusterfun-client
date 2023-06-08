@@ -4,7 +4,7 @@ import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
-import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, Vector2, ClusterfunHostModel, ITelemetryLogger, IStorage, GeneralGameState, HostGameEvent, HostGameState, ITypeHelper } from "libs";
+import { ClusterFunPlayer, ISessionHelper, Vector2, ClusterfunHostModel, ITelemetryLogger, IStorage, GeneralGameState, HostGameEvent, HostGameState, ITypeHelper } from "libs";
 import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
 import { LetterChain, LexibleBoardUpdateEndpoint, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, 
@@ -16,6 +16,7 @@ import { LetterChain, LexibleBoardUpdateEndpoint, LexibleEndRoundEndpoint, Lexib
     LexibleTouchLetterRequest, LexibleWordHintRequest, LexibleWordHintResponse, 
     LexibleWordSubmissionRequest, LexibleWordSubmissionResponse, PlayBoard } from "./lexibleEndpoints";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
+import { ClusterFunGameProps } from "libs/config/ClusterFunGameProps";
 
 const LEXIBLE_SETTINGS_KEY = "lexible_settings";
 const SEND_RECENT_LETTERS_INTERVAL_MS = 200;
