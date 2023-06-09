@@ -1,9 +1,9 @@
 
-import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage, GameRole } from "../../libs";
-import { makeObservable, observable } from "mobx";
+import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage, ClusterFunPlayer, GameRole } from "..";
+import { action, makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 import Logger from "js-logger";
-import { GameOverEndpoint, InvalidateStateEndpoint, JoinClientEndpoint, PauseGameEndpoint, PingEndpoint, QuitClientEndpoint, ResumeGameEndpoint, TerminateGameEndpoint } from "libs/messaging/basicEndpoints";
+import { GameOverEndpoint, InvalidateStateEndpoint, JoinClientEndpoint, JoinPresenterEndpoint, PauseGameEndpoint, PingEndpoint, QuitClientEndpoint, ResumeGameEndpoint, TerminateGameEndpoint } from "libs/messaging/basicEndpoints";
 
 export enum GeneralClientGameState {
     WaitingToStart = "WaitingToStart",
@@ -14,7 +14,7 @@ export enum GeneralClientGameState {
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
 // -------------------------------------------------------------------
-export const getClientTypeHelper = (derivedClassHelper: ITypeHelper): ITypeHelper =>
+export const getPresenterTypeHelper = (derivedClassHelper: ITypeHelper): ITypeHelper =>
  {
      return {
         rootTypeName: derivedClassHelper.rootTypeName,
@@ -31,11 +31,21 @@ export const getClientTypeHelper = (derivedClassHelper: ITypeHelper): ITypeHelpe
 }
 
 // -------------------------------------------------------------------
-// Client data and logic
+// Presenter data and logic
 // -------------------------------------------------------------------
-export abstract class ClusterfunClientModel extends BaseGameModel  {
-    @observable private _playerName: string;
-    get playerName() { return this._playerName; }
+export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlayer> extends BaseGameModel  {
+    players = observable<PlayerType>([]);
+    public get isStageOver() {return this.gameTime_ms > this.timeOfStageEnd }
+    // The time since game start in milliseconds
+    @observable timeOfStageEnd: number = 1;
+    @observable secondsLeftInStage: number = 0; // calculated based on timeOfStageEnd
+    @observable isPaused: boolean = false;
+    @observable currentRound = 0;
+    @observable totalRounds = 3;
+
+    @observable  private _showDebugInfo = false;
+    get showDebugInfo() {return this._showDebugInfo}
+    set showDebugInfo(value) {action(()=>{this._showDebugInfo = value})()}
     get playerId() { return this.session.personalId}
     @observable joinError: string | null = null;
     @observable roundNumber: number = 0;
@@ -45,12 +55,10 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // -------------------------------------------------------------------
     // ctor 
     // -------------------------------------------------------------------
-    constructor(name: string, sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage)
+    constructor(name: string, sessionHelper: ISessionHelper, logger: ITelemetryLogger, storage: IStorage)
     {
         super(name, sessionHelper, logger, storage);
         makeObservable(this);
-        this._playerName = playerName;
-
     }
 
     reconstitute():void {
@@ -61,10 +69,6 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         this.listenToEndpointFromHost(PauseGameEndpoint, this.handlePauseMessage);
         this.listenToEndpointFromHost(ResumeGameEndpoint, this.handleResumeMessage);
 
-        // this.session.onError((err) => {
-        //     Logger.error(`Session error: ${err}`)
-        // })
-
         this.subscribe(GeneralGameState.Destroyed, "GameDestroyed", () =>
         {
             if(!this.gameTerminated) {
@@ -72,8 +76,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
             }
         })
 
-        this.gameState = GeneralClientGameState.WaitingToStart;
-        this.session.requestHost(JoinClientEndpoint, { playerName: this._playerName }).then(ack => {
+        this.session.requestHost(JoinPresenterEndpoint, { }).then(ack => {
             this.handleJoinAck(ack);
             this._stateIsInvalid = true;
             this.requestGameStateFromHost().then(() => this._stateIsInvalid = false);
@@ -89,7 +92,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // -------------------------------------------------------------------
     keepAlive = async () => {
         if(!this.session) {
-            Logger.info(`No session on ${this.playerName}`)
+            Logger.info(`No session on presenter`)
             return;
         }
         
@@ -105,7 +108,6 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
             Logger.info(`Game appears to be over (${this.playerId})`)
         }
     }
-
 
     // -------------------------------------------------------------------
     // handleJoinAckMessage 

@@ -9,6 +9,14 @@ import { getStorage } from "libs/storage";
 import { BaseGameModel, GeneralGameState, getHostTypeHelper, instantiateGame } from "libs/GameModel";
 import * as Comlink from "comlink";
 
+// TODO: Convert this to work with a Shared Worker -
+// as far as you understand it, multiple requests to the same URL
+// will produce the same worker in that scenario, allowing
+// multiple tabs to access it or for it to survive between refreshes.
+// - To make this work, index the lifecycle controllers you create by room ID,
+//   and add a method to retrieve them on demand.
+// - Also allow a way to delete lifecycle controllers
+
 // A Set to keep alive message ports.
 // TODO: Clean this up when app models are removed
 const keepAliveSet = new Set<MessagePort>();

@@ -6,7 +6,7 @@ import classNames from "classnames";
 import { GLOBALS } from '../../Globals';
 import { LobbyAssets } from "../../lobby/assets/LobbyAssets";
 import styles from './LobbyComponent.module.css';
-import { UIProperties, UINormalizer } from "libs";
+import { UIProperties, UINormalizer, GameRole } from "libs";
 import Logger from "js-logger";
 import { GameDescriptor } from "games/lists/GameDescriptor";
 
@@ -94,7 +94,7 @@ class GameClientComponent
 
         const handleJoinGameClick = () => {
             Logger.debug("Attempting to join room " + this.props.lobbyModel?.roomId);
-            this.props.lobbyModel?.joinGame();
+            this.props.lobbyModel?.joinGame(GameRole.Client);
         }
 
         return (

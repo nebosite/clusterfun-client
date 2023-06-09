@@ -8,7 +8,7 @@ import { WebSocketMessageThing } from 'libs/messaging/MessageThing';
 import 'index.css'
 import React from 'react';
 
-// auto-redirect http to http on the prod server
+// auto-redirect http to https on the prod server
 if (window.location.href.toLowerCase().startsWith('http://clusterfun.tv')) {
     window.location.replace(`https:${window.location.href.substring(5)}`);
 }
@@ -139,6 +139,7 @@ else {
                     }
                     return cachedThing;
                 },
+                serverSocketEndpoint: (window.location.protocol === "https" ? "wss:" : "ws:") + window.location.host,
                 serverCall: serverCall,
                 storage: getStorage("clusterfun"),            
                 telemetryFactory,

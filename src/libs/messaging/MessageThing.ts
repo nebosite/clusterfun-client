@@ -15,6 +15,10 @@ export interface IMessageThing {
     readonly closeCode: number;
 }
 
+export interface IMessageThingReceiver {
+    receiveMessage: (payload: string) => void;
+}
+
 // -------------------------------------------------------------------
 // WebSocketMessageThing
 // -------------------------------------------------------------------
@@ -31,6 +35,7 @@ export class WebSocketMessageThing implements IMessageThing {
     //--------------------------------------------------------------------------------------
     constructor(origin: string, roomId: string, personalId: string, personalSecret: string )
     {
+        //const url = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + window.location.host + "/talk/" + roomId + "/" + personalId;
         const url = origin + "/talk/" + roomId + "/" + personalId;
         this._websocket = new WebSocket(url, ['Secret' + personalSecret]);
         this.personalId = personalId;
@@ -105,7 +110,7 @@ export class MessagePortMessageThing implements IMessageThing {
     // NOTE: These are not quite correct - it is indeed possible to close
     // a MessagePort. We don't get an event for it, though.
     get isOpen() { return true; }
-    get isClosed() { return true; }
+    get isClosed() { return false; }
     get closeCode() { return 0; }
 
     private _messagePort: MessagePort;
@@ -113,6 +118,7 @@ export class MessagePortMessageThing implements IMessageThing {
     constructor(messagePort: MessagePort, personalId: string) {
         this._messagePort = messagePort;
         this.personalId = personalId;
+        this._messagePort.start();
     }
 
     //--------------------------------------------------------------------------------------
@@ -137,10 +143,75 @@ export class MessagePortMessageThing implements IMessageThing {
     }
 }
 
+export class MessagePortMessageThingReceiver implements IMessageThingReceiver {
+    private _listeners = new Map<string, any[]>();
+    private _room: Map<string, IMessageThingReceiver>;
+    private _messagePort: MessagePort;
+    personalId: string;
+    personalSecret: string = "there is no queen of england";
+
+    constructor (messagePort: MessagePort,
+        roomInhabitants: Map<string, IMessageThingReceiver>, 
+        personalId: string) {
+            this._room = roomInhabitants;
+            this.personalId = personalId;
+            this._messagePort = messagePort;
+            this._room.set(personalId, this);
+
+        this._messagePort.addEventListener("message", (event) => {
+            const payload = event.data;
+            const header = parseHeaderOnly(payload);
+            if (header.s !== this.personalId) {
+                throw new SyntaxError("Sender of header must match personal ID")
+            }
+
+            return new Promise<void>((resolve, reject) => {
+                setTimeout(()=> {
+                    if(!this._room.has(header.r)) {
+                        reject("No recipient with id: " + header.r);
+                    } else {
+                        this._room.get(header.r)?.receiveMessage(payload)
+                        resolve();
+                    }
+                }, 0)
+            })
+        })
+        this._messagePort.start();
+    }
+    
+
+    // -------------------------------------------------------------------
+    // addEventListener
+    // -------------------------------------------------------------------
+    addEventListener(eventName: string, handler: (event?: any) => void) {
+        if(!this._listeners.has(eventName)) {
+            this._listeners.set(eventName, [])
+        }
+        this._listeners.get(eventName)!.push( handler);
+    }
+
+    // -------------------------------------------------------------------
+    // removeEventListener
+    // -------------------------------------------------------------------
+    removeEventListener(eventName: string, handler: (event?: any) => void) {
+        if(this._listeners.has(eventName)) {
+            const eventListeners = this._listeners.get(eventName)!;
+            const index = eventListeners.indexOf(handler);
+            if (index !== -1) {
+                eventListeners.splice(index, 1);
+            }
+        }
+    }
+
+    receiveMessage(payload: string): void {
+        this._messagePort.postMessage(payload);
+    }
+}
+
 // -------------------------------------------------------------------
 // LocalMessageThing
 // -------------------------------------------------------------------
-export class LocalMessageThing implements IMessageThing {
+export class LocalMessageThing implements IMessageThing, IMessageThingReceiver {
     personalId: string;
     personalSecret: string = "there is no queen of england";
     simulatedMinPingMs: number;
@@ -149,13 +220,13 @@ export class LocalMessageThing implements IMessageThing {
     get isClosed() { return false; }
     get closeCode() { return 0; }
     private _listeners = new Map<string, any[]>();
-    private _room: Map<string, LocalMessageThing>;
+    private _room: Map<string, IMessageThingReceiver>;
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
     constructor(
-        roomInhabitants: Map<string, LocalMessageThing>, 
+        roomInhabitants: Map<string, IMessageThingReceiver>, 
         personalId: string, 
         simulatedMinPingMs: number, simulatedMaxPingMs: number)
     {

@@ -2,7 +2,7 @@
 
 import { BaseGameModel, ISessionHelper, ITypeHelper, 
     SessionHelper, 
-    instantiateGame, getHostTypeHelper, 
+    instantiateGame, 
     getClientTypeHelper, GeneralGameState } from "../../libs";
 import { UIProperties } from "libs/types/UIProperties";
 import { observer, Provider } from "mobx-react";
@@ -10,7 +10,9 @@ import React from "react";
 import Logger from "js-logger";
 import { GameRole } from "libs/config/GameRole";
 import { ClusterFunGameAndUIProps, ClusterFunGameProps } from "libs/config/ClusterFunGameProps";
-
+import { getPresenterTypeHelper } from "libs/GameModel/ClusterfunPresenterModel";
+import * as Comlink from "comlink";
+import { IClusterfunHostLifecycleController } from "libs/worker/IClusterfunHostLifecycleController";
 
 
 class DummyComponent extends React.Component<{ appModel?: any, uiProperties: UIProperties }>
@@ -35,12 +37,12 @@ extends React.Component<ClusterFunGameAndUIProps>
 {
 
     appModel?: BaseGameModel;
-    UI: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }> = DummyComponent
+    UI: React.ComponentType<{ appModel?: any, uiProperties: UIProperties, hostController?: Comlink.Remote<IClusterfunHostLifecycleController> }> = DummyComponent
 
     init(
         presenterType: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>,
         clientType: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>,
-        derivedHostTypeHelper: ( sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper,
+        derivedPresenterTypeHelper: ( sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper,
         derivedClientTypeHelper: ( sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps) => ITypeHelper
     )
     {
@@ -55,11 +57,11 @@ extends React.Component<ClusterFunGameAndUIProps>
 
         Logger.info(`INIT ${this.props.playerName}`)
 
-        if(gameProperties.role === GameRole.Host)
+        if(gameProperties.role === GameRole.Presenter)
         {
             this.UI = presenterType;
             this.appModel = instantiateGame(
-                getHostTypeHelper(derivedHostTypeHelper(sessionHelper, this.props)), 
+                getPresenterTypeHelper(derivedPresenterTypeHelper(sessionHelper, this.props)), 
                 this.props.logger, 
                 this.props.storage)
         } else if (gameProperties.role === GameRole.Client) {
@@ -94,7 +96,7 @@ extends React.Component<ClusterFunGameAndUIProps>
         return (
             <Provider appModel={this.appModel}>
                 <React.Suspense fallback={<div>loading...</div>}>
-                    <UI uiProperties={this.props.uiProperties}/>            
+                    <UI uiProperties={this.props.uiProperties} hostController={this.props.hostController || undefined}/>
                 </React.Suspense>
             </Provider>
         );

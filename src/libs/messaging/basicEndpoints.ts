@@ -1,13 +1,24 @@
+import { GameRole } from "libs/config";
 import MessageEndpoint from "./MessageEndpoint";
 
 /**
  * Endpoint for joining a game from the client
  */
-export const JoinEndpoint: MessageEndpoint<
+export const JoinClientEndpoint: MessageEndpoint<
     { playerName: string }, 
     { isRejoin: boolean, didJoin: boolean, joinError?: string }
     > = {
-    route: "/basic/handshake/join",
+    route: "/basic/handshake/join-client",
+    responseRequired: true,
+    suggestedRetryIntervalMs: 1000,
+    suggestedTotalLifetimeMs: 10000
+}
+
+/**
+ * Endpoint for joining a game as a presenter
+ */
+export const JoinPresenterEndpoint: MessageEndpoint<unknown, { isRejoin: boolean, didJoin: boolean, joinError?: string }> = {
+    route: "/basic/handshake/join-presenter",
     responseRequired: true,
     suggestedRetryIntervalMs: 1000,
     suggestedTotalLifetimeMs: 10000
@@ -17,8 +28,17 @@ export const JoinEndpoint: MessageEndpoint<
  * Endpoint for informing the host that a client
  * has quit
  */
-export const QuitEndpoint: MessageEndpoint<unknown, unknown> = {
-    route: "/basic/handshake/quit",
+export const QuitClientEndpoint: MessageEndpoint<unknown, unknown> = {
+    route: "/basic/handshake/quit-client",
+    responseRequired: false
+}
+
+/**
+ * Endpoint for informing the host that a presenter
+ * has quit
+ */
+export const QuitPresenterEndpoint: MessageEndpoint<unknown, unknown> = {
+    route: "/basic/handshake/quit-presenter",
     responseRequired: false
 }
 

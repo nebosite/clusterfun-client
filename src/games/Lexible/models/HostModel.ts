@@ -432,7 +432,7 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
                 const letterCoordinates = Array.from(this.recentlyTouchedLetters.values());
                 this.recentlyTouchedLetters.clear();
                 const message: LexibleRecentlyTouchedLettersMessage = { letterCoordinates }
-                this.requestEveryoneAndForget(LexibleServerRecentlyTouchedLettersEndpoint, () => message);
+                this.requestAllClientsAndForget(LexibleServerRecentlyTouchedLettersEndpoint, () => message);
             }
         }
     }
@@ -483,10 +483,10 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
 
         if(this.currentRound > this.totalRounds) {
             this.gameState = GeneralGameState.GameOver;
-            this.requestEveryone(GameOverEndpoint, (p,ie) => ({}))
+            this.requestAllClients(GameOverEndpoint, (p,ie) => ({}))
         }    
         else {
-            this.requestEveryoneAndForget(InvalidateStateEndpoint, (p, ie) => ({}));
+            this.requestAllClientsAndForget(InvalidateStateEndpoint, (p, ie) => ({}));
         }
         this.saveCheckpoint();
     }
@@ -592,7 +592,7 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
         }
         this.gameState = LexibleGameState.EndOfRound
         this.invokeEvent(LexibleGameEvent.TeamWon, team)
-        this.requestEveryoneAndForget(LexibleEndRoundEndpoint, (p, ie) => {
+        this.requestAllClientsAndForget(LexibleEndRoundEndpoint, (p, ie) => {
             return { roundNumber: this.currentRound, winningTeam: team }
         })
     }
@@ -624,7 +624,7 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
 
         if(word.length > player.longestWord.length) player.longestWord = word;
 
-        this.requestEveryoneAndForget(LexibleBoardUpdateEndpoint, (p, isExited) => {
+        this.requestAllClientsAndForget(LexibleBoardUpdateEndpoint, (p, isExited) => {
             return {
                 letters: placedLetters,
                 score: word.length,

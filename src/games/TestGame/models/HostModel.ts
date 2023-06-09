@@ -1,39 +1,10 @@
 import { observable } from "mobx"
 import { PLAYTIME_MS } from "./GameSettings";
-import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunHostModel, ITelemetryLogger, IStorage, ITypeHelper, HostGameState, GeneralGameState, Vector2 } from "libs";
+import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunHostModel, ITelemetryLogger, IStorage, ITypeHelper, HostGameState, GeneralGameState, Vector2, HostGameEvent } from "libs";
 import Logger from "js-logger";
-import { TestatoColorChangeActionEndpoint, TestatoMessageActionEndpoint, TestatoOnboardClientEndpoint, TestatoTapActionEndpoint } from "./testatoEndpoints";
+import { TestatoColorChangeActionEndpoint, TestatoMessageActionEndpoint, TestatoOnboardClientEndpoint, TestatoOnboardPresenterEndpoint, TestatoTapActionEndpoint } from "./testatoEndpoints";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
-
-
-export enum TestatoPlayerStatus {
-    Unknown = "Unknown",
-    WaitingForStart = "WaitingForStart",
-}
-
-export class TestatoPlayer extends ClusterFunPlayer {
-    @observable totalScore = 0;
-    @observable status = TestatoPlayerStatus.Unknown;
-    @observable message = "";
-    @observable colorStyle= "#ffffff";
-    @observable x = 0;
-    @observable y = 0;
-}
-
-// -------------------------------------------------------------------
-// The Game state  
-// -------------------------------------------------------------------
-export enum TestatoGameState {
-    Playing = "Playing",
-    EndOfRound = "EndOfRound",
-}
-
-// -------------------------------------------------------------------
-// Game events
-// -------------------------------------------------------------------
-export enum TestatoGameEvent {
-    ResponseReceived = "ResponseReceived",
-}
+import { TestatoGameState, TestatoPlayer, TestatoPlayerStatus } from "./TestatoPlayer";
 
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
@@ -92,11 +63,18 @@ export const getTestatoHostTypeHelper = (
      }
 }
 
+// At minimum, update the presenter every 2 seconds
+// NOTE: This is the worst possible update path -
+// come up with more streamlined update paths as available.
+const MAX_PRESENTER_INVALIDATE_INTERVAL = 10 * 1000;
+
 
 // -------------------------------------------------------------------
 // host data and logic
 // -------------------------------------------------------------------
 export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
+
+    private _timeOfLastPresenterInvalidate: number;
 
     // -------------------------------------------------------------------
     // ctor 
@@ -112,6 +90,8 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
         this.allowedJoinStates = [HostGameState.Gathering, TestatoGameState.Playing]
 
         this.minPlayers = 2;
+
+        this._timeOfLastPresenterInvalidate = this.gameTime_ms;
     }
 
     // -------------------------------------------------------------------
@@ -121,9 +101,13 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
     reconstitute() {
         super.reconstitute();
         this.listenToEndpoint(TestatoOnboardClientEndpoint, this.handleOnboardClient);
+        this.listenToEndpoint(TestatoOnboardPresenterEndpoint, this.handleOnboardPresenter);
         this.listenToEndpoint(TestatoColorChangeActionEndpoint, this.handleColorChangeAction);
         this.listenToEndpoint(TestatoMessageActionEndpoint, this.handleMessageAction);
         this.listenToEndpoint(TestatoTapActionEndpoint, this.handleTapAction);
+        this.subscribe(HostGameEvent.PlayerJoined, "host-player-join", () => {
+            this.invalidatePresenters();
+        })
     }
 
 
@@ -166,6 +150,17 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
                     break;
             }
         }
+        if ((this.gameTime_ms - this._timeOfLastPresenterInvalidate) > MAX_PRESENTER_INVALIDATE_INTERVAL) {
+            this.invalidatePresenters();
+        }
+    }
+
+    // -------------------------------------------------------------------
+    //  invalidatePresenters
+    // -------------------------------------------------------------------
+    private invalidatePresenters() {
+        this.requestAllPresentersAndForget(InvalidateStateEndpoint, {})
+        this._timeOfLastPresenterInvalidate = this.gameTime_ms;
     }
     
     // -------------------------------------------------------------------
@@ -173,7 +168,7 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
     // -------------------------------------------------------------------
     finishPlayingRound() {
         this.gameState = TestatoGameState.EndOfRound;
-        this.requestEveryoneAndForget(InvalidateStateEndpoint, (p,ie) => ({}))
+        this.requestAllClientsAndForget(InvalidateStateEndpoint, (p,ie) => ({}))
     }
 
     // -------------------------------------------------------------------
@@ -195,12 +190,14 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
 
         if(this.currentRound > this.totalRounds) {
             this.gameState = GeneralGameState.GameOver;
-            this.requestEveryone(GameOverEndpoint, (p,ie) => ({}))
+            this.requestAllClients(GameOverEndpoint, (p,ie) => ({}))
+            this.requestAllPresenters(GameOverEndpoint, {})
             this.saveCheckpoint();
         }    
         else {
             this.gameState = TestatoGameState.Playing;
-            this.requestEveryoneAndForget(InvalidateStateEndpoint, (p,ie) => ({}))
+            this.requestAllClientsAndForget(InvalidateStateEndpoint, (p,ie) => ({}))
+            this.invalidatePresenters();
             this.saveCheckpoint();
         }
 
@@ -215,6 +212,14 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
         }
     }
 
+    handleOnboardPresenter = (sender: string, message: unknown): { roundNumber: number, state: string, players: TestatoPlayer[] } => {
+        this.telemetryLogger.logEvent("Host", "Onboard Presenter")
+        return {
+            roundNumber: this.currentRound,
+            state: this.gameState,
+            players: this.players.map(p => structuredClone(p))
+        }
+    }
 
     handleColorChangeAction = (sender: string, message: { colorStyle: string }) => {
         const player = this.players.find(p => p.playerId === sender);
@@ -225,6 +230,7 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
         }
         player.colorStyle = message.colorStyle;
         this.saveCheckpoint();
+        this.invalidatePresenters();
     }
 
     handleMessageAction = (sender: string, message: { message: string }) => {
@@ -236,6 +242,7 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
         }
         player.message = message.message;
         this.saveCheckpoint();
+        this.invalidatePresenters();
     }
 
     handleTapAction = (sender: string, message: { point: Vector2 }) => {
@@ -248,6 +255,7 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
         player.x = message.point.x;
         player.y = message.point.y;
         this.saveCheckpoint();
+        this.invalidatePresenters();
     }
 
 }

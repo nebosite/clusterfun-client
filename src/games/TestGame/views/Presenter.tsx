@@ -7,16 +7,20 @@ import { observable } from "mobx";
 import TestatoAssets from "../assets/Assets";
 import { TestatoVersion } from "../models/GameSettings";
 import { BaseAnimationController, MediaHelper, UIProperties, HostGameEvent, HostGameState, GeneralGameState, DevUI, UINormalizer } from "libs";
-import { TestatoHostModel, TestatoGameState, TestatoGameEvent } from "../models/HostModel";
+import { TestatoHostModel } from "../models/HostModel";
+import { TestatoGameEvent, TestatoGameState } from "../models/TestatoPlayer";
+import { ITestatoHostWorkerLifecycleController } from "../workers/IHostWorkerLifecycleController";
+import { TestatoPresenterModel } from "../models/PresenterModel";
+import * as Comlink from "comlink";
 
 
 @inject("appModel") @observer
-class GatheringPlayersPage  extends React.Component<{appModel?: TestatoHostModel}> {
+class GatheringPlayersPage  extends React.Component<{appModel?: TestatoHostModel, hostController?: Comlink.Remote<ITestatoHostWorkerLifecycleController>}> {
     // -------------------------------------------------------------------
     // render
     // -------------------------------------------------------------------
     render() {
-        const {appModel} = this.props;
+        const {appModel, hostController} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>;
 
         return (
@@ -36,7 +40,8 @@ class GatheringPlayersPage  extends React.Component<{appModel?: TestatoHostModel
                 
                 {appModel.players.length < appModel.minPlayers
                     ? <div>{`Waiting for at least ${appModel.minPlayers} players to join ...`}</div>
-                    : <button className={styles.presenterButton} onClick={() => appModel.startGame()}> Click here to start! </button>
+                    : (!!hostController ? <button className={styles.presenterButton} onClick={() => hostController.startGame()}> Click here to start! </button>
+                                        : <div>Waiting for host to start...</div>)
                 }               
             </div>
         );
@@ -45,20 +50,20 @@ class GatheringPlayersPage  extends React.Component<{appModel?: TestatoHostModel
 }
 
 @inject("appModel") @observer
-class PausedGamePage  extends React.Component<{appModel?: TestatoHostModel}> {
+class PausedGamePage  extends React.Component<{appModel?: TestatoHostModel, hostController?: Comlink.Remote<ITestatoHostWorkerLifecycleController>}> {
 
     // -------------------------------------------------------------------
     // resumeGame
     // -------------------------------------------------------------------
     private resumeGame = () => {
-        this.props.appModel?.resumeGame();
+        this.props.hostController?.resumeGame();
     }
  
     // -------------------------------------------------------------------
     // render
     // -------------------------------------------------------------------
     render() {
-        const {appModel} = this.props;
+        const {appModel, hostController} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>;
         return (
             <div>
@@ -67,12 +72,16 @@ class PausedGamePage  extends React.Component<{appModel?: TestatoHostModel}> {
                 <ul>
                     {appModel.players.map(player => (<li key={player.playerId}>{player.name}</li>))}
                 </ul>
-                <button
-                    className={styles.button}
-                    disabled={appModel.players.length < appModel.minPlayers} 
-                    onClick={() =>this.resumeGame()}>
-                        Resume Game
-                </button>
+                {!!hostController
+                    ? <button
+                            className={styles.button}
+                            disabled={appModel.players.length < appModel.minPlayers} 
+                            onClick={() =>this.resumeGame()}>
+                                Resume Game
+                        </button>
+                    : <span>Waiting for host to resume...</span>
+                }
+                
             </div>
         );
     }
@@ -103,7 +112,7 @@ class PlayStartAnimationController  extends BaseAnimationController {
 }
 
 @inject("appModel") @observer class PlayingPage 
-    extends React.Component<{appModel?: TestatoHostModel, media: MediaHelper }> {
+    extends React.Component<{appModel?: TestatoHostModel, media: MediaHelper}> {
     private _playStartAnimation: PlayStartAnimationController;
 
     // -------------------------------------------------------------------
@@ -169,12 +178,12 @@ class PlayStartAnimationController  extends BaseAnimationController {
 }
 
 @inject("appModel") @observer class EndOfRoundPage 
-    extends React.Component<{appModel?: TestatoHostModel}> {
+    extends React.Component<{appModel?: TestatoHostModel, hostController?: Comlink.Remote<ITestatoHostWorkerLifecycleController>}> {
     // -------------------------------------------------------------------
     // render
     // -------------------------------------------------------------------
     render() {
-        const {appModel} = this.props;
+        const {appModel, hostController} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>;
 
         return (
@@ -184,9 +193,9 @@ class PlayStartAnimationController  extends BaseAnimationController {
                     appModel.currentRound >= appModel.totalRounds 
                     ? <div>
                             <div>The game is over...</div>
-                            <button onClick={() => appModel.startGame()}>Play again, same players</button> 
+                            {hostController && <button onClick={() => hostController.startGame()}>Play again, same players</button>}
                         </div>
-                    : <button onClick={() => appModel.startNextRound()}>Start next round</button> 
+                    : (hostController ? (<button onClick={() => hostController.startNextRound()}>Start next round</button>) : (<span>Waiting for next round to start...</span>))
                 }
                               
             </div>
@@ -200,13 +209,13 @@ class PlayStartAnimationController  extends BaseAnimationController {
 @inject("appModel")
 @observer
 export default class Presenter 
-extends React.Component<{appModel?: TestatoHostModel, uiProperties: UIProperties}> {
+extends React.Component<{appModel?: TestatoPresenterModel, hostController?: Comlink.Remote<ITestatoHostWorkerLifecycleController>, uiProperties: UIProperties}> {
     media: MediaHelper;
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(props: Readonly<{ appModel?: TestatoHostModel; uiProperties: UIProperties; }>) {
+    constructor(props: Readonly<{ appModel?: TestatoPresenterModel; hostController?: Comlink.Remote<ITestatoHostWorkerLifecycleController>; uiProperties: UIProperties; }>) {
         super(props);
 
         const {appModel} = this.props;
@@ -239,7 +248,7 @@ extends React.Component<{appModel?: TestatoHostModel, uiProperties: UIProperties
     // renderSubScreen
     // -------------------------------------------------------------------
     private renderSubScreen() {
-        const {appModel} = this.props;
+        const {appModel, hostController} = this.props;
         if(!appModel) {
             return <div>NO APP MODEL</div>
         }
@@ -247,14 +256,14 @@ extends React.Component<{appModel?: TestatoHostModel, uiProperties: UIProperties
         switch(appModel.gameState)
         {
             case HostGameState.Gathering:
-                return <GatheringPlayersPage />
+                return <GatheringPlayersPage hostController={hostController} />
             case TestatoGameState.Playing:
                 return <PlayingPage media={this.media} />
             case TestatoGameState.EndOfRound:
             case GeneralGameState.GameOver:
-                return <EndOfRoundPage />
+                return <EndOfRoundPage hostController={hostController} />
             case GeneralGameState.Paused:
-                return <PausedGamePage />
+                return <PausedGamePage hostController={hostController} />
             default:
                 return <div>Whoops!  No display for this state: {appModel.gameState}</div>
         }
@@ -264,21 +273,33 @@ extends React.Component<{appModel?: TestatoHostModel, uiProperties: UIProperties
     // renderFrame
     // -------------------------------------------------------------------
     private renderFrame() {
-        const {appModel} = this.props;
+        const {appModel, hostController} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>;
         return (
             <div className={classNames(styles.divRow)}>
-                <button className={classNames(styles.button)} 
-                    style={{marginRight: "30px"}}
-                    onClick={()=>appModel.quitApp()}>
-                        Quit
-                </button>                       
-                <button className={classNames(styles.button)} 
-                    disabled={appModel.gameState === HostGameState.Gathering}
-                    style={{marginRight: "30px"}}
-                    onClick={()=>appModel.pauseGame()}>
-                        Pause
-                </button>
+                {hostController ? <>
+                    <button className={classNames(styles.button)} 
+                        style={{marginRight: "30px"}}
+                        onClick={()=>{
+                            hostController.endGame()
+                            appModel?.quitApp();
+                        }}>
+                            Quit
+                    </button>                       
+                    <button className={classNames(styles.button)} 
+                        disabled={appModel.gameState === HostGameState.Gathering}
+                        style={{marginRight: "30px"}}
+                        onClick={()=>hostController.pauseGame()}>
+                            Pause
+                    </button>
+                    </> : <button className={classNames(styles.button)} 
+                        style={{marginRight: "30px"}}
+                        onClick={()=>{
+                            appModel?.quitApp();
+                        }}>
+                            Quit
+                    </button>  
+                }
                 <div className={classNames(styles.roomCode)}>Room Code: {appModel.roomId}</div>
                 <DevUI context={appModel} children={<div></div>} />
                 <div style={{marginLeft: "50px"}}>v{TestatoVersion}</div>

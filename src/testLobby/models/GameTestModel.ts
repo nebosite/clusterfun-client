@@ -1,6 +1,6 @@
 import { action, makeObservable, observable } from "mobx";
 import { LobbyModel, ILobbyDependencies } from "../../lobby/models/LobbyModel";
-import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, IMessageThing, getStorage, GameInstanceProperties } from "../../libs";
+import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, IMessageThing, getStorage, GameInstanceProperties, MessagePortMessageThingReceiver } from "../../libs";
 import Logger from "js-logger";
 import { GameRole } from "libs/config/GameRole";
 
@@ -49,6 +49,7 @@ export class GameTestModel {
     set presenterModel(value) {action(()=>{this._presenterModel = value})()}
     
     private _roomInhabitants = new Map<string, LocalMessageThing>();
+    private _serverSocketEndpoint: MessagePort;
 
     private _loggerFactory: ITelemetryLoggerFactory;
     private _storage: IStorage;
@@ -66,9 +67,15 @@ export class GameTestModel {
         this._loggerFactory = loggerFactory;
         this.loadState();
 
+        this._roomInhabitants = new Map<string, LocalMessageThing>();
+        const hostChannel = new MessageChannel();
+        new MessagePortMessageThingReceiver(hostChannel.port1, this._roomInhabitants, "host_id");
+        this._serverSocketEndpoint = hostChannel.port2;
+
         this.presenterModel = new LobbyModel(
             {
                 messageThingFactory: (gp) => this.getMessageThing(gp.personalId, "Mr Presenter"),
+                serverSocketEndpoint: this._serverSocketEndpoint,
                 serverCall: this.serverCall,
                 storage: getStorage("test_presenter"),
                 telemetryFactory: this._loggerFactory,
@@ -96,6 +103,7 @@ export class GameTestModel {
         const dependencies: ILobbyDependencies =
         {
             messageThingFactory: (gp) => this.getMessageThing(gp.personalId, clientName),
+            serverSocketEndpoint: this._serverSocketEndpoint,
             serverCall: this.serverCall,
             storage: getStorage(`test_client_${clientNumber}`),
             telemetryFactory: this._loggerFactory,
@@ -217,7 +225,7 @@ export class GameTestModel {
             // { roomId: this.roomId, playerName: this.playerName }
             const gameProperties: GameInstanceProperties = {
                 gameName: this.gameName,
-                role: GameRole.Client,
+                role: payload.role,
                 roomId: payload.roomId,
                 hostId: "host_id", 
                 personalId: `client${this.joinCount}_id`,

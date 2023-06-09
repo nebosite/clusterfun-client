@@ -1,7 +1,10 @@
 
-import { EventThing, GameInstanceProperties, IMessageThing, IStorage, ITelemetryLogger, ITelemetryLoggerFactory, UIProperties } from "../../libs";
+import { ClusterFunGameAndUIProps, EventThing, GameInstanceProperties, GameRole, IMessageThing, IStorage, ITelemetryLogger, ITelemetryLoggerFactory, UIProperties } from "../../libs";
 import { action, makeObservable, observable } from "mobx";
 import Logger from "js-logger";
+import { getGameHostInitializer } from "GameChooser";
+import * as Comlink from "comlink";
+import { IClusterfunHostLifecycleController } from "libs/worker/IClusterfunHostLifecycleController";
 
 export enum LobbyMode 
 {
@@ -22,6 +25,7 @@ export interface ILobbyDependencies {
     storage: IStorage;
     telemetryFactory: ITelemetryLoggerFactory;
     messageThingFactory: (this: unknown, gameProperties: GameInstanceProperties) => IMessageThing;
+    serverSocketEndpoint: string | MessagePort;
     onGameEnded: () => void
 }
 
@@ -67,7 +71,11 @@ export class LobbyModel {
         })()
     }
 
-    public showTags = observable<string[]>(["production", "beta", "alpha"])
+    public showTags = observable<string[]>(
+        (process.env.REACT_APP_SHOW_DEBUG_GAMES)
+            ? ["production", "beta", "alpha", "debug"]
+            : ["production", "beta", "alpha"]
+        )
 
     @observable private _lobbyState: LobbyState = LobbyState.Fresh;
     get lobbyState(): LobbyState { return this._lobbyState; }
@@ -82,6 +90,10 @@ export class LobbyModel {
         })()
     }
     onUserChoseAMode = new EventThing("User Mode Selection");
+
+    @observable private _hostController = observable<Comlink.Remote<IClusterfunHostLifecycleController> | null>([null]);
+    get hostController() { return this._hostController[0] }
+    set hostController(value) {action(()=>{this._hostController[0] = value})()}
 
     @observable  private _gameProperties = observable<GameInstanceProperties | null>([null]);
     get gameProperties() {return this._gameProperties[0]}
@@ -99,6 +111,7 @@ export class LobbyModel {
     private _logger: ITelemetryLogger;
     private _serverCall: <T>(url: string, payload: any) => Promise<T>;
     private _messageThingFactory: (gameProperties: GameInstanceProperties) => IMessageThing;
+    private _serverSocketEndpoint: string | MessagePort;
     private _onGameEnded: () => void
     private _storage: IStorage
     private _dependencies: ILobbyDependencies 
@@ -123,6 +136,7 @@ export class LobbyModel {
         this._telemetry = dependencies.telemetryFactory;
         this._serverCall = dependencies.serverCall;
         this._messageThingFactory = dependencies.messageThingFactory;
+        this._serverSocketEndpoint = dependencies.serverSocketEndpoint;
         this._onGameEnded = dependencies.onGameEnded;
 
         this._logger = this._telemetry.getLogger("lobby");
@@ -135,10 +149,11 @@ export class LobbyModel {
     // -------------------------------------------------------------------
     // getGameConfig 
     // -------------------------------------------------------------------
-    public getGameConfig(uiProperties: UIProperties) {
+    public getGameConfig(uiProperties: UIProperties): ClusterFunGameAndUIProps {
         if(!this.gameProperties) throw Error("getGameConfig called when there were no game properties")
         return {
             uiProperties,
+            hostController:     this.hostController,
             gameProperties:     this.gameProperties,
             playerName:         this.playerName,
             messageThing:       this._messageThingFactory(this.gameProperties!),  
@@ -190,43 +205,28 @@ export class LobbyModel {
     // -------------------------------------------------------------------
     // startGame 
     // -------------------------------------------------------------------
-    public startGame(gameName: string) {
+    public async startGame(gameName: string) {
         if(this.lobbyState !== LobbyState.Fresh)
         {
             throw new Error(`Should not be able to start game from state '${this.lobbyState}'`);
         }
         this._logger.logEvent("Start Game", "Started " + gameName)
 
-        const payload: any = { gameName }
-        const previousData = sessionStorage.getItem("clusterfun_roominfo")
-        if(previousData) {
-            Logger.info(`Found previous data: ${previousData}`)
-            const oldProps = JSON.parse(previousData) as GameInstanceProperties
-            payload.existingRoom = {
-                id: oldProps.roomId,
-                hostId: oldProps.hostId,
-                hostSecret: oldProps.personalSecret
-            }
+        try {
+            // Spin up a host thread to host the game
+            const gameInitializer = await getGameHostInitializer(gameName);
+            const serverSocketEndpoint = (this._serverSocketEndpoint instanceof MessagePort) ? Comlink.transfer(this._serverSocketEndpoint, [this._serverSocketEndpoint]) : this._serverSocketEndpoint;
+            const { lifecycleControllerPort, roomId } = await gameInitializer!.init(Comlink.proxy(this._serverCall), serverSocketEndpoint, Comlink.proxy(this._onGameEnded));
+            this.hostController = Comlink.wrap(lifecycleControllerPort) as Comlink.Remote<IClusterfunHostLifecycleController>;
+            this.roomId = roomId;
+            this.playerName = crypto.randomUUID();
+            // Once we have the host thread, join the game as a presenter, setting the lobby to Ready at that point
+            await this.joinGame(GameRole.Presenter);
+        } catch (e) {
+            this.lobbyErrorMessage = "There was an error trying to start the game. Please try again later.";
+            Logger.error(e);
+            this.lobbyState = LobbyState.Fresh
         }
-        
-        this._serverCall<GameInstanceProperties>("/api/startgame", payload)
-            .then(properties =>
-                {
-                    this.gameProperties = properties;
-                    const data = JSON.stringify(properties)
-                    Logger.info(`Storing ${data}`)
-                    sessionStorage.setItem("clusterfun_roominfo", data)
-                    this.lobbyState = LobbyState.ReadyToPlay
-                    this.lobbyErrorMessage = undefined;
-                    this.saveState();
-                })
-            .catch(e => {
-                this.lobbyErrorMessage = "There was an error trying to start the game. Please try again later.";
-                Logger.error(e);
-                this.lobbyState = LobbyState.Fresh
-
-            })
-
     }
 
     // -------------------------------------------------------------------
@@ -269,22 +269,20 @@ export class LobbyModel {
     // -------------------------------------------------------------------
     // joinGame 
     // -------------------------------------------------------------------
-    public async joinGame() {
+    public async joinGame(role: GameRole) {
         sessionStorage.setItem("clusterfun_playername",this.playerName) 
         sessionStorage.setItem("clusterfun_roomid",this.roomId) 
         // Note: this does not establish a web socket
-        this._serverCall<GameInstanceProperties>("/api/joingame", { roomId: this.roomId, playerName: this.playerName })
-            .then(properties =>
-                {
-                    this.gameProperties = properties;
-                    this.lobbyState = LobbyState.ReadyToPlay
-                    this.lobbyErrorMessage = undefined;
-                    this.saveState();
-                })
-            .catch(e => {
-                this.lobbyErrorMessage = "Unable to join that room code";
-                Logger.error(e);
-                this.lobbyState = LobbyState.Fresh
-            })
+        try {
+            const properties = await this._serverCall<GameInstanceProperties>("/api/joingame", { roomId: this.roomId, playerName: this.playerName, role });
+            this.gameProperties = properties;
+            this.lobbyState = LobbyState.ReadyToPlay
+            this.lobbyErrorMessage = undefined;
+            this.saveState();
+        } catch (e) {
+            this.lobbyErrorMessage = "Unable to join that room code";
+            console.error(e);
+            this.lobbyState = LobbyState.Fresh
+        }
     }
 }

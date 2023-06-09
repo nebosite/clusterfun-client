@@ -1,8 +1,8 @@
-import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage } from "..";
+import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage, GameRole } from "..";
 import { action, makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 import Logger from "js-logger";
-import { JoinEndpoint, PauseGameEndpoint, PingEndpoint, QuitEndpoint, ResumeGameEndpoint, TerminateGameEndpoint } from "libs/messaging/basicEndpoints";
+import { JoinClientEndpoint, JoinPresenterEndpoint, PauseGameEndpoint, PingEndpoint, QuitClientEndpoint, QuitPresenterEndpoint, ResumeGameEndpoint, TerminateGameEndpoint } from "libs/messaging/basicEndpoints";
 import MessageEndpoint from "libs/messaging/MessageEndpoint";
 
 // All games have these states which are managed 
@@ -67,6 +67,7 @@ export const getHostTypeHelper = (derivedClassHelper: ITypeHelper): ITypeHelper 
 export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> extends BaseGameModel {
     players = observable<PlayerType>([]);
     _exitedPlayers = new Array<PlayerType>();
+    _presenters = new Array<string>();
     public get isStageOver() {return this.gameTime_ms > this.timeOfStageEnd}
     // The time since game start in milliseconds
     @observable timeOfStageEnd: number = 1;
@@ -114,7 +115,7 @@ export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> e
         this.subscribe(GeneralGameState.Destroyed, "Host EndGame", async () =>
         {
             if(this._fullyInitialized){
-                await this.requestEveryone(TerminateGameEndpoint, (p, ie) => ({}) );  
+                await this.requestAllClients(TerminateGameEndpoint, (p, ie) => ({}) );  
                 setTimeout(()=>{
                     this.session.serverCall<void>("/api/terminategame", {  roomId: this.roomId, hostSecret: this.session.personalSecret })           
                 },200)                
@@ -122,8 +123,10 @@ export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> e
         })
         this.onTick.subscribe("HostState", ()=> this.manageState())
 
-        this.listenToEndpoint(JoinEndpoint, this.handleJoinMessage);
-        this.listenToEndpoint(QuitEndpoint, this.handlePlayerQuitMessage);
+        this.listenToEndpoint(JoinClientEndpoint, this.handleClientJoinMessage);
+        this.listenToEndpoint(QuitClientEndpoint, this.handlePlayerQuitMessage);
+        this.listenToEndpoint(JoinPresenterEndpoint, this.handlePresenterJoinMessage);
+        this.listenToEndpoint(QuitPresenterEndpoint, this.handlePresenterQuitMessage);
         this.listenToEndpoint(PingEndpoint, this.handlePing);
         setTimeout(()=>this._fullyInitialized = true, 500);
     }
@@ -132,7 +135,7 @@ export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> e
     // -------------------------------------------------------------------
     //  handleJoinMessage
     // -------------------------------------------------------------------
-    handleJoinMessage = async (sender: string, message: { playerName: string }): Promise<{ isRejoin: boolean, didJoin: boolean, joinError?: string }> => {
+    handleClientJoinMessage = async (sender: string, message: { playerName: string, role: GameRole }): Promise<{ isRejoin: boolean, didJoin: boolean, joinError?: string }> => {
         Logger.info(`Join message from ${sender}`)
 
         // If a player has already joined, any additional Join messages should be idempotent.
@@ -201,7 +204,7 @@ export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> e
         }
         else {
             this.telemetryLogger.logEvent("Host", "JoinRequest", "Deny (Not Allowed)");
-            return { didJoin: false, isRejoin: false, joinError: `The room is currently closed (game state: ${this.gameState})`}    
+            return { didJoin: false, isRejoin: false, joinError: `The room is currently closed (game state: ${this.gameState})`}
         }
     }
 
@@ -211,7 +214,7 @@ export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> e
     handlePlayerQuitMessage = (sender: string, message: any) => {
         if(this.gameState === GeneralGameState.Destroyed) return;
         Logger.info("received quit message from " + sender)
-        this.telemetryLogger.logEvent("Host", "QuitRequest");
+        this.telemetryLogger.logEvent("Host", "QuitRequest", "Client Quit");
         const player = this.players.find(p => p.playerId === sender);
         if(player) {
             this.players.remove(player);
@@ -222,6 +225,34 @@ export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> e
                 this.pauseGame();
             }
             this.saveCheckpoint();
+        }
+    }
+
+    // -------------------------------------------------------------------
+    //  handlePresenterJoinMessage
+    // -------------------------------------------------------------------
+    handlePresenterJoinMessage = (sender: string, message: unknown): { isRejoin: boolean, didJoin: boolean, joinError?: string } => {
+        let resendingPresenter = this._presenters.find(p => p === sender);
+        if (resendingPresenter) {
+            Logger.debug(`Repeated join message: ${resendingPresenter}`)
+            return { didJoin: true, isRejoin: true }
+        } else {
+            this._presenters.push(sender);
+            this.telemetryLogger.logEvent("Host", "JoinRequest", "Approve new presenter");
+            return { didJoin: true, isRejoin: false }
+        }
+    }
+
+    // -------------------------------------------------------------------
+    //  handlePresenterQuitMessage
+    // -------------------------------------------------------------------
+    handlePresenterQuitMessage = (sender: string, message: unknown): void => {
+        const presenterIndex = this._presenters.indexOf(sender)
+        if (presenterIndex !== -1) {
+            this._presenters.splice(presenterIndex, 1);
+            this.telemetryLogger.logEvent("Host", "QuitRequest", "Presenter Quit");
+        } else {
+            Logger.debug("Repeated quit message from " + sender)
         }
     }
 
@@ -303,7 +334,7 @@ export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> e
         }
         else {
             this.gameState = this._stateBeforePause;
-            this.requestEveryone(ResumeGameEndpoint, (p,exited) => ({}))
+            this.requestAllClients(ResumeGameEndpoint, (p,exited) => ({}))
         }
         this.isPaused = false;
     }
@@ -314,7 +345,7 @@ export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> e
     pauseGame = () => {
         this._stateBeforePause = this.gameState;
         this.gameState = GeneralGameState.Paused;
-        this.requestEveryone(PauseGameEndpoint, (p,exited) => ({}));
+        this.requestAllClients(PauseGameEndpoint, (p,exited) => ({}));
         this.isPaused = true;
     }
 
@@ -326,12 +357,12 @@ export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> e
     }
 
     // -------------------------------------------------------------------
-    //  requestEveryone - make a request to all players, bundling the responses
+    //  requestAllClients - make a request to all clients, bundling the responses
     //  in a Promise.all() style array
-    //  generateMessage should return falsy if a message should not go
+    //  generateRequest should return falsy if a message should not go
     //  to that player
     // -------------------------------------------------------------------
-    async requestEveryone<REQUEST, RESPONSE>(
+    async requestAllClients<REQUEST, RESPONSE>(
         endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
         generateRequest: (player: PlayerType, isExited: boolean) => REQUEST | undefined): Promise<(RESPONSE | undefined)[]> {
 
@@ -352,11 +383,11 @@ export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> e
     }
 
     // -------------------------------------------------------------------
-    //  requestEveryoneAndForget - make a request to all players that we promptly forget
-    //  generateMessage should return falsy if a message should not go
+    //  requestAllClientsAndForget - make a request to all clients that we promptly forget
+    //  generateRequest should return falsy if a message should not go
     //  to that player
     // -------------------------------------------------------------------
-    async requestEveryoneAndForget<REQUEST, RESPONSE>(
+    async requestAllClientsAndForget<REQUEST, RESPONSE>(
         endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
         generateRequest: (player: PlayerType, isExited: boolean) => REQUEST | undefined): Promise<void> {
 
@@ -371,5 +402,25 @@ export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> e
         }
         
         this.players.forEach(sendToPlayer(false));
+    }
+
+    // -------------------------------------------------------------------
+    //  requestAllPresentersAndForget - make a request to all presenters
+    // -------------------------------------------------------------------
+    async requestAllPresenters<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        request: REQUEST): Promise<RESPONSE[]> {
+
+        return Promise.all(this._presenters.map((p) => this.session.request(endpoint, p, request)));
+    }
+
+    // -------------------------------------------------------------------
+    //  requestAllPresentersAndForget - make a request to all presenters that we promptly forget
+    // -------------------------------------------------------------------
+    async requestAllPresentersAndForget<REQUEST, RESPONSE>(
+        endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
+        request: REQUEST): Promise<void> {
+
+        this._presenters.forEach((p) => this.session.request(endpoint, p, request).forget());
     }
 }

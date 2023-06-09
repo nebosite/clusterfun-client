@@ -9,14 +9,16 @@ const debugOnlyGames: GameDescriptor[] = [
         displayName: "Stress Game",
         tags: ["debug"],
         logoName: StressatoAssets.images.logo,
-        importThunk: () => import('../stressgame/views/GameComponent')
+        hostWorkerThunk: () => /* webpackChunkName: "stressato-host-worker" */ new Worker(new URL("../stressgame/workers/HostWorker", import.meta.url), { type: "module" }),
+        componentImportThunk: () => import('../stressgame/views/GameComponent')
     },
     {
         name: "Testato",
         displayName: "Test Game",
         tags: ["debug"],
         logoName: TestatoAssets.images.logo,
-        importThunk: () => import('../TestGame/views/GameComponent')
+        hostWorkerThunk: () => /* webpackChunkName: "testato-host-worker" */ new Worker(new URL("../TestGame/workers/HostWorker", import.meta.url), { type: "module" }),
+        componentImportThunk: () => import('../TestGame/views/GameComponent')
     },
 ]
 

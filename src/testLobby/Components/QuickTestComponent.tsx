@@ -50,7 +50,7 @@ function mockServerCall<T>(url: string, payload: any): Promise<T> {
     if(url===("/api/startgame")) {
         const gameProperties: GameInstanceProperties = {
             gameName: payload.gameName,
-            role: GameRole.Host,
+            role: GameRole.Presenter,
             roomId: ["BEEF", "FIRE", "SHIP", "PORT", "SEAT"][Math.floor(Math.random() * 5)],
             hostId: "host_id",
             personalId: "host_id",
