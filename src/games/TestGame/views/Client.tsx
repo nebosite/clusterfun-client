@@ -77,7 +77,7 @@ class GameScreen extends React.Component<{appModel?: TestatoClientModel}>
         const {appModel} = this.props;
         appModel!.ballData.x = x;
         appModel!.ballData.y = y;   
-        appModel!.doTap(x,y)     
+        appModel!.doTap(x,y)
     }
 
     // -------------------------------------------------------------------

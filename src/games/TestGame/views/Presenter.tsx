@@ -27,7 +27,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: TestatoHostModel
             <div>
                 <h3>Welcome to {appModel.name}</h3>
                 <p>This is an example app for clusterfun.</p>
-                <p>To Join: go to http://{ window.location.host} and enter this room code: {appModel.roomId}</p>
+                <p>To Join: go to { window.location.origin } and enter this room code: {appModel.roomId}</p>
                 {
                     appModel.players.length > 0
                     ?   <div><p style={{fontWeight: 600}}>Joined team members:</p>

@@ -27,7 +27,7 @@ export function getGameHostInitializer(gameName: string) {
             const foundGame = gameList.find(g => g.name === gameName);
             if(!foundGame) throw Error(`Could not find game named '${gameName}'`)
             const worker = foundGame.hostWorkerThunk();
-            return Comlink.wrap(worker) as Comlink.Remote<IClusterfunHostGameInitializer<IClusterfunHostLifecycleController>>
+            return Comlink.wrap(worker.port) as Comlink.Remote<IClusterfunHostGameInitializer<IClusterfunHostLifecycleController>>
         })())
     }
     return hostWorkerCache.get(gameName);

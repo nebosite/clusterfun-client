@@ -7,6 +7,7 @@ import { GameInstanceProperties } from 'libs/config/GameInstanceProperties';
 import { WebSocketMessageThing } from 'libs/messaging/MessageThing';
 import 'index.css'
 import React from 'react';
+import { createServerCallFromOrigin } from 'libs/messaging/serverCall';
 
 // auto-redirect http to https on the prod server
 if (window.location.href.toLowerCase().startsWith('http://clusterfun.tv')) {
@@ -32,34 +33,7 @@ Logger.debug(`MOBILE: ${GLOBALS.IsMobile}`)
 // -------------------------------------------------------------------
 // _serverCall 
 // -------------------------------------------------------------------
-async function serverCall<T>(url: string, payload: any | undefined) {
-    if(payload) {
-        const response = await fetch(url, {
-            method: "POST",
-            headers: [
-                ['Content-Type', 'application/json']
-            ],
-            body: JSON.stringify(payload)
-        });
-        if (response.ok) {
-            return await response.json() as T
-        } else {
-            const responseBody = await response.text();
-            throw new Error("Failed to connect to game: " + responseBody);
-        }        
-    }
-    else {
-        const response = await fetch(url, { method: "GET" });
-        if (response.ok) {
-            const streamText = await response.text();
-            return await JSON.parse(streamText) as T
-        } else {
-            const responseBody = await response.text();
-            throw new Error("Server call failed" + responseBody);
-        }        
-    }
-
-}
+const serverCall = createServerCallFromOrigin(window.location.origin);
 
 const telemetryFactoryPromise = (async () => {
     if (process.env.REACT_APP_USE_REAL_TELEMETRY) {
@@ -139,7 +113,7 @@ else {
                     }
                     return cachedThing;
                 },
-                serverSocketEndpoint: (window.location.protocol === "https" ? "wss:" : "ws:") + window.location.host,
+                serverSocketEndpoint: window.location.origin,
                 serverCall: serverCall,
                 storage: getStorage("clusterfun"),            
                 telemetryFactory,

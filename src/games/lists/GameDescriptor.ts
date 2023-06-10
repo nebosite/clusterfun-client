@@ -6,6 +6,6 @@ export interface GameManifestItem {
 
 export interface GameDescriptor extends GameManifestItem {
     logoName: string, 
-    hostWorkerThunk: () => Worker,
+    hostWorkerThunk: () => SharedWorker,
     componentImportThunk: () => Promise<{ default: React.ComponentType<any> }>
 }

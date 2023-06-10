@@ -5,6 +5,7 @@ import { ITelemetryLogger } from "libs/telemetry";
 import { IStorage } from "libs/storage";
 import { IClusterfunHostLifecycleController } from "libs/worker/IClusterfunHostLifecycleController";
 import * as Comlink from "comlink";
+import { ServerCall } from "libs/messaging/serverCall";
 
 // -------------------------------------------------------------------
 // ClusterFunGameProps
@@ -16,7 +17,7 @@ export interface ClusterFunGameProps {
     logger: ITelemetryLogger;
     storage: IStorage;
     onGameEnded: () => void;
-    serverCall: <T>(url: string, payload: any) => PromiseLike<T>
+    serverCall: ServerCall
 }
 
 // -------------------------------------------------------------------

@@ -87,10 +87,11 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
             const currentPlayer = this.players.find(p => p.playerId === incomingPlayer.playerId);
             if (currentPlayer) {
                 Object.assign(currentPlayer, incomingPlayer);
-                playerIdsToRemove.add(currentPlayer.playerId);
+                playerIdsToRemove.delete(currentPlayer.playerId);
             } else {
                 const newPlayer = new TestatoPlayer();
                 Object.assign(newPlayer, incomingPlayer);
+                this.players.push(newPlayer);
             }
         }
         for (let i = 0; i < this.players.length;) {

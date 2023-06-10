@@ -1,6 +1,7 @@
 // Host Worker for Stressato
-// Initialize with new Worker("./path/to/HostWorker", { type: "module" })
-// and use Comlink.wrap() to get an object of type Comlink.Remote<IClusterfunHostGameInitializer<IStressatoHostWorkerLifecycleController>>
+// Initialize with new SharedWorker("./path/to/HostWorker", { type: "module" })
+// and use Comlink.wrap() to get an object of type 
+// Comlink.Remote<IClusterfunHostGameInitializer<IStressatoHostWorkerLifecycleController>>
 
 import * as Comlink from "comlink";
 import { IStressatoHostWorkerLifecycleController } from "./IHostWorkerLifecycleController";
@@ -14,12 +15,11 @@ Logger.setLevel(Logger.DEBUG);
 
 class StresstatoHostGameInitializer extends ClusterfunHostGameInitializer<
 IStressatoHostWorkerLifecycleController, StressatoHostModel> {
-    protected getGameName(): string {
+    getGameName(): string {
         return "Stressato";
     }
     protected getDerviedHostTypeHelper = getStressatoHostTypeHelper;
     protected createLifecycleController(appModel: StressatoHostModel): IStressatoHostWorkerLifecycleController {
-        console.log("Reached the lifecycle controller");
         return {
             startGame: () => {
                 console.log("Game started");
@@ -33,4 +33,10 @@ IStressatoHostWorkerLifecycleController, StressatoHostModel> {
     
 }
 
-Comlink.expose(new StresstatoHostGameInitializer());
+const initializer = new StresstatoHostGameInitializer();
+
+global.addEventListener("connect", (raw_event) => {
+    const event = raw_event as unknown as MessageEvent;
+    const port = event.ports[0];
+    Comlink.expose(initializer, port);
+})

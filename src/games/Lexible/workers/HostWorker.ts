@@ -1,6 +1,7 @@
 // Host Worker for Lexible
-// Initialize with new Worker("./path/to/HostWorker", { type: "module" })
-// and use Comlink.wrap() to get an object of type Comlink.Remote<IClusterfunHostGameInitializer<ILexibleHostWorkerLifecycleController>>
+// Initialize with new SharedWorker("./path/to/HostWorker", { type: "module" })
+// and use Comlink.wrap() on the port to get an object of type 
+// Comlink.Remote<IClusterfunHostGameInitializer<ILexibleHostWorkerLifecycleController>>
 
 import * as Comlink from "comlink";
 import { ILexibleHostWorkerLifecycleController } from "./IHostWorkerLifecycleController";
@@ -14,12 +15,11 @@ Logger.setLevel(Logger.DEBUG);
 
 class LexibleHostGameInitializer extends ClusterfunHostGameInitializer<
     ILexibleHostWorkerLifecycleController, LexibleHostModel> {
-    protected getGameName(): string {
+    getGameName(): string {
         return "Lexible";
     }
     protected getDerviedHostTypeHelper = getLexibleHostTypeHelper;
     protected createLifecycleController(appModel: LexibleHostModel): ILexibleHostWorkerLifecycleController {
-        console.log("Reached the lifecycle controller");
         return {
             startGame: () => {
                 console.log("Game started");
@@ -36,4 +36,10 @@ class LexibleHostGameInitializer extends ClusterfunHostGameInitializer<
     
 }
 
-Comlink.expose(new LexibleHostGameInitializer());
+const initializer = new LexibleHostGameInitializer();
+
+global.addEventListener("connect", (raw_event) => {
+    const event = raw_event as unknown as MessageEvent;
+    const port = event.ports[0];
+    Comlink.expose(initializer, port);
+})

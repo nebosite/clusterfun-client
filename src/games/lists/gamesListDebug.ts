@@ -9,7 +9,7 @@ const debugOnlyGames: GameDescriptor[] = [
         displayName: "Stress Game",
         tags: ["debug"],
         logoName: StressatoAssets.images.logo,
-        hostWorkerThunk: () => /* webpackChunkName: "stressato-host-worker" */ new Worker(new URL("../stressgame/workers/HostWorker", import.meta.url), { type: "module" }),
+        hostWorkerThunk: () => /* webpackChunkName: "stressato-host-worker" */ new SharedWorker(new URL("../stressgame/workers/HostWorker", import.meta.url), { type: "module" }),
         componentImportThunk: () => import('../stressgame/views/GameComponent')
     },
     {
@@ -17,7 +17,7 @@ const debugOnlyGames: GameDescriptor[] = [
         displayName: "Test Game",
         tags: ["debug"],
         logoName: TestatoAssets.images.logo,
-        hostWorkerThunk: () => /* webpackChunkName: "testato-host-worker" */ new Worker(new URL("../TestGame/workers/HostWorker", import.meta.url), { type: "module" }),
+        hostWorkerThunk: () => /* webpackChunkName: "testato-host-worker" */ new SharedWorker(new URL("../TestGame/workers/HostWorker", import.meta.url), { type: "module" }),
         componentImportThunk: () => import('../TestGame/views/GameComponent')
     },
 ]

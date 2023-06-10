@@ -3,6 +3,7 @@ import { LobbyModel, ILobbyDependencies } from "../../lobby/models/LobbyModel";
 import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, IMessageThing, getStorage, GameInstanceProperties, MessagePortMessageThingReceiver } from "../../libs";
 import Logger from "js-logger";
 import { GameRole } from "libs/config/GameRole";
+import { ServerCall } from "libs/messaging/serverCall";
 
 const names = [
     // Names with weird latin characters
@@ -127,7 +128,7 @@ export class GameTestModel {
     // -------------------------------------------------------------------
     // serverCall
     // -------------------------------------------------------------------
-    private serverCall = <T>(url: string, payload: any) : Promise<T> =>
+    private serverCall: ServerCall = <T>(url: string, payload: any) : Promise<T> =>
     {
         if(url===("/api/startgame")) {
             const gameProperties: GameInstanceProperties = {

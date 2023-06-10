@@ -5,6 +5,7 @@ import Logger from "js-logger";
 import { getGameHostInitializer } from "GameChooser";
 import * as Comlink from "comlink";
 import { IClusterfunHostLifecycleController } from "libs/worker/IClusterfunHostLifecycleController";
+import { ServerCall } from "libs/messaging/serverCall";
 
 export enum LobbyMode 
 {
@@ -21,7 +22,7 @@ export enum LobbyState {
 const LOBBY_STATE_NAME = "lobby_state"
 
 export interface ILobbyDependencies {
-    serverCall: <T>(this: unknown, url: string, payload: any) => Promise<T>;
+    serverCall: ServerCall;
     storage: IStorage;
     telemetryFactory: ITelemetryLoggerFactory;
     messageThingFactory: (this: unknown, gameProperties: GameInstanceProperties) => IMessageThing;
@@ -109,7 +110,7 @@ export class LobbyModel {
 
     private _telemetry: ITelemetryLoggerFactory;
     private _logger: ITelemetryLogger;
-    private _serverCall: <T>(url: string, payload: any) => Promise<T>;
+    private _serverCall: ServerCall;
     private _messageThingFactory: (gameProperties: GameInstanceProperties) => IMessageThing;
     private _serverSocketEndpoint: string | MessagePort;
     private _onGameEnded: () => void
@@ -215,10 +216,19 @@ export class LobbyModel {
         try {
             // Spin up a host thread to host the game
             const gameInitializer = await getGameHostInitializer(gameName);
-            const serverSocketEndpoint = (this._serverSocketEndpoint instanceof MessagePort) ? Comlink.transfer(this._serverSocketEndpoint, [this._serverSocketEndpoint]) : this._serverSocketEndpoint;
-            const { lifecycleControllerPort, roomId } = await gameInitializer!.init(Comlink.proxy(this._serverCall), serverSocketEndpoint, Comlink.proxy(this._onGameEnded));
-            this.hostController = Comlink.wrap(lifecycleControllerPort) as Comlink.Remote<IClusterfunHostLifecycleController>;
-            this.roomId = roomId;
+            if (!gameInitializer) {
+                throw new Error("Could not get host initializer for " + gameName);
+            } else {
+                const reportedGameName = await gameInitializer.getGameName();
+                if (reportedGameName !== gameName) {
+                    throw new Error("Unexpected game name " + reportedGameName + " returned from worker for " + gameName);
+                }
+            }
+            if (this._serverSocketEndpoint instanceof MessagePort) {
+                this.roomId = await gameInitializer.startNewGameOnMockedServer(Comlink.proxy(this._serverCall), Comlink.transfer(this._serverSocketEndpoint, [this._serverSocketEndpoint]));
+            } else {
+                this.roomId = await gameInitializer.startNewGameOnRemoteOrigin(this._serverSocketEndpoint);
+            }
             this.playerName = crypto.randomUUID();
             // Once we have the host thread, join the game as a presenter, setting the lobby to Ready at that point
             await this.joinGame(GameRole.Presenter);
@@ -249,13 +259,21 @@ export class LobbyModel {
     // -------------------------------------------------------------------
     // loadState 
     // -------------------------------------------------------------------
-    private loadState()
+    private async loadState()
     {
         try {
             const stateJson = this._storage.get(LOBBY_STATE_NAME);
             if(stateJson) {
                 Object.assign(this, JSON.parse(stateJson) )
-                if(!this.gameProperties) this.lobbyState = LobbyState.Fresh;
+                if(!this.gameProperties) {
+                    this.lobbyState = LobbyState.Fresh;
+                } else {
+                    const gameInitializer = (await getGameHostInitializer(this.gameProperties.gameName))!;
+                    const lifecycleControllerPort = await gameInitializer.getLifecycleControllerPort(this.roomId);
+                    if (lifecycleControllerPort) {
+                        this.hostController = Comlink.wrap(lifecycleControllerPort) as Comlink.Remote<IClusterfunHostLifecycleController>;
+                    }
+                }
             }
         }
         catch(err)
@@ -276,6 +294,22 @@ export class LobbyModel {
         try {
             const properties = await this._serverCall<GameInstanceProperties>("/api/joingame", { roomId: this.roomId, playerName: this.playerName, role });
             this.gameProperties = properties;
+
+            const gameName = this.gameProperties.gameName;
+            const gameInitializer = (await getGameHostInitializer(gameName))!;
+            if (!gameInitializer) {
+                throw new Error("Could not get host initializer for " + gameName);
+            } else {
+                const reportedGameName = await gameInitializer.getGameName();
+                if (reportedGameName !== gameName) {
+                    throw new Error("Unexpected game name " + reportedGameName + " returned from worker for " + gameName);
+                }
+            }
+            const lifecycleControllerPort = await gameInitializer.getLifecycleControllerPort(this.roomId);
+            if (lifecycleControllerPort) {
+                this.hostController = Comlink.wrap(lifecycleControllerPort) as Comlink.Remote<IClusterfunHostLifecycleController>;
+            }
+
             this.lobbyState = LobbyState.ReadyToPlay
             this.lobbyErrorMessage = undefined;
             this.saveState();

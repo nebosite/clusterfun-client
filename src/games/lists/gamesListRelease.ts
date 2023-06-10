@@ -7,7 +7,7 @@ const releaseGames: GameDescriptor[] = [
         displayName: "Lexible",
         tags: [],
         logoName: LexibleAssets.images.logo,
-        hostWorkerThunk: () => /* webpackChunkName: "lexible-host-worker" */ new Worker(new URL("../Lexible/workers/HostWorker", import.meta.url), { type: "module" }),
+        hostWorkerThunk: () => /* webpackChunkName: "lexible-host-worker" */ new SharedWorker(new URL("../Lexible/workers/HostWorker", import.meta.url), { type: "module" }),
         componentImportThunk: () => import('../Lexible/views/GameComponent')
     }
 ]

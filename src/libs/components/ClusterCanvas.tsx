@@ -58,6 +58,7 @@ export class ClusterCanvas extends React.Component<ClusterCanvasProps>
     handleMouseUp = (event: React.MouseEvent) => 
     { 
         const timeDelta = Date.now() - this.mouseDownTime;
+        this.handleResize(); // update canvas size
         const x = event.clientX - this.canvasScreenOffset.left;
         const y = event.clientY - this.canvasScreenOffset.top;
 

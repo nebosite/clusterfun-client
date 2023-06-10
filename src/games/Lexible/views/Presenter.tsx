@@ -113,7 +113,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexibleHostModel
             <div className={styles.instructionArea} >
                 <h1>Welcome to {appModel.name}</h1>
                 <div className={styles.joinBlock}>
-                    <p><b>To Join:</b> go to http://{ window.location.host}
+                    <p><b>To Join:</b> go to {window.location.origin}
                     &nbsp;&nbsp;&nbsp;(room code: <b>{appModel.roomId}</b>)</p>
                 </div>
                 
