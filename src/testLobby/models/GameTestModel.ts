@@ -1,10 +1,12 @@
 import { action, makeObservable, observable } from "mobx";
 import { LobbyModel, ILobbyDependencies } from "../../lobby/models/LobbyModel";
-import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, IMessageThing, getStorage, GameInstanceProperties, MessagePortMessageThingReceiver } from "../../libs";
+import { ITelemetryLoggerFactory, IStorage, IMessageThing, getStorage, GameInstanceProperties, MessagePortMessageThing } from "../../libs";
 import Logger from "js-logger";
 import { GameRole } from "libs/config/GameRole";
 import { IServerCall } from "libs/messaging/serverCall";
 import { ServerHealthInfo } from "games/stressgame/models/HostModel";
+import * as Comlink from "comlink";
+import { ILocalRoomManager } from "testLobby/workers/ILocalRoomManager";
 
 const names = [
     // Names with weird latin characters
@@ -49,14 +51,12 @@ export class GameTestModel {
     @observable  private _presenterModel:LobbyModel = {} as LobbyModel
     get presenterModel() {return this._presenterModel}
     set presenterModel(value) {action(()=>{this._presenterModel = value})()}
-    
-    private _roomInhabitants = new Map<string, LocalMessageThing>();
-    private _serverSocketEndpoint: MessagePort;
 
     private _loggerFactory: ITelemetryLoggerFactory;
     private _storage: IStorage;
     
-    private _cachedMessageThings = new  Map<string, IMessageThing>();
+    private _roomManager: Comlink.Remote<ILocalRoomManager>;
+    private _cachedMessageThings = new Map<string, IMessageThing>();
 
     // -------------------------------------------------------------------
     // ctor
@@ -65,19 +65,17 @@ export class GameTestModel {
     {
         makeObservable(this);
 
+        this._roomManager = Comlink.wrap(
+            /* webpackChunkName: "test-room-manager" */ new SharedWorker(new URL("../workers/LocalRoomManagerWorker", import.meta.url), { type: "module" }).port
+            ) as unknown as Comlink.Remote<ILocalRoomManager>;
+
         this._storage = storage;
         this._loggerFactory = loggerFactory;
         this.loadState();
 
-        this._roomInhabitants = new Map<string, LocalMessageThing>();
-        const hostChannel = new MessageChannel();
-        new MessagePortMessageThingReceiver(hostChannel.port1, this._roomInhabitants, "host_id");
-        this._serverSocketEndpoint = hostChannel.port2;
-
         this.presenterModel = new LobbyModel(
             {
-                messageThingFactory: (gp) => this.getMessageThing(gp.personalId, "Mr Presenter"),
-                serverSocketEndpoint: this._serverSocketEndpoint,
+                messageThingFactory: (gp) => this.getMessageThing(gp.roomId, gp.personalId),
                 serverCall: this.serverCall,
                 storage: getStorage("test_presenter"),
                 telemetryFactory: this._loggerFactory,
@@ -104,8 +102,7 @@ export class GameTestModel {
     {
         const dependencies: ILobbyDependencies =
         {
-            messageThingFactory: (gp) => this.getMessageThing(gp.personalId, clientName),
-            serverSocketEndpoint: this._serverSocketEndpoint,
+            messageThingFactory: (gp) => this.getMessageThing(gp.roomId, gp.personalId),
             serverCall: this.serverCall,
             storage: getStorage(`test_client_${clientNumber}`),
             telemetryFactory: this._loggerFactory,
@@ -117,22 +114,26 @@ export class GameTestModel {
     // -------------------------------------------------------------------
     // getMessageThing
     // -------------------------------------------------------------------
-    getMessageThing(id: string, name: string) {
-        if(!this._cachedMessageThings.has(id)){
-            const newThing = new LocalMessageThing( this._roomInhabitants, id, 10, 20)
-            this._cachedMessageThings.set( id, newThing)
+    getMessageThing(roomId: string, personalId: string) {
+        if(!this._cachedMessageThings.has(personalId)){
+            const channel = new MessageChannel();
+            this._roomManager.connectToRoom(roomId, personalId, Comlink.transfer(channel.port1, [channel.port1]));
+            const newThing = new MessagePortMessageThing(channel.port2, personalId);
+            this._cachedMessageThings.set(personalId, newThing)
         }
-        return this._cachedMessageThings.get(id)!;
+        return this._cachedMessageThings.get(personalId)!;
     }
-
 
     // -------------------------------------------------------------------
     // serverCall
     // -------------------------------------------------------------------
-    private serverCall: IServerCall = new (class MockServerCall implements IServerCall {
+    private serverCall: IServerCall<never> = new (class MockServerCall implements IServerCall<never> {
         private _model: GameTestModel;
         constructor(model: GameTestModel) {
             this._model = model;
+        }
+        getSeed(): never {
+            throw new Error("No cloning seed available for this server call");
         }
         amIHealthy(): PromiseLike<ServerHealthInfo> {
             const healthdata = {
@@ -208,19 +209,21 @@ export class GameTestModel {
                 }
             return Promise.resolve(healthdata);
         }
-        startGame(gameName: string): PromiseLike<GameInstanceProperties> {
+        async startGame(gameName: string): Promise<GameInstanceProperties> {
+            const roomId = await this._model._roomManager.createRoom();
+            console.log("Room list: ", await this._model._roomManager.listRooms());
             const gameProperties: GameInstanceProperties = {
                 gameName: gameName,
                 role: GameRole.Host,
-                roomId: ["BEEF", "FIRE", "SHIP", "PORT", "SEAT"][Math.floor(Math.random() * 5)],
+                roomId: roomId,
                 hostId: "host_id",
                 personalId: "host_id",
                 personalSecret: "host_secret"
-            }       
+            }
             this._model.gameName = gameName;
             this._model.clientModels.forEach(m => m.roomId = gameProperties.roomId);  
             this._model.saveState();
-            return Promise.resolve(gameProperties);
+            return gameProperties;
         }
         joinGame(roomId: string, playerName: string, role: GameRole): PromiseLike<GameInstanceProperties> {
             const gameProperties: GameInstanceProperties = {

@@ -113,7 +113,6 @@ else {
                     }
                     return cachedThing;
                 },
-                serverSocketEndpoint: window.location.origin,
                 serverCall: serverCall,
                 storage: getStorage("clusterfun"),            
                 telemetryFactory,

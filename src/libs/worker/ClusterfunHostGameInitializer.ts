@@ -41,13 +41,14 @@ export abstract class ClusterfunHostGameInitializer<
         return this.startNewGame_Helper(serverCall, gameProperties, messageThing);
     }
 
-    async startNewGameOnMockedServer(serverCall: IServerCall, messagePort: MessagePort): Promise<string> {
+    async startNewGameOnMockedServer(serverCall: IServerCall<unknown>, messagePortFactory: (gp: GameInstanceProperties) => MessagePort | PromiseLike<MessagePort>): Promise<string> {
         const gameProperties = await this.createGame(serverCall);
+        const messagePort = await messagePortFactory(gameProperties);
         const messageThing = new MessagePortMessageThing(messagePort, gameProperties.personalId);
         return this.startNewGame_Helper(serverCall, gameProperties, messageThing);
     }
 
-    private startNewGame_Helper(serverCall: IServerCall, gameProperties: GameInstanceProperties, messageThing: IMessageThing): string {
+    private startNewGame_Helper(serverCall: IServerCall<unknown>, gameProperties: GameInstanceProperties, messageThing: IMessageThing): string {
         const sessionHelper = new SessionHelper(
             messageThing, 
             gameProperties.roomId, 
@@ -93,21 +94,11 @@ export abstract class ClusterfunHostGameInitializer<
         return Comlink.transfer(channel.port2, [channel.port2]);
     }
 
-    private async createGame(serverCall: IServerCall): Promise<GameInstanceProperties> {
+    private async createGame(serverCall: IServerCall<unknown>): Promise<GameInstanceProperties> {
         const gameName = this.getGameName();
         console.log("Game name: ", gameName);
         const properties = await serverCall.startGame(gameName);
         return properties;
-    }
-
-    private createMessageThing(
-        gameProperties: GameInstanceProperties, 
-        serverSocketEndpoint: string | MessagePort): IMessageThing {
-        if (typeof serverSocketEndpoint === "string") {
-            return new WebSocketMessageThing(serverSocketEndpoint, gameProperties.roomId, gameProperties.personalId, gameProperties.personalSecret);
-        } else {
-            return new MessagePortMessageThing(serverSocketEndpoint, gameProperties.personalId);
-        }
     }
 
     protected abstract getDerviedHostTypeHelper(sessionHelper: ISessionHelper, gameProps: ClusterFunGameProps): ITypeHelper;

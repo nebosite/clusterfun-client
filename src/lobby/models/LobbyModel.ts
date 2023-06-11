@@ -1,5 +1,5 @@
 
-import { ClusterFunGameAndUIProps, EventThing, GameInstanceProperties, GameRole, IMessageThing, IStorage, ITelemetryLogger, ITelemetryLoggerFactory, UIProperties } from "../../libs";
+import { ClusterFunGameAndUIProps, EventThing, GameInstanceProperties, GameRole, IMessageThing, IStorage, ITelemetryLogger, ITelemetryLoggerFactory, MessagePortMessageThing, UIProperties } from "../../libs";
 import { action, makeObservable, observable } from "mobx";
 import Logger from "js-logger";
 import { getGameHostInitializer } from "GameChooser";
@@ -22,11 +22,10 @@ export enum LobbyState {
 const LOBBY_STATE_NAME = "lobby_state"
 
 export interface ILobbyDependencies {
-    serverCall: IServerCall;
+    serverCall: IServerCall<unknown>;
     storage: IStorage;
     telemetryFactory: ITelemetryLoggerFactory;
     messageThingFactory: (this: unknown, gameProperties: GameInstanceProperties) => IMessageThing;
-    serverSocketEndpoint: string | MessagePort;
     onGameEnded: () => void
 }
 
@@ -110,9 +109,8 @@ export class LobbyModel {
 
     private _telemetry: ITelemetryLoggerFactory;
     private _logger: ITelemetryLogger;
-    private _serverCall: IServerCall;
+    private _serverCall: IServerCall<unknown>;
     private _messageThingFactory: (gameProperties: GameInstanceProperties) => IMessageThing;
-    private _serverSocketEndpoint: string | MessagePort;
     private _onGameEnded: () => void
     private _storage: IStorage
     private _dependencies: ILobbyDependencies 
@@ -137,7 +135,6 @@ export class LobbyModel {
         this._telemetry = dependencies.telemetryFactory;
         this._serverCall = dependencies.serverCall;
         this._messageThingFactory = dependencies.messageThingFactory;
-        this._serverSocketEndpoint = dependencies.serverSocketEndpoint;
         this._onGameEnded = dependencies.onGameEnded;
 
         this._logger = this._telemetry.getLogger("lobby");
@@ -224,10 +221,27 @@ export class LobbyModel {
                     throw new Error("Unexpected game name " + reportedGameName + " returned from worker for " + gameName);
                 }
             }
-            if (this._serverSocketEndpoint instanceof MessagePort) {
-                this.roomId = await gameInitializer.startNewGameOnMockedServer(Comlink.proxy(this._serverCall), Comlink.transfer(this._serverSocketEndpoint, [this._serverSocketEndpoint]));
+            let serverCallSeed = undefined;
+            try {
+                serverCallSeed = this._serverCall.getSeed();
+            } catch {
+                serverCallSeed = undefined;
+            }
+            if (typeof serverCallSeed === "string") {
+                // server is a real server, create a server call on the other side
+                this.roomId = await gameInitializer.startNewGameOnRemoteOrigin(serverCallSeed);
             } else {
-                this.roomId = await gameInitializer.startNewGameOnRemoteOrigin(this._serverSocketEndpoint);
+                // server is a mocked server running on this thread
+                this.roomId = await gameInitializer.startNewGameOnMockedServer(
+                    Comlink.proxy(this._serverCall), 
+                    Comlink.proxy((gp: GameInstanceProperties) => {
+                        const messageThing = this._messageThingFactory(gp);
+                        if (messageThing instanceof MessagePortMessageThing) {
+                            return Comlink.transfer(messageThing.messagePort, [messageThing.messagePort]);
+                        } else {
+                            throw new Error("Mocked server provided alongside non-MessagePort-based MessageThing factory")
+                        }
+                    }));
             }
             this.playerName = crypto.randomUUID();
             // Once we have the host thread, join the game as a presenter, setting the lobby to Ready at that point

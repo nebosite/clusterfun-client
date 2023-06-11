@@ -1,28 +1,12 @@
 import { IServerCall } from "libs/messaging/serverCall";
 import { IClusterfunHostLifecycleController } from "./IClusterfunHostLifecycleController";
+import { GameInstanceProperties } from "libs/config";
 
 /**
  * A message port that, when wrapped with Comlink.wrap(), exposes an object for controlling
  * the lifecycle of a host controller.
  */
 export type LifecycleControllerMessagePort<T extends IClusterfunHostLifecycleController> = MessagePort;
-
-/**
- * A bundle of objects returned by init(),
- * allowing communication with the server
- */
-export interface IClusterfunHostGameControllerBundle<T extends IClusterfunHostLifecycleController> {
-    /**
-     * The ID of the created room
-     */
-    roomId: string;
-    /**
-     * A MessagePort to which a lifecycle controller of type T has been exposed
-     */
-    lifecycleControllerPort: MessagePort
-
-    // TODO: Add a MessagePort for shortcut communication between the host and device it's running on
-}
 
 /**
  * The root interface exposed by a Worker that hosts a game.
@@ -44,11 +28,11 @@ export interface IClusterfunHostGameInitializer<T extends IClusterfunHostLifecyc
      * Starts a new game on a simulated Clusterfun API server accessible via the given serverCall function
      * and communications port.
      * @param serverCall An interface to a mocked/real API server, used to create the game
+     * @param messagePortFactory A callback that creates a port to connect to a room
      */
-    // TODO: Create a better API for this that can correctly survive refreshes -
-    //       perhaps the ServerCall should be a proper interface that can create
-    //       sockets on demand.
-    startNewGameOnMockedServer(serverCall: IServerCall, messagePort: MessagePort): Promise<string>;
+    startNewGameOnMockedServer(
+        serverCall: IServerCall<unknown>, 
+        messagePortFactory: (gp: GameInstanceProperties) => (MessagePort | PromiseLike<MessagePort>)): Promise<string>;
     /**
      * Get a MessagePort that, when wrapped with Comlink.wrap(), exposes an object for 
      * controlling the lifecycle of the host controller indicated by the given room ID.

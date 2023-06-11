@@ -1,7 +1,13 @@
 import { ServerHealthInfo } from "games/stressgame/models/HostModel";
 import { GameInstanceProperties, GameRole } from "libs/config";
 
-export interface IServerCall {
+export interface IServerCall<TSeed> {
+    /**
+     * Returns a value that can be used to perfectly clone this ServerCall,
+     * including connecting it to the same room. If the server call cannot be
+     * cloned, TSeed will be "never" and this function will throw an error.
+     */
+    getSeed(): TSeed;
     /**
      * Get server health information, such as number of rooms and processor load
      * @returns A JSON object describing the server's current health at the time of call
@@ -31,13 +37,16 @@ export interface IServerCall {
 /**
  * A ServerCall that makes its calls to a real origin
  */
-export class ServerCallRealOrigin implements IServerCall {
+export class ServerCallRealOrigin implements IServerCall<string> {
     origin: string;
 
     constructor(origin: string) {
         this.origin = origin;
     }
 
+    getSeed(): string {
+        return this.origin;
+    }
 
     amIHealthy(): PromiseLike<ServerHealthInfo> {
         return this.get("/api/am_i_healthy");

@@ -32,7 +32,7 @@ export interface ISessionHelper {
     addClosedListener(owner: object, listener: (code: number) => void): void;
     removeClosedListener(owner: object): void;
     onError(doThis: (err:string) => void): void;
-    serverCall: IServerCall;
+    serverCall: IServerCall<unknown>;
     stats: {
         sentCount: number
         bytesSent: number
@@ -54,7 +54,7 @@ export class SessionHelper implements ISessionHelper {
     private _errorSubs: ((err:string)=>void)[] = []
     private _currentRequestId: number;
     sessionError?:string;
-    serverCall: IServerCall;
+    serverCall: IServerCall<unknown>;
     stats = {
         sentCount: 0,
         bytesSent: 0,
@@ -65,7 +65,7 @@ export class SessionHelper implements ISessionHelper {
     // -------------------------------------------------------------------
     // ctor
     // ------------------------------------------------------------------- 
-    constructor(messageThing: IMessageThing, roomId: string, hostId: string, serverCall: IServerCall) {
+    constructor(messageThing: IMessageThing, roomId: string, hostId: string, serverCall: IServerCall<unknown>) {
         this.roomId = roomId;
         this._hostId = hostId;
         this.serverCall = serverCall;

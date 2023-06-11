@@ -17,7 +17,7 @@ export interface ClusterFunGameProps {
     logger: ITelemetryLogger;
     storage: IStorage;
     onGameEnded: () => void;
-    serverCall: IServerCall
+    serverCall: IServerCall<unknown>
 }
 
 // -------------------------------------------------------------------

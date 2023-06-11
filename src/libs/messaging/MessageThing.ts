@@ -112,33 +112,35 @@ export class MessagePortMessageThing implements IMessageThing {
     get isClosed() { return false; }
     get closeCode() { return 0; }
 
-    private _messagePort: MessagePort;
+    // HACK: Made public so that the message port can be extracted
+    // to pass along to the host worker
+    readonly messagePort: MessagePort;
 
     constructor(messagePort: MessagePort, personalId: string) {
-        this._messagePort = messagePort;
+        this.messagePort = messagePort;
         this.personalId = personalId;
-        this._messagePort.start();
+        this.messagePort.start();
     }
 
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
     addEventListener(eventName: string, handler: (event?: any) => void) {
-        this._messagePort.addEventListener(eventName, handler)
+        this.messagePort.addEventListener(eventName, handler)
     }
 
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
     removeEventListener(eventName: string, handler: (event?: any) => void) {
-        this._messagePort.removeEventListener(eventName, handler)
+        this.messagePort.removeEventListener(eventName, handler)
     }
 
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
     async send (payload: string, onFailure: () => void) {
-        this._messagePort.postMessage(payload);
+        this.messagePort.postMessage(payload);
     }
 }
 
