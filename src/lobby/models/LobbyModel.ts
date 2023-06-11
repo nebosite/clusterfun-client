@@ -5,7 +5,7 @@ import Logger from "js-logger";
 import { getGameHostInitializer } from "GameChooser";
 import * as Comlink from "comlink";
 import { IClusterfunHostLifecycleController } from "libs/worker/IClusterfunHostLifecycleController";
-import { ServerCall } from "libs/messaging/serverCall";
+import { IServerCall } from "libs/messaging/serverCall";
 
 export enum LobbyMode 
 {
@@ -22,7 +22,7 @@ export enum LobbyState {
 const LOBBY_STATE_NAME = "lobby_state"
 
 export interface ILobbyDependencies {
-    serverCall: ServerCall;
+    serverCall: IServerCall;
     storage: IStorage;
     telemetryFactory: ITelemetryLoggerFactory;
     messageThingFactory: (this: unknown, gameProperties: GameInstanceProperties) => IMessageThing;
@@ -110,7 +110,7 @@ export class LobbyModel {
 
     private _telemetry: ITelemetryLoggerFactory;
     private _logger: ITelemetryLogger;
-    private _serverCall: ServerCall;
+    private _serverCall: IServerCall;
     private _messageThingFactory: (gameProperties: GameInstanceProperties) => IMessageThing;
     private _serverSocketEndpoint: string | MessagePort;
     private _onGameEnded: () => void
@@ -292,7 +292,7 @@ export class LobbyModel {
         sessionStorage.setItem("clusterfun_roomid",this.roomId) 
         // Note: this does not establish a web socket
         try {
-            const properties = await this._serverCall<GameInstanceProperties>("/api/joingame", { roomId: this.roomId, playerName: this.playerName, role });
+            const properties = await this._serverCall.joinGame(this.roomId, this.playerName, role);
             this.gameProperties = properties;
 
             const gameName = this.gameProperties.gameName;

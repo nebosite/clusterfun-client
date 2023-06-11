@@ -4,7 +4,7 @@ import ClusterfunListener from "./ClusterfunListener";
 import ClusterfunRequest from "./ClusterfunRequest";
 import MessageEndpoint from "./MessageEndpoint";
 import { IMessageThing } from './MessageThing';
-import { ServerCall } from "./serverCall";
+import { IServerCall } from "./serverCall";
 
 // -------------------------------------------------------------------
 // SessionHelper
@@ -32,7 +32,7 @@ export interface ISessionHelper {
     addClosedListener(owner: object, listener: (code: number) => void): void;
     removeClosedListener(owner: object): void;
     onError(doThis: (err:string) => void): void;
-    serverCall: ServerCall;
+    serverCall: IServerCall;
     stats: {
         sentCount: number
         bytesSent: number
@@ -54,7 +54,7 @@ export class SessionHelper implements ISessionHelper {
     private _errorSubs: ((err:string)=>void)[] = []
     private _currentRequestId: number;
     sessionError?:string;
-    serverCall: ServerCall;
+    serverCall: IServerCall;
     stats = {
         sentCount: 0,
         bytesSent: 0,
@@ -65,7 +65,7 @@ export class SessionHelper implements ISessionHelper {
     // -------------------------------------------------------------------
     // ctor
     // ------------------------------------------------------------------- 
-    constructor(messageThing: IMessageThing, roomId: string, hostId: string, serverCall: ServerCall) {
+    constructor(messageThing: IMessageThing, roomId: string, hostId: string, serverCall: IServerCall) {
         this.roomId = roomId;
         this._hostId = hostId;
         this.serverCall = serverCall;

@@ -8,7 +8,7 @@ import { MockTelemetryLogger } from "libs/telemetry";
 import { getStorage } from "libs/storage";
 import { BaseGameModel, GeneralGameState, getHostTypeHelper, instantiateGame } from "libs/GameModel";
 import * as Comlink from "comlink";
-import { ServerCall, createServerCallFromOrigin } from "libs/messaging/serverCall";
+import { IServerCall, ServerCallRealOrigin } from "libs/messaging/serverCall";
 
 // TODO: Convert this to work with a Shared Worker -
 // as far as you understand it, multiple requests to the same URL
@@ -31,7 +31,7 @@ export abstract class ClusterfunHostGameInitializer<
     abstract getGameName(): string;
 
     async startNewGameOnRemoteOrigin(origin: string): Promise<string> {
-        const serverCall = createServerCallFromOrigin(origin);
+        const serverCall = new ServerCallRealOrigin(origin);
         console.log("Server call", serverCall);
         const gameProperties = await this.createGame(serverCall);
         console.log(gameProperties);
@@ -41,13 +41,13 @@ export abstract class ClusterfunHostGameInitializer<
         return this.startNewGame_Helper(serverCall, gameProperties, messageThing);
     }
 
-    async startNewGameOnMockedServer(serverCall: ServerCall, messagePort: MessagePort): Promise<string> {
+    async startNewGameOnMockedServer(serverCall: IServerCall, messagePort: MessagePort): Promise<string> {
         const gameProperties = await this.createGame(serverCall);
         const messageThing = new MessagePortMessageThing(messagePort, gameProperties.personalId);
         return this.startNewGame_Helper(serverCall, gameProperties, messageThing);
     }
 
-    private startNewGame_Helper(serverCall: ServerCall, gameProperties: GameInstanceProperties, messageThing: IMessageThing): string {
+    private startNewGame_Helper(serverCall: IServerCall, gameProperties: GameInstanceProperties, messageThing: IMessageThing): string {
         const sessionHelper = new SessionHelper(
             messageThing, 
             gameProperties.roomId, 
@@ -93,13 +93,10 @@ export abstract class ClusterfunHostGameInitializer<
         return Comlink.transfer(channel.port2, [channel.port2]);
     }
 
-    private async createGame(serverCall: ServerCall): Promise<GameInstanceProperties> {
+    private async createGame(serverCall: IServerCall): Promise<GameInstanceProperties> {
         const gameName = this.getGameName();
         console.log("Game name: ", gameName);
-        const payload: any = { gameName };
-        const properties = await serverCall<GameInstanceProperties>("/api/startgame", payload);
-        // NOTE: Local and Session Storage are not available in Web Workers.
-        // We will need to shunt values that we want to save back to the UI thread.
+        const properties = await serverCall.startGame(gameName);
         return properties;
     }
 

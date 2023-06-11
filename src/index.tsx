@@ -7,7 +7,7 @@ import { GameInstanceProperties } from 'libs/config/GameInstanceProperties';
 import { WebSocketMessageThing } from 'libs/messaging/MessageThing';
 import 'index.css'
 import React from 'react';
-import { createServerCallFromOrigin } from 'libs/messaging/serverCall';
+import { ServerCallRealOrigin } from 'libs/messaging/serverCall';
 
 // auto-redirect http to https on the prod server
 if (window.location.href.toLowerCase().startsWith('http://clusterfun.tv')) {
@@ -33,7 +33,7 @@ Logger.debug(`MOBILE: ${GLOBALS.IsMobile}`)
 // -------------------------------------------------------------------
 // _serverCall 
 // -------------------------------------------------------------------
-const serverCall = createServerCallFromOrigin(window.location.origin);
+const serverCall = new ServerCallRealOrigin(window.location.origin);
 
 const telemetryFactoryPromise = (async () => {
     if (process.env.REACT_APP_USE_REAL_TELEMETRY) {

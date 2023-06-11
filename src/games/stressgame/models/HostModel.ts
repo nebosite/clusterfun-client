@@ -158,7 +158,7 @@ export class StressatoHostModel extends ClusterfunHostModel<StressatoPlayer> {
     // 
     //--------------------------------------------------------------------------------------
     pingServerHealth = async() => {
-        this.serverHealth = await this.session.serverCall<ServerHealthInfo>("/api/am_i_healthy", undefined)
+        this.serverHealth = await this.session.serverCall.amIHealthy();
     }
 
     // -------------------------------------------------------------------

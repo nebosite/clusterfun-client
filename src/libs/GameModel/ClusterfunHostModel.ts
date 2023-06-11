@@ -117,7 +117,7 @@ export abstract class ClusterfunHostModel<PlayerType extends ClusterFunPlayer> e
             if(this._fullyInitialized){
                 await this.requestAllClients(TerminateGameEndpoint, (p, ie) => ({}) );  
                 setTimeout(()=>{
-                    this.session.serverCall<void>("/api/terminategame", {  roomId: this.roomId, hostSecret: this.session.personalSecret })           
+                    this.session.serverCall.terminateGame(this.roomId, this.session.personalSecret);         
                 },200)                
             }
         })

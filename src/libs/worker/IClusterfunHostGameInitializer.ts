@@ -1,4 +1,4 @@
-import { ServerCall } from "libs/messaging/serverCall";
+import { IServerCall } from "libs/messaging/serverCall";
 import { IClusterfunHostLifecycleController } from "./IClusterfunHostLifecycleController";
 
 /**
@@ -48,7 +48,7 @@ export interface IClusterfunHostGameInitializer<T extends IClusterfunHostLifecyc
     // TODO: Create a better API for this that can correctly survive refreshes -
     //       perhaps the ServerCall should be a proper interface that can create
     //       sockets on demand.
-    startNewGameOnMockedServer(serverCall: ServerCall, messagePort: MessagePort): Promise<string>;
+    startNewGameOnMockedServer(serverCall: IServerCall, messagePort: MessagePort): Promise<string>;
     /**
      * Get a MessagePort that, when wrapped with Comlink.wrap(), exposes an object for 
      * controlling the lifecycle of the host controller indicated by the given room ID.

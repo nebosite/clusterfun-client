@@ -3,7 +3,8 @@ import { LobbyModel, ILobbyDependencies } from "../../lobby/models/LobbyModel";
 import { LocalMessageThing, ITelemetryLoggerFactory, IStorage, IMessageThing, getStorage, GameInstanceProperties, MessagePortMessageThingReceiver } from "../../libs";
 import Logger from "js-logger";
 import { GameRole } from "libs/config/GameRole";
-import { ServerCall } from "libs/messaging/serverCall";
+import { IServerCall } from "libs/messaging/serverCall";
+import { ServerHealthInfo } from "games/stressgame/models/HostModel";
 
 const names = [
     // Names with weird latin characters
@@ -128,23 +129,12 @@ export class GameTestModel {
     // -------------------------------------------------------------------
     // serverCall
     // -------------------------------------------------------------------
-    private serverCall: ServerCall = <T>(url: string, payload: any) : Promise<T> =>
-    {
-        if(url===("/api/startgame")) {
-            const gameProperties: GameInstanceProperties = {
-                gameName: payload.gameName,
-                role: GameRole.Host,
-                roomId: ["BEEF", "FIRE", "SHIP", "PORT", "SEAT"][Math.floor(Math.random() * 5)],
-                hostId: "host_id",
-                personalId: "host_id",
-                personalSecret: "host_secret"
-            }       
-            this.gameName = payload.gameName;
-            this.clientModels.forEach(m => m.roomId = gameProperties.roomId);  
-            this.saveState();
-            return Promise.resolve(gameProperties as unknown as T);
+    private serverCall: IServerCall = new (class MockServerCall implements IServerCall {
+        private _model: GameTestModel;
+        constructor(model: GameTestModel) {
+            this._model = model;
         }
-        else if(url===("/api/am_i_healthy")) {
+        amIHealthy(): PromiseLike<ServerHealthInfo> {
             const healthdata = {
                 version: "99.99.99",
                 uptime: "0 00:04:37",
@@ -216,29 +206,40 @@ export class GameTestModel {
                         arrayBuffers: 1769002
                     }
                 }
-            return Promise.resolve(healthdata as T);
+            return Promise.resolve(healthdata);
         }
-        else if(url===("/api/terminategame")) {
-            Logger.info("Terminating game with room id: " + payload.roomId + " ... " + payload.hostSecret)      
-            return Promise.resolve({} as T);
-        }
-        else if(url.startsWith("/api/joingame")) {
-            // { roomId: this.roomId, playerName: this.playerName }
+        startGame(gameName: string): PromiseLike<GameInstanceProperties> {
             const gameProperties: GameInstanceProperties = {
-                gameName: this.gameName,
-                role: payload.role,
-                roomId: payload.roomId,
-                hostId: "host_id", 
-                personalId: `client${this.joinCount}_id`,
-                personalSecret: `client${this.joinCount}_secret`
+                gameName: gameName,
+                role: GameRole.Host,
+                roomId: ["BEEF", "FIRE", "SHIP", "PORT", "SEAT"][Math.floor(Math.random() * 5)],
+                hostId: "host_id",
+                personalId: "host_id",
+                personalSecret: "host_secret"
             }       
-            this.joinCount++;
-            this.saveState();
-            return Promise.resolve(gameProperties as unknown as T);
+            this._model.gameName = gameName;
+            this._model.clientModels.forEach(m => m.roomId = gameProperties.roomId);  
+            this._model.saveState();
+            return Promise.resolve(gameProperties);
         }
-        else throw new Error("Did not understand this url: " + url)
-    }
-
+        joinGame(roomId: string, playerName: string, role: GameRole): PromiseLike<GameInstanceProperties> {
+            const gameProperties: GameInstanceProperties = {
+                gameName: this._model.gameName,
+                role: role,
+                roomId: roomId,
+                hostId: "host_id", 
+                personalId: `client${this._model.joinCount}_id`,
+                personalSecret: `client${this._model.joinCount}_secret`
+            }       
+            this._model.joinCount++;
+            this._model.saveState();
+            return Promise.resolve(gameProperties);
+        }
+        terminateGame(roomId: string, hostSecret: string): PromiseLike<void> {
+            Logger.info("Terminating game with room id: " + roomId + " ... " + hostSecret)      
+            return Promise.resolve();
+        }
+    })(this);
 
     // -------------------------------------------------------------------
     // saveState
