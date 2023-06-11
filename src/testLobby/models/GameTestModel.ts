@@ -65,6 +65,12 @@ export class GameTestModel {
     {
         makeObservable(this);
 
+        // TODO: IMPORTANT: Loading in a SharedWorker like this, and preserving it
+        // across page refreshes, only works _during_ page reload - once the page is
+        // loaded and we start doing async after-page loads, we can lose the worker.
+        // We will either need to create this worker very early, or create some way
+        // to save this worker's work.
+
         this._roomManager = Comlink.wrap(
             /* webpackChunkName: "test-room-manager" */ new SharedWorker(new URL("../workers/LocalRoomManagerWorker", import.meta.url), { type: "module" }).port
             ) as unknown as Comlink.Remote<ILocalRoomManager>;

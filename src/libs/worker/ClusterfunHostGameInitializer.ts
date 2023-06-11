@@ -10,17 +10,6 @@ import { BaseGameModel, GeneralGameState, getHostTypeHelper, instantiateGame } f
 import * as Comlink from "comlink";
 import { IServerCall, ServerCallRealOrigin } from "libs/messaging/serverCall";
 
-// TODO: Convert this to work with a Shared Worker -
-// as far as you understand it, multiple requests to the same URL
-// will produce the same worker in that scenario, allowing
-// multiple tabs to access it or for it to survive between refreshes.
-// - To make this work, index the lifecycle controllers you create by room ID,
-//   and add a method to retrieve them on demand.
-// - Also allow a way to delete lifecycle controllers
-
-// A Set to keep alive message ports.
-// TODO: Clean this up when app models are removed
-
 export abstract class ClusterfunHostGameInitializer<
     TController extends IClusterfunHostLifecycleController,
     TAppModel extends BaseGameModel> 

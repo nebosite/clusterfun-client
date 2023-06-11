@@ -8,6 +8,7 @@ import { WebSocketMessageThing } from 'libs/messaging/MessageThing';
 import 'index.css'
 import React from 'react';
 import { ServerCallRealOrigin } from 'libs/messaging/serverCall';
+import "./load_the_dumb_workers";
 
 // auto-redirect http to https on the prod server
 if (window.location.href.toLowerCase().startsWith('http://clusterfun.tv')) {

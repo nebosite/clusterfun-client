@@ -12,6 +12,12 @@ const gameListPromise: Promise<{default: GameDescriptor[]}> = (process.env.REACT
 const hostWorkerCache: Map<string, Promise<Comlink.Remote<IClusterfunHostGameInitializer<IClusterfunHostLifecycleController>>>> = new Map();
 const lazyTypeCache: Map<string, React.ComponentType<any>> = new Map();
 
+// TODO: IMPORTANT: It is only possible to pick up SharedWorkers again if you re-reference them
+// _while_ the page is loading - once the page is completely loaded, disposal is fair game.
+// This means that we need to either reference all of these workers during the initial page
+// load (loading them before any promises set in should be enough), or we need to pass a storage
+// manager into the workers to ensure that they can save data.
+
 export async function getGameListPromise(): Promise<GameDescriptor[]> {
     const gameListModule = await gameListPromise;
     return gameListModule.default;
