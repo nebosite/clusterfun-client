@@ -1,5 +1,10 @@
 // A shared worker that maintains a room and provides MessagePorts
 
+// TODO: Consider phasing this out and managing the room locally again.
+// If you do end up keeping this, make it a dedicated worker, since Shared Workers
+// don't actually save between refreshes unless you spin up the worker
+// while the page is loading.
+
 import { IMessageThingReceiver, MessagePortMessageThingReceiver } from "libs";
 import { ILocalRoomManager } from "./ILocalRoomManager";
 import * as Comlink from "comlink";
