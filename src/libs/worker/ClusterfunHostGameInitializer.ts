@@ -5,13 +5,11 @@ import { ClusterFunGameProps } from "libs/config/ClusterFunGameProps";
 import { ITypeHelper } from "libs/storage/BruteForceSerializer";
 import { GameInstanceProperties } from "libs/config/GameInstanceProperties";
 import { MockTelemetryLogger } from "libs/telemetry";
-import { IStorage, getStorage } from "libs/storage";
+import { IStorage } from "libs/storage";
 import { BaseGameModel, GeneralGameState, getHostTypeHelper, instantiateGame } from "libs/GameModel";
 import * as Comlink from "comlink";
 import { IServerCall, ServerCallRealOrigin } from "libs/messaging/serverCall";
-
-// TODO: In the "start" functions, add an asynchronous interface to the
-// storage unit on the main thread
+import Logger from "js-logger";
 
 export abstract class ClusterfunHostGameInitializer<
     TController extends IClusterfunHostLifecycleController,
@@ -25,7 +23,7 @@ export abstract class ClusterfunHostGameInitializer<
     async startNewGameOnRemoteOrigin(origin: string, storage: IStorage): Promise<string> {
         const serverCall = new ServerCallRealOrigin(origin);
         console.log("Server call", serverCall);
-        const gameProperties = await this.createGame(serverCall);
+        const gameProperties = await this.createGame(serverCall, storage);
         console.log(gameProperties);
         const socketOrigin = new URL(origin);
         const messageThing = new WebSocketMessageThing((socketOrigin.protocol === "https:" ? "wss:" : "ws:") + socketOrigin.host, gameProperties.roomId, gameProperties.personalId, gameProperties.personalSecret)
@@ -34,7 +32,7 @@ export abstract class ClusterfunHostGameInitializer<
     }
 
     async startNewGameOnMockedServer(serverCall: IServerCall<unknown>, messagePortFactory: (gp: GameInstanceProperties) => MessagePort | PromiseLike<MessagePort>, storage: IStorage): Promise<string> {
-        const gameProperties = await this.createGame(serverCall);
+        const gameProperties = await this.createGame(serverCall, storage);
         const messagePort = await messagePortFactory(gameProperties);
         const messageThing = new MessagePortMessageThing(messagePort, gameProperties.personalId);
         return this.startNewGame_Helper(serverCall, gameProperties, messageThing, storage);
@@ -89,10 +87,21 @@ export abstract class ClusterfunHostGameInitializer<
         return Comlink.transfer(channel.port2, [channel.port2]);
     }
 
-    private async createGame(serverCall: IServerCall<unknown>): Promise<GameInstanceProperties> {
+    private async createGame(serverCall: IServerCall<unknown>, storage: IStorage): Promise<GameInstanceProperties> {
         const gameName = this.getGameName();
-        console.log("Game name: ", gameName);
-        const properties = await serverCall.startGame(gameName);
+        const previousData = await storage.get("roominfo");
+        let existingRoom = undefined;
+        if (previousData) {
+            Logger.info(`Found previous data: ${previousData}`)
+            const oldProps = JSON.parse(previousData) as GameInstanceProperties;
+            existingRoom = {
+                id: oldProps.roomId,
+                hostId: oldProps.hostId,
+                hostSecret: oldProps.personalSecret
+            };
+        }
+        const properties = await serverCall.startGame(gameName, existingRoom);
+        await storage.set("roominfo", JSON.stringify(properties));
         return properties;
     }
 

@@ -91,17 +91,15 @@ export class LobbyModel {
     }
     onUserChoseAMode = new EventThing("User Mode Selection");
 
+    private _shouldBeHosting: boolean = false;
+
     @observable private _hostController = observable<Comlink.Remote<IClusterfunHostLifecycleController> | null>([null]);
-    @observable private _isHosting: boolean = false;
-    get hostController() {
-        if (this._isHosting !== !!(this._hostController[0])) {
-            Logger.warn("WEIRD: isHosting does not match having the host controller")
-        }
-        return this._hostController[0] 
-    }
+    get hostController() { return this._hostController[0] }
     set hostController(value) {action(()=>{
+        if (!this._shouldBeHosting) {
+            Logger.warn("WEIRD: Setting a host controller while hosting preference is not indicated")
+        }
         this._hostController[0] = value;
-        this._isHosting = !!value;
     })()}
 
     @observable  private _gameProperties = observable<GameInstanceProperties | null>([null]);
@@ -222,6 +220,7 @@ export class LobbyModel {
         try {
             await this.ensureHostWorker(gameName);
             this.playerName = crypto.randomUUID();
+            this._shouldBeHosting = true;
             // Once we have the host thread, join the game as a presenter, setting the lobby to Ready at that point
             await this.joinGame(GameRole.Presenter);
         } catch (e) {
@@ -292,7 +291,7 @@ export class LobbyModel {
             gameProperties: this.gameProperties,
             _lobbyState: this._lobbyState,
             _rootKey: this._rootKey,
-            _isHosting: this._isHosting,
+            _shouldBeHosting: this._shouldBeHosting,
         }
         const saveMe = JSON.stringify(state);
         this._storage.set(LOBBY_STATE_NAME, saveMe);
@@ -309,7 +308,7 @@ export class LobbyModel {
                 Object.assign(this, JSON.parse(stateJson) )
                 if(!this.gameProperties) {
                     this.lobbyState = LobbyState.Fresh;
-                } else if (this._isHosting) {
+                } else if (this._shouldBeHosting) {
                     await this.ensureHostWorker(this.gameProperties.gameName);
                     const gameInitializer = (await getGameHostInitializer(this.gameProperties.gameName))!;
                     const lifecycleControllerPort = await gameInitializer.getLifecycleControllerPort(this.roomId);
@@ -340,21 +339,23 @@ export class LobbyModel {
             const properties = await this._serverCall.joinGame(this.roomId, this.playerName, role);
             this.gameProperties = properties;
 
-            const gameName = this.gameProperties.gameName;
-            const gameInitializer = (await getGameHostInitializer(gameName))!;
-            if (!gameInitializer) {
-                throw new Error("Could not get host initializer for " + gameName);
-            } else {
-                const reportedGameName = await gameInitializer.getGameName();
-                if (reportedGameName !== gameName) {
-                    throw new Error("Unexpected game name " + reportedGameName + " returned from worker for " + gameName);
+            if (this._shouldBeHosting) {
+                const gameName = this.gameProperties.gameName;
+                const gameInitializer = (await getGameHostInitializer(gameName))!;
+                if (!gameInitializer) {
+                    throw new Error("Could not get host initializer for " + gameName);
+                } else {
+                    const reportedGameName = await gameInitializer.getGameName();
+                    if (reportedGameName !== gameName) {
+                        throw new Error("Unexpected game name " + reportedGameName + " returned from worker for " + gameName);
+                    }
+                }
+                const lifecycleControllerPort = await gameInitializer.getLifecycleControllerPort(this.roomId);
+                if (lifecycleControllerPort) {
+                    this.hostController = Comlink.wrap(lifecycleControllerPort) as Comlink.Remote<IClusterfunHostLifecycleController>;
                 }
             }
-            const lifecycleControllerPort = await gameInitializer.getLifecycleControllerPort(this.roomId);
-            if (lifecycleControllerPort) {
-                this.hostController = Comlink.wrap(lifecycleControllerPort) as Comlink.Remote<IClusterfunHostLifecycleController>;
-            }
-
+            
             this.lobbyState = LobbyState.ReadyToPlay
             this.lobbyErrorMessage = undefined;
             this.saveState();

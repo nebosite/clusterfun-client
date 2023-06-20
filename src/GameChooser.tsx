@@ -12,15 +12,6 @@ const gameListPromise: Promise<{default: GameDescriptor[]}> = (process.env.REACT
 const hostWorkerCache: Map<string, Promise<Comlink.Remote<IClusterfunHostGameInitializer<IClusterfunHostLifecycleController>>>> = new Map();
 const lazyTypeCache: Map<string, React.ComponentType<any>> = new Map();
 
-// TODO: Change this to use normal Web Workers instead of shared workers.
-// This is for several reasons:
-// - Shared Workers can only be recovered between page refreshes if they are recreated while the page is loading.
-// - Shared Workers are more difficult to debug - you need to use chrome://inspect or about:debugging
-//   in order to see them, while you can view dedicated Workers in the Inspect view for the page
-// - Shared Workers are not supported in Chrome for Android.
-// As part of this, pass an interface to local storage. (You will likely need to make the storage interface
-// asynchronous).
-
 export async function getGameListPromise(): Promise<GameDescriptor[]> {
     const gameListModule = await gameListPromise;
     return gameListModule.default;

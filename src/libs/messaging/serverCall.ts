@@ -18,7 +18,7 @@ export interface IServerCall<TSeed> {
      * @param gameName The name of the game to start
      * @returns A set of credentials for connecting to the server
      */
-    startGame(gameName: string): PromiseLike<GameInstanceProperties>;
+    startGame(gameName: string, existingRoom?: { id: string, hostId: string, hostSecret: string }): PromiseLike<GameInstanceProperties>;
     /**
      * Join an existing game
      * @param roomId The room to join
@@ -53,8 +53,8 @@ export class ServerCallRealOrigin implements IServerCall<string> {
     }
 
 
-    startGame(gameName: string): PromiseLike<GameInstanceProperties> {
-        return this.post("/api/startgame", { gameName });
+    startGame(gameName: string, existingRoom?: { id: string, hostId: string, hostSecret: string }): PromiseLike<GameInstanceProperties> {
+        return this.post("/api/startgame", { gameName, existingRoom });
     }
 
     joinGame(roomId: string, playerName: string, role: GameRole): PromiseLike<GameInstanceProperties> {
