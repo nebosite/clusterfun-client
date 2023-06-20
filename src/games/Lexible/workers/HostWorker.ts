@@ -37,9 +37,4 @@ class LexibleHostGameInitializer extends ClusterfunHostGameInitializer<
 }
 
 const initializer = new LexibleHostGameInitializer();
-
-global.addEventListener("connect", (raw_event) => {
-    const event = raw_event as unknown as MessageEvent;
-    const port = event.ports[0];
-    Comlink.expose(initializer, port);
-})
+Comlink.expose(initializer);

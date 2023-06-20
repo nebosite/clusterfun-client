@@ -65,14 +65,10 @@ export class GameTestModel {
     {
         makeObservable(this);
 
-        // TODO: IMPORTANT: Loading in a SharedWorker like this, and preserving it
-        // across page refreshes, only works _during_ page reload - once the page is
-        // loaded and we start doing async after-page loads, we can lose the worker.
-        // We will either need to create this worker very early, or create some way
-        // to save this worker's work.
+        // NOTE: This probably doesn't need to be an actual worker
 
         this._roomManager = Comlink.wrap(
-            /* webpackChunkName: "test-room-manager" */ new SharedWorker(new URL("../workers/LocalRoomManagerWorker", import.meta.url), { type: "module" }).port
+            /* webpackChunkName: "test-room-manager" */ new Worker(new URL("../workers/LocalRoomManagerWorker", import.meta.url), { type: "module" })
             ) as unknown as Comlink.Remote<ILocalRoomManager>;
 
         this._storage = storage;
@@ -123,7 +119,7 @@ export class GameTestModel {
     getMessageThing(roomId: string, personalId: string) {
         if(!this._cachedMessageThings.has(personalId)){
             const channel = new MessageChannel();
-            this._roomManager.connectToRoom(roomId, personalId, Comlink.transfer(channel.port1, [channel.port1]));
+            this._roomManager.connectToRoom(personalId, Comlink.transfer(channel.port1, [channel.port1]));
             const newThing = new MessagePortMessageThing(channel.port2, personalId);
             this._cachedMessageThings.set(personalId, newThing)
         }
@@ -216,8 +212,7 @@ export class GameTestModel {
             return Promise.resolve(healthdata);
         }
         async startGame(gameName: string): Promise<GameInstanceProperties> {
-            const roomId = await this._model._roomManager.createRoom();
-            console.log("Room list: ", await this._model._roomManager.listRooms());
+            const roomId = ["BEEF", "FIRE", "SHIP", "PORT", "SEAT"][Math.floor(Math.random() * 5)];
             const gameProperties: GameInstanceProperties = {
                 gameName: gameName,
                 role: GameRole.Host,

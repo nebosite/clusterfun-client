@@ -10,6 +10,9 @@ import { BaseGameModel, GeneralGameState, getHostTypeHelper, instantiateGame } f
 import * as Comlink from "comlink";
 import { IServerCall, ServerCallRealOrigin } from "libs/messaging/serverCall";
 
+// TODO: In the "start" functions, add an asynchronous interface to the
+// storage unit on the main thread
+
 export abstract class ClusterfunHostGameInitializer<
     TController extends IClusterfunHostLifecycleController,
     TAppModel extends BaseGameModel> 
@@ -50,7 +53,7 @@ export abstract class ClusterfunHostGameInitializer<
         };
 
         const logger = new MockTelemetryLogger("mock"); // TODO: Use real telemetry eventually
-        const storage = getStorage("clusterfun_host"); // TODO: Use mock storage
+        const storage = getStorage("clusterfun_host"); // TODO: Use real storage from the main thread
 
         const clusterFunGameProps: ClusterFunGameProps = {
             gameProperties,

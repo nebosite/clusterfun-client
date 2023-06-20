@@ -36,7 +36,7 @@ export function getGameHostInitializer(gameName: string) {
             const foundGame = gameList.find(g => g.name === gameName);
             if(!foundGame) throw Error(`Could not find game named '${gameName}'`)
             const worker = foundGame.hostWorkerThunk();
-            return Comlink.wrap(worker.port) as Comlink.Remote<IClusterfunHostGameInitializer<IClusterfunHostLifecycleController>>
+            return Comlink.wrap(worker) as Comlink.Remote<IClusterfunHostGameInitializer<IClusterfunHostLifecycleController>>
         })())
     }
     return hostWorkerCache.get(gameName);
@@ -46,7 +46,6 @@ export function getGameHostInitializer(gameName: string) {
 // getGameComponent
 // -------------------------------------------------------------------
 export function getGameComponent(descriptor: GameManifestItem, config: ClusterFunGameProps) {
-    //Logger.debug(`Creating component for ${descriptor.name} ${config.gameProperties.role} ${config.gameProperties.personalId}`)
     if (!lazyTypeCache.has(descriptor.name)) {
         lazyTypeCache.set(descriptor.name, React.lazy(async () => {
             const gameList = await getGameListPromise();

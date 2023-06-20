@@ -35,9 +35,4 @@ class TestatoHostGameInitializer extends ClusterfunHostGameInitializer<
 }
 
 const initializer = new TestatoHostGameInitializer();
-
-global.addEventListener("connect", (raw_event) => {
-    const event = raw_event as unknown as MessageEvent;
-    const port = event.ports[0];
-    Comlink.expose(initializer, port);
-})
+Comlink.expose(initializer);
