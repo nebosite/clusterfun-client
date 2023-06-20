@@ -15,6 +15,7 @@ if (window.location.href.toLowerCase().startsWith('http://clusterfun.tv')) {
 }
 
 // Configure logging levels here
+// eslint-disable-next-line
 Logger.useDefaults();
 if (process.env.REACT_APP_DEVMODE === 'development') {
     Logger.setLevel(Logger.DEBUG);

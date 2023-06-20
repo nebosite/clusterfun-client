@@ -1,5 +1,5 @@
 import Logger from "js-logger";
-import { ISessionHelper, ClusterFunGameProps, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, HostGameEvent } from "libs";
+import { ISessionHelper, ClusterFunGameProps, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper } from "libs";
 import { observable } from "mobx";
 import { TestatoOnboardPresenterEndpoint } from "./testatoEndpoints";
 import { ClusterfunPresenterModel } from "libs/GameModel/ClusterfunPresenterModel";
@@ -55,8 +55,6 @@ export enum TestatoClientState {
     EndOfRound = "EndOfRound",
 }
 
-const colors = ["white", "red", "orange", "yellow", "blue", "cyan", "magenta", "gray"]
-
 // -------------------------------------------------------------------
 // Presenter data and logic
 // -------------------------------------------------------------------
@@ -111,6 +109,7 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
         // This is neeeded because sometimes the client can miss messages from the server
         switch(serverState) {
             case TestatoGameState.Playing: this.gameState = TestatoGameState.Playing; break; 
+            case GeneralClientGameState.Paused: this.gameState = GeneralClientGameState.Paused; break;
             default:
                 Logger.debug(`Server Updated State to: ${serverState}`) 
                 this.gameState = GeneralClientGameState.WaitingToStart; break;

@@ -1,6 +1,6 @@
 import { observable } from "mobx"
 import { PLAYTIME_MS } from "./GameSettings";
-import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunHostModel, ITelemetryLogger, IStorage, ITypeHelper, HostGameState, GeneralGameState, Vector2, HostGameEvent } from "libs";
+import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunHostModel, ITelemetryLogger, IStorage, ITypeHelper, HostGameState, GeneralGameState, Vector2, HostGameEvent, GeneralClientGameState } from "libs";
 import Logger from "js-logger";
 import { TestatoColorChangeActionEndpoint, TestatoMessageActionEndpoint, TestatoOnboardClientEndpoint, TestatoOnboardPresenterEndpoint, TestatoTapActionEndpoint } from "./testatoEndpoints";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
@@ -66,7 +66,7 @@ export const getTestatoHostTypeHelper = (
 // At minimum, update the presenter every 2 seconds
 // NOTE: This is the worst possible update path -
 // come up with more streamlined update paths as available.
-const MAX_PRESENTER_INVALIDATE_INTERVAL = 10 * 1000;
+const MAX_PRESENTER_INVALIDATE_INTERVAL = 2 * 1000;
 
 
 // -------------------------------------------------------------------
@@ -106,6 +106,9 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
         this.listenToEndpoint(TestatoMessageActionEndpoint, this.handleMessageAction);
         this.listenToEndpoint(TestatoTapActionEndpoint, this.handleTapAction);
         this.subscribe(HostGameEvent.PlayerJoined, "host-player-join", () => {
+            this.invalidatePresenters();
+        })
+        this.subscribe(GeneralClientGameState.Paused, "game paused", () => {
             this.invalidatePresenters();
         })
     }
@@ -150,6 +153,8 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
                     break;
             }
         }
+        // TODO: This interval technique, in addition to not being the most efficient,
+        // does _not_ tick down while pausing!
         if ((this.gameTime_ms - this._timeOfLastPresenterInvalidate) > MAX_PRESENTER_INVALIDATE_INTERVAL) {
             this.invalidatePresenters();
         }
