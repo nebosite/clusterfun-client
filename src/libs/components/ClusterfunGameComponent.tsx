@@ -38,6 +38,7 @@ extends React.Component<ClusterFunGameAndUIProps>
 
     appModel?: BaseGameModel;
     UI: React.ComponentType<{ appModel?: any, uiProperties: UIProperties, hostController?: Comlink.Remote<IClusterfunHostLifecycleController> }> = DummyComponent
+    derivedTypeHelper?: ITypeHelper;
 
     init(
         presenterType: React.ComponentType<{ appModel?: any, uiProperties: UIProperties }>,
@@ -60,27 +61,26 @@ extends React.Component<ClusterFunGameAndUIProps>
         if(gameProperties.role === GameRole.Presenter)
         {
             this.UI = presenterType;
-            this.appModel = instantiateGame(
-                getPresenterTypeHelper(derivedPresenterTypeHelper(sessionHelper, this.props)), 
-                this.props.logger, 
-                this.props.storage)
+            this.derivedTypeHelper = derivedPresenterTypeHelper(sessionHelper, this.props)
         } else if (gameProperties.role === GameRole.Client) {
             this.UI = clientType;
-            this.appModel = instantiateGame(
-                getClientTypeHelper(derivedClientTypeHelper( sessionHelper, this.props)), 
-                this.props.logger, 
-                this.props.storage)
+            this.derivedTypeHelper = derivedClientTypeHelper(sessionHelper, this.props);
         } else {
             throw new Error("Unhandled role " + gameProperties.role)
         }
 
         document.title = `${gameProperties.gameName} / ClusterFun.tv`
-        componentFinalizer.register(this, this.appModel!);
     }
 
-    componentDidMount(): void {
+    async componentDidMount(): Promise<void> {
+        this.appModel = await instantiateGame(
+            getPresenterTypeHelper(this.derivedTypeHelper!), 
+            this.props.logger, 
+            this.props.storage);
         this.appModel!.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () => this.props.onGameEnded());
         this.appModel!.reconstitute();
+        componentFinalizer.register(this, this.appModel!);
+        this.forceUpdate();
     }
 
     componentWillUnmount(): void {
@@ -93,12 +93,16 @@ extends React.Component<ClusterFunGameAndUIProps>
     // -------------------------------------------------------------------
     render() {
         const UI = this.UI;
-        return (
-            <Provider appModel={this.appModel}>
-                <React.Suspense fallback={<div>loading...</div>}>
-                    <UI uiProperties={this.props.uiProperties} hostController={this.props.hostController || undefined}/>
-                </React.Suspense>
-            </Provider>
-        );
+        if (!this.appModel) {
+            return (<DummyComponent uiProperties={this.props.uiProperties}></DummyComponent>)
+        } else {
+            return (
+                <Provider appModel={this.appModel}>
+                    <React.Suspense fallback={<div>loading...</div>}>
+                        <UI uiProperties={this.props.uiProperties} hostController={this.props.hostController || undefined}/>
+                    </React.Suspense>
+                </Provider>
+            );            
+        }
     };
 }

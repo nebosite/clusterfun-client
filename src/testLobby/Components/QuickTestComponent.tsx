@@ -4,6 +4,7 @@ import * as Comlink from "comlink";
 import { IClusterfunHostGameInitializer } from "libs/worker/IClusterfunHostGameInitializer";
 import Logger from "js-logger";
 import { ILexibleHostWorkerLifecycleController } from "games/Lexible/workers/IHostWorkerLifecycleController";
+import { getStorage } from "libs";
 
 class QuickState {
     initializer = Comlink.wrap(/* webpackChunkName: "quick-test-worker" */ new SharedWorker(new URL("../../games/Lexible/workers/HostWorker", import.meta.url), { type: "module" }).port) as 
@@ -25,7 +26,8 @@ class QuickState {
 
         const generateController = async () => {
             Logger.info("Requesting init");
-            this.st.roomId = await this.st.initializer.startNewGameOnRemoteOrigin("http://localhost:8080");
+            const storage = getStorage("quick_test_host");
+            this.st.roomId = await this.st.initializer.startNewGameOnRemoteOrigin("http://localhost:8080", Comlink.proxy(storage));
             this.st.controller = Comlink.wrap((await this.st.initializer.getLifecycleControllerPort(this.st.roomId))!) as Comlink.Remote<ILexibleHostWorkerLifecycleController>;
             Logger.info("Controller successfully obtained");
             this.forceUpdate();

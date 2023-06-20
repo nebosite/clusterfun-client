@@ -248,7 +248,7 @@ export class GameTestModel {
     // -------------------------------------------------------------------
     // saveState
     // -------------------------------------------------------------------
-    saveState()
+    async saveState()
     {
         const state = {
             presenterSize: this.presenterSize,
@@ -261,9 +261,9 @@ export class GameTestModel {
     // -------------------------------------------------------------------
     // loadState
     // -------------------------------------------------------------------
-    loadState()
+    async loadState()
     {
-        const stateJson = this._storage.get("testState");
+        const stateJson = await this._storage.get("testState");
         if(stateJson) {
             const loadedState = JSON.parse(stateJson);
             Object.assign(this, loadedState);

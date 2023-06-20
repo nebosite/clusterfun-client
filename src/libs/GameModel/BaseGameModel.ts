@@ -31,12 +31,12 @@ export enum GeneralGameState
 // -------------------------------------------------------------------
 // get the saved game if available or create a new one
 // -------------------------------------------------------------------
-export function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper, logger: ITelemetryLogger, storage: IStorage)
+export async function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper, logger: ITelemetryLogger, storage: IStorage)
 {
     const serializer = createSerializer(typeHelper);
 
     try {
-        const savedDataJson = storage.get(GAMESTATE_LABEL);
+        const savedDataJson = await storage.get(GAMESTATE_LABEL);
         if (savedDataJson) {
             const savedData = serializer.parse<BaseGameModel>(savedDataJson);
             if(savedData.gameState !== GeneralGameState.Destroyed)
@@ -358,9 +358,9 @@ export abstract class BaseGameModel  {
     // THis is for clients that accidentally disconnect.  On reconnet,
     // they will unstash the checkpoint
     // -------------------------------------------------------------------
-    stashCheckpoint() {
+    async stashCheckpoint() {
 
-        const checkpoint = this.storage.get(GAMESTATE_LABEL)
+        const checkpoint = await this.storage.get(GAMESTATE_LABEL)
         if(checkpoint) {
             Logger.info("************** STASHING  " + this.session.personalId)
             this.storage.set(STASH_LABEL, checkpoint);
@@ -371,9 +371,9 @@ export abstract class BaseGameModel  {
     // -------------------------------------------------------------------
     // restore the checkpoint from the stash if it exists
     // -------------------------------------------------------------------
-    unStashCheckpoint() {
+    async unStashCheckpoint() {
 
-        const checkpoint = this.storage.get(STASH_LABEL)
+        const checkpoint = await this.storage.get(STASH_LABEL)
         if(checkpoint) {
             Logger.info("************** UNSTASHING  " + this.session.personalId)
             this.storage.set(GAMESTATE_LABEL, checkpoint);

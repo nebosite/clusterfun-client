@@ -1,5 +1,5 @@
 
-import { ClusterFunGameAndUIProps, EventThing, GameInstanceProperties, GameRole, IMessageThing, IStorage, ITelemetryLogger, ITelemetryLoggerFactory, MessagePortMessageThing, UIProperties } from "../../libs";
+import { ClusterFunGameAndUIProps, EventThing, GameInstanceProperties, GameRole, IMessageThing, IStorage, ITelemetryLogger, ITelemetryLoggerFactory, MessagePortMessageThing, UIProperties, getStorage } from "../../libs";
 import { action, makeObservable, observable } from "mobx";
 import Logger from "js-logger";
 import { getGameHostInitializer } from "GameChooser";
@@ -92,8 +92,17 @@ export class LobbyModel {
     onUserChoseAMode = new EventThing("User Mode Selection");
 
     @observable private _hostController = observable<Comlink.Remote<IClusterfunHostLifecycleController> | null>([null]);
-    get hostController() { return this._hostController[0] }
-    set hostController(value) {action(()=>{this._hostController[0] = value})()}
+    @observable private _isHosting: boolean = false;
+    get hostController() {
+        if (this._isHosting !== !!(this._hostController[0])) {
+            Logger.warn("WEIRD: isHosting does not match having the host controller")
+        }
+        return this._hostController[0] 
+    }
+    set hostController(value) {action(()=>{
+        this._hostController[0] = value;
+        this._isHosting = !!value;
+    })()}
 
     @observable  private _gameProperties = observable<GameInstanceProperties | null>([null]);
     get gameProperties() {return this._gameProperties[0]}
@@ -211,6 +220,22 @@ export class LobbyModel {
         this._logger.logEvent("Start Game", "Started " + gameName)
 
         try {
+            await this.ensureHostWorker(gameName);
+            this.playerName = crypto.randomUUID();
+            // Once we have the host thread, join the game as a presenter, setting the lobby to Ready at that point
+            await this.joinGame(GameRole.Presenter);
+        } catch (e) {
+            this.lobbyErrorMessage = "There was an error trying to start the game. Please try again later.";
+            Logger.error(e);
+            this.lobbyState = LobbyState.Fresh
+        }
+    }
+
+    // -------------------------------------------------------------------
+    // Ensure that the host worker is running, setting the local room ID accordingly
+    // -------------------------------------------------------------------
+    private async ensureHostWorker(gameName: string) {
+        try {
             // Spin up a host thread to host the game
             const gameInitializer = await getGameHostInitializer(gameName);
             if (!gameInitializer) {
@@ -221,6 +246,10 @@ export class LobbyModel {
                     throw new Error("Unexpected game name " + reportedGameName + " returned from worker for " + gameName);
                 }
             }
+            if (await gameInitializer.isHostAvailable(this.roomId)) {
+                // no need to create the game again, return
+                return;
+            }
             let serverCallSeed = undefined;
             try {
                 serverCallSeed = this._serverCall.getSeed();
@@ -229,7 +258,7 @@ export class LobbyModel {
             }
             if (typeof serverCallSeed === "string") {
                 // server is a real server, create a server call on the other side
-                this.roomId = await gameInitializer.startNewGameOnRemoteOrigin(serverCallSeed);
+                this.roomId = await gameInitializer.startNewGameOnRemoteOrigin(serverCallSeed, Comlink.proxy(getStorage("clusterfun_host")));
             } else {
                 // server is a mocked server running on this thread
                 this.roomId = await gameInitializer.startNewGameOnMockedServer(
@@ -241,11 +270,9 @@ export class LobbyModel {
                         } else {
                             throw new Error("Mocked server provided alongside non-MessagePort-based MessageThing factory")
                         }
-                    }));
+                    }),
+                    Comlink.proxy(getStorage("clusterfun_host")));
             }
-            this.playerName = crypto.randomUUID();
-            // Once we have the host thread, join the game as a presenter, setting the lobby to Ready at that point
-            await this.joinGame(GameRole.Presenter);
         } catch (e) {
             this.lobbyErrorMessage = "There was an error trying to start the game. Please try again later.";
             Logger.error(e);
@@ -265,6 +292,7 @@ export class LobbyModel {
             gameProperties: this.gameProperties,
             _lobbyState: this._lobbyState,
             _rootKey: this._rootKey,
+            _isHosting: this._isHosting,
         }
         const saveMe = JSON.stringify(state);
         this._storage.set(LOBBY_STATE_NAME, saveMe);
@@ -276,16 +304,19 @@ export class LobbyModel {
     private async loadState()
     {
         try {
-            const stateJson = this._storage.get(LOBBY_STATE_NAME);
+            const stateJson = await this._storage.get(LOBBY_STATE_NAME);
             if(stateJson) {
                 Object.assign(this, JSON.parse(stateJson) )
                 if(!this.gameProperties) {
                     this.lobbyState = LobbyState.Fresh;
-                } else {
+                } else if (this._isHosting) {
+                    await this.ensureHostWorker(this.gameProperties.gameName);
                     const gameInitializer = (await getGameHostInitializer(this.gameProperties.gameName))!;
                     const lifecycleControllerPort = await gameInitializer.getLifecycleControllerPort(this.roomId);
                     if (lifecycleControllerPort) {
                         this.hostController = Comlink.wrap(lifecycleControllerPort) as Comlink.Remote<IClusterfunHostLifecycleController>;
+                    } else {
+                        throw new Error("This device is supposed to be hosting")
                     }
                 }
             }

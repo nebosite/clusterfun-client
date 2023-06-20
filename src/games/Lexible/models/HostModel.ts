@@ -233,13 +233,6 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
         this.minPlayers = 2;
 
         this.wordTree = WordTree.create([]);
-        
-        const savedSettingsValue = storage.get(LEXIBLE_SETTINGS_KEY);
-        if (savedSettingsValue) {
-            const savedSettings = JSON.parse(savedSettingsValue) as LexibleSettings;
-            this.mapSize = savedSettings.mapSize ?? MapSize.Medium;
-            this.startFromTeamArea = savedSettings.startFromTeamArea ?? true;
-        }
 
         makeObservable(this);
     }
@@ -249,7 +242,7 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
     //  reconstitute - add code here to fix up saved game data that 
     //                 has been loaded after a refresh
     // -------------------------------------------------------------------
-    reconstitute() {
+    async reconstitute() {
         super.reconstitute();
         this.populateWordSet();
         this.subscribe(HostGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
@@ -269,7 +262,19 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
-    saveSettings() {
+    async loadSettings() {
+        const savedSettingsValue = await this.storage.get(LEXIBLE_SETTINGS_KEY);
+        if (savedSettingsValue) {
+            const savedSettings = JSON.parse(savedSettingsValue) as LexibleSettings;
+            this.mapSize = savedSettings.mapSize ?? MapSize.Medium;
+            this.startFromTeamArea = savedSettings.startFromTeamArea ?? true;
+        }
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    async saveSettings() {
         const savedSettings: LexibleSettings = {
             mapSize: this.mapSize,
             startFromTeamArea: this.startFromTeamArea
