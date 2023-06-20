@@ -1,9 +1,9 @@
-import { makeObservable, observable } from "mobx"
+import { action, makeObservable, observable } from "mobx"
 import { ClusterFunPlayer, ISessionHelper, 
-    ClusterFunGameProps, ClusterfunHostModel, 
-    ITelemetryLogger, IStorage, ITypeHelper, 
-    HostGameState} from "libs";
-import { StressatoHostRelayEndpoint } from "./stressatoEndpoints";
+    ClusterFunGameProps, 
+    ITelemetryLogger, IStorage, ITypeHelper, HostGameState} from "libs";
+import { ServerHealthInfo } from "libs/messaging/serverCall";
+import { ClusterfunPresenterModel } from "libs/GameModel/ClusterfunPresenterModel";
 
 
 export enum StressatoPlayerStatus {
@@ -37,16 +37,16 @@ const seedString = "_abcdefjhijklmnopqrstuvwxyzABCDEFJHIKJLMNOPQRSTUVWXYZ0123456
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
 // -------------------------------------------------------------------
-export const getStressatoHostTypeHelper = (
+export const getStressatoPresenterTypeHelper = (
     sessionHelper: ISessionHelper, 
     gameProps: ClusterFunGameProps
     ): ITypeHelper =>
  {
      return {
-        rootTypeName: "StressatoHostModel",
+        rootTypeName: "StressatoPresenterModel",
         getTypeName(o: object) {
             switch (o.constructor) {
-                case StressatoHostModel: return "StressatoHostModel";
+                case StressatoPresenterModel: return "StressatoPresenterModel";
                 case StressatoPlayer: return "StressatoPlayer";
             }
             return undefined;
@@ -54,7 +54,7 @@ export const getStressatoHostTypeHelper = (
         constructType(typeName: string):any {
             switch(typeName)
             {
-                case "StressatoHostModel": return new StressatoHostModel( sessionHelper, gameProps.logger, gameProps.storage);
+                case "StressatoPresenterModel": return new StressatoPresenterModel( sessionHelper, gameProps.logger, gameProps.storage);
                 case "StressatoPlayer": return new StressatoPlayer();
                 // TODO: add your custom type handlers here
             }
@@ -62,11 +62,11 @@ export const getStressatoHostTypeHelper = (
         },
         shouldStringify(typeName: string, propertyName: string, object: any):boolean
         {
-            if(object instanceof StressatoHostModel)
+            if(object instanceof StressatoPresenterModel)
             {
                 const doNotSerializeMe = 
                 [
-                    "Name_of_host_property_to_not_serialize",
+                    "Name_of_Presenter_property_to_not_serialize",
                     // TODO:  put names of properties here that should not be part
                     //        of the saved game state  
                 ]
@@ -77,7 +77,7 @@ export const getStressatoHostTypeHelper = (
         },
         reconstitute(typeName: string, propertyName: string, rehydratedObject: any)
         {
-            if(typeName === "StressatoHostModel")
+            if(typeName === "StressatoPresenterModel")
             {
                 // TODO: if there are any properties that need special treatment on 
                 // deserialization, you can override it here.  e.g.:
@@ -92,9 +92,13 @@ export const getStressatoHostTypeHelper = (
 }
 
 // -------------------------------------------------------------------
-// host data and logic
+// Presenter data and logic
 // -------------------------------------------------------------------
-export class StressatoHostModel extends ClusterfunHostModel<StressatoPlayer> {
+export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoPlayer> {
+
+    @observable  private _serverHealth = {} as ServerHealthInfo
+    get serverHealth() {return this._serverHealth}
+    set serverHealth(value) {action(()=>{this._serverHealth = value})()}
     
     // -------------------------------------------------------------------
     // ctor 
@@ -105,11 +109,18 @@ export class StressatoHostModel extends ClusterfunHostModel<StressatoPlayer> {
         storage: IStorage)
     {
         super("Stressato", sessionHelper, logger, storage);
-        
-        this.allowedJoinStates = [HostGameState.Gathering, StressatoGameState.Playing]
-        this.minPlayers = 1;
+
+        setTimeout(this.pingServerHealth,0);
+        setInterval(this.pingServerHealth,5000)
 
         makeObservable(this);
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    pingServerHealth = async() => {
+        this.serverHealth = await this.session.serverCall.amIHealthy();
     }
 
     // -------------------------------------------------------------------
@@ -118,26 +129,10 @@ export class StressatoHostModel extends ClusterfunHostModel<StressatoPlayer> {
     // -------------------------------------------------------------------
     reconstitute() {
         super.reconstitute();
-        this.listenToEndpoint(StressatoHostRelayEndpoint, this.handlePlayerAction);
     }
 
-
-    // -------------------------------------------------------------------
-    //  createFreshPlayerEntry
-    // -------------------------------------------------------------------
-    createFreshPlayerEntry(name: string, id: string): StressatoPlayer
-    {
-        const newPlayer = new StressatoPlayer();
-        newPlayer.playerId = id;
-        newPlayer.name = name;
-
-        return newPlayer;
-    }
-
-    // -------------------------------------------------------------------
-    //  
-    // -------------------------------------------------------------------
-    prepareFreshRound = () => {
+    requestGameStateFromHost(): Promise<void> {
+        return Promise.resolve(); // nothing to request
     }
 
     // -------------------------------------------------------------------
@@ -147,32 +142,4 @@ export class StressatoHostModel extends ClusterfunHostModel<StressatoPlayer> {
         this.gameState = HostGameState.Gathering;
         this.currentRound = 0;
     }
-
-    // -------------------------------------------------------------------
-    //  run a method to check for a state transition
-    // -------------------------------------------------------------------
-    handleTick()
-    {
-
-    }
-
-    //--------------------------------------------------------------------------------------
-    // 
-    //--------------------------------------------------------------------------------------
-    startNextRound(): void {
-        
-    }
-
-    // -------------------------------------------------------------------
-    //  handlePlayerAction
-    // -------------------------------------------------------------------
-    handlePlayerAction = (sender: string, message: { returnSize: number, actionData: string }) => {
-        if(message.returnSize) {
-            return { actionData: seedString.substring(0, message.returnSize)};
-        } else {
-            return undefined;
-        }
-
-    }
-
 }

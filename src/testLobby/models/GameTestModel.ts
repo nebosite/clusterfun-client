@@ -3,8 +3,7 @@ import { LobbyModel, ILobbyDependencies } from "../../lobby/models/LobbyModel";
 import { ITelemetryLoggerFactory, IStorage, IMessageThing, getStorage, GameInstanceProperties, MessagePortMessageThing } from "../../libs";
 import Logger from "js-logger";
 import { GameRole } from "libs/config/GameRole";
-import { IServerCall } from "libs/messaging/serverCall";
-import { ServerHealthInfo } from "games/stressgame/models/HostModel";
+import { IServerCall, ServerHealthInfo } from "libs/messaging/serverCall";
 import * as Comlink from "comlink";
 import { ILocalRoomManager } from "testLobby/workers/ILocalRoomManager";
 

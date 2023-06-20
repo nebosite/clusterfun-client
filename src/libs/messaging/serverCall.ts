@@ -1,4 +1,3 @@
-import { ServerHealthInfo } from "games/stressgame/models/HostModel";
 import { GameInstanceProperties, GameRole } from "libs/config";
 
 export interface IServerCall<TSeed> {
@@ -33,6 +32,42 @@ export interface IServerCall<TSeed> {
      */
     terminateGame(roomId: string, hostSecret: string): PromiseLike<void>;
 }
+
+export interface ServerDatum {
+    count: number
+    sum: number
+}
+
+export interface LabeledServerData {
+    label: string
+    data: ServerDatum
+}
+export interface ServerHealthInfo {
+    version: string
+    uptime: string
+    rooms: {
+        roomCount: number
+        activeRooms: number
+        activeUsers: number
+    },
+    summary: LabeledServerData[],
+    series: {
+        date: number
+        columns: LabeledServerData[]
+    }[]
+    cpuUsage: {
+        user: number
+        system: number
+    },
+    memoryUsage: {
+        rss: number
+        heapTotal: number
+        heapUsed: number
+        external: number
+        arrayBuffers: number
+    }
+}
+
 
 /**
  * A ServerCall that makes its calls to a real origin

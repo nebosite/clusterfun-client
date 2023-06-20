@@ -4,6 +4,7 @@ import {  getStressatoClientTypeHelper } from "../models/ClientModel";
 import React from "react";
 import { ClusterfunGameComponent } from "libs";
 import { ClusterFunGameAndUIProps } from "libs/config/ClusterFunGameProps";
+import { getStressatoPresenterTypeHelper } from "../models/PresenterModel";
 
 const lazyPresenter = React.lazy(() => import(`./Presenter`));
 const lazyClient = React.lazy(() => import(`./Client`));
@@ -21,7 +22,7 @@ export default class StressatoGameComponent extends ClusterfunGameComponent {
         this.init(
             lazyPresenter, 
             lazyClient, 
-            getStressatoHostTypeHelper, 
+            getStressatoPresenterTypeHelper, 
             getStressatoClientTypeHelper)
     }
 }

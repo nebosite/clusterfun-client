@@ -4,16 +4,19 @@ import { observer, inject } from "mobx-react";
 import styles from "./Presenter.module.css"
 import classNames from "classnames";
 import { StressatoVersion } from "../models/GameSettings";
-import { MediaHelper, UIProperties, HostGameState, DevUI, UINormalizer, Row } from "libs";
-import { StressatoHostModel, StressatoGameState } from "../models/HostModel";
+import { MediaHelper, UIProperties, DevUI, UINormalizer, Row } from "libs";
+import { StressatoGameState } from "../models/HostModel";
+import { StressatoPresenterModel } from "../models/PresenterModel";
+import { IStressatoHostWorkerLifecycleController } from "../workers/IHostWorkerLifecycleController";
+import * as Comlink from "comlink";
 
 @inject("appModel") @observer class MonitoringPage 
-    extends React.Component<{appModel?: StressatoHostModel }> {
+    extends React.Component<{appModel?: StressatoPresenterModel }> {
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(props: Readonly<{ appModel?: StressatoHostModel, media: MediaHelper }>) {
+    constructor(props: Readonly<{ appModel?: StressatoPresenterModel, media: MediaHelper }>) {
         super(props);
 
         props.appModel!.onTick.subscribe("animate", (e) => this.animateFrame(e)) 
@@ -71,12 +74,12 @@ import { StressatoHostModel, StressatoGameState } from "../models/HostModel";
 @inject("appModel")
 @observer
 export default class Presenter 
-extends React.Component<{appModel?: StressatoHostModel, uiProperties: UIProperties}> {
+extends React.Component<{appModel?: StressatoPresenterModel, hostController?: Comlink.Remote<IStressatoHostWorkerLifecycleController>, uiProperties: UIProperties}> {
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(props: Readonly<{ appModel?: StressatoHostModel; uiProperties: UIProperties; }>) {
+    constructor(props: Readonly<{ appModel?: StressatoPresenterModel; uiProperties: UIProperties; }>) {
         super(props);
 
         const {appModel} = this.props;
@@ -97,21 +100,18 @@ extends React.Component<{appModel?: StressatoHostModel, uiProperties: UIProperti
     // renderFrame
     // -------------------------------------------------------------------
     private renderFrame() {
-        const {appModel} = this.props;
+        const {appModel, hostController} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>;
         return (
             <div className={classNames(styles.divRow)}>
-                <button className={classNames(styles.button)} 
+                {!!hostController && (<button className={classNames(styles.button)} 
                     style={{marginRight: "30px"}}
-                    onClick={()=>appModel.quitApp()}>
+                    onClick={()=>{
+                        hostController.endGame();
+                        appModel?.quitApp();
+                    }}>
                         Quit
-                </button>                       
-                <button className={classNames(styles.button)} 
-                    disabled={appModel.gameState === HostGameState.Gathering}
-                    style={{marginRight: "30px"}}
-                    onClick={()=>appModel.pauseGame()}>
-                        Pause
-                </button>
+                </button>)}
                 <div className={classNames(styles.roomCode)}>Room Code: {appModel.roomId}</div>
                 <DevUI context={appModel} children={<div></div>} />
                 <div style={{marginLeft: "50px"}}>v{StressatoVersion}</div>
