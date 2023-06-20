@@ -1,8 +1,7 @@
-import { observable } from "mobx"
 import { PLAYTIME_MS } from "./GameSettings";
-import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunHostModel, ITelemetryLogger, IStorage, ITypeHelper, HostGameState, GeneralGameState, Vector2, HostGameEvent, GeneralClientGameState } from "libs";
+import { ISessionHelper, ClusterFunGameProps, ClusterfunHostModel, ITelemetryLogger, IStorage, ITypeHelper, HostGameState, GeneralGameState, Vector2, HostGameEvent, GeneralClientGameState } from "libs";
 import Logger from "js-logger";
-import { TestatoColorChangeActionEndpoint, TestatoMessageActionEndpoint, TestatoOnboardClientEndpoint, TestatoOnboardPresenterEndpoint, TestatoTapActionEndpoint } from "./testatoEndpoints";
+import { TestatoColorChangeActionEndpoint, TestatoMessageActionEndpoint, TestatoOnboardClientEndpoint, TestatoOnboardPresenterEndpoint, TestatoPushPresenterUpdateEndpoint, TestatoTapActionEndpoint } from "./testatoEndpoints";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
 import { TestatoGameState, TestatoPlayer, TestatoPlayerStatus } from "./TestatoPlayer";
 
@@ -63,18 +62,10 @@ export const getTestatoHostTypeHelper = (
      }
 }
 
-// At minimum, update the presenter every 2 seconds
-// NOTE: This is the worst possible update path -
-// come up with more streamlined update paths as available.
-const MAX_PRESENTER_INVALIDATE_INTERVAL = 2 * 1000;
-
-
 // -------------------------------------------------------------------
 // host data and logic
 // -------------------------------------------------------------------
 export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
-
-    private _timeOfLastPresenterInvalidate: number;
 
     // -------------------------------------------------------------------
     // ctor 
@@ -90,8 +81,6 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
         this.allowedJoinStates = [HostGameState.Gathering, TestatoGameState.Playing]
 
         this.minPlayers = 2;
-
-        this._timeOfLastPresenterInvalidate = this.gameTime_ms;
     }
 
     // -------------------------------------------------------------------
@@ -106,10 +95,13 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
         this.listenToEndpoint(TestatoMessageActionEndpoint, this.handleMessageAction);
         this.listenToEndpoint(TestatoTapActionEndpoint, this.handleTapAction);
         this.subscribe(HostGameEvent.PlayerJoined, "host-player-join", () => {
-            this.invalidatePresenters();
+            this.updatePresenters();
         })
         this.subscribe(GeneralClientGameState.Paused, "game paused", () => {
-            this.invalidatePresenters();
+            this.updatePresenters();
+        })
+        this.subscribe(TestatoGameState.Playing, "game started or resumed", () => {
+            this.updatePresenters();
         })
     }
 
@@ -153,11 +145,16 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
                     break;
             }
         }
-        // TODO: This interval technique, in addition to not being the most efficient,
-        // does _not_ tick down while pausing!
-        if ((this.gameTime_ms - this._timeOfLastPresenterInvalidate) > MAX_PRESENTER_INVALIDATE_INTERVAL) {
-            this.invalidatePresenters();
-        }
+    }
+
+    // -------------------------------------------------------------------
+    //  updatePresenters
+    // -------------------------------------------------------------------
+    private updatePresenters() {
+        // Update the presenters by pushing the whole display state.
+        // Note that it is usually better to do gradual updates,
+        // but this works fine for small amounts of data.
+        this.requestAllPresentersAndForget(TestatoPushPresenterUpdateEndpoint, this.generatePresenterState())
     }
 
     // -------------------------------------------------------------------
@@ -165,7 +162,17 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
     // -------------------------------------------------------------------
     private invalidatePresenters() {
         this.requestAllPresentersAndForget(InvalidateStateEndpoint, {})
-        this._timeOfLastPresenterInvalidate = this.gameTime_ms;
+    }
+
+    // -------------------------------------------------------------------
+    //  generatePresenterState
+    // -------------------------------------------------------------------
+    private generatePresenterState() {
+        return {
+            roundNumber: this.currentRound,
+            state: this.gameState,
+            players: this.players.map(p => structuredClone(p))
+        }
     }
     
     // -------------------------------------------------------------------
@@ -219,11 +226,7 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
 
     handleOnboardPresenter = (sender: string, message: unknown): { roundNumber: number, state: string, players: TestatoPlayer[] } => {
         this.telemetryLogger.logEvent("Host", "Onboard Presenter")
-        return {
-            roundNumber: this.currentRound,
-            state: this.gameState,
-            players: this.players.map(p => structuredClone(p))
-        }
+        return this.generatePresenterState();
     }
 
     handleColorChangeAction = (sender: string, message: { colorStyle: string }) => {
@@ -235,7 +238,7 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
         }
         player.colorStyle = message.colorStyle;
         this.saveCheckpoint();
-        this.invalidatePresenters();
+        this.updatePresenters();
     }
 
     handleMessageAction = (sender: string, message: { message: string }) => {
@@ -247,7 +250,7 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
         }
         player.message = message.message;
         this.saveCheckpoint();
-        this.invalidatePresenters();
+        this.updatePresenters();
     }
 
     handleTapAction = (sender: string, message: { point: Vector2 }) => {
@@ -260,7 +263,7 @@ export class TestatoHostModel extends ClusterfunHostModel<TestatoPlayer> {
         player.x = message.point.x;
         player.y = message.point.y;
         this.saveCheckpoint();
-        this.invalidatePresenters();
+        this.updatePresenters();
     }
 
 }

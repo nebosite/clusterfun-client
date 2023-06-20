@@ -1,7 +1,7 @@
 import Logger from "js-logger";
 import { ISessionHelper, ClusterFunGameProps, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper } from "libs";
 import { observable } from "mobx";
-import { TestatoOnboardPresenterEndpoint } from "./testatoEndpoints";
+import { TestatoOnboardPresenterEndpoint, TestatoPushPresenterUpdateEndpoint } from "./testatoEndpoints";
 import { ClusterfunPresenterModel } from "libs/GameModel/ClusterfunPresenterModel";
 import { TestatoGameState, TestatoPlayer } from "./TestatoPlayer";
 
@@ -73,15 +73,20 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     // -------------------------------------------------------------------
     reconstitute() {
         super.reconstitute();
+        this.listenToEndpointFromHost(TestatoPushPresenterUpdateEndpoint, (payload) => this.processGameStateUpdate(payload));
     }
 
     async requestGameStateFromHost(): Promise<void> {
         const response = await this.session.requestHost(TestatoOnboardPresenterEndpoint, {});
-        this.roundNumber = response.roundNumber;
-        this.gameState = response.state;
+        this.processGameStateUpdate(response);
+    }
+
+    private processGameStateUpdate(payload: { roundNumber: number, state: string, players: TestatoPlayer[] }) {
+        this.roundNumber = payload.roundNumber;
+        this.gameState = payload.state;
 
         const playerIdsToRemove = new Set(this.players.map(p => p.playerId));
-        for (const incomingPlayer of response.players) {
+        for (const incomingPlayer of payload.players) {
             const currentPlayer = this.players.find(p => p.playerId === incomingPlayer.playerId);
             if (currentPlayer) {
                 Object.assign(currentPlayer, incomingPlayer);

@@ -16,6 +16,11 @@ export const TestatoOnboardPresenterEndpoint: MessageEndpoint<unknown, { roundNu
     suggestedTotalLifetimeMs: 30000
 }
 
+export const TestatoPushPresenterUpdateEndpoint: MessageEndpoint<{ roundNumber: number, state: string, players: TestatoPlayer[] }, unknown> = {
+    route: "/games/testato/push/presenter-update",
+    responseRequired: false,
+}
+
 export const TestatoColorChangeActionEndpoint: MessageEndpoint<{ colorStyle: string }, unknown> = {
     route: "/games/testato/actions/color-change",
     responseRequired: false
