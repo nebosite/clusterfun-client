@@ -30,10 +30,6 @@ export enum StressatoGameEvent {
     ResponseReceived = "ResponseReceived",
 }
 
-// TODO: This should be a continuously generated random string -
-// this specific string might have a particular compression pattern
-const seedString = "_abcdefjhijklmnopqrstuvwxyzABCDEFJHIKJLMNOPQRSTUVWXYZ012345678909876543210abcdefjhijklmnopqrstuvwxyz.".repeat(100)
-
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
 // -------------------------------------------------------------------

@@ -97,24 +97,6 @@ export class TestatoClientModel extends ClusterfunClientModel  {
                 break;
         }
     }
-    
-    // -------------------------------------------------------------------
-    //  
-    // -------------------------------------------------------------------
-    assignClientStateFromServerState(serverState: string) {
-        // When the server sends and state update message, ensure the client puts itself in the right state.
-        // This is neeeded because sometimes the client can miss messages from the server
-        switch(serverState) {
-            // case RetroSpectroGameState.Discussing: this.gameState = RetroSpectroClientState.Discussing; break;
-            // case RetroSpectroGameState.Sorting: this.gameState = RetroSpectroClientState.Sorting; break;
-            // case RetroSpectroGameState.WaitingForAnswers: this.gameState = RetroSpectroClientState.SubmittingAnswers; break;
-            case TestatoGameState.Playing: this.gameState = TestatoGameState.Playing; break; 
-            default:
-                Logger.debug(`Server Updated State to: ${serverState}`) 
-                this.gameState = GeneralClientGameState.WaitingToStart; break;
-        }
-
-    }
 
     // -------------------------------------------------------------------
     // Handle game logic on a frame-by-frame basis 

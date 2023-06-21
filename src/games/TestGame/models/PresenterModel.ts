@@ -105,20 +105,4 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
             }
         }
     }
-    
-    // -------------------------------------------------------------------
-    //  
-    // -------------------------------------------------------------------
-    assignClientStateFromServerState(serverState: string) {
-        // When the server sends and state update message, ensure the client puts itself in the right state.
-        // This is neeeded because sometimes the client can miss messages from the server
-        switch(serverState) {
-            case TestatoGameState.Playing: this.gameState = TestatoGameState.Playing; break; 
-            case GeneralClientGameState.Paused: this.gameState = GeneralClientGameState.Paused; break;
-            default:
-                Logger.debug(`Server Updated State to: ${serverState}`) 
-                this.gameState = GeneralClientGameState.WaitingToStart; break;
-        }
-
-    }
 }

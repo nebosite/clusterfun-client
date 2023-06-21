@@ -21,6 +21,8 @@ class LexibleHostGameInitializer extends ClusterfunHostGameInitializer<
     protected getDerviedHostTypeHelper = getLexibleHostTypeHelper;
     protected createLifecycleController(appModel: LexibleHostModel): ILexibleHostWorkerLifecycleController {
         return {
+            setStartFromTeamArea: (startFromTeamArea) => appModel.startFromTeamArea = startFromTeamArea,
+            setMapSize: (mapSize) => appModel.mapSize = mapSize,
             startGame: () => {
                 console.log("Game started");
                 appModel.startGame()
@@ -30,6 +32,7 @@ class LexibleHostGameInitializer extends ClusterfunHostGameInitializer<
             endGame: () => appModel.quitApp(),
             startNextRound: () => appModel.startNextRound(),
             doneGathering: () => appModel.doneGathering(),
+            dev_handleRoundWin: (team) => appModel.handleGameWin(team),
             playAgain: (resetPlayerList: boolean) => appModel.playAgain(resetPlayerList),
         }
     }

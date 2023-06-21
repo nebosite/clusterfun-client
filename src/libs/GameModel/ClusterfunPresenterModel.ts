@@ -3,7 +3,7 @@ import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage, ClusterFunPlay
 import { action, makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 import Logger from "js-logger";
-import { GameOverEndpoint, InvalidateStateEndpoint, JoinClientEndpoint, JoinPresenterEndpoint, PauseGameEndpoint, PingEndpoint, QuitClientEndpoint, ResumeGameEndpoint, TerminateGameEndpoint } from "libs/messaging/basicEndpoints";
+import { GameOverEndpoint, InvalidateStateEndpoint, JoinPresenterEndpoint, PauseGameEndpoint, PingEndpoint, QuitClientEndpoint, ResumeGameEndpoint, TerminateGameEndpoint } from "libs/messaging/basicEndpoints";
 
 export enum GeneralClientGameState {
     WaitingToStart = "WaitingToStart",

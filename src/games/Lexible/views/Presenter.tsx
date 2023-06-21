@@ -4,24 +4,27 @@ import { observer, inject } from "mobx-react";
 import styles from './Presenter.module.css';
 import classNames from "classnames";
 import LexibleAssets from "../assets/Assets";
-import { LexibleVersion } from "../models/GameSettings";
+import { LexibleVersion, LEXIBLE_MIN_PLAYERS } from "../models/GameSettings";
 import { LetterBlockModel } from "../models/LetterBlockModel";
 import LetterBlock from "./LetterBlock";
-import { LexibleHostModel, MapSize, LexibleGameEvent, LexiblePlayer, LexibleGameState } from "../models/HostModel";
 import { Row, MediaHelper, UIProperties, HostGameEvent, HostGameState, GeneralGameState, UINormalizer, DevUI } from "libs";
 import { action, makeAutoObservable } from "mobx";
 import SamJs from "sam-js";
+import { LexiblePresenterModel } from "../models/PresenterModel";
+import { LexibleGameEvent, LexibleGameState, LexiblePlayer, MapSize } from "../models/lexibleDataTypes";
+import { ILexibleHostWorkerLifecycleController } from "../workers/IHostWorkerLifecycleController";
+import * as Comlink from "comlink";
 
 @inject("appModel") @observer
-class GameSettings  extends React.Component<{appModel?: LexibleHostModel}> {
+class GameSettings  extends React.Component<{appModel?: LexiblePresenterModel, hostController?: Comlink.Remote<ILexibleHostWorkerLifecycleController>}> {
     myState = {
-        showSettings: false
+        showSettings: true
     }
 
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
-    constructor(props: {appModel?: LexibleHostModel}) {
+    constructor(props: {appModel?: LexiblePresenterModel, hostController?: Comlink.Remote<ILexibleHostWorkerLifecycleController>}) {
         super(props);
 
         makeAutoObservable(this.myState);
@@ -31,11 +34,13 @@ class GameSettings  extends React.Component<{appModel?: LexibleHostModel}> {
     // 
     //--------------------------------------------------------------------------------------
     renderSettingsItems() {
-        const {appModel} = this.props;
+        const {appModel, hostController} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>
 
         const handleStartFromTeamAreaChange = () => {
-            appModel.startFromTeamArea = !appModel.startFromTeamArea
+            const newValue = !appModel.startFromTeamArea;
+            hostController!.setStartFromTeamArea(newValue);
+            appModel.startFromTeamArea = newValue;
         }
         
         return (
@@ -44,6 +49,7 @@ class GameSettings  extends React.Component<{appModel?: LexibleHostModel}> {
                     <input
                         className={styles.settingsCheckbox}
                         type="checkbox"
+                        disabled={!hostController}
                         checked={appModel.startFromTeamArea}
                         onChange={handleStartFromTeamAreaChange}
                     />
@@ -54,22 +60,25 @@ class GameSettings  extends React.Component<{appModel?: LexibleHostModel}> {
                     <input
                         className={styles.settingsCheckbox}
                         type="checkbox"
+                        disabled={!hostController}
                         checked={appModel.mapSize === MapSize.Small}
-                        onChange={()=>appModel.mapSize = MapSize.Small}
+                        onChange={()=>{hostController!.setMapSize(MapSize.Small); appModel.mapSize = MapSize.Small}}
                     />
                     <div>small</div>
                     <input
                         className={styles.settingsCheckbox}
                         type="checkbox"
+                        disabled={!hostController}
                         checked={appModel.mapSize === MapSize.Medium}
-                        onChange={()=>appModel.mapSize = MapSize.Medium}
+                        onChange={()=>{hostController!.setMapSize(MapSize.Medium); appModel.mapSize = MapSize.Medium}}
                     />
                     <div>medium</div>
                     <input
                         className={styles.settingsCheckbox}
                         type="checkbox"
+                        disabled={!hostController}
                         checked={appModel.mapSize === MapSize.Large}
-                        onChange={()=>appModel.mapSize = MapSize.Large}
+                        onChange={()=>{hostController!.setMapSize(MapSize.Large); appModel.mapSize = MapSize.Medium}}
                     />
                     <div>large</div>
                 </Row>
@@ -101,12 +110,12 @@ class GameSettings  extends React.Component<{appModel?: LexibleHostModel}> {
 
 @inject("appModel") 
 @observer
-class GatheringPlayersPage  extends React.Component<{appModel?: LexibleHostModel}> {
+class GatheringPlayersPage  extends React.Component<{appModel?: LexiblePresenterModel, hostController?: Comlink.Remote<ILexibleHostWorkerLifecycleController>}> {
     // -------------------------------------------------------------------
     // render
     // -------------------------------------------------------------------
     render() {
-        const {appModel} = this.props;
+        const {appModel, hostController} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>
 
         return (
@@ -116,15 +125,19 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexibleHostModel
                     <p><b>To Join:</b> go to {window.location.origin}
                     &nbsp;&nbsp;&nbsp;(room code: <b>{appModel.roomId}</b>)</p>
                 </div>
+
+                {(() => {
+                    if (appModel.players.length < LEXIBLE_MIN_PLAYERS) {
+                        return (<div className={styles.waitingText}>{`Waiting for at least ${LEXIBLE_MIN_PLAYERS} players to join ...`}</div>)
+                    } else if (!hostController) {
+                        return (<div className={styles.waitingText}>{`Waiting for host to start the game ...`}</div>)
+                    } else {
+                        return (<button className={styles.startButton} onClick={() => hostController!.doneGathering()}>Click here to start!</button>)
+                    }
+                })()}
                 
-                {appModel.players.length < appModel.minPlayers
-                    ? <div className={styles.waitingText}>{`Waiting for at least ${appModel.minPlayers} players to join ...`}</div>
-                    : <button className={styles.startButton} onClick={() => appModel.doneGathering()}> 
-                        Click here to start! 
-                    </button>
-                }          
                 <div className={styles.settingsBox}>
-                    <GameSettings/> 
+                    <GameSettings hostController={hostController}/> 
                 </div>
             </div>
         );
@@ -134,7 +147,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexibleHostModel
 
 
 @inject("appModel") @observer class InstructionsPage 
-    extends React.Component<{appModel?: LexibleHostModel}> {
+    extends React.Component<{appModel?: LexiblePresenterModel, hostController?: Comlink.Remote<ILexibleHostWorkerLifecycleController>}> {
 
     myState = {
         instructionsPage: 0
@@ -143,7 +156,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexibleHostModel
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
-    constructor(props: {appModel?: LexibleHostModel}) {
+    constructor(props: {appModel?: LexiblePresenterModel, hostController?: Comlink.Remote<ILexibleHostWorkerLifecycleController>}) {
         super(props);
 
         makeAutoObservable(this.myState);
@@ -153,7 +166,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexibleHostModel
     // render
     // -------------------------------------------------------------------
     render() {
-        const {appModel} = this.props;
+        const {appModel, hostController} = this.props;
         const {instructionsPage} = this.myState;
         if (!appModel) return <div>NO APP MODEL</div>
 
@@ -205,7 +218,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexibleHostModel
                         ? <button style={buttonStyle} onClick={() => turnPage(-1)}>◀</button>
                         : <div style={buttonStyle}></div>
                 }                
-                <button style={{margin: "40px"}} onClick={() => appModel.startGame()}>Ready!</button>
+                {!!hostController && (<button style={{margin: "40px"}} onClick={() => hostController!.startGame()}>Ready!</button>)}
                 {
                     instructionsPage < 3
                         ? <button style={buttonStyle} onClick={() => turnPage(1)}>▶</button>
@@ -221,20 +234,20 @@ class GatheringPlayersPage  extends React.Component<{appModel?: LexibleHostModel
 
 
 @inject("appModel") @observer
-class PausedGamePage  extends React.Component<{appModel?: LexibleHostModel}> {
+class PausedGamePage  extends React.Component<{appModel?: LexiblePresenterModel, hostController?: Comlink.Remote<ILexibleHostWorkerLifecycleController>}> {
 
     // -------------------------------------------------------------------
     // resumeGame
     // -------------------------------------------------------------------
     private resumeGame = () => {
-        this.props.appModel?.resumeGame();
+        this.props.hostController!.resumeGame();
     }
  
     // -------------------------------------------------------------------
     // render
     // -------------------------------------------------------------------
     render() {
-        const {appModel} = this.props;
+        const {appModel, hostController} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>
         return (
             <div>
@@ -243,12 +256,14 @@ class PausedGamePage  extends React.Component<{appModel?: LexibleHostModel}> {
                 <ul>
                     {appModel.players.map(player => (<li key={player.playerId}>{player.name}</li>))}
                 </ul>
-                <button
-                    className={styles.button}
-                    disabled={appModel.players.length < appModel.minPlayers} 
-                    onClick={() =>this.resumeGame()}>
-                        Resume Game
-                </button>
+                {!!hostController && (
+                    <button
+                        className={styles.button}
+                        disabled={appModel.players.length < LEXIBLE_MIN_PLAYERS} 
+                        onClick={() =>this.resumeGame()}>
+                            Resume Game
+                    </button>
+                )}
             </div>
         );
     }
@@ -267,19 +282,19 @@ const teamBTaunts = [
 ]
 
 @inject("appModel") @observer class PlayingPage 
-    extends React.Component<{appModel?: LexibleHostModel, media: MediaHelper }> {
+    extends React.Component<{appModel?: LexiblePresenterModel, hostController?: Comlink.Remote<ILexibleHostWorkerLifecycleController>, media: MediaHelper }> {
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(props: Readonly<{ appModel?: LexibleHostModel, media: MediaHelper }>) {
+    constructor(props: Readonly<{ appModel?: LexiblePresenterModel, media: MediaHelper }>) {
         super(props);
 
         const teamAVoice = new SamJs({ speed: 72, pitch: 64, throat: 128, mouth: 128 }); // default SAM/V1
         const teamBVoice = new SamJs({ speed: 72, pitch: 48, throat: 128, mouth: 128 }); // higher pitched SAM
         const voiceFromTeam = (team: string) => team === "A" ? teamAVoice : teamBVoice;
-        props.appModel!.subscribe(LexibleGameEvent.WordAccepted, "say accepted word", (word: string, player: LexiblePlayer) => {
-            voiceFromTeam(player.teamName).speak(word);
+        props.appModel!.subscribe(LexibleGameEvent.WordAccepted, "say accepted word", (word: string, team: string) => {
+            voiceFromTeam(team).speak(word);
         })
         props.appModel!.subscribe(LexibleGameEvent.TeamWon,  "Taunt from the winners", (team: string)=> {
             const taunts = team === "A" ? teamATaunts : teamBTaunts;
@@ -304,10 +319,10 @@ const teamBTaunts = [
     // renderEndOfRoundOverlay
     // -------------------------------------------------------------------
     renderEndOfRoundOverlay() {
-        const {appModel}= this.props;
+        const {appModel, hostController}= this.props;
         if (!appModel) return <div>NO APP MODEL</div>
 
-        const startNextRoundClick = () => appModel.startNextRound();
+        const startNextRoundClick = () => hostController?.startNextRound();
 
         return <div className={styles.overlay} style={{fontSize: "200%"}}>
             <div className={styles.endOfRoundText}>TEAM {appModel.roundWinningTeam} is the winner!</div>
@@ -343,12 +358,12 @@ const teamBTaunts = [
 }
 
 @inject("appModel") @observer class EndOfRoundPage 
-    extends React.Component<{appModel?: LexibleHostModel}> {
+    extends React.Component<{appModel?: LexiblePresenterModel, hostController?: Comlink.Remote<ILexibleHostWorkerLifecycleController>}> {
     // -------------------------------------------------------------------
     // render
     // -------------------------------------------------------------------
     render() {
-        const {appModel} = this.props;
+        const {appModel, hostController} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>
 
         return (
@@ -360,7 +375,7 @@ const teamBTaunts = [
                 }</div>
                 <div>Longest word: {appModel.longestWord.value} ({appModel.longestWord.playerName}) </div>
                 <div>Most Captures: {appModel.mostCaptures.value} ({appModel.mostCaptures.playerName}) </div>
-                <button onClick={() => appModel.playAgain(false)}>Play again, same players</button> 
+                {!!hostController && (<button onClick={() => hostController!.playAgain(false)}>Play again, same players</button>)}
             </div>
         );
     }
@@ -372,13 +387,13 @@ const teamBTaunts = [
 @inject("appModel")
 @observer
 export default class Presenter 
-extends React.Component<{appModel?: LexibleHostModel, uiProperties: UIProperties}> {
+extends React.Component<{appModel?: LexiblePresenterModel, hostController?: Comlink.Remote<ILexibleHostWorkerLifecycleController>, uiProperties: UIProperties}> {
     media: MediaHelper;
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(props: Readonly<{ appModel?: LexibleHostModel; uiProperties: UIProperties; }>) {
+    constructor(props: Readonly<{ appModel?: LexiblePresenterModel; hostController?: Comlink.Remote<ILexibleHostWorkerLifecycleController>; uiProperties: UIProperties; }>) {
         super(props);
 
         const {appModel} = this.props;
@@ -411,7 +426,7 @@ extends React.Component<{appModel?: LexibleHostModel, uiProperties: UIProperties
     // renderPlayArea
     // -------------------------------------------------------------------
     private renderPlayArea() {
-        const {appModel} = this.props;
+        const {appModel, hostController} = this.props;
         if(!appModel) {
             return <div>NO APP MODEL</div>
         }
@@ -419,16 +434,16 @@ extends React.Component<{appModel?: LexibleHostModel, uiProperties: UIProperties
         switch(appModel.gameState)
         {
             case HostGameState.Gathering:
-                return <GatheringPlayersPage />
+                return <GatheringPlayersPage hostController={hostController} />
             case GeneralGameState.Instructions:
-                return <InstructionsPage />
+                return <InstructionsPage hostController={hostController} />
             case LexibleGameState.EndOfRound:
             case GeneralGameState.Playing:
-                return <PlayingPage media={this.media} />
+                return <PlayingPage hostController={hostController} media={this.media} />
             case GeneralGameState.GameOver:
-                return <EndOfRoundPage />
+                return <EndOfRoundPage hostController={hostController} />
             case GeneralGameState.Paused:
-                return <PausedGamePage />
+                return <PausedGamePage hostController={hostController} />
             default:
                 return <div>Whoops!  No display for this state: {appModel.gameState}</div>
         }
@@ -438,12 +453,15 @@ extends React.Component<{appModel?: LexibleHostModel, uiProperties: UIProperties
     // renderFrame
     // -------------------------------------------------------------------
     private renderFrame() {
-        const {appModel} = this.props;
+        const {appModel, hostController} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>
         return (
             <div className={classNames(styles.divRow)}>
                 <button className={classNames(styles.quitButton)} 
-                    onClick={()=> appModel.quitApp()}>X</button>
+                    onClick={()=> {
+                        hostController?.endGame();
+                        appModel.quitApp()
+                    }}>X</button>
                 <div className={classNames(styles.roomCode)}>
                     <div>Room Code:</div>
                     <div style={{fontSize: "180%", fontWeight: 800}}>{appModel.roomId}</div>
@@ -491,10 +509,11 @@ extends React.Component<{appModel?: LexibleHostModel, uiProperties: UIProperties
                 virtualHeight={1080}
                 virtualWidth={1920}>
                     {this.renderFrame()}
-                    <DevUI style={{position: "absolute", left: "50%", bottom: "0px", fontSize: "50%"}} context={appModel} >
-                        <button onClick={()=>appModel.handleGameWin("A")}>Win: A</button>
-                        <button onClick={()=>appModel.handleGameWin("B")}>Win: B</button>
-                    </DevUI>
+                    {/* TODO: The DevUI control needs to be written in terms of a Host Controller instead of an AppModel */}
+                    {/* <DevUI style={{position: "absolute", left: "50%", bottom: "0px", fontSize: "50%"}} context={appModel} >
+                        <button onClick={()=>hostController?.handleGameWin("A")}>Win: A</button>
+                        <button onClick={()=>hostController?.handleGameWin("B")}>Win: B</button>
+                    </DevUI> */}
                     <button className={styles.debugButton} onClick={debugClick}/>
                     {
                         appModel.showDebugInfo

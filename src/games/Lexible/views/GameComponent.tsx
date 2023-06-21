@@ -1,9 +1,9 @@
 // App Navigation handled here
-import {  getLexibleHostTypeHelper } from "../models/HostModel";
 import {  getLexibleClientTypeHelper } from "../models/ClientModel";
 import React from "react";
 import { ClusterfunGameComponent } from "libs";
 import { ClusterFunGameAndUIProps } from "libs/config/ClusterFunGameProps";
+import { getLexiblePresenterTypeHelper } from "../models/PresenterModel";
 
 const lazyPresenter = React.lazy(() => import("./Presenter"));
 const lazyClient = React.lazy(() => import("./Client"))
@@ -21,7 +21,7 @@ export default class LexibleGameComponent extends ClusterfunGameComponent {
         this.init(
             lazyPresenter, 
             lazyClient, 
-            getLexibleHostTypeHelper, 
+            getLexiblePresenterTypeHelper, 
             getLexibleClientTypeHelper)
     }
 }

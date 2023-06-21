@@ -1,5 +1,4 @@
 // App Navigation handled here
-import {  getStressatoHostTypeHelper } from "../models/HostModel";
 import {  getStressatoClientTypeHelper } from "../models/ClientModel";
 import React from "react";
 import { ClusterfunGameComponent } from "libs";

@@ -1,14 +1,14 @@
 import { action, makeObservable, observable } from "mobx"
 
-import { PLAYTIME_MS } from "./GameSettings";
+import { LEXIBLE_MIN_PLAYERS, PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
-import { ClusterFunPlayer, ISessionHelper, Vector2, ClusterfunHostModel, ITelemetryLogger, IStorage, GeneralGameState, HostGameEvent, HostGameState, ITypeHelper } from "libs";
+import { ISessionHelper, Vector2, ClusterfunHostModel, ITelemetryLogger, IStorage, GeneralGameState, HostGameEvent, HostGameState, ITypeHelper } from "libs";
 import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
 import { LetterChain, LexibleBoardUpdateEndpoint, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, 
-    LexibleOnboardClientMessage, LexibleRecentlyTouchedLettersMessage, LexibleReportTouchLetterEndpoint, 
+    LexibleOnboardClientMessage, LexibleOnboardPresenterEndpoint, LexibleOnboardPresenterMessage, LexiblePushFullPresenterUpdateEndpoint, LexibleRecentlyTouchedLettersMessage, LexibleReportTouchLetterEndpoint, 
     LexibleRequestWordHintsEndpoint, LexibleServerRecentlyTouchedLettersEndpoint, LexibleSubmitWordEndpoint, 
     LexibleSwitchTeamEndpoint, 
     LexibleSwitchTeamRequest, 
@@ -17,56 +17,10 @@ import { LetterChain, LexibleBoardUpdateEndpoint, LexibleEndRoundEndpoint, Lexib
     LexibleWordSubmissionRequest, LexibleWordSubmissionResponse, PlayBoard } from "./lexibleEndpoints";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
 import { ClusterFunGameProps } from "libs/config/ClusterFunGameProps";
+import { LexiblePlayer, MapSize, LexiblePlayerStatus, LexibleGameState, LexibleGameEvent, LexibleSettings } from "./lexibleDataTypes";
 
 const LEXIBLE_SETTINGS_KEY = "lexible_settings";
 const SEND_RECENT_LETTERS_INTERVAL_MS = 200;
-
-export enum LexiblePlayerStatus {
-    Unknown = "Unknown",
-    WaitingForStart = "WaitingForStart",
-}
-
-export class LexiblePlayer extends ClusterFunPlayer {
-    @observable totalScore = 0;
-    @observable status = LexiblePlayerStatus.Unknown;
-    @observable message = "";
-    @observable colorStyle= "#ffffff";
-    @observable x = 0;
-    @observable y = 0;
-    @observable teamName = "X";
-    @observable longestWord = "";
-    @observable captures = 0;
-}
-
-// -------------------------------------------------------------------
-// The Game state  
-// -------------------------------------------------------------------
-export enum LexibleGameState {
-    EndOfRound = "EndOfRound",
-}
-
-// -------------------------------------------------------------------
-// Game events
-// -------------------------------------------------------------------
-export enum LexibleGameEvent {
-    ResponseReceived = "ResponseReceived",
-    WordAccepted = "WordAccepted",
-    TeamWon = "TeamWon"
-}
-
-//--------------------------------------------------------------------------------------
-// 
-//--------------------------------------------------------------------------------------
-export enum MapSize {
-    Small = "Small",
-    Medium = "Medium", 
-    Large = "Large"
-}
-
-interface LexibleSettings {
-    mapSize: MapSize,
-    startFromTeamArea: boolean
-}
 
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
@@ -140,6 +94,7 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
     set startFromTeamArea(value) {action(()=>{
         this._startFromTeamArea = value;
         this.saveSettings();
+        this.updatePresenters();
     })()}
     
     @observable  private _mapSize = MapSize.Medium;
@@ -147,6 +102,7 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
     set mapSize(value) {action(()=>{
         this._mapSize = value;
         this.saveSettings();
+        this.updatePresenters();
     })()}
 
     get gameTimeMinutes() {
@@ -230,7 +186,7 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
 
         this.allowedJoinStates.push(GeneralGameState.Playing, GeneralGameState.Paused, GeneralGameState.Instructions)
         
-        this.minPlayers = 2;
+        this.minPlayers = LEXIBLE_MIN_PLAYERS;
 
         this.wordTree = WordTree.create([]);
 
@@ -247,6 +203,7 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
         this.populateWordSet();
         this.subscribe(HostGameEvent.PlayerJoined, this.name, this.handlePlayerJoin)
         this.listenToEndpoint(LexibleOnboardClientEndpoint, this.handleOnboardClient);
+        this.listenToEndpoint(LexibleOnboardPresenterEndpoint, this.handleOnboardPresenter);
         this.listenToEndpoint(LexibleReportTouchLetterEndpoint, this.handleTouchLetterMessage);
         this.listenToEndpoint(LexibleRequestWordHintsEndpoint, this.handleWordHintMessage);
         this.listenToEndpoint(LexibleSubmitWordEndpoint, this.handleSubmitWordMessage);
@@ -291,15 +248,9 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
         const badWordsPromise = import("../assets/words/badwords");
 
         const { wordList } = await wordListPromise;
-        let lastAwaitTime = performance.now();
         const words = wordList.split('\n')
         this.wordTree = new WordTree("", undefined);
         for (const word of words) {
-            if (performance.now() - lastAwaitTime > 10) {
-                await this.waitForRealTime(0);
-                if (this.isShutdown) return;
-                lastAwaitTime = performance.now();
-            }
             this.wordTree.add(word.trim());
             this.wordSet.add(word.trim());
         }
@@ -308,11 +259,6 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
         const { badWordList } = await badWordsPromise;
         const badWords = badWordList.split('\n');
         for (const badWord of badWords) {
-            if (performance.now() - lastAwaitTime > 5) {
-                await this.waitForRealTime(0);
-                if (this.isShutdown) return;
-                lastAwaitTime = performance.now();
-            }
             this.badWords.add(badWord.trim());
         }
         Logger.info(`Loaded ${this.badWords.size} censored words`)
@@ -335,6 +281,7 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
                 player.teamName = "AB"[Date.now() % 2]
             }
         }
+        this.updatePresenters();
 
         Logger.debug(`Joined game state: ${this.gameState}`)
     }
@@ -438,8 +385,25 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
                 this.recentlyTouchedLetters.clear();
                 const message: LexibleRecentlyTouchedLettersMessage = { letterCoordinates }
                 this.requestAllClientsAndForget(LexibleServerRecentlyTouchedLettersEndpoint, () => message);
+                // TODO: Have presenters take the recently touched letters endpoint
             }
         }
+    }
+
+    // -------------------------------------------------------------------
+    //  updatePresenters
+    // -------------------------------------------------------------------
+    private updatePresenters() {
+        // Update the presenters by pushing the whole display state.
+        // TODO: Do more gradual updates in order to prevent sending the board every time
+        this.requestAllPresentersAndForget(LexiblePushFullPresenterUpdateEndpoint, this.generatePresenterState())
+    }
+
+    // -------------------------------------------------------------------
+    //  invalidatePresenters
+    // -------------------------------------------------------------------
+    private invalidatePresenters() {
+        this.requestAllPresentersAndForget(InvalidateStateEndpoint, {})
     }
 
     // -------------------------------------------------------------------
@@ -466,6 +430,7 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
     //--------------------------------------------------------------------------------------
     doneGathering(){
         this.gameState = GeneralGameState.Instructions;
+        this.updatePresenters();
     }
 
     // -------------------------------------------------------------------
@@ -489,9 +454,11 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
         if(this.currentRound > this.totalRounds) {
             this.gameState = GeneralGameState.GameOver;
             this.requestAllClients(GameOverEndpoint, (p,ie) => ({}))
+            this.updatePresenters();
         }    
         else {
             this.requestAllClientsAndForget(InvalidateStateEndpoint, (p, ie) => ({}));
+            this.updatePresenters();
         }
         this.saveCheckpoint();
     }
@@ -600,6 +567,7 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
         this.requestAllClientsAndForget(LexibleEndRoundEndpoint, (p, ie) => {
             return { roundNumber: this.currentRound, winningTeam: team }
         })
+        this.updatePresenters();
     }
     
     // -------------------------------------------------------------------
@@ -629,14 +597,15 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
 
         if(word.length > player.longestWord.length) player.longestWord = word;
 
-        this.requestAllClientsAndForget(LexibleBoardUpdateEndpoint, (p, isExited) => {
-            return {
-                letters: placedLetters,
-                score: word.length,
-                scoringPlayerId: player.playerId,
-                scoringTeam: player.teamName
-            }
-        });
+        const boardUpdateMessage = {
+            letters: placedLetters,
+            word,
+            score: word.length,
+            scoringPlayerId: player.playerId,
+            scoringTeam: player.teamName
+        }
+        this.requestAllClientsAndForget(LexibleBoardUpdateEndpoint, (p, isExited) => boardUpdateMessage);
+        this.requestAllPresentersAndForget(LexibleBoardUpdateEndpoint, boardUpdateMessage);
 
         this.invokeEvent(LexibleGameEvent.WordAccepted, word.toLowerCase(), player)
         if (player.teamName === "A" || player.teamName === "B") {
@@ -665,6 +634,32 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
             settings: {startFromTeamArea: this.startFromTeamArea}
         }
         this.telemetryLogger.logEvent("Host", "Onboard Client")
+        return payload;
+    }
+
+    handleOnboardPresenter = (sender: string, message: unknown): LexibleOnboardPresenterMessage => {
+        this.telemetryLogger.logEvent("Host", "Onboard Presenter")
+        return this.generatePresenterState();
+    }
+
+    private generatePresenterState() {
+        const playBoard:PlayBoard = {
+            gridHeight: this.theGrid.height,
+            gridWidth: this.theGrid.width,
+            gridData: this.theGrid.serialize()
+        }
+        const payload: LexibleOnboardPresenterMessage = {
+            roundNumber: this.currentRound,
+            gameState: this.gameState,
+            playBoard,
+            players: this.players.map(p => structuredClone(p)),
+            settings: {
+                startFromTeamArea: this.startFromTeamArea,
+                mapSize: this.mapSize
+            },
+            roundWinningTeam: this.roundWinningTeam,
+            teamPoints: Array.from(this._teamPoints) as [number, number]
+        }
         return payload;
     }
 
@@ -746,6 +741,7 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
             && TeamA.length > 1) {
                 player.teamName = request.desiredTeam
         }
+        this.updatePresenters();
 
         return {currentTeam: player.teamName}
     }

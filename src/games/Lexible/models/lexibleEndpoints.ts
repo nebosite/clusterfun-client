@@ -1,5 +1,6 @@
 import MessageEndpoint from "libs/messaging/MessageEndpoint";
 import { Vector2 } from "libs";
+import { LexiblePlayer, MapSize } from "./lexibleDataTypes";
 
 
 export type LetterChain = {letter: string, coordinates: Vector2}[]
@@ -29,6 +30,38 @@ export const LexibleOnboardClientEndpoint: MessageEndpoint<unknown, LexibleOnboa
     suggestedRetryIntervalMs: 10000,
     suggestedTotalLifetimeMs: 60000
 }
+
+// ------------------------------------------------------------------------------------------
+// Onboard Presenter
+// ------------------------------------------------------------------------------------------
+
+export interface LexibleOnboardPresenterMessage {
+    roundNumber: number;
+    gameState: string;
+    playBoard: PlayBoard;
+    players: LexiblePlayer[];
+    settings: { startFromTeamArea: boolean, mapSize: MapSize };
+    roundWinningTeam: string;
+    teamPoints: [number, number];
+}
+
+export const LexibleOnboardPresenterEndpoint: MessageEndpoint<unknown, LexibleOnboardPresenterMessage> = {
+    route: "/games/lexible/lifecycle/onboard-presenter",
+    responseRequired: true,
+    suggestedRetryIntervalMs: 10000,
+    suggestedTotalLifetimeMs: 60000
+}
+
+// ------------------------------------------------------------------------------------------
+// Presenter Updates
+// ------------------------------------------------------------------------------------------
+
+export const LexiblePushFullPresenterUpdateEndpoint: MessageEndpoint<LexibleOnboardPresenterMessage, unknown> = {
+    route: "/games/lexible/presenter/full-update",
+    responseRequired: false,
+}
+
+// TODO: Add more granular updates to reduce churn
 
 //--------------------------------------------------------------------------------------
 // Switch Teams
@@ -106,7 +139,8 @@ export const LexibleRequestWordHintsEndpoint: MessageEndpoint<LexibleWordHintReq
 //--------------------------------------------------------------------------------------
 export interface LexibleBoardUpdateNotification
 {
-    letters: LetterChain
+    letters: LetterChain,
+    word: string,
     scoringPlayerId: string,
     scoringTeam: string,
     score: number
