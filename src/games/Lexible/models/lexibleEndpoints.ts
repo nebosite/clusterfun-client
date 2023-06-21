@@ -35,14 +35,8 @@ export const LexibleOnboardClientEndpoint: MessageEndpoint<unknown, LexibleOnboa
 // Onboard Presenter
 // ------------------------------------------------------------------------------------------
 
-export interface LexibleOnboardPresenterMessage {
-    roundNumber: number;
-    gameState: string;
+export interface LexibleOnboardPresenterMessage extends LexiblePresenterPushUpdateNotification {
     playBoard: PlayBoard;
-    players: LexiblePlayer[];
-    settings: { startFromTeamArea: boolean, mapSize: MapSize };
-    roundWinningTeam: string;
-    teamPoints: [number, number];
 }
 
 export const LexibleOnboardPresenterEndpoint: MessageEndpoint<unknown, LexibleOnboardPresenterMessage> = {
@@ -56,7 +50,16 @@ export const LexibleOnboardPresenterEndpoint: MessageEndpoint<unknown, LexibleOn
 // Presenter Updates
 // ------------------------------------------------------------------------------------------
 
-export const LexiblePushFullPresenterUpdateEndpoint: MessageEndpoint<LexibleOnboardPresenterMessage, unknown> = {
+export interface LexiblePresenterPushUpdateNotification {
+    roundNumber: number;
+    gameState: string;
+    players: LexiblePlayer[];
+    settings: { startFromTeamArea: boolean, mapSize: MapSize };
+    roundWinningTeam: string;
+    teamPoints: [number, number];
+}
+
+export const LexiblePushFullPresenterUpdateEndpoint: MessageEndpoint<LexiblePresenterPushUpdateNotification, unknown> = {
     route: "/games/lexible/presenter/full-update",
     responseRequired: false,
 }

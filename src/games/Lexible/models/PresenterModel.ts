@@ -7,7 +7,7 @@ import { LetterBlockModel } from "./LetterBlockModel";
 import { LetterGridModel } from "./LetterGridModel";
 import { LexibleGameEvent, LexiblePlayer, MapSize } from "./lexibleDataTypes";
 import { ClusterfunPresenterModel } from "libs/GameModel/ClusterfunPresenterModel";
-import { LexibleBoardUpdateEndpoint, LexibleBoardUpdateNotification, LexibleEndOfRoundMessage, LexibleOnboardPresenterEndpoint, LexibleOnboardPresenterMessage, LexiblePushFullPresenterUpdateEndpoint, PlayBoard } from "./lexibleEndpoints";
+import { LexibleBoardUpdateEndpoint, LexibleBoardUpdateNotification, LexibleEndOfRoundMessage, LexibleOnboardPresenterEndpoint, LexiblePresenterPushUpdateNotification, LexiblePushFullPresenterUpdateEndpoint, PlayBoard } from "./lexibleEndpoints";
 import Logger from "js-logger";
 import { LetterGridPath, findHotPathInGrid } from "./LetterGridPath";
 import { LexibleClientState } from "./ClientModel";
@@ -120,16 +120,17 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
     reconstitute(): void {
         super.reconstitute();
-        this.listenToEndpointFromHost(LexiblePushFullPresenterUpdateEndpoint, this.handleFullPresenterUpdate);
+        this.listenToEndpointFromHost(LexiblePushFullPresenterUpdateEndpoint, this.handlePresenterUpdate);
         this.listenToEndpointFromHost(LexibleBoardUpdateEndpoint, this.handleBoardUpdateMessage);
     }
 
     async requestGameStateFromHost(): Promise<void> {
         const payload = await this.session.requestHost(LexibleOnboardPresenterEndpoint, {});
-        this.handleFullPresenterUpdate(payload);
+        this.setupPlayBoard(payload.playBoard);
+        this.handlePresenterUpdate(payload);
     }
 
-    handleFullPresenterUpdate = (payload: LexibleOnboardPresenterMessage) => {
+    handlePresenterUpdate = (payload: LexiblePresenterPushUpdateNotification) => {
         action(() => { this.currentRound = payload.roundNumber })();
         this.gameState = payload.gameState;
         this.startFromTeamArea = payload.settings.startFromTeamArea;
@@ -137,8 +138,6 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         this.roundWinningTeam = payload.roundWinningTeam;
         this._teamPoints[0] = payload.teamPoints[0];
         this._teamPoints[1] = payload.teamPoints[1];
-
-        this.setupPlayBoard(payload.playBoard);
 
         const playerIdsToRemove = new Set(this.players.map(p => p.playerId));
         for (const incomingPlayer of payload.players) {

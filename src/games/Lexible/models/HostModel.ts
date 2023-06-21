@@ -8,7 +8,7 @@ import { ISessionHelper, Vector2, ClusterfunHostModel, ITelemetryLogger, IStorag
 import Logger from "js-logger";
 import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
 import { LetterChain, LexibleBoardUpdateEndpoint, LexibleEndRoundEndpoint, LexibleOnboardClientEndpoint, 
-    LexibleOnboardClientMessage, LexibleOnboardPresenterEndpoint, LexibleOnboardPresenterMessage, LexiblePushFullPresenterUpdateEndpoint, LexibleRecentlyTouchedLettersMessage, LexibleReportTouchLetterEndpoint, 
+    LexibleOnboardClientMessage, LexibleOnboardPresenterEndpoint, LexibleOnboardPresenterMessage, LexiblePresenterPushUpdateNotification, LexiblePushFullPresenterUpdateEndpoint, LexibleRecentlyTouchedLettersMessage, LexibleReportTouchLetterEndpoint, 
     LexibleRequestWordHintsEndpoint, LexibleServerRecentlyTouchedLettersEndpoint, LexibleSubmitWordEndpoint, 
     LexibleSwitchTeamEndpoint, 
     LexibleSwitchTeamRequest, 
@@ -454,11 +454,11 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
         if(this.currentRound > this.totalRounds) {
             this.gameState = GeneralGameState.GameOver;
             this.requestAllClients(GameOverEndpoint, (p,ie) => ({}))
-            this.updatePresenters();
+            this.invalidatePresenters();
         }    
         else {
             this.requestAllClientsAndForget(InvalidateStateEndpoint, (p, ie) => ({}));
-            this.updatePresenters();
+            this.invalidatePresenters();
         }
         this.saveCheckpoint();
     }
@@ -567,7 +567,7 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
         this.requestAllClientsAndForget(LexibleEndRoundEndpoint, (p, ie) => {
             return { roundNumber: this.currentRound, winningTeam: team }
         })
-        this.updatePresenters();
+        this.invalidatePresenters();
     }
     
     // -------------------------------------------------------------------
@@ -639,19 +639,20 @@ export class LexibleHostModel extends ClusterfunHostModel<LexiblePlayer> {
 
     handleOnboardPresenter = (sender: string, message: unknown): LexibleOnboardPresenterMessage => {
         this.telemetryLogger.logEvent("Host", "Onboard Presenter")
-        return this.generatePresenterState();
-    }
-
-    private generatePresenterState() {
-        const playBoard:PlayBoard = {
+        const payload = this.generatePresenterState() as LexibleOnboardPresenterMessage;
+        const playBoard: PlayBoard = {
             gridHeight: this.theGrid.height,
             gridWidth: this.theGrid.width,
             gridData: this.theGrid.serialize()
         }
-        const payload: LexibleOnboardPresenterMessage = {
+        payload.playBoard = playBoard;
+        return payload;
+    }
+
+    private generatePresenterState(): LexiblePresenterPushUpdateNotification {
+        const payload: LexiblePresenterPushUpdateNotification = {
             roundNumber: this.currentRound,
             gameState: this.gameState,
-            playBoard,
             players: this.players.map(p => structuredClone(p)),
             settings: {
                 startFromTeamArea: this.startFromTeamArea,
