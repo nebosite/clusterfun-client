@@ -7,7 +7,7 @@ import { observable } from "mobx";
 import EgyptianRatScrewAssets from "../assets/Assets";
 import { EgyptianRatScrewVersion } from "../models/GameSettings";
 import { BaseAnimationController, MediaHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, DevUI, UINormalizer } from "libs";
-import { EgyptianRatScrewPresenterModel, EgyptianRatScrewGameState, EgyptianRatScrewGameEvent } from "../models/PresenterModel";
+import { EgyptianRatScrewPresenterModel, EgyptianRatScrewGameState, EgyptianRatScrewGameEvent, PlayingCard, PlayingCardRank, PlayingCardSuit } from "../models/PresenterModel";
 
 
 @inject("appModel") @observer
@@ -23,7 +23,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: EgyptianRatScrew
             <div>
                 <h3>Welcome to {appModel.name}</h3>
                 <p>This is an example app for clusterfun.</p>
-                <p>To Join: go to http://{ window.location.host} and enter this room code: {appModel.roomId}</p>
+                <p>To Join: go to { window.location.origin } and enter this room code: {appModel.roomId}</p>
                 {
                     appModel.players.length > 0
                     ?   <div><p style={{fontWeight: 600}}>Joined team members:</p>
@@ -78,74 +78,49 @@ class PausedGamePage  extends React.Component<{appModel?: EgyptianRatScrewPresen
     }
 }
 
-class PlayStartAnimationController  extends BaseAnimationController {
-    @observable announceText = " ";
-    @observable textLocation: string | null = null;
-    @observable showStatus: boolean = false;
-    
-    constructor(onFinish: ()=> void) {      
-        super(onFinish);
-
-        const textAnimation = (fraction: number) =>
-        {
-            const x = .01 + .01 * Math.sin(fraction * 20)
-            this.textLocation = `${(x * 100).toFixed(2)}%`
-        }
-
-        // set up a set of sequential animations
-        // delay_s = how many seconds to wait before the action happens
-        this.run([
-            {delay_s: 1.0, id: "Introduce Round",       action: (c)=>{this.announceText = "Here we go..."; this.slide(1, textAnimation)}},
-            {delay_s: 2.0, id: "heads up!",             action: (c)=>{this.announceText = "Instructions are on your devices"}},
-            {delay_s: 4.0, id: "Now play",     action: (c)=>{this.showStatus = true; }},
-        ])
-    }
-}
-
 @inject("appModel") @observer class PlayingPage 
     extends React.Component<{appModel?: EgyptianRatScrewPresenterModel, media: MediaHelper }> {
-    private _playStartAnimation: PlayStartAnimationController;
 
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
     constructor(props: Readonly<{ appModel?: EgyptianRatScrewPresenterModel, media: MediaHelper }>) {
         super(props);
-        this._playStartAnimation = new  PlayStartAnimationController(()=>{});
-        props.appModel!.registerAnimation(this._playStartAnimation);
-
-        props.appModel!.onTick.subscribe("animate", (e) => this.animateFrame(e)) 
-        props.appModel!.subscribe("ColorChange", "presenterColorChange", () => {
-            props.media.playSound(EgyptianRatScrewAssets.sounds.ding)
-        })
     }
 
-    // -------------------------------------------------------------------
-    // animateFrame - render a single animation frame to the canvas
-    // -------------------------------------------------------------------
-    animateFrame = (elapsed_ms: number) => {
-        const canvas = document.getElementById("presenterGameCanvas") as HTMLCanvasElement;
-        if(!canvas) return;
-        const context = canvas.getContext("2d");
-        if (!context) return;
-
-        context.fillStyle = "#888888";
-        const w = canvas.width;
-        const h = canvas.height;
-        context.fillRect(0,0,w,h);
-
-        this.props.appModel?.players.forEach(p=>
-            {
-                const px = p.x * h;
-                const py = p.y * h * .9 + h * 0.05;
-                context.font = '50px serif';
-                let label = p.name;
-                if(p.message !== "") label += ` says '${p.message}'`;
-                context.fillStyle = "#777777" 
-                context.fillText(label, px+4, py+4);
-                context.fillStyle = p.colorStyle;
-                context.fillText(label, px, py);
-            })
+    private renderCard(card: PlayingCard) {
+        // TODO: This should be replaced with full-fledged card images,
+        // preferably SVGs
+        const RANK_MAPPING: Record<PlayingCardRank, string> = {
+            [PlayingCardRank.Ace]: "A",
+            [PlayingCardRank.Two]: "2",
+            [PlayingCardRank.Three]: "3",
+            [PlayingCardRank.Four]: "4",
+            [PlayingCardRank.Five]: "5",
+            [PlayingCardRank.Six]: "6",
+            [PlayingCardRank.Seven]: "7",
+            [PlayingCardRank.Eight]: "8",
+            [PlayingCardRank.Nine]: "9",
+            [PlayingCardRank.Ten]: "10",
+            [PlayingCardRank.Jack]: "J",
+            [PlayingCardRank.Queen]: "Q",
+            [PlayingCardRank.King]: "K",
+            [PlayingCardRank.Joker]: "JOKER"
+        }
+        const SUIT_SYMBOL_MAPPING: Record<PlayingCardSuit, string> = {
+            [PlayingCardSuit.Clubs]: "♣",
+            [PlayingCardSuit.Diamonds]: "♦",
+            [PlayingCardSuit.Spades]: "♠",
+            [PlayingCardSuit.Hearts]: "♥"
+        }
+        const SUIT_COLOR_MAPPING: Record<PlayingCardSuit, string> = {
+            [PlayingCardSuit.Clubs]: "black",
+            [PlayingCardSuit.Diamonds]: "red",
+            [PlayingCardSuit.Spades]: "black",
+            [PlayingCardSuit.Hearts]: "red"
+        }
+        // TODO: Render Jokers
+        return <span style={ {color: SUIT_COLOR_MAPPING[card.suit]}}>{RANK_MAPPING[card.rank]} {SUIT_SYMBOL_MAPPING[card.suit]}</span>
     }
 
     // -------------------------------------------------------------------
@@ -156,13 +131,14 @@ class PlayStartAnimationController  extends BaseAnimationController {
         if (!appModel) return <div>NO APP MODEL</div>;
         return (
             <div>
-                {this._playStartAnimation.showStatus 
-                    ? <div>Playing round {appModel.currentRound}.  Seconds left: {appModel.secondsLeftInStage}</div>
-                    : <div style={{paddingLeft: this._playStartAnimation.textLocation ?? "0px"}}>&nbsp;{this._playStartAnimation.announceText}</div>
-                }
-                <div className={styles.gameCanvasFrame} >
-                    <canvas className={styles.gameCanvas} width="1200px" height="700px" id="presenterGameCanvas" />
-                </div>
+                {appModel.pile.length > 0 ? (
+                    <p>{ this.renderCard(appModel.pile.at(-1)!) }</p>
+                ) : undefined}
+                {appModel.players.map(player => (
+                    <p key={player.playerId}>
+                        {player.name} ({player.cards.length}) {appModel.currentPlayerId === player.playerId ? "☚" : undefined}
+                    </p>
+                ))}
             </div>
         );
     }
@@ -220,16 +196,6 @@ extends React.Component<{appModel?: EgyptianRatScrewPresenterModel, uiProperties
 
         const sfxVolume = 1.0;       
 
-        let timeAlertLoaded = false;
-        appModel?.onTick.subscribe("Timer Watcher", ()=>{
-            if(appModel!.secondsLeftInStage > 10) timeAlertLoaded = true; 
-            if( (appModel!.gameState === EgyptianRatScrewGameState.Playing)
-                && timeAlertLoaded 
-                && appModel!.secondsLeftInStage <= 10) {
-                timeAlertLoaded = false 
-                this.media.repeatSound("ding.wav", 5, 100);
-            }
-        })
         appModel?.subscribe(PresenterGameEvent.PlayerJoined,     "play joined sound", ()=> this.media.playSound(EgyptianRatScrewAssets.sounds.hello, {volume: sfxVolume * .2}));
         appModel?.subscribe(EgyptianRatScrewGameEvent.ResponseReceived,  "play response received sound", ()=> this.media.playSound(EgyptianRatScrewAssets.sounds.response, {volume: sfxVolume}));
 
@@ -250,7 +216,6 @@ extends React.Component<{appModel?: EgyptianRatScrewPresenterModel, uiProperties
                 return <GatheringPlayersPage />
             case EgyptianRatScrewGameState.Playing:
                 return <PlayingPage media={this.media} />
-            case EgyptianRatScrewGameState.EndOfRound:
             case GeneralGameState.GameOver:
                 return <EndOfRoundPage />
             case GeneralGameState.Paused:

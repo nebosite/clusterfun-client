@@ -115,7 +115,11 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
         const rejectedCallbacks = this._rejectedCallbacks!;
         delete this._fulfilledCallbacks;
         delete this._rejectedCallbacks;
-        this._error = error;
+        if ("message" in error) {
+            this._error = new Error(error.message);
+        } else {
+            this._error = JSON.stringify(error);
+        }
         this._state = RequestState.Rejected;
         this.forget();
         for (const callback of rejectedCallbacks) {

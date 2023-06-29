@@ -260,6 +260,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     // -------------------------------------------------------------------
     startGame = () => {
         this.gameState = GeneralGameState.Playing;
+        this.currentRound = 0;
         this.prepareFreshRound();
         this.startNextRound();
         this.saveCheckpoint();

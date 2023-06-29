@@ -1,8 +1,8 @@
-import { observable } from "mobx"
+import { action, observable } from "mobx"
 import { ERS_MIN_CARDS_PER_PLAYER, PLAYTIME_MS } from "./GameSettings";
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, ITypeHelper, PresenterGameState, GeneralGameState, Vector2 } from "libs";
 import Logger from "js-logger";
-import { ERSActionResponse, ERSActionSuccessState, ERSTimepointUpdateMessage, EgyptianRatScrewOnboardClientEndpoint, EgyptianRatScrewPushUpdateEndpoint } from "./egyptianRatScrewEndpoints";
+import { ERSActionResponse, ERSActionSuccessState, ERSTimepointUpdateMessage, EgyptianRatScrewOnboardClientEndpoint, EgyptianRatScrewPlayCardActionEndpoint, EgyptianRatScrewPushUpdateEndpoint, EgyptianRatScrewTakePileActionEndpoint } from "./egyptianRatScrewEndpoints";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
 
 export enum PlayingCardRank {
@@ -47,6 +47,7 @@ const FACE_CARD_CHALLENGE_COUNTS: Record<any, number> = {
     [PlayingCardRank.Queen]: 2,
     [PlayingCardRank.Jack]: 1
 }
+const MAX_CHALLENGE_COUNT = 4;
 
 export class EgyptianRatScrewPlayer extends ClusterFunPlayer {
     @observable cards: PlayingCard[] = observable([])
@@ -57,7 +58,6 @@ export class EgyptianRatScrewPlayer extends ClusterFunPlayer {
 // -------------------------------------------------------------------
 export enum EgyptianRatScrewGameState {
     Playing = "Playing",
-    EndOfGame = "EndOfGame",
 }
 
 // -------------------------------------------------------------------
@@ -81,6 +81,7 @@ export const getEgyptianRatScrewPresenterTypeHelper = (
             switch (o.constructor) {
                 case EgyptianRatScrewPresenterModel: return "EgyptianRatScrewPresenterModel";
                 case EgyptianRatScrewPlayer: return "EgyptianRatScrewPlayer";
+                case PlayingCard: return "PlayingCard";
             }
             return undefined;
         },
@@ -89,6 +90,7 @@ export const getEgyptianRatScrewPresenterTypeHelper = (
             {
                 case "EgyptianRatScrewPresenterModel": return new EgyptianRatScrewPresenterModel( sessionHelper, gameProps.logger, gameProps.storage);
                 case "EgyptianRatScrewPlayer": return new EgyptianRatScrewPlayer();
+                case "PlayingCard": return new PlayingCard(PlayingCardRank.Ace, PlayingCardSuit.Spades, 0);
                 // TODO: add your custom type handlers here
             }
             return null;
@@ -165,6 +167,15 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
     reconstitute() {
         super.reconstitute();
         this.listenToEndpoint(EgyptianRatScrewOnboardClientEndpoint, this.handleOnboardClient);
+        this.listenToEndpoint(EgyptianRatScrewPlayCardActionEndpoint, this.handlePlayCardAction);
+        this.listenToEndpoint(EgyptianRatScrewTakePileActionEndpoint, this.handleTakePileAction);
+
+        // TODO: Respond to a player leaving.
+        // When a player leaves, all of their cards should go to the bottom of the pile.
+
+        // TODO: Respond to a player failing to respond.
+        // If a player takes too long (say, 10 seconds) to respond,
+        // they should drop a penalty card
     }
 
 
@@ -220,6 +231,7 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
         else {
             this.gameState = EgyptianRatScrewGameState.Playing;
             this.populatePlayerDecks();
+            this.currentPlayerId = this.players[0].playerId;
             this.requestEveryoneAndForget(InvalidateStateEndpoint, (p,ie) => ({}))
             this.saveCheckpoint();
         }
@@ -227,6 +239,10 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
 
     private populatePlayerDecks() {
         const cards: PlayingCard[] = [];
+        this.players.forEach(player => {
+            // remove all cards any players might have
+            player.cards.splice(0, player.cards.length);
+        })
         let deckId: number = 1;
         while (cards.length / this.players.length < ERS_MIN_CARDS_PER_PLAYER) {
             cards.push(...this.createDeck(deckId));
@@ -235,6 +251,10 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
         let playerIndex = 0;
         while (cards.length > 0) {
             this.players[playerIndex].cards.push(cards.splice(Math.floor(Math.random() * cards.length), 1)[0])
+            playerIndex++;
+            if (playerIndex >= this.players.length) {
+                playerIndex = 0;
+            }
         }
         this.updateTimepointCode();
     }
@@ -282,11 +302,14 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
         if (!player || player.cards.length <= 0) {
             return { successState: ERSActionSuccessState.Ignored }
         }
-        this.pile.unshift(player.cards.pop()!);
-        // TODO: If we are out of cards, shift to the next player if needed.
-        // This is also when we should check for a winner
-        this.updateTimepointCode();
-        this.pushClientUpdates();
+        action(() => {
+            this.pile.unshift(player.cards.pop()!);
+            if (player.cards.length === 0 && playerId === this.currentPlayerId) {
+                this.advanceToNextPlayer();
+            }
+            this.updateTimepointCode();
+            this.pushClientUpdates();
+        })();
         return {
             successState: ERSActionSuccessState.PenaltyCard,
             timepoint: {
@@ -310,16 +333,53 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
     // Returns whether or not the pile has been won by the player who previously took a face card.
     // In this state, no one is allowed to play cards.
     private isPileWon(): boolean {
-        const MAX_CHALLENGE_COUNT = 4;
         let i = this.pile.length - 1;
-        while (i > this.pile.length - 1 - MAX_CHALLENGE_COUNT) {
+        while (i >= this.pile.length - 1 - MAX_CHALLENGE_COUNT && i >= 0) {
             const card = this.pile[i];
             if (card.rank in FACE_CARD_CHALLENGE_COUNTS) {
                 const cardsAboveThisCard = (this.pile.length - 1) - i;
                 return cardsAboveThisCard >= FACE_CARD_CHALLENGE_COUNTS[card.rank];
             }
+            i--;
         }
         return false;
+    }
+
+    // Returns whether or not there is an active face card on the pile,
+    // whether or not it has won the pile
+    private isPileUnderFaceCardControl(): boolean {
+        let i = this.pile.length - 1;
+        while (i >= this.pile.length - 1 - MAX_CHALLENGE_COUNT && i >= 0) {
+            const card = this.pile[i];
+            if (card.rank in FACE_CARD_CHALLENGE_COUNTS) {
+                return true;
+            }
+            i--;
+        }
+        return false;
+    }
+
+    // Try advancing to the next player, skipping any players with no cards.
+    // If there are no other players with cards, mark the game as won.
+    private advanceToNextPlayer() {
+        const currentPlayerIndex = this.players.findIndex(p => p.playerId === this.currentPlayerId);
+        let i = currentPlayerIndex;
+        while (true) {
+            i++;
+            if (i >= this.players.length) {
+                i = 0;
+            }
+            if (i === currentPlayerIndex) {
+                // no other players with cards - the current player just won
+                this.gameState = GeneralGameState.GameOver;
+                this.requestEveryoneAndForget(InvalidateStateEndpoint, (p, ie) => true)
+                break;
+            }
+            if (this.players[i].cards.length > 0) {
+                action(() => this.currentPlayerId = this.players[i].playerId)();
+                break;
+            }
+        }
     }
 
     handleOnboardClient = (sender: string, message: unknown): { state: string, timepoint?: ERSTimepointUpdateMessage } => {
@@ -343,6 +403,11 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
             throw new Error("Unknown sender");
         }
 
+        // Make sure the timepoint code matches - if it doesn't, ignore the action
+        if (this._timepointCode !== message.timepointCode) {
+            return { successState: ERSActionSuccessState.Ignored };
+        }
+
         if (this.currentPlayerId !== sender) {
             return this.resolveFailedAction(sender);
         }
@@ -350,17 +415,23 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
             return this.resolveFailedAction(sender);
         }
         
-        const card = player.cards.pop();
-        if (!card) {
-            throw new Error("Current player should not be the current player if they are out of cards")
-        }
-        this.pile.push(card);
-        // TODO: Advance the current player to the next in the list
-        // (skip any players without cards).
-        // This is when we should check for a winner - if there is
-        // only one player left with cards, they win
-        this.updateTimepointCode();
-        this.pushClientUpdates();
+        action(() => {
+            const card = player.cards.pop();
+            if (!card) {
+                throw new Error("Current player should not be the current player if they are out of cards")
+            }
+            this.pile.push(card);
+            if (card.rank in FACE_CARD_CHALLENGE_COUNTS) {
+                this.previousFaceCardPlayerId = sender;
+                this.advanceToNextPlayer();
+            } else if (!this.isPileUnderFaceCardControl() || player.cards.length === 0) {
+                this.advanceToNextPlayer();
+            }
+            this.saveCheckpoint();
+            this.updateTimepointCode();
+            this.pushClientUpdates();
+        })()
+        
         return {
             successState: ERSActionSuccessState.Success,
             timepoint: {
@@ -376,11 +447,26 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
             throw new Error("Unknown sender");
         }
 
+        // Make sure the timepoint code matches - if it doesn't, ignore the action
+        if (this._timepointCode !== message.timepointCode) {
+            // TODO: Record that a slap happened so that it can still be pictured
+            return { successState: ERSActionSuccessState.Ignored };
+        }
+
         if (this.isPileTakeable() || (this.previousFaceCardPlayerId === sender && this.isPileWon())) {
-            // Take the entire pile and put it on the bottom of the deck in order
-            player.cards.unshift(...this.pile.splice(0, this.pile.length));
-            this.updateTimepointCode();
-            this.pushClientUpdates();
+            action(() => {
+                // Take the entire pile and put it on the bottom of the deck in order
+                player.cards.unshift(...this.pile.splice(0, this.pile.length));
+                this.previousFaceCardPlayerId = undefined;
+                this.currentPlayerId = sender;
+                // TODO: There should be some delay (perhaps one or two seconds) before
+                // cards should be played again. This allows slaps to happen immediately
+                // after this one without any penalty being issued
+                this.saveCheckpoint();
+                this.updateTimepointCode();
+                this.pushClientUpdates();
+            })();
+
             return {
                 successState: ERSActionSuccessState.Success,
                 timepoint: {
@@ -388,8 +474,8 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
                     timepointCode: this._timepointCode
                 }
             }
+        } else {
+            return this.resolveFailedAction(sender);
         }
-
-        return this.resolveFailedAction(sender);
     }
 }

@@ -1,8 +1,8 @@
 import Logger from "js-logger";
-import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, Vector2 } from "libs";
-import { observable } from "mobx";
+import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, Vector2, GeneralGameState } from "libs";
+import { action, observable } from "mobx";
 import { EgyptianRatScrewGameState } from "./PresenterModel";
-import { EgyptianRatScrewColorChangeActionEndpoint, EgyptianRatScrewMessageActionEndpoint, EgyptianRatScrewOnboardClientEndpoint, EgyptianRatScrewTapActionEndpoint } from "./EgyptianRatScrewEndpoints";
+import { ERSTimepointUpdateMessage, EgyptianRatScrewOnboardClientEndpoint, EgyptianRatScrewPlayCardActionEndpoint, EgyptianRatScrewPushUpdateEndpoint, EgyptianRatScrewTakePileActionEndpoint } from "./egyptianRatScrewEndpoints";
 
 
 // -------------------------------------------------------------------
@@ -62,19 +62,20 @@ const colors = ["white", "red", "orange", "yellow", "blue", "cyan", "magenta", "
 // -------------------------------------------------------------------
 export class EgyptianRatScrewClientModel extends ClusterfunClientModel  {
 
-    ballData = {x: .5, y: .5, xm:.01, ym:.01, color: "#ffffff"}
+    private _timepointCode: string = "";
+    @observable private _numberOfCards: number = 0;
+    get numberOfCards() { return this._numberOfCards; }
+    set numberOfCards(value) { action(() => this._numberOfCards = value )() }
+
+    get canPlayCards() {
+        return this.numberOfCards > 0;
+    }
 
     // -------------------------------------------------------------------
     // ctor 
     // -------------------------------------------------------------------
     constructor(sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage) {
         super("EgyptianRatScrewClient", sessionHelper, playerName, logger, storage);
-
-        this.ballData.x = this.randomDouble(1.0);
-        this.ballData.y = this.randomDouble(1.0);
-        this.ballData.xm = (this.randomDouble(.01) + 0.005) * (this.randomInt(2) ? 1 : -1) ;
-        this.ballData.ym = (this.randomDouble(.01) + 0.005) * (this.randomInt(2) ? 1 : -1) ;
-        this.ballData.color = this.randomItem(colors);
     }
 
     // -------------------------------------------------------------------
@@ -83,77 +84,43 @@ export class EgyptianRatScrewClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     reconstitute() {
         super.reconstitute();
+        this.listenToEndpointFromPresenter(EgyptianRatScrewPushUpdateEndpoint, this.updateFromTimepoint)
     }
 
     async requestGameStateFromPresenter(): Promise<void> {
         const response = await this.session.requestPresenter(EgyptianRatScrewOnboardClientEndpoint, {});
-        this.roundNumber = response.roundNumber;
+        if (response.timepoint) {
+            this.updateFromTimepoint(response.timepoint);
+        }
         switch(response.state) {
             case EgyptianRatScrewGameState.Playing: this.gameState = EgyptianRatScrewGameState.Playing; break;
-            case EgyptianRatScrewGameState.EndOfRound: this.gameState = EgyptianRatScrewGameState.EndOfRound; break;
+            case GeneralGameState.GameOver: this.gameState = GeneralGameState.GameOver; break;
             default:
                 Logger.debug(`Server Updated State to: ${response.state}`)
                 this.gameState = GeneralClientGameState.WaitingToStart;
                 break;
         }
     }
-    
-    // -------------------------------------------------------------------
-    //  
-    // -------------------------------------------------------------------
-    assignClientStateFromServerState(serverState: string) {
-        // When the server sends and state update message, ensure the client puts itself in the right state.
-        // This is neeeded because sometimes the client can miss messages from the server
-        switch(serverState) {
-            // case RetroSpectroGameState.Discussing: this.gameState = RetroSpectroClientState.Discussing; break;
-            // case RetroSpectroGameState.Sorting: this.gameState = RetroSpectroClientState.Sorting; break;
-            // case RetroSpectroGameState.WaitingForAnswers: this.gameState = RetroSpectroClientState.SubmittingAnswers; break;
-            case EgyptianRatScrewGameState.Playing: this.gameState = EgyptianRatScrewGameState.Playing; break; 
-            default:
-                Logger.debug(`Server Updated State to: ${serverState}`) 
-                this.gameState = GeneralClientGameState.WaitingToStart; break;
+
+    private updateFromTimepoint = (timepoint: ERSTimepointUpdateMessage) => {
+        this._timepointCode = timepoint.timepointCode;
+        this.numberOfCards = timepoint.numberOfCards;
+    }
+
+    async doPlayCard() {
+        if (!this.canPlayCards) {
+            return; // don't play cards if we're out - note that the button should be disabled anyway
         }
-
+        const response = await this.session.requestPresenter(EgyptianRatScrewPlayCardActionEndpoint, { timepointCode: this._timepointCode });
+        if (response.timepoint) {
+            this.updateFromTimepoint(response.timepoint);
+        }
     }
 
-    // -------------------------------------------------------------------
-    // Handle game logic on a frame-by-frame basis 
-    // -------------------------------------------------------------------
-    gameThink(elapsed_ms: number) {
-        const ball = this.ballData;
-        ball.x += ball.xm;
-        if(ball.x > 1.0) {  ball.x = 1.0;  ball.xm *= -1; }
-        if(ball.x < 0.0) {  ball.x = 0.0;  ball.xm *= -1; }
-        ball.y += ball.ym;
-        if(ball.y > 1.0) {  ball.y = 1.0;  ball.ym *= -1; }
-        if(ball.y < 0.0) {  ball.y = 0.0;  ball.ym *= -1; }
-    }
-
-    // -------------------------------------------------------------------
-    // Tell the presenter to change my color
-    // -------------------------------------------------------------------
-    doColorChange(){
-        const hex = Array.from("0123456789ABCDEF");
-        let colorStyle = "#";
-        for(let i = 0; i < 6; i++) colorStyle += this.randomItem(hex);
-        this.session.requestPresenter(EgyptianRatScrewColorChangeActionEndpoint, { colorStyle }).forget();
-    }
-   
-    // -------------------------------------------------------------------
-    // Tell the presenter to show a message for me
-    // -------------------------------------------------------------------
-    doMessage(){
-        const messages = ["Hi!", "Bye?", "What's up?", "Oh No!", "Hoooooweeee!!", "More gum."]
-        this.session.requestPresenter(EgyptianRatScrewMessageActionEndpoint, { message: this.randomItem(messages)}).forget();
-    }
-   
-    // -------------------------------------------------------------------
-    // Tell the presenter that I tapped somewhere
-    // -------------------------------------------------------------------
-    doTap(x: number, y: number){
-        x = Math.floor(x * 1000)/1000;
-        y = Math.floor(y * 1000)/1000;
-        
-        this.session.requestPresenter(EgyptianRatScrewTapActionEndpoint, { point: new Vector2(x, y) }).forget();
+    async doTakePile() {
+        const response = await this.session.requestPresenter(EgyptianRatScrewTakePileActionEndpoint, { timepointCode: this._timepointCode });
+        if (response.timepoint) {
+            this.updateFromTimepoint(response.timepoint);
+        }
     }
 }

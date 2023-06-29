@@ -15,20 +15,12 @@ import Logger from "js-logger";
 @observer
 class GameScreen extends React.Component<{appModel?: EgyptianRatScrewClientModel}> 
 {
-    canvasDomId: string;
-    w = 100;
-    h = 100;
-    canvasContext?: CanvasRenderingContext2D;
-
     // -------------------------------------------------------------------
     // ctor
     // ------------------------------------------------------------------- 
     constructor(props: {appModel?: EgyptianRatScrewClientModel})
     {
         super(props);
-
-        props.appModel!.onTick.subscribe("animate", (e) => this.animateFrame(e))
-        this.canvasDomId = "PlayCanvas" + this.props.appModel!.playerId;
     }
 
     // -------------------------------------------------------------------
@@ -36,7 +28,8 @@ class GameScreen extends React.Component<{appModel?: EgyptianRatScrewClientModel
     // -------------------------------------------------------------------
     componentDidMount()
     {
-        this.componentDidUpdate();   
+        this.componentDidUpdate();
+        // TODO: Set where needed: Do a vibrate whenever an action fails
     }
 
     // -------------------------------------------------------------------
@@ -44,40 +37,7 @@ class GameScreen extends React.Component<{appModel?: EgyptianRatScrewClientModel
     // -------------------------------------------------------------------
     componentDidUpdate()
     {
-        const canvas = document.getElementById(this.canvasDomId) as HTMLCanvasElement; 
-        this.canvasContext = canvas.getContext("2d") ?? undefined;
-        this.w = canvas.width; 
-        this.h = canvas.height;
-    }
 
-    // -------------------------------------------------------------------
-    // animateFrame - render a single animation frame to the canvas
-    // -------------------------------------------------------------------
-    animateFrame = (elapsed_ms: number) => {
-        const {appModel} = this.props;
-        if(appModel?.gameState !== EgyptianRatScrewClientState.Playing) return;
-        if(!this.canvasContext) return;
-
-        // Clear canvas
-        this.canvasContext.fillStyle = "#000000"
-        this.canvasContext.fillRect(0,0,this.w,this.h);
-
-        // Draw something
-        appModel.gameThink(elapsed_ms);
-        const ball = appModel.ballData;
-        this.canvasContext.fillStyle = ball.color;
-        this.canvasContext.fillRect(ball.x * this.w - 30, ball.y * this.h - 30, 60, 60);
-    }
-
-    // -------------------------------------------------------------------
-    // Handle taps from the user
-    // -------------------------------------------------------------------
-    handleClick(x: number, y:number)
-    {
-        const {appModel} = this.props;
-        appModel!.ballData.x = x;
-        appModel!.ballData.y = y;   
-        appModel!.doTap(x,y)     
     }
 
     // -------------------------------------------------------------------
@@ -87,21 +47,23 @@ class GameScreen extends React.Component<{appModel?: EgyptianRatScrewClientModel
         const {appModel} = this.props;
         if (!appModel) return <div>NO APPMODEL</div>; 
 
+        // TODO: Make the buttons below take up the whole screen -
+        // we essentially are giving players a giant remote
+        // Play Card should also be green, while
+        // Take Pile is red or yellow
         return (
             <div>
                 <h4>{appModel!.playerName}</h4>
-
+                <p>{appModel.numberOfCards} Cards Remaining</p>
                 <div>
-                    Tap the screen to set dot position   
-                    <div className={styles.gameCanvasFrame} >
-                        <ClusterCanvas 
-                            canvasId={this.canvasDomId}
-                            width={800} height={800}
-                            onClick={(x,y) => this.handleClick(x,y)} />
-                    </div>
-                    <button className={styles.clientButton} onClick={()=>this.props.appModel!.doColorChange()}>Change Colors</button>
-                    <button className={styles.clientButton} onClick={()=>this.props.appModel!.doMessage()}>Say Something</button>
-                </div>      
+                    <button 
+                        className={styles.clientButton}
+                        disabled={!appModel.canPlayCards}
+                        onClick={()=>appModel.doPlayCard()}>
+                            Play
+                    </button>
+                    <button className={styles.clientButton} onClick={()=>appModel.doTakePile()}>Take</button>
+                </div>
             </div>
         );
     };

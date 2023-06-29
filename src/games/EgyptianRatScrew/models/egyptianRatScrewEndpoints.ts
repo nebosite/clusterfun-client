@@ -53,14 +53,14 @@ export const EgyptianRatScrewPushUpdateEndpoint: MessageEndpoint<ERSTimepointUpd
 }
 
 export const EgyptianRatScrewPlayCardActionEndpoint: MessageEndpoint<{ timepointCode: string }, ERSActionResponse> = {
-    route: "/games/egyptian-rat-screw/actions/color-change",
+    route: "/games/egyptian-rat-screw/actions/play-card",
     responseRequired: true,
     suggestedRetryIntervalMs: 500,
     suggestedTotalLifetimeMs: 2000
 }
 
 export const EgyptianRatScrewTakePileActionEndpoint: MessageEndpoint<{ timepointCode: string }, ERSActionResponse> = {
-    route: "/games/egyptian-rat-screw/actions/message",
+    route: "/games/egyptian-rat-screw/actions/take-pile",
     responseRequired: true,
     suggestedRetryIntervalMs: 500,
     suggestedTotalLifetimeMs: 2000

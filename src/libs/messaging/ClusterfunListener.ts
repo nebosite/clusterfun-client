@@ -64,6 +64,7 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
                 Logger.warn(`No response sent for route: ${this.endpoint.route}`);
             }
         } catch (e) {
+            Logger.error("Error in listener:", e);
             const responseHeader: ClusterFunMessageHeader = {
                 r: header.s,
                 s: header.r,
