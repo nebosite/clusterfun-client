@@ -51,14 +51,18 @@ class GameScreen extends React.Component<{appModel?: EgyptianRatScrewClientModel
         // we essentially are giving players a giant remote
         // Play Card should also be green, while
         // Take Pile is red or yellow
+
+        // TODO: "Play" should be disabled if you don't have cards -
+        // I'm leaving that behavior out for now because I can't get
+        // the component to update according to the number of cards
+        // remaining
         return (
             <div>
-                <h4>{appModel!.playerName}</h4>
+                <h4>{appModel.playerName}</h4>
                 <p>{appModel.numberOfCards} Cards Remaining</p>
                 <div>
                     <button 
                         className={styles.clientButton}
-                        disabled={!appModel.canPlayCards}
                         onClick={()=>appModel.doPlayCard()}>
                             Play
                     </button>
@@ -151,6 +155,9 @@ export default class Client
     // ------------------------------------------------------------------- 
     render() {
         const {appModel} = this.props;
+        // TODO: Because quitting a game in progress results in you forfeiting all of your cards,
+        // quitting here should produce an "are you sure" modal or should otherwise
+        // be hard to hit on accident
         return (
             <div>
 

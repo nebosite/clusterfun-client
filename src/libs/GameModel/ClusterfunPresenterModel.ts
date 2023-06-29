@@ -17,6 +17,7 @@ export enum PresenterGameState
 // -------------------------------------------------------------------
 export enum PresenterGameEvent {
     PlayerJoined = "PlayerJoined",
+    PlayerQuit = "PlayerQuit"
 }
 
 
@@ -208,7 +209,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     // -------------------------------------------------------------------
     //  handlePlayerQuitMessage
     // -------------------------------------------------------------------
-    handlePlayerQuitMessage = (sender: string, message: any) => {
+    handlePlayerQuitMessage = (sender: string, message: unknown) => {
         if(this.gameState === GeneralGameState.Destroyed) return;
         Logger.info("received quit message from " + sender)
         this.telemetryLogger.logEvent("Presenter", "QuitRequest");
@@ -216,6 +217,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
         if(player) {
             this.players.remove(player);
             this._exitedPlayers.push(player);
+            this.invokeEvent(PresenterGameEvent.PlayerQuit, player);
 
             if(this.players.length < this.minPlayers 
                 && this.gameState !== PresenterGameState.Gathering) {

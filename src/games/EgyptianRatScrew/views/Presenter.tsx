@@ -19,10 +19,28 @@ class GatheringPlayersPage  extends React.Component<{appModel?: EgyptianRatScrew
         const {appModel} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>;
 
+        // TODO: Add instructions:
+        // 1. Players take turns playing cards to the center pile
+        // 2. If a player plays a face card, the next player in line has some number of chances
+        //    to play another face card (4 for Ace, 3 for King, 2 for Queen, and just 1 for Jack)
+        //    If they fail, the player who played the face card may take the pile. Otherwise, it's
+        //    on to the next player to play a face card.
+        // 3. If at any time, the card on the top matches the card below it or the card below that,
+        //    _anyone_ may take the pile! This can happen even if a pile would normally belong to
+        //    someone else due to a face card, and includes anyone who is joining the game or has
+        //    run out of cards!
+        // 4. When only one player has cards left (and there are no other active challenges),
+        //    that player is the winner!
+        //
+        // Use the "Play" button to play a card, and the "Take" button to try and take the pile.
+        // If you do it at the wrong time, you must put a card from the top of your deck onto the
+        // pile.
+        // Note that you will not automatically take a pile you win to a face card - someone else
+        // might be able to take it if the top cards match! Also note that the Play and Take buttons
+        // will not light up in any way - keep careful watch of the top card!
         return (
             <div>
-                <h3>Welcome to {appModel.name}</h3>
-                <p>This is an example app for clusterfun.</p>
+                <h3>Welcome to Egyptian Rat Screw!</h3>
                 <p>To Join: go to { window.location.origin } and enter this room code: {appModel.roomId}</p>
                 {
                     appModel.players.length > 0
@@ -131,12 +149,17 @@ class PausedGamePage  extends React.Component<{appModel?: EgyptianRatScrewPresen
         if (!appModel) return <div>NO APP MODEL</div>;
         return (
             <div>
-                {appModel.pile.length > 0 ? (
-                    <p>{ this.renderCard(appModel.pile.at(-1)!) }</p>
-                ) : undefined}
+                <p>
+                    {appModel.pile.length > 0 
+                        ? this.renderCard(appModel.pile.at(-1)!) 
+                        : "(empty)"} 
+                    <sub>({appModel.pile.length})</sub>
+                </p>
                 {appModel.players.map(player => (
                     <p key={player.playerId}>
-                        {player.name} ({player.cards.length}) {appModel.currentPlayerId === player.playerId ? "☚" : undefined}
+                        {player.name} ({player.cards.length}) 
+                        {appModel.currentPlayerId === player.playerId ? "☚" : undefined}
+                        {appModel.previousFaceCardPlayerId === player.playerId ? "★" : undefined}
                     </p>
                 ))}
             </div>

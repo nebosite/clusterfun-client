@@ -1,6 +1,6 @@
 import { action, observable } from "mobx"
 import { ERS_MIN_CARDS_PER_PLAYER, PLAYTIME_MS } from "./GameSettings";
-import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, ITypeHelper, PresenterGameState, GeneralGameState, Vector2 } from "libs";
+import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, ITypeHelper, PresenterGameState, GeneralGameState, Vector2, PresenterGameEvent } from "libs";
 import Logger from "js-logger";
 import { ERSActionResponse, ERSActionSuccessState, ERSTimepointUpdateMessage, EgyptianRatScrewOnboardClientEndpoint, EgyptianRatScrewPlayCardActionEndpoint, EgyptianRatScrewPushUpdateEndpoint, EgyptianRatScrewTakePileActionEndpoint } from "./egyptianRatScrewEndpoints";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
@@ -170,12 +170,27 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
         this.listenToEndpoint(EgyptianRatScrewPlayCardActionEndpoint, this.handlePlayCardAction);
         this.listenToEndpoint(EgyptianRatScrewTakePileActionEndpoint, this.handleTakePileAction);
 
-        // TODO: Respond to a player leaving.
-        // When a player leaves, all of their cards should go to the bottom of the pile.
+        this.subscribe(PresenterGameEvent.PlayerQuit, "ers-player-quit", (player: EgyptianRatScrewPlayer) => {
+            action(() => {
+                // when a player quits, put all of their cards under the pile
+                // TODO: Consider changing this to the player still being "present",
+                // but automatically taking actions as needed, as given in the below TODO.
+                // TODO: If we don't do that (yet): if this player played an active face card
+                // and ends up winning it, they should take the pile and immediately
+                // forfeit it. This would likely be tied to the mutable-state-based
+                // calculations for face card challenges.
+                this.pile.unshift(...player.cards.splice(0, player.cards.length));
+            })();
+        })
 
         // TODO: Respond to a player failing to respond.
-        // If a player takes too long (say, 10 seconds) to respond,
-        // they should drop a penalty card
+        // Most of the time, there is only one correct action that the game can take,
+        // so if a player takes too long (say, 5-10 seconds) to take their turn,
+        // the game should take it for them. This includes both playing cards on your
+        // turn and taking won face card challenges.
+        // When an exited player is faced with this (and we have correctly programmed
+        // them to keep their cards), they should perform any required actions
+        // immediately.
     }
 
 
@@ -348,6 +363,8 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
     // Returns whether or not there is an active face card on the pile,
     // whether or not it has won the pile
     private isPileUnderFaceCardControl(): boolean {
+        // TODO: This should be based on mutable state, rather than an immutable check.
+        // The logic here is surprisingly delicate and duplicated with the above check.
         let i = this.pile.length - 1;
         while (i >= this.pile.length - 1 - MAX_CHALLENGE_COUNT && i >= 0) {
             const card = this.pile[i];
@@ -424,9 +441,12 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
             if (card.rank in FACE_CARD_CHALLENGE_COUNTS) {
                 this.previousFaceCardPlayerId = sender;
                 this.advanceToNextPlayer();
+            } else if (this.isPileWon()) {
+                // if the pile is won, no one can play any cards - do this to remove any indicators
+                this.currentPlayerId = "";
             } else if (!this.isPileUnderFaceCardControl() || player.cards.length === 0) {
                 this.advanceToNextPlayer();
-            }
+            } 
             this.saveCheckpoint();
             this.updateTimepointCode();
             this.pushClientUpdates();

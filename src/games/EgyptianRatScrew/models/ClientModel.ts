@@ -65,7 +65,7 @@ export class EgyptianRatScrewClientModel extends ClusterfunClientModel  {
     private _timepointCode: string = "";
     @observable private _numberOfCards: number = 0;
     get numberOfCards() { return this._numberOfCards; }
-    set numberOfCards(value) { action(() => this._numberOfCards = value )() }
+    set numberOfCards(value) { action(() => { this._numberOfCards = value } )() }
 
     get canPlayCards() {
         return this.numberOfCards > 0;
