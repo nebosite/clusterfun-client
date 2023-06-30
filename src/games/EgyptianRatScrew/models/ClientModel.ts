@@ -123,4 +123,9 @@ export class EgyptianRatScrewClientModel extends ClusterfunClientModel  {
             this.updateFromTimepoint(response.timepoint);
         }
     }
+
+    // TODO: Consider a set of actions/buttons that allow you to change your position
+    // in the turn order if you are out of cards. This would let you establish your seat
+    // in the game to match your seating arrangements IRL. You should also be able to
+    // do this before the game starts.
 }

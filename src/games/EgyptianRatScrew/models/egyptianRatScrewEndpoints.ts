@@ -18,6 +18,15 @@ export interface ERSTimepointUpdateMessage {
      * to be displayed in the corner
      */
     numberOfCards: number,
+
+    // TODO: The timepoint update message should probably also include
+    // if it's your turn or not, so that a corresponding visual indicator
+    // can appear on the client
+
+    // NOTE: This timepoint update should _never_ indicate
+    // what card is on top of the pile, or any other cards
+    // present in the game. This prevents a rogue client from
+    // being able to cheat by performing super-human reactions
 }
 
 export enum ERSActionSuccessState {
