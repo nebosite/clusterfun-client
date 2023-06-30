@@ -1,6 +1,6 @@
 import { action, observable } from "mobx"
 import { ERS_MIN_CARDS_PER_PLAYER, PLAYTIME_MS } from "./GameSettings";
-import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, ITypeHelper, PresenterGameState, GeneralGameState, Vector2, PresenterGameEvent } from "libs";
+import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, ITypeHelper, PresenterGameState, GeneralGameState, PresenterGameEvent } from "libs";
 import Logger from "js-logger";
 import { ERSActionResponse, ERSActionSuccessState, ERSTimepointUpdateMessage, EgyptianRatScrewOnboardClientEndpoint, EgyptianRatScrewPlayCardActionEndpoint, EgyptianRatScrewPushUpdateEndpoint, EgyptianRatScrewTakePileActionEndpoint } from "./egyptianRatScrewEndpoints";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
@@ -47,7 +47,6 @@ const FACE_CARD_CHALLENGE_COUNTS: Record<any, number> = {
     [PlayingCardRank.Queen]: 2,
     [PlayingCardRank.Jack]: 1
 }
-const MAX_CHALLENGE_COUNT = 4;
 
 export class EgyptianRatScrewPlayer extends ClusterFunPlayer {
     @observable cards: PlayingCard[] = observable([])
@@ -136,7 +135,8 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
 
     @observable pile: PlayingCard[] = observable([]); // The pile of cards in the center
     @observable currentPlayerId: string = ""; // The player whose turn it is to play a card
-    @observable previousFaceCardPlayerId: string | undefined = undefined; // The player who most recently played a face card
+    @observable faceCardChallengePlayerId: string | undefined = undefined; // The player who most recently played a face card
+    @observable faceCardChallengeCardsLeft: number | undefined = undefined; // The number of cards left in a face card challenge
     private _timepointCode: string = ""; // A unique string representing the current moment in time
     private _timepointScratch: Uint32Array = new Uint32Array(2); // Scratch space for generating the timepoint
 
@@ -172,14 +172,20 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
 
         this.subscribe(PresenterGameEvent.PlayerQuit, "ers-player-quit", (player: EgyptianRatScrewPlayer) => {
             action(() => {
-                // when a player quits, put all of their cards under the pile
+                // when a player quits, put all of their cards under the pile,
+                // cancel any challenges they have active,
+                // and if it was their turn, set the turn to a random player
                 // TODO: Consider changing this to the player still being "present",
                 // but automatically taking actions as needed, as given in the below TODO.
-                // TODO: If we don't do that (yet): if this player played an active face card
-                // and ends up winning it, they should take the pile and immediately
-                // forfeit it. This would likely be tied to the mutable-state-based
-                // calculations for face card challenges.
                 this.pile.unshift(...player.cards.splice(0, player.cards.length));
+                if (this.faceCardChallengePlayerId === player.playerId) {
+                    this.faceCardChallengePlayerId = undefined;
+                    this.faceCardChallengeCardsLeft = undefined;
+                }
+                if (this.currentPlayerId === player.playerId) {
+                    const nextPlayerIndex = Math.floor(Math.random() * this.players.length);
+                    this.currentPlayerId = this.players[nextPlayerIndex].playerId;
+                }
             })();
         })
 
@@ -345,37 +351,6 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
         return false;
     }
 
-    // Returns whether or not the pile has been won by the player who previously took a face card.
-    // In this state, no one is allowed to play cards.
-    private isPileWon(): boolean {
-        let i = this.pile.length - 1;
-        while (i >= this.pile.length - 1 - MAX_CHALLENGE_COUNT && i >= 0) {
-            const card = this.pile[i];
-            if (card.rank in FACE_CARD_CHALLENGE_COUNTS) {
-                const cardsAboveThisCard = (this.pile.length - 1) - i;
-                return cardsAboveThisCard >= FACE_CARD_CHALLENGE_COUNTS[card.rank];
-            }
-            i--;
-        }
-        return false;
-    }
-
-    // Returns whether or not there is an active face card on the pile,
-    // whether or not it has won the pile
-    private isPileUnderFaceCardControl(): boolean {
-        // TODO: This should be based on mutable state, rather than an immutable check.
-        // The logic here is surprisingly delicate and duplicated with the above check.
-        let i = this.pile.length - 1;
-        while (i >= this.pile.length - 1 - MAX_CHALLENGE_COUNT && i >= 0) {
-            const card = this.pile[i];
-            if (card.rank in FACE_CARD_CHALLENGE_COUNTS) {
-                return true;
-            }
-            i--;
-        }
-        return false;
-    }
-
     // Try advancing to the next player, skipping any players with no cards.
     // If there are no other players with cards, mark the game as won.
     private advanceToNextPlayer() {
@@ -393,7 +368,7 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
                 break;
             }
             if (this.players[i].cards.length > 0) {
-                action(() => this.currentPlayerId = this.players[i].playerId)();
+                action((i: number) => this.currentPlayerId = this.players[i].playerId)(i);
                 break;
             }
         }
@@ -425,11 +400,14 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
             return { successState: ERSActionSuccessState.Ignored };
         }
 
+        // You can't play cards if it's not your turn
         if (this.currentPlayerId !== sender) {
             return this.resolveFailedAction(sender);
         }
-        if (this.isPileWon()) {
-            return this.resolveFailedAction(sender);
+        // No one can play cards if the face card challenge has been won
+        // (for now, we just ignore the action)
+        if (this.faceCardChallengePlayerId !== undefined && (this.faceCardChallengeCardsLeft!) <= 0) {
+            return { successState: ERSActionSuccessState.Ignored };
         }
         
         action(() => {
@@ -439,14 +417,26 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
             }
             this.pile.push(card);
             if (card.rank in FACE_CARD_CHALLENGE_COUNTS) {
-                this.previousFaceCardPlayerId = sender;
+                this.faceCardChallengePlayerId = sender;
+                this.faceCardChallengeCardsLeft = FACE_CARD_CHALLENGE_COUNTS[card.rank];
                 this.advanceToNextPlayer();
-            } else if (this.isPileWon()) {
-                // if the pile is won, no one can play any cards - do this to remove any indicators
-                this.currentPlayerId = "";
-            } else if (!this.isPileUnderFaceCardControl() || player.cards.length === 0) {
+            } else if (this.faceCardChallengePlayerId !== undefined) {
+                (this.faceCardChallengeCardsLeft!)--;
+                // If the pile reduces to 0, no one can play any cards
+                // (note that this is checked when a card is played again)
+                // TODO: Indicate this fact to the UI somehow.
+                // Note that we should use a separate boolean or something,
+                // since clearing the "current player ID" causes problems
+                // if the attacker leaves
+
+                // the current player must play cards again unless they're out
+                if (player.cards.length === 0) {
+                    this.advanceToNextPlayer();
+                }
+            } else {
+                // in a normal situation, just advance to the next player
                 this.advanceToNextPlayer();
-            } 
+            }
             this.saveCheckpoint();
             this.updateTimepointCode();
             this.pushClientUpdates();
@@ -473,11 +463,12 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
             return { successState: ERSActionSuccessState.Ignored };
         }
 
-        if (this.isPileTakeable() || (this.previousFaceCardPlayerId === sender && this.isPileWon())) {
+        if (this.isPileTakeable() || (this.faceCardChallengePlayerId === sender && this.faceCardChallengeCardsLeft === 0)) {
             action(() => {
                 // Take the entire pile and put it on the bottom of the deck in order
                 player.cards.unshift(...this.pile.splice(0, this.pile.length));
-                this.previousFaceCardPlayerId = undefined;
+                this.faceCardChallengePlayerId = undefined;
+                this.faceCardChallengeCardsLeft = undefined;
                 this.currentPlayerId = sender;
                 // TODO: There should be some delay (perhaps one or two seconds) before
                 // cards should be played again. This allows slaps to happen immediately

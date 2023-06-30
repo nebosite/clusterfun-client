@@ -3,10 +3,9 @@ import React from "react";
 import { observer, inject } from "mobx-react";
 import styles from "./Presenter.module.css"
 import classNames from "classnames";
-import { observable } from "mobx";
 import EgyptianRatScrewAssets from "../assets/Assets";
 import { EgyptianRatScrewVersion } from "../models/GameSettings";
-import { BaseAnimationController, MediaHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, DevUI, UINormalizer } from "libs";
+import { MediaHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, DevUI, UINormalizer } from "libs";
 import { EgyptianRatScrewPresenterModel, EgyptianRatScrewGameState, EgyptianRatScrewGameEvent, PlayingCard, PlayingCardRank, PlayingCardSuit } from "../models/PresenterModel";
 
 
@@ -99,13 +98,6 @@ class PausedGamePage  extends React.Component<{appModel?: EgyptianRatScrewPresen
 @inject("appModel") @observer class PlayingPage 
     extends React.Component<{appModel?: EgyptianRatScrewPresenterModel, media: MediaHelper }> {
 
-    // -------------------------------------------------------------------
-    // ctor
-    // -------------------------------------------------------------------
-    constructor(props: Readonly<{ appModel?: EgyptianRatScrewPresenterModel, media: MediaHelper }>) {
-        super(props);
-    }
-
     private renderCard(card: PlayingCard) {
         // TODO: This should be replaced with full-fledged card images,
         // preferably SVGs
@@ -158,8 +150,8 @@ class PausedGamePage  extends React.Component<{appModel?: EgyptianRatScrewPresen
                 {appModel.players.map(player => (
                     <p key={player.playerId}>
                         {player.name} ({player.cards.length}) 
-                        {appModel.currentPlayerId === player.playerId ? "☚" : undefined}
-                        {appModel.previousFaceCardPlayerId === player.playerId ? "★" : undefined}
+                        {(appModel.currentPlayerId === player.playerId && appModel.faceCardChallengeCardsLeft !== 0) ? "☚" : undefined}
+                        {appModel.faceCardChallengePlayerId === player.playerId ? "★" : undefined}
                     </p>
                 ))}
             </div>
