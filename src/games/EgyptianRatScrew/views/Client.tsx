@@ -47,10 +47,7 @@ class GameScreen extends React.Component<{appModel?: EgyptianRatScrewClientModel
         const {appModel} = this.props;
         if (!appModel) return <div>NO APPMODEL</div>; 
 
-        // TODO: Make the buttons below take up the whole screen -
-        // we essentially are giving players a giant remote
-        // Play Card should also be green, while
-        // Take Pile is red or yellow
+        // TODO: Integrate the styling of the buttons below into the style sheet
 
         // TODO: "Play" should be disabled if you don't have cards -
         // I'm leaving that behavior out for now because I can't get
@@ -60,13 +57,19 @@ class GameScreen extends React.Component<{appModel?: EgyptianRatScrewClientModel
             <div>
                 <h4>{appModel.playerName}</h4>
                 <p>{appModel.numberOfCards} Cards Remaining</p>
-                <div>
+                <div style={ { height: "1500px", display: "flex", flexDirection: "column", alignItems: "stretch" } }>
                     <button 
                         className={styles.clientButton}
+                        style={{ height: "100%", backgroundColor: "#8f8" }}
                         onClick={()=>appModel.doPlayCard()}>
                             Play
                     </button>
-                    <button className={styles.clientButton} onClick={()=>appModel.doTakePile()}>Take</button>
+                    <button 
+                        className={styles.clientButton} 
+                        style={{ height: "100%", backgroundColor: "#ff8" }}
+                        onClick={()=>appModel.doTakePile()}>
+                            Take
+                    </button>
                 </div>
             </div>
         );
