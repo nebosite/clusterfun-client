@@ -1,4 +1,4 @@
-import { action, observable } from "mobx"
+import { action, makeObservable, observable } from "mobx"
 import { ERS_MIN_CARDS_PER_PLAYER, PLAYTIME_MS } from "./GameSettings";
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, ITypeHelper, PresenterGameState, GeneralGameState, PresenterGameEvent } from "libs";
 import Logger from "js-logger";
@@ -158,6 +158,7 @@ export class EgyptianRatScrewPresenterModel extends ClusterfunPresenterModel<Egy
         this.totalRounds = 1;
 
         this.updateTimepointCode();
+        makeObservable(this);
     }
 
     // -------------------------------------------------------------------

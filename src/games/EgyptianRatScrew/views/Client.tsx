@@ -48,11 +48,7 @@ class GameScreen extends React.Component<{appModel?: EgyptianRatScrewClientModel
         if (!appModel) return <div>NO APPMODEL</div>; 
 
         // TODO: Integrate the styling of the buttons below into the style sheet
-
-        // TODO: "Play" should be disabled if you don't have cards -
-        // I'm leaving that behavior out for now because I can't get
-        // the component to update according to the number of cards
-        // remaining
+        // TODO: If the Play button is disabled, the background color should be more obvious
         return (
             <div>
                 <h4>{appModel.playerName}</h4>
@@ -60,6 +56,7 @@ class GameScreen extends React.Component<{appModel?: EgyptianRatScrewClientModel
                 <div style={ { height: "1500px", display: "flex", flexDirection: "column", alignItems: "stretch" } }>
                     <button 
                         className={styles.clientButton}
+                        disabled={!appModel.canPlayCards}
                         style={{ height: "100%", backgroundColor: "#8f8" }}
                         onClick={()=>appModel.doPlayCard()}>
                             Play

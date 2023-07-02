@@ -1,6 +1,6 @@
 import Logger from "js-logger";
 import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, Vector2, GeneralGameState } from "libs";
-import { action, observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import { EgyptianRatScrewGameState } from "./PresenterModel";
 import { ERSTimepointUpdateMessage, EgyptianRatScrewOnboardClientEndpoint, EgyptianRatScrewPlayCardActionEndpoint, EgyptianRatScrewPushUpdateEndpoint, EgyptianRatScrewTakePileActionEndpoint } from "./egyptianRatScrewEndpoints";
 
@@ -63,9 +63,7 @@ const colors = ["white", "red", "orange", "yellow", "blue", "cyan", "magenta", "
 export class EgyptianRatScrewClientModel extends ClusterfunClientModel  {
 
     private _timepointCode: string = "";
-    @observable private _numberOfCards: number = 0;
-    get numberOfCards() { return this._numberOfCards; }
-    set numberOfCards(value) { action(() => { this._numberOfCards = value } )() }
+    @observable numberOfCards: number = 0;
 
     get canPlayCards() {
         return this.numberOfCards > 0;
@@ -76,6 +74,7 @@ export class EgyptianRatScrewClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     constructor(sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage) {
         super("EgyptianRatScrewClient", sessionHelper, playerName, logger, storage);
+        makeObservable(this);
     }
 
     // -------------------------------------------------------------------
@@ -103,8 +102,10 @@ export class EgyptianRatScrewClientModel extends ClusterfunClientModel  {
     }
 
     private updateFromTimepoint = (timepoint: ERSTimepointUpdateMessage) => {
-        this._timepointCode = timepoint.timepointCode;
-        this.numberOfCards = timepoint.numberOfCards;
+        action(() => {
+            this._timepointCode = timepoint.timepointCode;
+            this.numberOfCards = timepoint.numberOfCards;
+        })();
     }
 
     async doPlayCard() {
