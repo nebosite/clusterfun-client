@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@500&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Overall Formatting */
+
+.gameclient {
+    width: 100%;
+    height: 100%;
+    background-color: rgb(137, 189, 139);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    overflow: hidden;
+    font-size: 60px;
+    font-family: sans-serif
+}
+
+input {
+    font-size: 150%;
+    width: 100%;
+}
+
+/* Buttons */
+
+button {
+    font-size: 150%;
+}
+
+.submitButton {
+    font-size: 100%;
+    width: 40%;
+    padding: 2%;
+    margin-top: 5%;
+    margin-left: 5%;
+    margin-right: 5%;
+}
+
+.votedItem {
+    font-size: 100%;
+    background-color: cyan;
+    width: 80%;
+    padding: 2%;
+    margin-top: 5%;
+    margin-left: 10%;
+    margin-right: 10%;
+}
+
+.unvotedItem {
+    font-size: 100%;
+    background-color: rgb(106, 141, 141);
+    width: 80%;
+    padding: 2%;
+    margin-top: 5%;
+    margin-left: 10%;
+    margin-right: 10%;
+}
+
+.voteDivider {
+    border: 0; 
+    border-bottom: 5px dashed #ddd; 
+    background: rgb(0, 0, 0); 
+}
+
+/* Overall Formatting */
+
+.divRow {
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+.gametitle {
+    font-weight: 800;
+}
+
+.topbar {
+    display: flex; 
+    justify-content: space-around;
+}
+
+.quitbutton {
+    font-weight: 800;
+    padding: 0;
+    width: 100px;
+    margin-left:auto; margin-right:0;
+    margin: 0;
+}
+
+.basicRow {
+    display: flex;
+    flex-wrap: nowrap;
+}
