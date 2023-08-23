@@ -33,10 +33,10 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
             routing = parsedMessage.routing;
             payload = parsedMessage.payload as REQUEST;
         } catch (e) {
-            Logger.warn("Improperly formatted message received");
+            Logger.warn("Improperly formatted message received: " + e);
             return;
         }
-        if (routing.route !== this.endpoint.route || routing.role !== "request") {
+        if (routing.route !== this.endpoint.route || (routing.role !== "request" && routing.role !== "message")) {
             return; // this message is not for us
         }
         try {
@@ -47,7 +47,8 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
             } else {
                 result = rawResult as RESPONSE;
             }
-            if (result) {
+            if (routing.role === "request") {
+                // a request was expected, so reply back
                 const responseHeader: ClusterFunMessageHeader = {
                     r: header.s,
                     s: header.r,
@@ -60,8 +61,6 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
                 }
                 const responseData = stringifyMessage(responseHeader, responseRouting, result);
                 this._messageThing.send(responseData, () => {});
-            } else if (this.endpoint.responseRequired) {
-                Logger.warn(`No response sent for route: ${this.endpoint.route}`);
             }
         } catch (e) {
             const responseHeader: ClusterFunMessageHeader = {

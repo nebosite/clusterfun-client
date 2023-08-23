@@ -8,7 +8,6 @@ export const JoinEndpoint: MessageEndpoint<
     { isRejoin: boolean, didJoin: boolean, joinError?: string }
     > = {
     route: "/basic/handshake/join",
-    responseRequired: true,
     suggestedRetryIntervalMs: 1000,
     suggestedTotalLifetimeMs: 10000
 }
@@ -17,9 +16,8 @@ export const JoinEndpoint: MessageEndpoint<
  * Endpoint for informing the presenter that a client
  * has quit
  */
-export const QuitEndpoint: MessageEndpoint<unknown, unknown> = {
+export const QuitEndpoint: MessageEndpoint<unknown, void> = {
     route: "/basic/handshake/quit",
-    responseRequired: false
 }
 
 /**
@@ -30,7 +28,6 @@ export const PingEndpoint: MessageEndpoint<
     { pingTime: number, localTime: number }
     > = {
     route: "/basic/ping",
-    responseRequired: true,
     suggestedRetryIntervalMs: Number.POSITIVE_INFINITY,
     suggestedTotalLifetimeMs: 5000
 }
@@ -41,9 +38,8 @@ export const PingEndpoint: MessageEndpoint<
  * message by invoking the game-specific endpoint to fully
  * resync state.
  */
-export const InvalidateStateEndpoint: MessageEndpoint<unknown, unknown> = {
+export const InvalidateStateEndpoint: MessageEndpoint<unknown, void> = {
     route: "/basic/invalidate",
-    responseRequired: false
 }
 
 /**
@@ -51,7 +47,6 @@ export const InvalidateStateEndpoint: MessageEndpoint<unknown, unknown> = {
  */
 export const GameOverEndpoint: MessageEndpoint<unknown, unknown> = {
     route: "/basic/lifecycle/gameover",
-    responseRequired: true
 }
 
 /**
@@ -59,7 +54,6 @@ export const GameOverEndpoint: MessageEndpoint<unknown, unknown> = {
  */
 export const TerminateGameEndpoint: MessageEndpoint<unknown, unknown> = {
     route: "/basic/lifecycle/terminate",
-    responseRequired: true
 }
 
 /**
@@ -67,7 +61,6 @@ export const TerminateGameEndpoint: MessageEndpoint<unknown, unknown> = {
  */
 export const PauseGameEndpoint: MessageEndpoint<unknown, unknown> = {
     route: "/basic/lifecycle/pause",
-    responseRequired: true
 }
 
 /**
@@ -75,5 +68,4 @@ export const PauseGameEndpoint: MessageEndpoint<unknown, unknown> = {
  */
  export const ResumeGameEndpoint: MessageEndpoint<unknown, unknown> = {
     route: "/basic/lifecycle/resume",
-    responseRequired: true
 }

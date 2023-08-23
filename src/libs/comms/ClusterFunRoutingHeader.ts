@@ -5,5 +5,5 @@
 export interface ClusterFunRoutingHeader {
     requestId: string;
     route: string;
-    role: "request" | "response" | "error";
+    role: "message" | "request" | "response" | "error";
 }

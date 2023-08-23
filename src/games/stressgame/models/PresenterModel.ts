@@ -3,7 +3,7 @@ import { ClusterFunPlayer, ISessionHelper,
     ClusterFunGameProps, ClusterfunPresenterModel, 
     ITelemetryLogger, IStorage, ITypeHelper, 
     PresenterGameState} from "libs";
-import { StressatoPresenterRelayEndpoint } from "./stressatoEndpoints";
+import { StressatoPresenterRelayWithReturnEndpoint, StressatoPresenterRelayWithoutReturnEndpoint } from "./stressatoEndpoints";
 
 
 export enum StressatoPlayerStatus {
@@ -167,7 +167,8 @@ export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoP
     // -------------------------------------------------------------------
     reconstitute() {
         super.reconstitute();
-        this.listenToEndpoint(StressatoPresenterRelayEndpoint, this.handlePlayerAction);
+        this.listenToEndpoint(StressatoPresenterRelayWithReturnEndpoint, this.handleRelayWithReturn);
+        this.listenToEndpoint(StressatoPresenterRelayWithoutReturnEndpoint, this.handleRelayWithoutReturn);
     }
 
 
@@ -215,13 +216,15 @@ export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoP
     // -------------------------------------------------------------------
     //  handlePlayerAction
     // -------------------------------------------------------------------
-    handlePlayerAction = (sender: string, message: { returnSize: number, actionData: string }) => {
-        if(message.returnSize) {
-            return { actionData: seedString.substring(0, message.returnSize)};
-        } else {
-            return undefined;
-        }
+    handleRelayWithReturn = (sender: string, message: { returnSize: number, actionData: string }) => {
+        return { actionData: seedString.substring(0, message.returnSize)};
+    }
 
+    // -------------------------------------------------------------------
+    //  handlePlayerAction
+    // -------------------------------------------------------------------
+    handleRelayWithoutReturn = (sender: string, message: { actionData: string }) => {
+        return undefined; // do nothing
     }
 
 }

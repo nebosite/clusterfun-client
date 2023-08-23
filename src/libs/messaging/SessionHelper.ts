@@ -4,6 +4,7 @@ import ClusterfunListener from "./ClusterfunListener";
 import ClusterfunRequest from "./ClusterfunRequest";
 import MessageEndpoint from "./MessageEndpoint";
 import { IMessageThing } from './MessageThing';
+import { ClusterFunMessageHeader, ClusterFunRoutingHeader, stringifyMessage } from "libs/comms";
 
 // -------------------------------------------------------------------
 // SessionHelper
@@ -28,6 +29,15 @@ export interface ISessionHelper {
         endpoint: MessageEndpoint<REQUEST, RESPONSE>,
         request: REQUEST
         ): ClusterfunRequest<REQUEST, RESPONSE>;
+    sendMessage<MESSAGE>(
+        endpoint: MessageEndpoint<MESSAGE, void>, 
+        receiverId: string, 
+        message: MESSAGE
+        ): void;
+    sendMessageToPresenter<MESSAGE>(
+        endpoint: MessageEndpoint<MESSAGE, void>,
+        message: MESSAGE
+        ): void;
     addClosedListener(owner: object, listener: (code: number) => void): void;
     removeClosedListener(owner: object): void;
     onError(doThis: (err:string) => void): void;
@@ -139,7 +149,39 @@ export class SessionHelper implements ISessionHelper {
     // Make a request to a given endpoint on the presenter
     //--------------------------------------------------------------------------------------
     requestPresenter<REQUEST, RESPONSE>(endpoint: MessageEndpoint<REQUEST, RESPONSE>, request: REQUEST) {
-        return this.request(endpoint, this._presenterId, request);
+        return this.request<REQUEST, RESPONSE>(endpoint, this._presenterId, request);
+    }
+
+    //--------------------------------------------------------------------------------------
+    // Send a fire-and-forget message to a given endpoint on the given receiver
+    //--------------------------------------------------------------------------------------
+    sendMessage<REQUEST>(
+        endpoint: MessageEndpoint<REQUEST, void>, 
+        receiverId: string, 
+        request: REQUEST
+        ): void {
+        const requestId = (this._currentRequestId++).toString();
+        const header: ClusterFunMessageHeader = {
+            r: receiverId,
+            s: this.personalId,
+            id: requestId + "-message"
+        };
+        const routing: ClusterFunRoutingHeader = {
+            requestId: requestId,
+            route: endpoint.route,
+            role: "message"
+        };
+        const data = stringifyMessage(header, routing, request);
+        this._messageThing.send(data, () => {
+            Logger.warn("Could not send message to relay server")
+        });
+    }
+
+    //--------------------------------------------------------------------------------------
+    // Send a fire-and-forget message to a given endpoint on the presenter
+    //--------------------------------------------------------------------------------------
+    sendMessageToPresenter<REQUEST>(endpoint: MessageEndpoint<REQUEST, void>, request: REQUEST) {
+        return this.sendMessage(endpoint, this._presenterId, request);
     }
 
     //--------------------------------------------------------------------------------------
