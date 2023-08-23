@@ -46,8 +46,8 @@ describe("LetterGridPathFinder tests", () => {
         ]
         const gridDescription: Record<string, string> = {
             "_": "a fully empty grid",
-            "A": "a grid conqueured by team A",
-            "B": "a grid conqueured by team B"
+            "A": "a grid conquered by team A",
+            "B": "a grid conquered by team B"
         }
         for (const testCase of testCases) {
             it(`Identifies ${gridDescription[testCase[1]]} as needing an all ${testCase[2]} path for team ${testCase[0]}`, () => {

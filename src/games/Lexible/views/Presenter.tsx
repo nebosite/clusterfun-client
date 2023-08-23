@@ -8,8 +8,9 @@ import { LexibleVersion } from "../models/GameSettings";
 import { LetterBlockModel } from "../models/LetterBlockModel";
 import LetterBlock from "./LetterBlock";
 import { LexiblePresenterModel, MapSize, LexibleGameEvent, LexiblePlayer, LexibleGameState } from "../models/PresenterModel";
-import { Row, MediaHelper, SpeechHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, UINormalizer, DevUI } from "libs";
+import { Row, MediaHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, UINormalizer, DevUI } from "libs";
 import { action, makeAutoObservable } from "mobx";
+import SamJs from "sam-js";
 
 @inject("appModel") @observer
 class GameSettings  extends React.Component<{appModel?: LexiblePresenterModel}> {
@@ -254,9 +255,9 @@ class PausedGamePage  extends React.Component<{appModel?: LexiblePresenterModel}
 }
 
 const teamATaunts = [
-    "Team a haz won.  That is how it is.  You must get you zed to this.",
+    "Team A has won.  That is how it is.  You must get used to this.",
     "The feeling of victory is delicious, no?",
-    "To grasp a language, it is a thing of beauty.  Az iz are Triumph over team, bee!",
+    "To grasp a language, it is a thing of beauty.  As is our triumph over team B!",
 ]
 
 const teamBTaunts = [
@@ -274,17 +275,15 @@ const teamBTaunts = [
     constructor(props: Readonly<{ appModel?: LexiblePresenterModel, media: MediaHelper }>) {
         super(props);
 
-        const speech = new SpeechHelper();
-        //const languageFromTeam = (team: string) => team === "A" ? "Google français" : "Google UK English Male"
-        const languageFromTeam = (team: string) => team === "A" ? "Microsoft Zira - English (United States)" : "Google UK English Male"
+        const teamAVoice = new SamJs({ speed: 72, pitch: 64, throat: 128, mouth: 128 }); // default SAM/V1
+        const teamBVoice = new SamJs({ speed: 72, pitch: 48, throat: 128, mouth: 128 }); // higher pitched SAM
+        const voiceFromTeam = (team: string) => team === "A" ? teamAVoice : teamBVoice;
         props.appModel!.subscribe(LexibleGameEvent.WordAccepted, "say accepted word", (word: string, player: LexiblePlayer) => {
-            //props.media.playSound(LexibleAssets.sounds.ding)
-            speech.speak(word, languageFromTeam(player.teamName));
+            voiceFromTeam(player.teamName).speak(word);
         })
         props.appModel!.subscribe(LexibleGameEvent.TeamWon,  "Taunt from the winners", (team: string)=> {
             const taunts = team === "A" ? teamATaunts : teamBTaunts;
-           
-            speech.speak(props.appModel?.randomItem(taunts) ?? "", languageFromTeam(team));
+            voiceFromTeam(team).speak(props.appModel?.randomItem(taunts) ?? taunts[0]);
         });
 
     }
