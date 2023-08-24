@@ -1,0 +1,318 @@
+p {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+.gamepresenter {
+    width: 100%;
+    height: 100%;
+    background-color: rgb(142, 251, 191);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    overflow: hidden;
+    font-size: 40px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.gamepresenter  .navbar {
+    justify-content: space-evenly;
+}
+
+.gamepresenter .icon {
+    width: 200px;
+    margin: 20px;
+    margin-top: -50px;
+    margin-bottom: -50px;
+}
+
+
+.gamepresenter .appTitle {
+    font-size: 200%;
+    font-weight: 800;
+    color: red
+}
+.gamepresenter .appVersion {
+    font-size: 80%;
+}
+
+.gamepresenter .gameTitle {
+    font-size: 150%;
+    font-weight: 600;
+}
+
+.gamepresenter .divRow {
+    display: flex;
+    flex-wrap: nowrap;
+}
+.gamepresenter button {
+    padding: 10px;
+    margin: 10px;
+    font-size: 50%;
+    font-weight: 600;
+    border-radius: 20px;
+    font-size: 120%;
+}
+
+.gamepresenter .input {
+    font-size: 100%
+}
+
+.gamepresenter .roomCode {
+    align-self: flex-end;
+    font-size: 120%;
+    font-weight: 400;
+    margin-right: 50px;
+}
+
+.gamepresenter .nameBox {
+    background: greenyellow;
+    margin: 10px;
+    padding: 10px;
+    display: flex;   
+    flex-wrap: nowrap;
+}
+
+.gamepresenter .answerList {
+    display: flex;
+    flex-wrap:wrap;
+}
+
+.gamepresenter .secondsCounterRow {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+
+.gamepresenter .secondsCounter {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: 700;
+    font-size: 200%;
+    min-width: 280px;
+    margin-left: 30px;
+}
+
+::-webkit-scrollbar {
+    width: 20px;
+    height: 20px;
+}
+
+::-webkit-scrollbar-track {
+    box-shadow: inset 4px 4px 10px black;
+    -webkit-box-shadow: inset 4px 4px 10px black;
+    background-color: darkgray;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgb(221, 221, 221);
+  outline: 1px solid slategrey;
+}
+
+.gamepresenter .answeringPage {
+    font-size: 150%;
+}
+.gamepresenter .sortList {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    flex-direction: row;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    overflow-x:auto;
+    height: 740px;
+}
+
+.gamepresenter .listSpacer {
+    height: 700px;
+    width: 15px;
+    transition: height .3s;
+    transition: width .3s;
+}
+
+.gamepresenter .answerCard {
+    display:flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgb(110, 110, 184);
+    padding: 3px;
+}
+
+.gamepresenter .answerCollection {
+    display:flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3px;
+}
+
+.gamepresenter .answerCollectionHandle 
+{
+    background: rgb(110, 110, 184);
+    border-style: outset;
+    height: 30px;
+    width: 162px;
+}
+
+.gamepresenter .answerCardTitle {
+    font-size: 18px;
+    font-weight: 800;
+    flex-wrap: wrap;
+    text-overflow: ellipsis;
+    background: rgb(110, 110, 184);
+    border-style: outset;
+    min-height: 50px;
+    width: 162px;
+    padding: 0px;
+    text-align: center;
+}
+
+.gamepresenter .answerCardTitleEdit {
+    font-size: 16px;
+    font-weight: 500;
+    flex-wrap: wrap;
+    text-overflow: ellipsis;
+    background: rgb(209, 209, 255);
+    border-style: outset;
+    min-height: 50px;
+    width: 162px;
+    padding: 0px;
+}
+
+
+.gamepresenter .cardAnswerList {
+    display:flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+}
+
+.gamepresenter .answerBox {
+    display: inline-flex;
+    font-size: 20px;
+    line-height: 18px;
+    
+    font-weight: 700;
+    height: 100px;
+    max-height: 80px;
+    margin: 3px;
+    padding: 5px;
+    width: 150px;
+    max-width: 150px;
+    overflow: hidden; 
+    justify-content: center;
+    text-align: center;
+    align-items: center;
+    box-shadow: 4px 4px 15px  rgb(41, 41, 41);
+} 
+
+.gamepresenter .lightbulb {
+    width: 60px;
+}
+
+.gamepresenter .doneSortingButton {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+}
+
+.gamepresenter .discussionGroup {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 40px;
+    scroll-behavior: auto;
+    height: 670px;
+}
+
+.gamepresenter .discussionCard {
+    background: gray;
+    margin: 10px;
+    max-width: 550px;
+    padding: 8px;
+    height: 200px;
+}
+
+.gamepresenter .discussionCardText {
+    font-size: 100%;
+    padding: 10px;
+    height: 135px;
+    overflow: hidden;
+}
+.gamepresenter .discussionCardAuthor {
+    font-size: 80%;
+    width: 100%;
+    text-align: center;
+    padding-bottom: 5px;
+}
+
+.gamepresenter .discussionButtonRow {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    flex: 1 1 150px;
+    justify-content: space-between;
+    align-items: center; 
+}
+
+/* .gamepresenter .cellLeft{
+    flex-grow: 1;
+    justify-content: flex-start;
+}
+
+.gamepresenter .cellCenter{
+    flex-grow: 1;
+    justify-content: center;
+}
+
+.gamepresenter .cellRight{
+    flex-grow: 1;
+    background: red;
+    justify-content: flex-end;
+} */
+
+.gamepresenter .discussionCategoryLabel {
+    font-size: 150%;
+    font-weight: 700;
+}
+
+.gamepresenter .discussionButton {
+    font-size: 100%;
+    background: rgb(160, 160, 160);
+    margin-right: 40px;
+    padding: 10px;
+    padding-left: 30px;
+    padding-right: 30px;
+    border-radius: 20px;
+    box-shadow: 4px 4px 15px  rgb(41, 41, 41);
+}
+
+.gamepresenter .instructions {
+    height: 800px;
+    font-size: 100%;
+    scroll-behavior:auto;
+    padding: 20px;
+}
+
+.gamepresenter .letsGo {
+    font-size: 100%;
+    margin-top: 50px;
+    margin-left: 1200px;
+}
+
+.gamepresenter .doneSortingButton {
+    font-size: 100%;
+}
+
+.gamepresenter .summaryBox {
+    font-size: 60%;
+    display: flex;
+    position:absolute;
+    width: 1000px;
+    height: 800px;
+    left: 300px;
+    background: white;
+    z-index: 5;
+    flex-direction: column;
+    overflow: scroll;
+    overflow-y: auto;
+    overflow-x: auto;
+    box-shadow: 8px 8px 35px  rgb(41, 41, 41);
+    padding: 20px;
+
+}

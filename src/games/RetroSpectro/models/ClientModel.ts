@@ -1,11 +1,18 @@
-import { action, makeObservable, observable } from "mobx";
-import { ClusterFunGameProps, ClusterfunClientModel, GeneralClientGameState, GeneralGameState, ISessionHelper, ITypeHelper } from "libs";
+import { makeObservable, observable } from "mobx";
+import { ClusterFunGameProps, ClusterfunClientModel, GeneralClientGameState, ISessionHelper } from "libs";
 import { ITelemetryLogger } from "libs/telemetry/TelemetryLogger";
 import { IStorage } from "libs/storage/StorageHelper";
-import { SETTING_ANSWER_CHARACTER_LIMIT } from "./RetroSpectroGameSettings";
-import { RetroSpectroAnswerEndpoint, RetroSpectroAnswerMessage, RetroSpectroStatePushEndpoint, RetroSpectroStateUpdateEndPoint, RetroSpectroStateUpdateResponse } from "./RetroSpectroEndpoints";
-import { RetroSpectroGameState } from "./RetroSpectroPresenterModel";
-import logger from "js-logger";
+import { SETTING_ANSWER_CHARACTER_LIMIT } from "./GameSettings";
+import { RetroSpectroGameState } from "./PresenterModel";
+import { RetroSpectroAnswerEndpoint, 
+    RetroSpectroAnswerMessage, 
+    RetroSpectroDiscussionEndpoint, 
+    RetroSpectroDiscussionMessage, 
+    RetroSpectroEndOfRoundEndpoint, 
+    RetroSpectroEndOfRoundMessage, 
+    RetroSpectroStatePushEndpoint, 
+    RetroSpectroStateUpdateEndPoint, 
+    RetroSpectroStateUpdateResponse } from "./EndPoints";
 
 export enum AnswerType{
     Positive = "Positive",
@@ -13,10 +20,10 @@ export enum AnswerType{
 }
 
 export enum RetroSpectroClientState {
-    AnsweringQuestion = "Answering Question",
-    WaitingForQuestionFinish = "WaitingForRoundFinish",
+    SubmittingAnswers = "SubmittingAnswers",
     Sorting = "Sorting",
-    JoinError = "Join Error",
+    Discussing = "Discussing",
+    EndOfRound = "EndOfRound",
 }
 
 // -------------------------------------------------------------------
@@ -25,7 +32,7 @@ export enum RetroSpectroClientState {
 export const getRetroSpectroClientTypeHelper = (
     sessionHelper: ISessionHelper, 
     gameProps: ClusterFunGameProps
-    ): ITypeHelper =>
+    ) =>
  {
      return {
         rootTypeName: "RetroSpectroClientModel",
@@ -44,7 +51,6 @@ export const getRetroSpectroClientTypeHelper = (
                         gameProps.playerName || "Player",
                         gameProps.logger,
                         gameProps.storage);
-
             }
             return null;
         },
@@ -58,12 +64,14 @@ export const getRetroSpectroClientTypeHelper = (
         }
      }
 }
+
+
 // -------------------------------------------------------------------
 // Client data and logic
 // -------------------------------------------------------------------
-export class RetroSpectroClientModel extends ClusterfunClientModel {
+export class RetroSpectroClientModel extends ClusterfunClientModel  {
 
-    @observable _currentAnswer: string = "";
+    @observable private _currentAnswer: string = "";
     get currentAnswer() { return this._currentAnswer;}
     get currentAnswerOK() {
         const trimmedAnswer = this.currentAnswer.trim();
@@ -75,11 +83,7 @@ export class RetroSpectroClientModel extends ClusterfunClientModel {
         if(value.length > SETTING_ANSWER_CHARACTER_LIMIT) value = value.substr(0,SETTING_ANSWER_CHARACTER_LIMIT);
         this._currentAnswer = value;  this.saveCheckpoint()}
     
-    @observable _activeQuestion: string | undefined;
-    get activeQuestion() { return this._activeQuestion }
-    set activeQuestion(value) {
-        action(()=> this._activeQuestion = value)();
-    }
+    @observable hasOnscreenAnswer = false;
 
     // -------------------------------------------------------------------
     // ctor 
@@ -88,32 +92,32 @@ export class RetroSpectroClientModel extends ClusterfunClientModel {
         super("RetroSpectroClient", sessionHelper, playerName, logger, storage);
         makeObservable(this);
     }
+    
+    // -------------------------------------------------------------------
+    //  reconstitute - add code here to fix up saved game data that 
+    //                 has been loaded after a refresh
+    // -------------------------------------------------------------------
+    reconstitute() {
+        super.reconstitute();
+        this.listenToEndpointFromPresenter(RetroSpectroStatePushEndpoint, this.handleStatePush);
+        this.listenToEndpointFromPresenter(RetroSpectroEndOfRoundEndpoint, this.handleEndOfRoundMessage);
+        this.listenToEndpointFromPresenter(RetroSpectroDiscussionEndpoint, this.handleDiscussionMessage);
+    }
 
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
     async requestGameStateFromPresenter(): Promise<void> {
-        const gameState = await this.session.requestPresenter(RetroSpectroStateUpdateEndPoint, {})
-        this.handleStatePush(gameState)
-    }
-
-    // -------------------------------------------------------------------
-    // reconstitute 
-    // -------------------------------------------------------------------
-    reconstitute() {
-        super.reconstitute();
-        this.listenToEndpointFromPresenter(RetroSpectroStatePushEndpoint, this.handleStatePush);
+        const onboardState = await this.session.requestPresenter(RetroSpectroStateUpdateEndPoint, {})
+        this.assignClientStateFromServerState(onboardState.currentStage);
+        this.saveCheckpoint();
     }
 
     // -------------------------------------------------------------------
     // handleStatePush
     // -------------------------------------------------------------------
     protected handleStatePush = (message: RetroSpectroStateUpdateResponse) => {
-        switch(message.currentStage) {
-            case RetroSpectroGameState.WaitingForAnswers: this.switchToAnswering(); break;
-            case RetroSpectroGameState.Sorting: this.switchToSorting(); break;;
-            //message.currentStage satisfies never;
-        }
+        this.assignClientStateFromServerState(message.currentStage);
     }
 
     // -------------------------------------------------------------------
@@ -124,7 +128,7 @@ export class RetroSpectroClientModel extends ClusterfunClientModel {
             this.telemetryLogger.logEvent("Client", "Start");
         }
         this.currentAnswer = "";
-        this.gameState = RetroSpectroClientState.AnsweringQuestion;
+        this.gameState = RetroSpectroClientState.SubmittingAnswers;
 
         this.saveCheckpoint();
     }
@@ -137,16 +141,56 @@ export class RetroSpectroClientModel extends ClusterfunClientModel {
         this.saveCheckpoint();
     }
 
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    assignClientStateFromServerState(serverState: string) {    
+        switch(serverState) {
+            case RetroSpectroGameState.Discussing: 
+                this.gameState = RetroSpectroClientState.Discussing; 
+                break;
+            case RetroSpectroGameState.Sorting: 
+                this.gameState = RetroSpectroClientState.Sorting; 
+                break;
+            case RetroSpectroGameState.WaitingForAnswers: 
+                this.gameState = RetroSpectroClientState.SubmittingAnswers; 
+                break;
+            default: 
+                this.gameState = GeneralClientGameState.WaitingToStart; 
+                break;
+            //message.currentStage satisfies never;
+        }
+    
+    }
+
+    // -------------------------------------------------------------------
+    // handleEndOfRoundMessage
+    // -------------------------------------------------------------------
+    protected handleEndOfRoundMessage = (message: RetroSpectroEndOfRoundMessage) => {
+        this.gameState = RetroSpectroClientState.EndOfRound;
+
+        this.saveCheckpoint();
+    }
+
+    // -------------------------------------------------------------------
+    // handleDiscussionMessage 
+    // -------------------------------------------------------------------
+    handleDiscussionMessage = (message: RetroSpectroDiscussionMessage) => {
+        this.gameState = RetroSpectroClientState.Discussing;
+        this.hasOnscreenAnswer = message.youAreInThis;
+        this.saveCheckpoint();
+    }
+
     // -------------------------------------------------------------------
     // submitAnswer 
     // -------------------------------------------------------------------
     submitAnswer(answerType: AnswerType) {
-        const message: RetroSpectroAnswerMessage = {
+        const message : RetroSpectroAnswerMessage = 
+            {
                 answer: this.currentAnswer,
                 answerType: answerType,
-        }
-        this.session.requestPresenter(RetroSpectroAnswerEndpoint, message).forget();
-
+            }
+        this.session.requestPresenter(RetroSpectroAnswerEndpoint, message)
         this.currentAnswer = "";
         this.saveCheckpoint(); 
     }

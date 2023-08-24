@@ -1,4 +1,4 @@
-import { RetroSpectroAnswer } from "games/RetroSpectro/models/RetroSpectroPresenterModel";
+import { RetroSpectroAnswer } from "games/RetroSpectro/models/PresenterModel";
 import { observer } from "mobx-react";
 import React from "react";
 import { 
@@ -9,7 +9,7 @@ import {
     DragSourceMonitor, 
     DragSourceOptions 
 } from "react-dnd";
-import styles from './RetroSpectroPresenter.module.css';
+import styles from './Presenter.module.css';
 
 interface AnswerCardProps {
     context: RetroSpectroAnswer;
@@ -31,7 +31,7 @@ const answerDragSpec = {
     endDrag(props: AnswerCardProps, monitor: DragSourceMonitor, component: AnswerCard)
     {
         if(monitor.didDrop()) {
-            const target = monitor.getDropResult();
+            const target = monitor.getDropResult() as any;
             //console.log(`DropTarget: AnswerCard  Item:${stringify(target.item)}`)
             if(target.type === "spacer")
             {
@@ -46,7 +46,7 @@ const answerDragSpec = {
     isDragging(props: AnswerCardProps, monitor: DragSourceMonitor)
     {
         return monitor.getItemType() === '*'
-            && props.context.id === monitor.getItem().id;  
+            && props.context.id === monitor.getItem<{id: number}>().id;  
     }
 }
 

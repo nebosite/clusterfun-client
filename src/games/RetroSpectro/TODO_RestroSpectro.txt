@@ -1,0 +1,38 @@
+    RetroSpectro
+        
+        [x] Only show non-release games with a parameter:  show=alpha,beta
+        [x] Final summary - show all the cards
+        [ ] RS: at the end, show a printable summary
+        [ ] Retro spectro - can't join after game starts
+        [ ] Retro spectro - autoname based on common words
+        [ ] RS: would like to be able to save the output  (with date!)
+        [ ] RS: Could use some UI improvements
+            - https://uxdesign.cc/9-simple-tips-to-improve-your-ui-designs-fast-377c5113ac82
+            - https://uxdesign.cc/8-more-tips-to-quickly-improve-your-ui-designs-368fb3bea5ba
+            - Items
+                - Always make your ‘Call to Action’ the most prominent item on the screen
+                - subtle borders and shadows to group items
+                - white spacing between stuff
+                - Better onboarding with a "skip" option
+        [ ] Smaller font for cards is ok (could be 30% smaller)
+        [ ] Allow skipping of initial instructions
+        [ ] Provide some examples
+        [ ] Send end of game to clients so they invite the user to quit
+        [ ] Show time left on client
+        [ ] Some people feel bad not getting to see what other's write
+            - Don't want to forget about something
+            - Lightning round - the thing I forgot
+            [ ] Button to return and get more answers
+    
+    
+        [ ] Extra stage - do you need more time?
+        [ ] Have an animation to show reordering of categories
+        [ ] https on the server  (letsencrypt)
+        [ ] Presenter is too big - there is a scroll bar 
+            [ ] root is hard set to 1080 pm - should be 100%
+        
+        [ ] Click on card to bookmark it
+        [ ] Maybe a ven diagram?
+        [ ] E2E encryption
+        [ ] Business: on-prem docker image
+    

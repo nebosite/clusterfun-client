@@ -1,29 +1,42 @@
 import { observable } from "mobx"
+import { ClusterFunGameProps, ClusterFunPlayer, ClusterfunPresenterModel, GeneralGameState, ISessionHelper, ITypeHelper, PresenterGameEvent, PresenterGameState } from "libs";
 import { ITelemetryLogger } from "libs/telemetry/TelemetryLogger";
-import { RetroSpectroPlayer, RetroSpectroPlayerStatus } from "./RetroSpectroPlayer";
-import { SETTING_ANSWERING_TIME_MS, SETTING_VOTING_TIME_MS } from "./RetroSpectroGameSettings";
-import { AnswerType } from "./RetroSpectroClientModel";
-import {stringify} from "flatted";
-import { ClusterFunGameProps, ClusterfunPresenterModel, ISessionHelper, ITypeHelper } from "libs";
 import { IStorage } from "libs/storage/StorageHelper";
-import { RetroSpectroStateUpdateEndPoint, RetroSpectroAnswerEndpoint, RetroSpectroAnswerMessage, RetroSpectroStateUpdateResponse, RetroSpectroStatePushEndpoint } from "./RetroSpectroEndpoints";
+import { ANSWER_STAGE_TIME_MS } from "./GameSettings";
+import { AnswerType } from "./ClientModel";
+import { RetroSpectroStateUpdateEndPoint, RetroSpectroAnswerEndpoint, RetroSpectroStateUpdateResponse, RetroSpectroEndOfRoundEndpoint, RetroSpectroDiscussionEndpoint, RetroSpectroStatePushEndpoint, RetroSpectroAnswerResponse, RetroSpectroAnswerMessage } from "./EndPoints";
+
+export enum RetroSpectroPlayerStatus {
+    Unknown = "Unknown",
+    Waiting = "WaitingForStart",
+    Answering = "Answering",
+    Sorting = "Sorting",
+    Discussing = "Discussing",
+}
+export class RetroSpectroPlayer extends ClusterFunPlayer {
+    @observable totalScore = 0;
+    scoreThisRound: number = 0;
+    status: RetroSpectroPlayerStatus = RetroSpectroPlayerStatus.Unknown;
+    answer?: string;
+    votes: number[] = [];
+    winner: boolean = false;
+}
 
 // -------------------------------------------------------------------
 // The Game state  
 // -------------------------------------------------------------------
 export enum RetroSpectroGameState {
-    Gathering = "Gathering",
+    Instructions = "Instructions",
     WaitingForAnswers = "Waiting For Answers",
     Sorting = "Sorting",
     Discussing = "Discussing",
-    GameOver = "Game Over",
+    EndOfRound = "EndOfRound",
 }
 
 // -------------------------------------------------------------------
 // Game events
 // -------------------------------------------------------------------
 export enum RetroSpectroGameEvent {
-    PlayerJoined = "PlayerJoined",
     ResponseReceived = "ResponseReceived",
 }
 
@@ -33,7 +46,7 @@ let answerCount = 0;
 // -------------------------------------------------------------------
 export class RetroSpectroAnswer {
     id: number = answerCount++;
-    playerId: string;
+    player?: RetroSpectroPlayer;
     text: string;
     answerType: string;
     memberOf?: RetroSpectroAnswerCollection;
@@ -41,9 +54,9 @@ export class RetroSpectroAnswer {
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
-    constructor(playerId: string = "***", text: string = "***", answerType: string = "***")
+    constructor(player: RetroSpectroPlayer | undefined = undefined, text: string = "***", answerType: string = "***")
     {
-        this.playerId = playerId;
+        this.player = player;
         this.text = text;
         this.answerType = answerType;
     }
@@ -64,12 +77,13 @@ export class RetroSpectroAnswer {
 }
 
 let collectionCount = 0;
+let combinedCollectionCount = 0;
 // -------------------------------------------------------------------
 // RetroSpectroAnswerCollection
 // -------------------------------------------------------------------
 export class RetroSpectroAnswerCollection {
     id: number = collectionCount++;
-    @observable name: string = "...";
+    @observable name = "na";
     @observable answers = observable(new Array<RetroSpectroAnswer>());
     parent?: RetroSpectroPresenterModel;
 
@@ -88,7 +102,13 @@ export class RetroSpectroAnswerCollection {
         else if (droppedItem instanceof RetroSpectroAnswerCollection) 
         {
             if(this.id === droppedItem.id) return; // don't drop collection on itself
+            if(!this.name) this.name = droppedItem.name;
             Array.from(droppedItem.answers).forEach(a => this.addAnswer(a));
+        }
+
+        if(!this.name) {
+            this.name = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[combinedCollectionCount % 26]
+            combinedCollectionCount++;
         }
 
         droppedItem.saveState();
@@ -99,6 +119,7 @@ export class RetroSpectroAnswerCollection {
     // -------------------------------------------------------------------
     insertCollection(droppedItem: RetroSpectroAnswer | RetroSpectroAnswerCollection)
     {
+
         if( droppedItem instanceof RetroSpectroAnswer) {
             // Dropping an answer in front of itself should do nothing
             if(this.answers.length === 1 && this.answers[0].id === droppedItem.id) return;
@@ -135,13 +156,13 @@ export class RetroSpectroAnswerCollection {
     removeAnswer = (answerToRemove: RetroSpectroAnswer) => {
         answerToRemove.memberOf = undefined;
         const answerIndex = this.answers.findIndex(a => a.id === answerToRemove.id);
-        console.log(`Removing ${answerToRemove.text} (${answerIndex}) from ${this.name}`)
         if(answerIndex >= 0) this.answers.splice(answerIndex, 1);
         if(this.answers.length === 0) {
             this.parent?.removeAnswerCollection(this);
         }
     }
 }
+
 
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
@@ -155,6 +176,7 @@ export const getRetroSpectroPresenterTypeHelper = (
         rootTypeName: "RetroSpectroPresenterModel",
         getTypeName(o) {
             switch (o.constructor) {
+                case RetroSpectroPlayer: return "RetroSpectroPlayer";
                 case RetroSpectroAnswer: return "RetroSpectroAnswer";
                 case RetroSpectroAnswerCollection: return "RetroSpectroAnswerCollection";
                 case RetroSpectroPresenterModel: return "RetroSpectroPresenterModel";
@@ -164,42 +186,58 @@ export const getRetroSpectroPresenterTypeHelper = (
         constructType(typeName: string):any {
             switch(typeName)
             {
-                case "RetroSpectroAnswer":
-                    return new RetroSpectroAnswer();
-                case "RetroSpectroAnswerCollection":
-                    return new RetroSpectroAnswerCollection();
-                case "RetroSpectroPresenterModel":
-                    return new RetroSpectroPresenterModel(
-                        sessionHelper,
-                        gameProps.logger, 
-                        gameProps.storage);
+                case "RetroSpectroPlayer": return new RetroSpectroPlayer();
+                case "RetroSpectroAnswer": return new RetroSpectroAnswer();
+                case "RetroSpectroAnswerCollection": return new RetroSpectroAnswerCollection();            
+                case "RetroSpectroPresenterModel": return new RetroSpectroPresenterModel( sessionHelper, gameProps.logger, gameProps.storage);
             }
             return null;
         },
         shouldStringify(typeName: string, propertyName: string, object: any):boolean
         {
+            if(object instanceof RetroSpectroPresenterModel)
+            {
+                const doNotSerializeMe = 
+                [
+                    "Name_of_presenter_property_to_not_serialize",
+                    // TODO:  put names of properties here that should not be part
+                    //        of the saved game state  
+                ]
+                
+                if(doNotSerializeMe.indexOf(propertyName) !== -1) return false
+            }
             return true;
         },
         reconstitute(typeName: string, propertyName: string, rehydratedObject: any)
         {
-            switch(propertyName)
+            if(typeName === "RetroSpectroPresenterModel")
             {
-                case "players": 
-                case "_exitedPlayers": return observable<RetroSpectroPlayer>(rehydratedObject as RetroSpectroPlayer[])
-                case "answerCollections": return observable<RetroSpectroAnswerCollection>(rehydratedObject as RetroSpectroAnswerCollection[])
-            } 
-
+                switch(propertyName)
+                {
+                    case "answerCollections": return observable<RetroSpectroAnswerCollection>(rehydratedObject as RetroSpectroAnswerCollection[])
+                } 
+            }
             return rehydratedObject;
         }
      }
 }
+
 
 // -------------------------------------------------------------------
 // presenter data and logic
 // -------------------------------------------------------------------
 export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSpectroPlayer> {
     @observable answerCollections = observable(new Array<RetroSpectroAnswerCollection>())
+    @observable _currentDiscussionIndex = 0;
+    get currentDiscussion() { 
+        if(!this.answerCollections) return null;
+        return this.answerCollections[this._currentDiscussionIndex]
+    }
 
+    get hasPrev() {return this._currentDiscussionIndex > 0}
+    get hasNext() {return this._currentDiscussionIndex < this.answerCollections.length - 1}
+    get prevName() { return this.hasPrev ? (this.answerCollections[this._currentDiscussionIndex -1 ].name ?? "_"): ""}
+    get nextName() { return this.hasNext ? (this.answerCollections[this._currentDiscussionIndex + 1 ].name ?? "_"): ""}
 
     // -------------------------------------------------------------------
     // ctor 
@@ -207,16 +245,38 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     constructor(
         sessionHelper: ISessionHelper, 
         logger: ITelemetryLogger, 
-        storage: IStorage
-)
+        storage: IStorage)
     {
-        super("RetroSpectroPresenter", sessionHelper, logger, storage );
+        super("RetroSpectro", sessionHelper, logger, storage);
+
+
         this.minPlayers = 2;
         this.maxPlayers = 50;
+        this.allowedJoinStates.push(...[
+            RetroSpectroGameState.Instructions.toString(),
+            RetroSpectroGameState.WaitingForAnswers.toString(),
+            GeneralGameState.Paused.toString()
+        ])
 
-        this.gameState = RetroSpectroGameState.Gathering;
+        // this.subscribe(
+        //     PresenterGameEvent.PlayerJoined, 
+        //     "PlayerJoin", 
+        //     (p: RetroSpectroPlayer)=> {
+        //         console.log(`Got a join for ${p.name}`)
+        //         if(this.gameState === GeneralGameState.Paused
+        //             && this.players.length >= this.minPlayers) {
+        //                 this.resumeGame();
+        //         }
+        //         else if(this.gameState !== PresenterGameState.Gathering &&
+        //             this.gameState !== RetroSpectroGameState.Instructions) {
+        //                 const payload = { sender: this.session.personalId, customText: "Hi THere", roundNumber: this.currentRound}
+        //                 this.sendToPlayer(p.playerId, new RetroSpectroPlayRequestMessage(payload))
+        //             }
+        //     }
+        // );
+
     }
-
+    
     // -------------------------------------------------------------------
     //  reconstitute - add code here to fix up saved game data that 
     //                 has been loaded after a refresh
@@ -228,12 +288,6 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     }
 
     // -------------------------------------------------------------------
-    //  
-    // -------------------------------------------------------------------
-    prepareFreshRound = () => {
-    }
-
-    // -------------------------------------------------------------------
     //  prepareFreshGame
     // -------------------------------------------------------------------
     prepareFreshGame = () => {
@@ -241,15 +295,32 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     }
 
     // -------------------------------------------------------------------
-    //  run a method to check for a state transition
+    //  
     // -------------------------------------------------------------------
-    handleTick()
+    prepareFreshRound = () => {
+    }
+
+    // -------------------------------------------------------------------
+    //  nextDiscussion
+    // -------------------------------------------------------------------
+    nextDiscussion()
     {
-        if (this.isStageOver) {
-            if (this.gameState === RetroSpectroGameState.WaitingForAnswers) {
-                this.finishAnswers();
-                this.saveCheckpoint();
-            } 
+        if(this._currentDiscussionIndex < this.answerCollections.length - 1) 
+        {
+            this._currentDiscussionIndex++;
+            this.alertPlayersOnDiscussion();
+        }
+    }
+
+    // -------------------------------------------------------------------
+    //  prevDiscussion
+    // -------------------------------------------------------------------
+    prevDiscussion()
+    {
+        if(this._currentDiscussionIndex > 0) 
+        {
+            this._currentDiscussionIndex--;
+            this.alertPlayersOnDiscussion();
         }
     }
 
@@ -272,7 +343,12 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     //  finishRound
     // -------------------------------------------------------------------
     finishRound() {
-        this.timeOfStageEnd = this.gameTime_ms;
+        if(this.answerCollections.length === 0) {
+            this.addTime(15);
+        }
+        else {
+            this.timeOfStageEnd = this.gameTime_ms;
+        }
     }
 
     // -------------------------------------------------------------------
@@ -280,45 +356,37 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     // -------------------------------------------------------------------
     createFreshPlayerEntry(name: string, id: string): RetroSpectroPlayer
     {
+        const newPlayer = new RetroSpectroPlayer();
+        newPlayer.playerId = id;
+        newPlayer.name = name;
+        newPlayer.status = RetroSpectroPlayerStatus.Waiting;
+
+        return newPlayer;
+    }
+
+    // -------------------------------------------------------------------
+    //  resetGame
+    // -------------------------------------------------------------------
+    resetGame() {
+        this.players.clear();
+        this.gameState = PresenterGameState.Gathering;
+        this.currentRound = 0;
+    }
+
+    // -------------------------------------------------------------------
+    //  handleUpdateRequest
+    // -------------------------------------------------------------------
+    handleUpdateRequest = (senderId: string) => {
         return {
-            playerId: id,
-            name: name,
-            totalScore: 0,
-            scoreThisRound: 0,
-            status: RetroSpectroPlayerStatus.Waiting,
-            answer: "",
-            votes: [],
-            winner: false,
-        }
+            currentStage: this.gameState   
+        } as RetroSpectroStateUpdateResponse;
     }
 
     // -------------------------------------------------------------------
-    //  doneSorting
+    //  addTime
     // -------------------------------------------------------------------
-    doneSorting = () => {
-        //this.gameState = RetroSpectroGameState.Discussing;
-        this.answerCollections = this.answerCollections.sort((c1, c2) => c2.answers.length - c1.answers.length)
-        this.saveCheckpoint();
-    }
-
-    // -------------------------------------------------------------------
-    //  startNextRound
-    // -------------------------------------------------------------------
-    startNextRound = () =>
-    {
-        this.telemetryLogger.logEvent("Presenter", "Start");
-
-        this.gameState = RetroSpectroGameState.WaitingForAnswers;
-        this.timeOfStageEnd = this.gameTime_ms + SETTING_ANSWERING_TIME_MS;
-
-        this.players.forEach(p => {
-            p.scoreThisRound = 0;
-            p.status = RetroSpectroPlayerStatus.Answering;
-            p.answer = "";
-            p.votes = [];
-        })
-
-        this.startAnswering();
+    addTime(seconds: number) {
+        this.timeOfStageEnd += seconds * 1000;
     }
 
     // -------------------------------------------------------------------
@@ -331,14 +399,55 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     }
 
     // -------------------------------------------------------------------
-    //  startAnswering
+    //  run a method to check for a state transition
     // -------------------------------------------------------------------
-    startAnswering = () =>
+    handleTick()
     {
+        if (this.isStageOver) {
+            switch(this.gameState) {
+                case RetroSpectroGameState.WaitingForAnswers: 
+                    this.saveCheckpoint();
+                    this.finishAnswers();
+                    break;
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------
+    //  Return to categorizing from the discussion page
+    // -------------------------------------------------------------------
+    goBackToCategorizing = () => {
+        this.gameState = RetroSpectroGameState.Sorting;
+        this.timeOfStageEnd = this.gameTime_ms + ANSWER_STAGE_TIME_MS;
+    }
+    
+    // -------------------------------------------------------------------
+    //  finishPlayingRound
+    // -------------------------------------------------------------------
+    finishPlayingRound() {
+        this.gameState = RetroSpectroGameState.EndOfRound;
+        this.requestEveryoneAndForget(RetroSpectroEndOfRoundEndpoint, (player, isExited) => {
+            return { roundNumber: this.currentRound };
+        });
+    }
+
+    // -------------------------------------------------------------------
+    //  startNextRound
+    // -------------------------------------------------------------------
+    startNextRound = () =>
+    {
+        if(this.gameState === PresenterGameState.Gathering)
+        {
+            this.gameState = RetroSpectroGameState.Instructions;
+            return;
+        }
         this.gameState = RetroSpectroGameState.WaitingForAnswers;
-        this.pushState();
-        this.timeOfStageEnd = this.gameTime_ms + SETTING_ANSWERING_TIME_MS;
-        this.saveCheckpoint(); 
+        this.timeOfStageEnd = this.gameTime_ms + ANSWER_STAGE_TIME_MS;
+        this.currentRound++;
+
+        this.players.forEach((p,i) => {
+            p.status = RetroSpectroPlayerStatus.Answering;
+        })
     }
 
     // -------------------------------------------------------------------
@@ -352,7 +461,6 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
             newCollection = new RetroSpectroAnswerCollection();
             newCollection.parent = this;
             newCollection.addAnswer(droppedItem);
-            newCollection.name = droppedItem.text;
         }
         else newCollection = droppedItem;
 
@@ -369,10 +477,10 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     // -------------------------------------------------------------------
     removeAnswerCollection(collectionToRemove: RetroSpectroAnswerCollection)
     {
-        console.log(`removing ${collectionToRemove.name}`)
         this.answerCollections.remove(collectionToRemove);
     }
 
+    
     // -------------------------------------------------------------------
     // handleDrop
     // -------------------------------------------------------------------
@@ -382,7 +490,6 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
             const newCollection = new RetroSpectroAnswerCollection();
             newCollection.parent = this;
             newCollection.addAnswer(droppedItem);
-            newCollection.name = droppedItem.text;
             this.answerCollections.push(newCollection);
         } 
         else if (droppedItem instanceof RetroSpectroAnswerCollection) 
@@ -392,89 +499,110 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
         }
     }
 
-    // -------------------------------------------------------------------
+    // -------------------------------------------------------------`------
     //  addNewAnswer
     // -------------------------------------------------------------------
-    addNewAnswer(playerId: string, text: string, type: string)
+    addNewAnswer(player: RetroSpectroPlayer, text: string, type: string)
     {
         const newCollection = new RetroSpectroAnswerCollection();
         newCollection.parent = this;
-        newCollection.addAnswer(new RetroSpectroAnswer(playerId, text, type))
-        newCollection.name = text;
+        newCollection.addAnswer(new RetroSpectroAnswer(player, text, type))
         this.answerCollections.push(newCollection);
-    }
-
-    // -------------------------------------------------------------------
-    //  handleUpdateRequest
-    // -------------------------------------------------------------------
-    handleUpdateRequest = (senderId: string) => {
-        return {
-            currentStage: this.gameState   
-        } as RetroSpectroStateUpdateResponse;
     }
 
     // -------------------------------------------------------------------
     //  handleAnswer
     // -------------------------------------------------------------------
-    handleAnswer = (senderId: string, message: RetroSpectroAnswerMessage) => {
-        this.addNewAnswer(senderId, message.answer, message.answerType);
+    handleAnswer = (senderId: string, message: RetroSpectroAnswerMessage):RetroSpectroAnswerResponse => {
         const player = this.players.find(p => p.playerId === senderId);
+        const returnMessage = {
+            success: true, 
+            answer: message.answer, 
+            answerType: message.answerType 
+        } as RetroSpectroAnswerResponse;
+
         if(!player) {
-            console.log("No player found for message: " + stringify(message));
+            console.log("No player found for message: " + JSON.stringify(message));
             this.telemetryLogger.logEvent("Presenter", "AnswerMessage", "Deny");
-            return;
+            returnMessage.success = false;
+        } else {
+            this.addNewAnswer(player, message.answer, message.answerType);
+            this.timeOfStageEnd += 1000 + 8000/ this.players.length; // Add some time when an answer is added 
+            this.saveCheckpoint();
         }
-        this.timeOfStageEnd += 5000/ this.players.length; // Add some time when an answer is added 
-        this.saveCheckpoint();
+        return returnMessage;
     }
 
+    // -------------------------------------------------------------------
+    //  generateAnswers
+    // -------------------------------------------------------------------
     generateAnswers = () => {
         for(let i = 0; i < 5; i++)
         {
-            const text = demoAnswers[Math.floor(Math.random() * demoAnswers.length)];
-            const type = Math.random() > 0.5 ? AnswerType.Positive : AnswerType.Negative;
-            const playerId = `${Math.floor(Math.random() * this.players.length)}`
-            this.addNewAnswer(playerId, text, type);
+            const text = this.randomItem(demoAnswers);
+            const type = this.randomDouble(1) > 0.5 ? AnswerType.Positive : AnswerType.Negative;
+            this.addNewAnswer(this.randomItem(this.players), text, type);
         }
+    }
+
+    // -------------------------------------------------------------------
+    //  doneSorting
+    // -------------------------------------------------------------------
+    doneSorting = () => {
+        this.answerCollections = this.answerCollections.sort((c1, c2) => c2.answers.length - c1.answers.length)
+        this.gameState = RetroSpectroGameState.Discussing;
+        this.alertPlayersOnDiscussion();
+        this.saveCheckpoint();
+    }
+    
+    // -------------------------------------------------------------------
+    //  alertPlayersOnDiscussion
+    // -------------------------------------------------------------------
+    alertPlayersOnDiscussion = () => {
+        this.requestEveryoneAndForget(RetroSpectroDiscussionEndpoint, (player, isExited) => {
+            const youAreInThis = this.currentDiscussion?.answers.find(a => a.player?.playerId === player.playerId) ? true : false;
+            return { youAreInThis };
+        })
     }
 
     // -------------------------------------------------------------------
     //  finishAnswers
     // -------------------------------------------------------------------
     private finishAnswers = () => {
+        this.players.forEach(player => {
+            if (!(player.answer) || player.answer === "") {
+                player.answer = "chocolate cake";
+            }
+        });
         this.gameState = RetroSpectroGameState.Sorting;
         this.pushState();
 
         // Transition to "Waiting for Votes" and save the checkpoint
-        this.timeOfStageEnd = this.gameTime_ms + SETTING_VOTING_TIME_MS;
+        this.timeOfStageEnd = this.gameTime_ms + ANSWER_STAGE_TIME_MS;
         this.saveCheckpoint();
-    }
-
-    // -------------------------------------------------------------------
-    //  resolve the current round
-    // -------------------------------------------------------------------
-    resolveRound = () => {
-        this.players.forEach(p => {
-            p.totalScore += p.scoreThisRound;
-            p.scoreThisRound = 0;
-            p.answer = "";
-        })
-
-        this.saveCheckpoint();
-
-        this.gameState = RetroSpectroGameState.GameOver;
-        let highestScore = 0;
-        this.players.forEach(p => highestScore = Math.max(highestScore, p.totalScore));
-        this.players.forEach(p => p.winner = p.totalScore === highestScore);
-        this.saveCheckpoint();
-        this.pushState();
     }
 }
 
 const demoAnswers = [
-    "Fish",
-    "Bubble Tubers",
+    "Coffee machine",
+    "Hot chocolate",
+    "Coffee maker",
+    "Environment Temperature Controls",
+    "Too cold in my office",
+    "Window Shades",
+    "Server Issues",
+    "Can telnet after 10",
+    "Service crashes",
+    "Hamburgers with tall buns",
+    "Chicken sandwich",
+    "Hot dogs and condiments",
+    "Cafeteria seating and lines",
+    "Movie night",
+    "Entertainment complexities with movie choices",
+    "Why so many comedies?",
+    "😂😂🤦‍♀️🤞🤞💖🤦‍♂️🤦‍♀️😎🤳👨‍🦱👱‍♀️👱‍♀️",
     "Mascots",
+    "Animal Kindom Representatives",
     "Overly protective second cousins",
     "Trianguler pressure chocolate flux valves",
     "Nits",
@@ -487,6 +615,7 @@ const demoAnswers = [
     "TV",
     "A",
     "3.14159265359",
+    "Euler's number",
     "facebook birthdays",
     "traditions",
     "zippography",

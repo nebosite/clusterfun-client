@@ -5,7 +5,7 @@ import { DevOnly } from "./DevOnly";
 export interface DevUIOptions {
     context?: {devFast: boolean, devPause: boolean}
     style?: CSSProperties
-    children: React.ReactNode;
+    children?: React.ReactNode;
 }
 @observer
 export class DevUI 

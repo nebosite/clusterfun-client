@@ -1,4 +1,4 @@
-import { RetroSpectroAnswerCollection } from "games/RetroSpectro/models/RetroSpectroPresenterModel";
+import { RetroSpectroAnswerCollection } from "games/RetroSpectro/models/PresenterModel";
 import { observer } from "mobx-react";
 import React from "react";
 import { 
@@ -7,14 +7,14 @@ import {
     DropTargetConnector, 
     DropTargetMonitor ,
 } from "react-dnd";
-import styles from './RetroSpectroPresenter.module.css';
+import styles from './Presenter.module.css';
 
 interface AnswerCollectionSpacerProps {
     context: RetroSpectroAnswerCollection
     connectDropTarget: DragElementWrapper<any>
     hovered: boolean
     hoveredOnSelf: boolean
-    item: {id: number, item: RetroSpectroAnswerCollection }
+    item: {id: number, item: RetroSpectroAnswerCollection } | unknown
 }
 
 // -------------------------------------------------------------------

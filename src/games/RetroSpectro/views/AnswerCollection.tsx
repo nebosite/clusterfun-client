@@ -1,4 +1,4 @@
-import { RetroSpectroAnswerCollection } from "games/RetroSpectro/models/RetroSpectroPresenterModel";
+import { RetroSpectroAnswerCollection } from "games/RetroSpectro/models/PresenterModel";
 import { observer } from "mobx-react";
 import React from "react";
 import { 
@@ -13,8 +13,8 @@ import {
     DragSourceConnector
 } from "react-dnd";
 import AnswerCard from "./AnswerCard";
-import styles from './RetroSpectroPresenter.module.css';
-//import EditableLabel from 'react-editable-label'
+import styles from './Presenter.module.css';
+import { LabelBox } from "libs";
 
 interface AnswercollectionProps {
     context: RetroSpectroAnswerCollection;
@@ -24,7 +24,7 @@ interface AnswercollectionProps {
     connectDropTarget: DragElementWrapper<any>,
     hovered: boolean
     hoveredOnSelf: boolean
-    item: {id: number, item: RetroSpectroAnswerCollection }
+    item: {id: number, item: RetroSpectroAnswerCollection } | unknown
 }
 
 // -------------------------------------------------------------------
@@ -40,7 +40,7 @@ const collectionDragSpec = {
     {
 
         if(monitor.didDrop()) {
-            const target = monitor.getDropResult();
+            const target = monitor.getDropResult() as any;
             //console.log(`DropTarget: AnswerCollection Item:${stringify(target.item)}`)
             if(target.type === "spacer")
             {
@@ -55,7 +55,7 @@ const collectionDragSpec = {
     isDragging(props: AnswercollectionProps, monitor: DragSourceMonitor)
     {
         return monitor.getItemType() === '*'
-            && props.context.id === monitor.getItem().id;  
+            && props.context.id === monitor.getItem<{id: number}>().id;
     }
 }
 
@@ -103,29 +103,33 @@ const answerDropCollect = (connect: DropTargetConnector, monitor: DropTargetMoni
     }
 }
 
+
 // -------------------------------------------------------------------
 // AnswerCollection
 // -------------------------------------------------------------------
 @observer class AnswerCollection 
     extends React.Component<AnswercollectionProps> {
 
+    // -------------------------------------------------------------------
+    // render
+    // -------------------------------------------------------------------
     render() {
         const {context, connectDropTarget, connectDragSource, hoveredOnSelf} = this.props;
         const backgroundStyle = hoveredOnSelf ? {background: "rgba(0, 0, 0, 0.1)" } : {}
 
         return connectDropTarget (
              connectDragSource(
-                <div className={styles.answerCollection} style={backgroundStyle}>
-                    <div className={styles.answerCollectionHandle} />
+                <div className={styles.answerCollection} style={backgroundStyle}>                   
                     {
-                        // context.answers.length > 1 
-                        // ? <EditableLabel
-                        //     labelClass={styles.answerCardTitle}
-                        //     inputClass={styles.answerCardTitle}
-                        //     initialValue={context.name}
-                        //     save={(value: string) => { context.name = value; }}
-                        //     />
-                        // : null
+                        context.answers.length > 1 
+                        ? <LabelBox
+                            labelClassName={styles.answerCardTitle}
+                            inputClassName={styles.answerCardTitleEdit}
+                            text={context.name}
+                            onSubmit={(value: string) => { context.name = value; }}
+
+                            />
+                        : <div className={styles.answerCollectionHandle} />
                     }
                     <div className={styles.cardAnswerList}>
                         {context.answers.map(c => <AnswerCard context={c} key={c.id} />)}

@@ -1,4 +1,4 @@
-import { RetroSpectroAnswerCollection, RetroSpectroPresenterModel } from "games/RetroSpectro/models/RetroSpectroPresenterModel";
+import { RetroSpectroAnswerCollection, RetroSpectroPresenterModel } from "games/RetroSpectro/models/PresenterModel";
 import { observer } from "mobx-react";
 import React from "react";
 import { 
@@ -9,14 +9,14 @@ import {
 } from "react-dnd";
 import AnswerCollection from "./AnswerCollection";
 import AnswerCollectionSpacer from "./AnswerCollectionSpacer";
-import styles from './RetroSpectroPresenter.module.css';
+import styles from './Presenter.module.css';
 
 interface AnswerSortingBoxProps {
     context: RetroSpectroPresenterModel
     connectDropTarget: DragElementWrapper<any>
     hovered: boolean
     hoveredOnSelf: boolean
-    item: {id: number, item: RetroSpectroAnswerCollection }
+    item: {id: number, item: RetroSpectroAnswerCollection } | unknown
 }
 
 // -------------------------------------------------------------------
@@ -64,7 +64,7 @@ const answerSortingBoxDropCollect = (connect: DropTargetConnector, monitor: Drop
         return connectDropTarget (   
             <div className={`${styles.sortList}`}>
                 {context.answerCollections.map(a => (
-                    <div key={a.id} className={styles.basicRow}>
+                    <div key={a.id} className={styles.divRow}>
                         <AnswerCollectionSpacer context={a} /> 
                         <AnswerCollection context={a} />
                      </div> ))   
