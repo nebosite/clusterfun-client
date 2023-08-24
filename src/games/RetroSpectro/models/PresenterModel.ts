@@ -1,4 +1,4 @@
-import { observable } from "mobx"
+import { action, makeObservable, observable } from "mobx"
 import { ClusterFunGameProps, ClusterFunPlayer, ClusterfunPresenterModel, GeneralGameState, ISessionHelper, ITypeHelper, PresenterGameEvent, PresenterGameState } from "libs";
 import { ITelemetryLogger } from "libs/telemetry/TelemetryLogger";
 import { IStorage } from "libs/storage/StorageHelper";
@@ -83,9 +83,20 @@ let combinedCollectionCount = 0;
 // -------------------------------------------------------------------
 export class RetroSpectroAnswerCollection {
     id: number = collectionCount++;
-    @observable name = "na";
+    
+    @observable  private _name = ""
+    get name() {return this._name}
+    set name(value) {action(()=>{this._name = value})()}
+    
     @observable answers = observable(new Array<RetroSpectroAnswer>());
     parent?: RetroSpectroPresenterModel;
+
+    // -------------------------------------------------------------------
+    // ctor
+    // -------------------------------------------------------------------
+    constructor() {
+        makeObservable(this);
+    }
 
     // -------------------------------------------------------------------
     // handleDrop
@@ -107,7 +118,7 @@ export class RetroSpectroAnswerCollection {
         }
 
         if(!this.name) {
-            this.name = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[combinedCollectionCount % 26]
+            this.name = "Group " + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[combinedCollectionCount % 26]
             combinedCollectionCount++;
         }
 
@@ -229,15 +240,18 @@ export const getRetroSpectroPresenterTypeHelper = (
 export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSpectroPlayer> {
     @observable answerCollections = observable(new Array<RetroSpectroAnswerCollection>())
     @observable _currentDiscussionIndex = 0;
+    get currentDiscussionIndex() { return this._currentDiscussionIndex; }
+    set currentDiscussionIndex(value) { action(()=>this._currentDiscussionIndex = value)()}
+    
     get currentDiscussion() { 
         if(!this.answerCollections) return null;
-        return this.answerCollections[this._currentDiscussionIndex]
+        return this.answerCollections[this.currentDiscussionIndex]
     }
 
-    get hasPrev() {return this._currentDiscussionIndex > 0}
-    get hasNext() {return this._currentDiscussionIndex < this.answerCollections.length - 1}
-    get prevName() { return this.hasPrev ? (this.answerCollections[this._currentDiscussionIndex -1 ].name ?? "_"): ""}
-    get nextName() { return this.hasNext ? (this.answerCollections[this._currentDiscussionIndex + 1 ].name ?? "_"): ""}
+    get hasPrev() {return this.currentDiscussionIndex > 0}
+    get hasNext() {return this.currentDiscussionIndex < this.answerCollections.length - 1}
+    get prevName() { return this.hasPrev ? (this.answerCollections[this.currentDiscussionIndex -1 ].name ?? "_"): ""}
+    get nextName() { return this.hasNext ? (this.answerCollections[this.currentDiscussionIndex + 1 ].name ?? "_"): ""}
 
     // -------------------------------------------------------------------
     // ctor 
@@ -248,6 +262,7 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
         storage: IStorage)
     {
         super("RetroSpectro", sessionHelper, logger, storage);
+        makeObservable(this);
 
 
         this.minPlayers = 2;
@@ -305,9 +320,9 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     // -------------------------------------------------------------------
     nextDiscussion()
     {
-        if(this._currentDiscussionIndex < this.answerCollections.length - 1) 
+        if(this.currentDiscussionIndex < this.answerCollections.length - 1) 
         {
-            this._currentDiscussionIndex++;
+            this.currentDiscussionIndex++;
             this.alertPlayersOnDiscussion();
         }
     }
@@ -317,9 +332,9 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     // -------------------------------------------------------------------
     prevDiscussion()
     {
-        if(this._currentDiscussionIndex > 0) 
+        if(this.currentDiscussionIndex > 0) 
         {
-            this._currentDiscussionIndex--;
+            this.currentDiscussionIndex--;
             this.alertPlayersOnDiscussion();
         }
     }
@@ -445,6 +460,8 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
         this.timeOfStageEnd = this.gameTime_ms + ANSWER_STAGE_TIME_MS;
         this.currentRound++;
 
+        this.pushState();
+
         this.players.forEach((p,i) => {
             p.status = RetroSpectroPlayerStatus.Answering;
         })
@@ -549,7 +566,7 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     //  doneSorting
     // -------------------------------------------------------------------
     doneSorting = () => {
-        this.answerCollections = this.answerCollections.sort((c1, c2) => c2.answers.length - c1.answers.length)
+        this.answerCollections.sort((c1, c2) => c2.answers.length - c1.answers.length)
         this.gameState = RetroSpectroGameState.Discussing;
         this.alertPlayersOnDiscussion();
         this.saveCheckpoint();

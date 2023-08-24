@@ -421,7 +421,7 @@ extends React.Component<{appModel?: RetroSpectroPresenterModel, uiProperties: UI
                 virtualHeight={1080}
                 virtualWidth={1920}>
                     {this.renderFrame()}
-                    <div style={{margin: "40px"}}>
+                    <div className={styles.pageContent}>
                         {this.renderSubScreen()}
                     </div>
             </UINormalizer>

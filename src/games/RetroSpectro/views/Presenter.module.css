@@ -30,6 +30,10 @@ p {
     font-weight: 800;
     color: red
 }
+
+.gamepresenter .pageContent {
+    margin: 2%;
+}
 .gamepresenter .appVersion {
     font-size: 80%;
 }
@@ -215,7 +219,6 @@ p {
 .gamepresenter .discussionGroup {
     display: flex;
     flex-wrap: wrap;
-    margin-bottom: 40px;
     scroll-behavior: auto;
     height: 670px;
 }
