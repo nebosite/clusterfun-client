@@ -136,7 +136,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
         const hex = Array.from("0123456789ABCDEF");
         let colorStyle = "#";
         for(let i = 0; i < 6; i++) colorStyle += this.randomItem(hex);
-        this.session.requestPresenter(TestatoColorChangeActionEndpoint, { colorStyle }).forget();
+        this.session.sendMessageToPresenter(TestatoColorChangeActionEndpoint, { colorStyle });
     }
    
     // -------------------------------------------------------------------
@@ -144,7 +144,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     doMessage(){
         const messages = ["Hi!", "Bye?", "What's up?", "Oh No!", "Hoooooweeee!!", "More gum."]
-        this.session.requestPresenter(TestatoMessageActionEndpoint, { message: this.randomItem(messages)}).forget();
+        this.session.sendMessageToPresenter(TestatoMessageActionEndpoint, { message: this.randomItem(messages)});
     }
    
     // -------------------------------------------------------------------
@@ -154,6 +154,6 @@ export class TestatoClientModel extends ClusterfunClientModel  {
         x = Math.floor(x * 1000)/1000;
         y = Math.floor(y * 1000)/1000;
         
-        this.session.requestPresenter(TestatoTapActionEndpoint, { point: new Vector2(x, y) }).forget();
+        this.session.sendMessageToPresenter(TestatoTapActionEndpoint, { point: new Vector2(x, y) });
     }
 }

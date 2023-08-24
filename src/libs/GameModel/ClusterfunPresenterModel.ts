@@ -340,7 +340,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
             if(player.playerId !== this.session.personalId) {
                 const request = generateRequest(player, isExited);
                 if(request) {
-                    const promise = this.session.request(endpoint, player.playerId, request);
+                    const promise = this.session.request<REQUEST, RESPONSE>(endpoint, player.playerId, request);
                     return promise;
                 } else {
                     return Promise.resolve(undefined)
@@ -352,20 +352,20 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     }
 
     // -------------------------------------------------------------------
-    //  requestEveryoneAndForget - make a request to all players that we promptly forget
+    //  sendToEveryone - send a fire-and-forget message to all players
     //  generateMessage should return falsy if a message should not go
     //  to that player
     // -------------------------------------------------------------------
-    async requestEveryoneAndForget<REQUEST, RESPONSE>(
-        endpoint: MessageEndpoint<REQUEST, RESPONSE>, 
-        generateRequest: (player: PlayerType, isExited: boolean) => REQUEST | undefined): Promise<void> {
+    sendToEveryone<MESSAGE>(
+        endpoint: MessageEndpoint<MESSAGE, void>, 
+        generateRequest: (player: PlayerType, isExited: boolean) => MESSAGE | undefined): void {
 
         const sendToPlayer = (isExited: boolean) => async (player:PlayerType): Promise<void> => {
             // Don't send to self
             if(player.playerId !== this.session.personalId) {
                 const request = generateRequest(player, isExited);
                 if(request) {
-                    this.session.request(endpoint, player.playerId, request).forget();
+                    this.session.sendMessage(endpoint, player.playerId, request);
                 }
             }
         }

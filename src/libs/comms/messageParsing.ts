@@ -13,7 +13,13 @@ export function parseMessage(data: string): { header: ClusterFunMessageHeader, r
     }
     const header = JSON.parse(regexMatch.groups!["header"]) as ClusterFunMessageHeader;
     const routing = JSON.parse(regexMatch.groups!["routing"]) as ClusterFunRoutingHeader;
-    const payload = JSON.parse(regexMatch.groups!["payload"]);
+    const payloadString = regexMatch.groups!["payload"];
+    let payload: any;
+    if (payloadString === "" || payloadString === "undefined") {
+        payload = undefined;
+    } else {
+        payload = JSON.parse(regexMatch.groups!["payload"]);
+    }
     return { header, routing, payload };
 }
 

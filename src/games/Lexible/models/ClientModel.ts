@@ -305,9 +305,9 @@ export class LexibleClientModel extends ClusterfunClientModel  {
                     if(this.letterChain.length === 0) this.wordList = []
                 }
 
-                this.session.requestPresenter(LexibleReportTouchLetterEndpoint, {
+                this.session.sendMessageToPresenter(LexibleReportTouchLetterEndpoint, {
                     touchPoint: block.coordinates
-                }).forget();
+                });
                 if (isFirst) {
                     this.session.requestPresenter(LexibleRequestWordHintsEndpoint, {
                         currentWord: this.letterChain.map(block => ({
