@@ -221,24 +221,26 @@ p {
     flex-wrap: wrap;
     scroll-behavior: auto;
     height: 670px;
+    width: 1200px;
 }
 
 .gamepresenter .discussionCard {
     background: gray;
     margin: 10px;
-    max-width: 550px;
+    max-width: 300px;
     padding: 8px;
-    height: 200px;
+    height: 180px;
 }
 
 .gamepresenter .discussionCardText {
-    font-size: 100%;
+    font-size: 70%;
     padding: 10px;
-    height: 135px;
+    height: 115px;
     overflow: hidden;
 }
 .gamepresenter .discussionCardAuthor {
-    font-size: 80%;
+    font-size: 70%;
+    padding: 10px;
     width: 100%;
     text-align: center;
     padding-bottom: 5px;
