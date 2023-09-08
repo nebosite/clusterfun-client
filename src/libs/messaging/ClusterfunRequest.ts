@@ -102,7 +102,7 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
         delete this._rejectedCallbacks;
         this._response = value;
         this._state = RequestState.Resolved;
-        this.forget();
+        this.cleanup();
         for (const callback of fulfilledCallbacks) {
             callback(this._response);
         }
@@ -117,7 +117,7 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
         delete this._rejectedCallbacks;
         this._error = error;
         this._state = RequestState.Rejected;
-        this.forget();
+        this.cleanup();
         for (const callback of rejectedCallbacks) {
             callback(this._error);
         }
@@ -162,9 +162,9 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
         })
     }
 
-    forget(): void {
-        if (this._state === RequestState.Unsettled && this.endpoint.responseRequired) {
-            Logger.warn(`Called forget() on a request that requires a response (route ${this.endpoint.route})`)
+    private cleanup(): void {
+        if (this._state === RequestState.Unsettled) {
+            Logger.warn(`Attempted cleanup on a request that has not been resolved`)
         }
         if (this._timeout) {
             clearTimeout(this._timeout);

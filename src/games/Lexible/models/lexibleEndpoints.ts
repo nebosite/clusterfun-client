@@ -25,7 +25,6 @@ export interface LexibleOnboardClientMessage {
 
 export const LexibleOnboardClientEndpoint: MessageEndpoint<unknown, LexibleOnboardClientMessage> = {
     route: "/games/lexible/lifecycle/onboard-client",
-    responseRequired: true,
     suggestedRetryIntervalMs: 10000,
     suggestedTotalLifetimeMs: 60000
 }
@@ -48,7 +47,6 @@ export const LexibleSwitchTeamEndpoint: MessageEndpoint<
     LexibleSwitchTeamRequest,
     LexibleSwitchTeamResponse> = {
         route: "/games/lexible/lifecycle/switch-team",
-        responseRequired: true,
         suggestedRetryIntervalMs: 2000,
         suggestedTotalLifetimeMs: 10000
     }
@@ -63,9 +61,8 @@ export interface LexibleRecentlyTouchedLettersMessage
     letterCoordinates: Vector2[];
 }
 
-export const LexibleServerRecentlyTouchedLettersEndpoint: MessageEndpoint<LexibleRecentlyTouchedLettersMessage, unknown> = {
-    route: "/games/lexible/juice/recently-touched-letters",
-    responseRequired: false
+export const LexibleServerRecentlyTouchedLettersEndpoint: MessageEndpoint<LexibleRecentlyTouchedLettersMessage, void> = {
+    route: "/games/lexible/juice/recently-touched-letters"
 }
 
 //--------------------------------------------------------------------------------------
@@ -76,9 +73,8 @@ export interface LexibleTouchLetterRequest
     touchPoint: Vector2
 }
 
-export const LexibleReportTouchLetterEndpoint: MessageEndpoint<LexibleTouchLetterRequest, unknown> = {
-    route: "/games/lexible/juice/touch-letter",
-    responseRequired: false
+export const LexibleReportTouchLetterEndpoint: MessageEndpoint<LexibleTouchLetterRequest, void> = {
+    route: "/games/lexible/juice/touch-letter"
 }
 
 //--------------------------------------------------------------------------------------
@@ -96,7 +92,6 @@ export interface LexibleWordHintResponse
 
 export const LexibleRequestWordHintsEndpoint: MessageEndpoint<LexibleWordHintRequest, LexibleWordHintResponse> = {
     route: "/games/lexible/gameplay/get-word-hints",
-    responseRequired: true,
     suggestedRetryIntervalMs: 1000,
     suggestedTotalLifetimeMs: 10000
 }
@@ -114,7 +109,6 @@ export interface LexibleBoardUpdateNotification
 
 export const LexibleBoardUpdateEndpoint: MessageEndpoint<LexibleBoardUpdateNotification, unknown> = {
     route: "/games/lexible/gameplay/update-board",
-    responseRequired: false,
     suggestedRetryIntervalMs: Number.POSITIVE_INFINITY,
     suggestedTotalLifetimeMs: 30000
 }
@@ -138,7 +132,6 @@ export const LexibleSubmitWordEndpoint: MessageEndpoint<
     LexibleWordSubmissionRequest,
     LexibleWordSubmissionResponse> = {
         route: "/games/lexible/gameplay/submit-word",
-        responseRequired: true,
         suggestedRetryIntervalMs: 2000,
         suggestedTotalLifetimeMs: 10000
     }
@@ -154,7 +147,6 @@ export interface LexibleEndOfRoundMessage
 
 export const LexibleEndRoundEndpoint: MessageEndpoint<LexibleEndOfRoundMessage, unknown> = {
     route: "/games/lexible/lifecycle/end-round",
-    responseRequired: true,
     suggestedRetryIntervalMs: 2000,
     suggestedTotalLifetimeMs: 30000
 }

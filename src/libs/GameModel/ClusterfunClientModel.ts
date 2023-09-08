@@ -68,7 +68,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         this.subscribe(GeneralGameState.Destroyed, "GameDestroyed", () =>
         {
             if(!this.gameTerminated) {
-                this.session.requestPresenter(QuitEndpoint, {}).forget();
+                this.session.sendMessageToPresenter(QuitEndpoint, {});
             }
         })
 

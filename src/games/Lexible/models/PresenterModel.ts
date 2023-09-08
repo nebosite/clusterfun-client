@@ -431,7 +431,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
                 const letterCoordinates = Array.from(this.recentlyTouchedLetters.values());
                 this.recentlyTouchedLetters.clear();
                 const message: LexibleRecentlyTouchedLettersMessage = { letterCoordinates }
-                this.requestEveryoneAndForget(LexibleServerRecentlyTouchedLettersEndpoint, () => message);
+                this.sendToEveryone(LexibleServerRecentlyTouchedLettersEndpoint, () => message);
             }
         }
     }
@@ -485,7 +485,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
             this.requestEveryone(GameOverEndpoint, (p,ie) => ({}))
         }    
         else {
-            this.requestEveryoneAndForget(InvalidateStateEndpoint, (p, ie) => ({}));
+            this.sendToEveryone(InvalidateStateEndpoint, (p, ie) => ({}));
         }
         this.saveCheckpoint();
     }
@@ -591,7 +591,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         }
         this.gameState = LexibleGameState.EndOfRound
         this.invokeEvent(LexibleGameEvent.TeamWon, team)
-        this.requestEveryoneAndForget(LexibleEndRoundEndpoint, (p, ie) => {
+        this.sendToEveryone(LexibleEndRoundEndpoint, (p, ie) => {
             return { roundNumber: this.currentRound, winningTeam: team }
         })
     }
@@ -623,7 +623,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
         if(word.length > player.longestWord.length) player.longestWord = word;
 
-        this.requestEveryoneAndForget(LexibleBoardUpdateEndpoint, (p, isExited) => {
+        this.sendToEveryone(LexibleBoardUpdateEndpoint, (p, isExited) => {
             return {
                 letters: placedLetters,
                 score: word.length,
