@@ -408,8 +408,8 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     //  pushState
     // -------------------------------------------------------------------
     pushState = () => {
-        this.requestEveryoneAndForget(RetroSpectroStatePushEndpoint, (player, isExited) => {
-            return { currentStage: this.gameState };
+        this.sendToEveryone(RetroSpectroStatePushEndpoint, (player, isExited) => {
+            return { currentStage: this.gameState }; 
         });
     }
 
@@ -441,7 +441,7 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     // -------------------------------------------------------------------
     finishPlayingRound() {
         this.gameState = RetroSpectroGameState.EndOfRound;
-        this.requestEveryoneAndForget(RetroSpectroEndOfRoundEndpoint, (player, isExited) => {
+        this.sendToEveryone(RetroSpectroEndOfRoundEndpoint, (player, isExited) => {
             return { roundNumber: this.currentRound };
         });
     }
@@ -576,7 +576,7 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     //  alertPlayersOnDiscussion
     // -------------------------------------------------------------------
     alertPlayersOnDiscussion = () => {
-        this.requestEveryoneAndForget(RetroSpectroDiscussionEndpoint, (player, isExited) => {
+        this.sendToEveryone(RetroSpectroDiscussionEndpoint, (player, isExited) => {
             const youAreInThis = this.currentDiscussion?.answers.find(a => a.player?.playerId === player.playerId) ? true : false;
             return { youAreInThis };
         })

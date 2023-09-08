@@ -22,7 +22,6 @@ export const RetroSpectroAnswerEndpoint: MessageEndpoint<
     RetroSpectroAnswerMessage, 
     RetroSpectroAnswerResponse> = {
     route: "/games/retrospectro/gameplay/answer",
-    responseRequired: true,
     suggestedRetryIntervalMs: 2000,
     suggestedTotalLifetimeMs: 10000
 }
@@ -43,16 +42,14 @@ export const RetroSpectroStateUpdateEndPoint: MessageEndpoint<
     RetroSpectroStateUpdateRequest, 
     RetroSpectroStateUpdateResponse> = {
     route: "/games/retrospectro/gameplay/staterequest",
-    responseRequired: true,
     suggestedRetryIntervalMs: 2000,
     suggestedTotalLifetimeMs: 30000
 }
 
 export const RetroSpectroStatePushEndpoint: MessageEndpoint<
     RetroSpectroStateUpdateResponse, 
-    unknown> = {
-    route: "/games/retrospectro/gameplay/statepush",
-    responseRequired: false
+    void> = {
+    route: "/games/retrospectro/gameplay/statepush"
 }
 
 //--------------------------------------------------------------------------------------
@@ -64,9 +61,8 @@ export interface RetroSpectroDiscussionMessage {
 
 export const RetroSpectroDiscussionEndpoint: MessageEndpoint<
     RetroSpectroDiscussionMessage, 
-    unknown> = {
-    route: "/games/retrospectro/gameplay/discussion",
-    responseRequired: false
+    void> = {
+    route: "/games/retrospectro/gameplay/discussion"
 }
 
 //--------------------------------------------------------------------------------------
@@ -80,9 +76,8 @@ export interface RetroSpectroPlayerActionMessage {
 
 export const RetroSpectroPlayerActionEndpoint: MessageEndpoint<
     RetroSpectroPlayerActionMessage, 
-    unknown> = {
-    route: "/games/retrospectro/gameplay/playeraction",
-    responseRequired: false
+    void> = {
+    route: "/games/retrospectro/gameplay/playeraction"
 }
 
 //--------------------------------------------------------------------------------------
@@ -94,7 +89,6 @@ export interface RetroSpectroEndOfRoundMessage {
 
 export const RetroSpectroEndOfRoundEndpoint: MessageEndpoint<
     RetroSpectroPlayerActionMessage, 
-    unknown> = {
-    route: "/games/retrospectro/gameplay/endofround",
-    responseRequired: false
+    void> = {
+    route: "/games/retrospectro/gameplay/endofround"
 }
