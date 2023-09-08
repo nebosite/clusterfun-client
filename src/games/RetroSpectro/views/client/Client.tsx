@@ -1,7 +1,7 @@
 // App Navigation handled here
 import React from "react";
 import { observer, inject } from "mobx-react";
-import { AnswerType, RetroSpectroClientModel, RetroSpectroClientState } from "../models/ClientModel";
+import { AnswerType, RetroSpectroClientModel, RetroSpectroClientState } from "../../models/ClientModel";
 import { UIProperties, UINormalizer, GeneralGameState, GeneralClientGameState } from "libs";
 import styles from './Client.module.css';
 import { ErrorBoundary } from "libs/components/ErrorBoundary";

@@ -1,16 +1,16 @@
 // App Navigation handled here
 import React from "react";
 import { observer, inject } from "mobx-react";
-import { RetroSpectroGameState, RetroSpectroGameEvent, RetroSpectroPresenterModel } from "../models/PresenterModel";
+import { RetroSpectroGameState, RetroSpectroGameEvent, RetroSpectroPresenterModel } from "../../models/PresenterModel";
 import { UIProperties, UINormalizer, DevOnly, DevUI, GeneralGameState, PresenterGameEvent, PresenterGameState, Row } from "libs";
 import styles from './Presenter.module.css';
 import classNames from "classnames";
 import { MediaHelper } from "libs/Media/MediaHelper";
 import { DndProvider } from "react-dnd";
-import AnswerSortingBox from "./AnswerSortingBox";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { RetroSpectroVersion } from "../models/GameSettings";
-import RetroSpectroAssets from "../assets/Assets";
+import { RetroSpectroVersion } from "../../models/GameSettings";
+import RetroSpectroAssets from "../../assets/Assets";
+import AnswerSortingBox from "./AnswerSortingBox";
 
 @inject("appModel") @observer
 class GatheringPlayersPage  extends React.Component<{appModel?: RetroSpectroPresenterModel}> {

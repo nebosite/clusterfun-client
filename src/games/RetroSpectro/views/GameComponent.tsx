@@ -5,8 +5,8 @@ import { getRetroSpectroPresenterTypeHelper } from "../models/PresenterModel";
 import { getRetroSpectroClientTypeHelper } from "../models/ClientModel";
 import { ClusterFunGameProps, ClusterfunGameComponent } from "libs";
 
-const lazyPresenter = React.lazy(() => import(`./Presenter`));
-const lazyClient = React.lazy(() => import(`./Client`));
+const lazyPresenter = React.lazy(() => import(`./presenter/Presenter`));
+const lazyClient = React.lazy(() => import(`./client/Client`));
 
 // -------------------------------------------------------------------
 // Main Game Page
