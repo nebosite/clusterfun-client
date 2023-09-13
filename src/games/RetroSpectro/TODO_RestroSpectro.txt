@@ -1,8 +1,9 @@
 RetroSpectro TODO
-    [ ] Smaller font for cards is ok (could be 30% smaller)
-    [ ] Take notes in UI
-        [ ] Add freeform text notes
-        [ ] Add tasks
+    [x] Smaller top bar (dev keys too big?)
+    [x] Smaller font for cards is ok (could be 30% smaller)
+    [x] Take notes in UI
+        [x] Add freeform text notes
+        [x] Add tasks
     [ ] Summary does not copy/paste well, does not show positive/negative
     [ ] Would like to vote  (add weight)
     [ ] RS: Could use some UI improvements

@@ -5,6 +5,7 @@ import React from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import styles from './Presenter.module.css';
+import { Row } from "libs";
 
 // -------------------------------------------------------------------
 // DiscussionPage
@@ -50,6 +51,21 @@ export class DiscussionPage
             </div>         
         }
 
+        const notesSection = () => {
+            const discussion = appModel.currentDiscussion;
+            if(!discussion) return null;
+            return  <div className={styles.discussionNotes}>
+                <div>Notes</div>
+                <textarea className={styles.discussionNotesInput} 
+                    value={discussion.notes}
+                    onChange={(e) => discussion.notes = e.target.value} />
+                <div>Tasks</div>
+                <textarea className={styles.discussionNotesInput} 
+                    value={discussion.tasks}
+                    onChange={(e) => discussion.tasks = e.target.value} />
+            </div>
+        }
+
         const prevOpacity = appModel.hasPrev ? 1.0 : .20;
         const nextOpacity = appModel.hasNext ? 1.0 : .20;
 
@@ -92,7 +108,10 @@ export class DiscussionPage
                             </button>
                         </div>
                     </div>
-                    {discussionBox()}
+                    <Row>
+                        {discussionBox()}
+                        {notesSection()}
+                    </Row>
                     <div className={styles.discussionButtonRow}>
                         <button className={classNames(styles.discussionButton)}  
                             style={{opacity: prevOpacity}} 

@@ -224,6 +224,24 @@ p {
     width: 1200px;
 }
 
+.gamepresenter .discussionNotes {
+    display: flex;
+    font-size: 60%;
+    background: #ffffff90;
+    flex-direction: column;
+    flex-wrap: none;
+    scroll-behavior: auto;
+    height: 670px;
+    width: 620px;
+}
+
+.gamepresenter .discussionNotesInput {
+    font-size: 80%;
+    background: #ffffff80;
+    height: 45%;
+    scroll-behavior: auto;
+}
+
 .gamepresenter .discussionCard {
     background: gray;
     margin: 10px;

@@ -142,9 +142,7 @@ class GatheringPlayersPage  extends React.Component<{appModel?: RetroSpectroPres
         return (
             <DndProvider backend={HTML5Backend}>
                 <div>
-                    <p>OK, let's group the thoughts together- just drag and drop to create groups out of similar ideas. 
-                        It's alright if positive and negative ideas are grouped together.  Only the category is important.
-                    </p>
+                    <p>Drag and drop to create groups out of similar ideas.</p>
                     <AnswerSortingBox context={appModel} />
                     <button className={classNames(styles.doneSortingButton)} 
                             style={{marginRight: "30px"}}

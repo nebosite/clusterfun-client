@@ -91,6 +91,14 @@ export class RetroSpectroAnswerCollection {
     @observable answers = observable(new Array<RetroSpectroAnswer>());
     parent?: RetroSpectroPresenterModel;
 
+    @observable  private _notes = ""
+    get notes() {return this._notes}
+    set notes(value) {action(()=>{this._notes = value})()}
+    
+    @observable  private _tasks = "";
+    get tasks() {return this._tasks}
+    set tasks(value) {action(()=>{this._tasks = value})()}
+
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
