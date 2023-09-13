@@ -69,10 +69,20 @@ const answerDragCollect = (connect: DragSourceConnector, monitor: DragSourceMoni
 
         if(!context) return <div>No Context</div>
 
+        const handleUpvote = () => this.props.context.upVote();
+        const handleDownvote = () => this.props.context.downVote();
+
         return connectDragSource(
             <div className={styles.answerCard}>
+                <div className={styles.voterButtons} >
+                    <button className={styles.voterButton} onClick={handleDownvote}>-</button>
+                    <button className={styles.voterButton} onClick={handleUpvote}>+</button>
+                </div>
                 <div className={styles.answerBox} 
-                    style={{background: (context.answerType === "Positive" ? "limegreen": "red")}} 
+                    style={{
+                        background: (context.answerType === "Positive" ? "limegreen": "red"),
+                        height: `${80 + this.props.context.votes * 90}px`
+                    }} 
                     key={context.id}>
                     {context.text}
                 </div>

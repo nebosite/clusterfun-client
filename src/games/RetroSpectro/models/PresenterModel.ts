@@ -50,6 +50,15 @@ export class RetroSpectroAnswer {
     text: string;
     answerType: string;
     memberOf?: RetroSpectroAnswerCollection;
+    
+    @observable  private _votes = 0;
+    get votes() {return this._votes}
+    set votes(value) {
+        if(value <0) value = 0;
+        if(value > 20) value = 20;
+        action(()=>{this._votes = value})()
+    }
+    
 
     // -------------------------------------------------------------------
     // ctor
@@ -59,6 +68,22 @@ export class RetroSpectroAnswer {
         this.player = player;
         this.text = text;
         this.answerType = answerType;
+
+        makeObservable(this);
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    upVote() {
+        this.votes++;
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    downVote() {
+        this.votes--;
     }
 
     // -------------------------------------------------------------------
@@ -99,6 +124,12 @@ export class RetroSpectroAnswerCollection {
     get tasks() {return this._tasks}
     set tasks(value) {action(()=>{this._tasks = value})()}
 
+    get weight() {
+        let weight = 0;
+        this.answers.forEach(a => weight += 1 + a.votes);
+        return weight;
+    }
+    
     // -------------------------------------------------------------------
     // ctor
     // -------------------------------------------------------------------
@@ -574,7 +605,7 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     //  doneSorting
     // -------------------------------------------------------------------
     doneSorting = () => {
-        this.answerCollections.sort((c1, c2) => c2.answers.length - c1.answers.length)
+        this.answerCollections.sort((c1, c2) => c2.weight - c1.weight)
         this.gameState = RetroSpectroGameState.Discussing;
         this.alertPlayersOnDiscussion();
         this.saveCheckpoint();

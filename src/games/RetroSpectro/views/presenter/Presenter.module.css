@@ -133,6 +133,7 @@ p {
 }
 
 .gamepresenter .answerCard {
+    position: relative;
     display:flex;
     flex-direction: column;
     align-items: center;
@@ -189,12 +190,11 @@ p {
 
 .gamepresenter .answerBox {
     display: inline-flex;
-    font-size: 20px;
+    font-size: 18px;
     line-height: 18px;
     
-    font-weight: 700;
+    font-weight: 600;
     height: 100px;
-    max-height: 80px;
     margin: 3px;
     padding: 5px;
     width: 150px;
@@ -255,6 +255,7 @@ p {
     padding: 10px;
     height: 115px;
     overflow: hidden;
+    text-wrap: wrap;
 }
 .gamepresenter .discussionCardAuthor {
     font-size: 70%;
@@ -338,4 +339,24 @@ p {
     box-shadow: 8px 8px 35px  rgb(41, 41, 41);
     padding: 20px;
 
+}
+
+.gamepresenter .voterButtons {
+    z-index: 2;
+    position: absolute;
+    right: 5px;
+    top: -15px;
+    height: 30px;
+}
+
+.gamepresenter .voterButton {
+    color:#ffffffaa;
+    margin: 0px;
+    font-size: 20px;
+    padding: 0;
+    background: #ffffff60;
+    border: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
 }
