@@ -83,7 +83,7 @@ export class DiscussionPage
                     summary += `\n    ${answer.player?.name}: ${answer.text}`
                 })
                 if(collection.notes?.trim()) {
-                    summary += "\nNotes: \n" + collection.notes + "\n"
+                    summary += "\n\nNotes: \n" + collection.notes + "\n"
                 }
                 if(collection.tasks?.trim()) {
                     summary += "\nTasks:"
