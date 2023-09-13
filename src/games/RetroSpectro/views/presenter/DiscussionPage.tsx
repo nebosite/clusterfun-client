@@ -73,26 +73,35 @@ export class DiscussionPage
             this.setState({summaryVisible: !summaryVisible})     
         }
 
+        let summary = "";
+        if(summaryVisible) {
+            summary = "Retro Summary " + new Date().toLocaleDateString();
+            appModel.answerCollections.forEach(collection => {
+                summary += "\n--------------------- " + collection.name + " ---------------------";
+                summary += "\nResponses:"
+                collection.answers.forEach(answer => {
+                    summary += `\n    ${answer.player?.name}: ${answer.text}`
+                })
+                if(collection.notes?.trim()) {
+                    summary += "\nNotes: \n" + collection.notes + "\n"
+                }
+                if(collection.tasks?.trim()) {
+                    summary += "\nTasks:"
+                    collection.tasks.split("\n").forEach(task => {
+                        if(task.trim() !== "") {
+                            summary += "\n    [ ] " + task
+                        }
+                    })
+                }
+                summary += "\n";
+            })
+        }
+
         return (
             <DndProvider backend={HTML5Backend}>
                 <div>
                     <div className={styles.summaryBox} style={{opacity: summaryVisible ? 1 : 0, width: summaryVisible ? undefined : "0px" }}>
-                        <div>Retro Summary:</div>
-                        <ul>
-                            {
-                                appModel.answerCollections.map(ac =>
-                                    {
-                                        return (
-                                            <li style={{marginLeft: "50px"}}>Category: {ac.name ?? "(none)" }
-                                                <ul>
-                                                    {ac.answers.map(a => <li key={a.id} style={{marginLeft: "50px"}}>{a.text}</li>)}
-                                                </ul>
-                                            </li>
-                                        )
-                                    })
-                            }
-
-                        </ul>
+                        <pre>{summary}</pre>
                     </div>
                     <div className={styles.divRow}>
                         <div style={{width: "100%"}}>

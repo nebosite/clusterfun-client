@@ -4,7 +4,7 @@ RetroSpectro TODO
     [x] Take notes in UI
         [x] Add freeform text notes
         [x] Add tasks
-    [ ] Summary does not copy/paste well, does not show positive/negative
+    [x] Summary does not copy/paste well, does not show positive/negative
     [ ] Would like to vote  (add weight)
     [ ] RS: Could use some UI improvements
         - https://uxdesign.cc/9-simple-tips-to-improve-your-ui-designs-fast-377c5113ac82
