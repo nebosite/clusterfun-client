@@ -1,31 +1,31 @@
 import Logger from "js-logger";
 import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, Vector2 } from "libs";
 import { observable } from "mobx";
-import { TestatoGameState } from "./PresenterModel";
-import { TestatoColorChangeActionEndpoint, TestatoMessageActionEndpoint, TestatoOnboardClientEndpoint, TestatoTapActionEndpoint } from "./Endpoints";
+import { WrongAnswersGameState } from "./PresenterModel";
+import { WrongAnswersColorChangeActionEndpoint, WrongAnswersMessageActionEndpoint, WrongAnswersOnboardClientEndpoint, WrongAnswersTapActionEndpoint } from "./Endpoints";
 
 
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
 // -------------------------------------------------------------------
-export const getTestatoClientTypeHelper = (
+export const getWrongAnswersClientTypeHelper = (
     sessionHelper: ISessionHelper, 
     gameProps: ClusterFunGameProps
     ): ITypeHelper =>
  {
      return {
-        rootTypeName: "TestatoClientModel",
+        rootTypeName: "WrongAnswersClientModel",
         getTypeName(o: object) {
             switch (o.constructor) {
-                case TestatoClientModel: return "TestatoClientModel";
+                case WrongAnswersClientModel: return "WrongAnswersClientModel";
             }
             return undefined;
         },
         constructType(typeName: string):any {
             switch(typeName)
             {
-                case "TestatoClientModel":
-                    return new TestatoClientModel(
+                case "WrongAnswersClientModel":
+                    return new WrongAnswersClientModel(
                         sessionHelper,
                         gameProps.playerName || "Player",
                         gameProps.logger,
@@ -50,7 +50,7 @@ export const getTestatoClientTypeHelper = (
      }
 }
 
-export enum TestatoClientState {
+export enum WrongAnswersClientState {
     Playing = "Playing",
     EndOfRound = "EndOfRound",
 }
@@ -60,7 +60,7 @@ const colors = ["white", "red", "orange", "yellow", "blue", "cyan", "magenta", "
 // -------------------------------------------------------------------
 // Client data and logic
 // -------------------------------------------------------------------
-export class TestatoClientModel extends ClusterfunClientModel  {
+export class WrongAnswersClientModel extends ClusterfunClientModel  {
 
     ballData = {x: .5, y: .5, xm:.01, ym:.01, color: "#ffffff"}
 
@@ -68,7 +68,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
     // ctor 
     // -------------------------------------------------------------------
     constructor(sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage) {
-        super("TestatoClient", sessionHelper, playerName, logger, storage);
+        super("WrongAnswersClient", sessionHelper, playerName, logger, storage);
 
         this.ballData.x = this.randomDouble(1.0);
         this.ballData.y = this.randomDouble(1.0);
@@ -86,11 +86,11 @@ export class TestatoClientModel extends ClusterfunClientModel  {
     }
 
     async requestGameStateFromPresenter(): Promise<void> {
-        const response = await this.session.requestPresenter(TestatoOnboardClientEndpoint, {});
+        const response = await this.session.requestPresenter(WrongAnswersOnboardClientEndpoint, {});
         this.roundNumber = response.roundNumber;
         switch(response.state) {
-            case TestatoGameState.Playing: this.gameState = TestatoGameState.Playing; break;
-            case TestatoGameState.EndOfRound: this.gameState = TestatoGameState.EndOfRound; break;
+            case WrongAnswersGameState.Playing: this.gameState = WrongAnswersGameState.Playing; break;
+            case WrongAnswersGameState.EndOfRound: this.gameState = WrongAnswersGameState.EndOfRound; break;
             default:
                 Logger.debug(`Server Updated State to: ${response.state}`)
                 this.gameState = GeneralClientGameState.WaitingToStart;
@@ -108,7 +108,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
             // case RetroSpectroGameState.Discussing: this.gameState = RetroSpectroClientState.Discussing; break;
             // case RetroSpectroGameState.Sorting: this.gameState = RetroSpectroClientState.Sorting; break;
             // case RetroSpectroGameState.WaitingForAnswers: this.gameState = RetroSpectroClientState.SubmittingAnswers; break;
-            case TestatoGameState.Playing: this.gameState = TestatoGameState.Playing; break; 
+            case WrongAnswersGameState.Playing: this.gameState = WrongAnswersGameState.Playing; break; 
             default:
                 Logger.debug(`Server Updated State to: ${serverState}`) 
                 this.gameState = GeneralClientGameState.WaitingToStart; break;
@@ -136,7 +136,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
         const hex = Array.from("0123456789ABCDEF");
         let colorStyle = "#";
         for(let i = 0; i < 6; i++) colorStyle += this.randomItem(hex);
-        this.session.sendMessageToPresenter(TestatoColorChangeActionEndpoint, { colorStyle });
+        this.session.sendMessageToPresenter(WrongAnswersColorChangeActionEndpoint, { colorStyle });
     }
    
     // -------------------------------------------------------------------
@@ -144,7 +144,7 @@ export class TestatoClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     doMessage(){
         const messages = ["Hi!", "Bye?", "What's up?", "Oh No!", "Hoooooweeee!!", "More gum."]
-        this.session.sendMessageToPresenter(TestatoMessageActionEndpoint, { message: this.randomItem(messages)});
+        this.session.sendMessageToPresenter(WrongAnswersMessageActionEndpoint, { message: this.randomItem(messages)});
     }
    
     // -------------------------------------------------------------------
@@ -154,6 +154,6 @@ export class TestatoClientModel extends ClusterfunClientModel  {
         x = Math.floor(x * 1000)/1000;
         y = Math.floor(y * 1000)/1000;
         
-        this.session.sendMessageToPresenter(TestatoTapActionEndpoint, { point: new Vector2(x, y) });
+        this.session.sendMessageToPresenter(WrongAnswersTapActionEndpoint, { point: new Vector2(x, y) });
     }
 }

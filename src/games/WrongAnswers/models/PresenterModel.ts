@@ -2,18 +2,18 @@ import { observable } from "mobx"
 import { PLAYTIME_MS } from "./GameSettings";
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, ITypeHelper, PresenterGameState, GeneralGameState, Vector2 } from "libs";
 import Logger from "js-logger";
-import { TestatoColorChangeActionEndpoint, TestatoMessageActionEndpoint, TestatoOnboardClientEndpoint, TestatoTapActionEndpoint } from "./Endpoints";
+import { WrongAnswersColorChangeActionEndpoint, WrongAnswersMessageActionEndpoint, WrongAnswersOnboardClientEndpoint, WrongAnswersTapActionEndpoint } from "./Endpoints";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
 
 
-export enum TestatoPlayerStatus {
+export enum WrongAnswersPlayerStatus {
     Unknown = "Unknown",
     WaitingForStart = "WaitingForStart",
 }
 
-export class TestatoPlayer extends ClusterFunPlayer {
+export class WrongAnswersPlayer extends ClusterFunPlayer {
     @observable totalScore = 0;
-    @observable status = TestatoPlayerStatus.Unknown;
+    @observable status = WrongAnswersPlayerStatus.Unknown;
     @observable message = "";
     @observable colorStyle= "#ffffff";
     @observable x = 0;
@@ -23,7 +23,7 @@ export class TestatoPlayer extends ClusterFunPlayer {
 // -------------------------------------------------------------------
 // The Game state  
 // -------------------------------------------------------------------
-export enum TestatoGameState {
+export enum WrongAnswersGameState {
     Playing = "Playing",
     EndOfRound = "EndOfRound",
 }
@@ -31,39 +31,39 @@ export enum TestatoGameState {
 // -------------------------------------------------------------------
 // Game events
 // -------------------------------------------------------------------
-export enum TestatoGameEvent {
+export enum WrongAnswersGameEvent {
     ResponseReceived = "ResponseReceived",
 }
 
 // -------------------------------------------------------------------
 // Create the typehelper needed for loading and saving the game
 // -------------------------------------------------------------------
-export const getTestatoPresenterTypeHelper = (
+export const getWrongAnswersPresenterTypeHelper = (
     sessionHelper: ISessionHelper, 
     gameProps: ClusterFunGameProps
     ): ITypeHelper =>
  {
      return {
-        rootTypeName: "TestatoPresenterModel",
+        rootTypeName: "WrongAnswersPresenterModel",
         getTypeName(o) {
             switch (o.constructor) {
-                case TestatoPresenterModel: return "TestatoPresenterModel";
-                case TestatoPlayer: return "TestatoPlayer";
+                case WrongAnswersPresenterModel: return "WrongAnswersPresenterModel";
+                case WrongAnswersPlayer: return "WrongAnswersPlayer";
             }
             return undefined;
         },
         constructType(typeName: string):any {
             switch(typeName)
             {
-                case "TestatoPresenterModel": return new TestatoPresenterModel( sessionHelper, gameProps.logger, gameProps.storage);
-                case "TestatoPlayer": return new TestatoPlayer();
+                case "WrongAnswersPresenterModel": return new WrongAnswersPresenterModel( sessionHelper, gameProps.logger, gameProps.storage);
+                case "WrongAnswersPlayer": return new WrongAnswersPlayer();
                 // TODO: add your custom type handlers here
             }
             return null;
         },
         shouldStringify(typeName: string, propertyName: string, object: any):boolean
         {
-            if(object instanceof TestatoPresenterModel)
+            if(object instanceof WrongAnswersPresenterModel)
             {
                 const doNotSerializeMe = 
                 [
@@ -78,7 +78,7 @@ export const getTestatoPresenterTypeHelper = (
         },
         reconstitute(typeName: string, propertyName: string, rehydratedObject: any)
         {
-            if(typeName === "TestatoPresenterModel")
+            if(typeName === "WrongAnswersPresenterModel")
             {
                 // TODO: if there are any properties that need special treatment on 
                 // deserialization, you can override it here.  e.g.:
@@ -96,7 +96,7 @@ export const getTestatoPresenterTypeHelper = (
 // -------------------------------------------------------------------
 // presenter data and logic
 // -------------------------------------------------------------------
-export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlayer> {
+export class WrongAnswersPresenterModel extends ClusterfunPresenterModel<WrongAnswersPlayer> {
 
     // -------------------------------------------------------------------
     // ctor 
@@ -106,10 +106,10 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
         logger: ITelemetryLogger, 
         storage: IStorage)
     {
-        super("Testato", sessionHelper, logger, storage);
-        Logger.info(`Constructing TestatoPresenterModel ${this.gameState}`)
+        super("WrongAnswers", sessionHelper, logger, storage);
+        Logger.info(`Constructing WrongAnswersPresenterModel ${this.gameState}`)
 
-        this.allowedJoinStates = [PresenterGameState.Gathering, TestatoGameState.Playing]
+        this.allowedJoinStates = [PresenterGameState.Gathering, WrongAnswersGameState.Playing]
 
         this.minPlayers = 2;
     }
@@ -120,19 +120,19 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     // -------------------------------------------------------------------
     reconstitute() {
         super.reconstitute();
-        this.listenToEndpoint(TestatoOnboardClientEndpoint, this.handleOnboardClient);
-        this.listenToEndpoint(TestatoColorChangeActionEndpoint, this.handleColorChangeAction);
-        this.listenToEndpoint(TestatoMessageActionEndpoint, this.handleMessageAction);
-        this.listenToEndpoint(TestatoTapActionEndpoint, this.handleTapAction);
+        this.listenToEndpoint(WrongAnswersOnboardClientEndpoint, this.handleOnboardClient);
+        this.listenToEndpoint(WrongAnswersColorChangeActionEndpoint, this.handleColorChangeAction);
+        this.listenToEndpoint(WrongAnswersMessageActionEndpoint, this.handleMessageAction);
+        this.listenToEndpoint(WrongAnswersTapActionEndpoint, this.handleTapAction);
     }
 
 
     // -------------------------------------------------------------------
     //  createFreshPlayerEntry
     // -------------------------------------------------------------------
-    createFreshPlayerEntry(name: string, id: string): TestatoPlayer
+    createFreshPlayerEntry(name: string, id: string): WrongAnswersPlayer
     {
-        const newPlayer = new TestatoPlayer();
+        const newPlayer = new WrongAnswersPlayer();
         newPlayer.playerId = id;
         newPlayer.name = name;
 
@@ -160,7 +160,7 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     {
         if (this.isStageOver) {
             switch(this.gameState) {
-                case TestatoGameState.Playing: 
+                case WrongAnswersGameState.Playing: 
                     this.finishPlayingRound(); 
                     this.saveCheckpoint();
                     break;
@@ -172,7 +172,7 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     //  finishPlayingRound
     // -------------------------------------------------------------------
     finishPlayingRound() {
-        this.gameState = TestatoGameState.EndOfRound;
+        this.gameState = WrongAnswersGameState.EndOfRound;
         this.sendToEveryone(InvalidateStateEndpoint, (p,ie) => ({}))
     }
 
@@ -181,12 +181,12 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
     // -------------------------------------------------------------------
     startNextRound = () =>
     {
-        this.gameState = TestatoGameState.Playing;
+        this.gameState = WrongAnswersGameState.Playing;
         this.timeOfStageEnd = this.gameTime_ms + PLAYTIME_MS;
         this.currentRound++;
 
         this.players.forEach((p,i) => {
-            p.status = TestatoPlayerStatus.WaitingForStart;
+            p.status = WrongAnswersPlayerStatus.WaitingForStart;
             p.message = "";
             p.colorStyle = "white";
             p.x = .1;
@@ -199,7 +199,7 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
             this.saveCheckpoint();
         }    
         else {
-            this.gameState = TestatoGameState.Playing;
+            this.gameState = WrongAnswersGameState.Playing;
             this.sendToEveryone(InvalidateStateEndpoint, (p,ie) => ({}))
             this.saveCheckpoint();
         }
