@@ -5,7 +5,12 @@ RetroSpectro TODO
         [x] Add freeform text notes
         [x] Add tasks
     [x] Summary does not copy/paste well, does not show positive/negative
-    [ ] Would like to vote  (add weight)
+    [x] Take notes in UI, track todos
+    [x] Summary does not copy/paste well, does not show positive/negative
+    [ ] Can't store old meetings
+    [x] Would like to vote  (add weight)
+    [ ] Deltas/Follow ups
+    [ ] Change background according to redness
     [ ] RS: Could use some UI improvements
         - https://uxdesign.cc/9-simple-tips-to-improve-your-ui-designs-fast-377c5113ac82
         - https://uxdesign.cc/8-more-tips-to-quickly-improve-your-ui-designs-368fb3bea5ba
@@ -17,6 +22,9 @@ RetroSpectro TODO
     [ ] Show time left on client
 
 NEW
+    [ ] Eugene request: Allow more than five words
+    [ ] Eugene request: After 5-10 minutes, I lost my summary data!
+        - I think add a permanent memory for summaries
     
 
 IMPORTANT
