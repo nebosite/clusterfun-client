@@ -12,6 +12,10 @@
     font-family: sans-serif;
 }
 
+.gameclient .subScreenFrame {
+    margin: 30px;
+}
+
 /* Buttons */
 
 .gameclient button {

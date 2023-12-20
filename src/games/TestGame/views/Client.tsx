@@ -201,7 +201,7 @@ export default class Client
                             <span>{appModel?.playerName}</span>
                             <button className={classNames(styles.quitbutton)} onClick={()=>appModel?.quitApp()}>X</button>
                         </div>
-                        <div style={{margin: "100px"}}>
+                        <div className={styles.subScreenFrame}>
                             <ErrorBoundary>
                                 {this.renderSubScreen()}
                             </ErrorBoundary>

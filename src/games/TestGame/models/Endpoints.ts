@@ -1,6 +1,9 @@
 import MessageEndpoint from "libs/messaging/MessageEndpoint";
 import { Vector2 } from "libs/types";
 
+// Endpoints have the form:  [Name]: MessageEndpoint<REQUESTTYPE, RESPONSETYPE>
+// The generic types can be "unknown" to signal no data in the request, or no response expected
+
 export const TestatoOnboardClientEndpoint: MessageEndpoint<unknown, { roundNumber: number, customText: string, state: string }> = {
     route: "/games/testato/lifecycle/onboard",
     suggestedRetryIntervalMs: 5000,
