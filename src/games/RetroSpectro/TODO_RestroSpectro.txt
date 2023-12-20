@@ -1,0 +1,39 @@
+RetroSpectro TODO
+    [x] Smaller top bar (dev keys too big?)
+    [x] Smaller font for cards is ok (could be 30% smaller)
+    [x] Take notes in UI
+        [x] Add freeform text notes
+        [x] Add tasks
+    [x] Summary does not copy/paste well, does not show positive/negative
+    [ ] Would like to vote  (add weight)
+    [ ] RS: Could use some UI improvements
+        - https://uxdesign.cc/9-simple-tips-to-improve-your-ui-designs-fast-377c5113ac82
+        - https://uxdesign.cc/8-more-tips-to-quickly-improve-your-ui-designs-368fb3bea5ba
+        - Items
+            - Always make your ‘Call to Action’ the most prominent item on the screen
+            - subtle borders and shadows to group items
+            - white spacing between stuff
+            - Better onboarding with a "skip" option
+    [ ] Show time left on client
+
+NEW
+    
+
+IMPORTANT
+    [ ] Can't store old meetings
+        [ ] Save current meeting 
+        [ ] Load old meeting
+    [ ] Deltas/Follow ups
+
+MAYBE NEVER
+    [ ] Change background according to redness
+    [ ] Have an animation to show reordering of categories
+    [ ] Autoname based on common words
+
+
+DONE
+    
+        [x] Only show non-release games with a parameter:  show=alpha,beta
+        [x] Final summary - show all the cards
+        [x] RS: at the end, show a printable summary
+        [x] Retro spectro - can't join after game starts
