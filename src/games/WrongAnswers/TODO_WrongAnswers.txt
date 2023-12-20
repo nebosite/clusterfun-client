@@ -1,0 +1,32 @@
+    StartOfRound = "StartOfRound",
+    StartOfTourney = "StartOfTourney",
+    Battle = "Battle",
+    BattleResults = "BattleResults",
+    EndOfTourney = "EndOfTourney",
+    EndOfGame = "EndOfGame",
+
+
+Wrong Answers TODO
+
+    
+    [x] Show a question
+
+    [ ] Players enter enough answers to fill a 16 bracket
+        - Be fair about giving even number of answers, leftovers picked randomly from overflow.
+        - Player enter as many answers as they want, and can select best answers
+        - Handicap for younger players:  offer madlibs ideas
+    [ ] Voting phase
+        - Basic bracket playoff
+        - Two rounds normal points, final round double points
+
+CATCHUP
+    [ ] Replace [player] with an actual player name
+
+OTHER IDEAS 
+    - Super votes - Each player has a limited number of super votes to boost
+            their favorite answers.
+    - ChatGPT player
+        - ex: Please give funny wrong answers to this question:  Why is the sky blue?   Answer should five words or less.  Vocabulary at 7th grade level.  Answer should have the theme of depressing.
+    - Handicap for younger players:  offer madlibs ideas
+        - Provide a set of madlib templates with the question
+            Because [noun] [verbed] [possessive pronoun] [noun]

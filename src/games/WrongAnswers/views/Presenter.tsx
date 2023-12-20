@@ -8,41 +8,10 @@ import WrongAnswersAssets from "../assets/Assets";
 import { WrongAnswersVersion } from "../models/GameSettings";
 import { BaseAnimationController, MediaHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, DevUI, UINormalizer } from "libs";
 import { WrongAnswersPresenterModel, WrongAnswersGameState, WrongAnswersGameEvent } from "../models/PresenterModel";
+import { PresenterGatheringPage } from "./PresenterGatheringPage";
+import { PresenterInstructionsPage } from "./PresenterInstructionsPage";
+import { PresenterStartRoundPage } from "./PresenterStartRoundPage";
 
-
-@inject("appModel") @observer
-class GatheringPlayersPage  extends React.Component<{appModel?: WrongAnswersPresenterModel}> {
-    // -------------------------------------------------------------------
-    // render
-    // -------------------------------------------------------------------
-    render() {
-        const {appModel} = this.props;
-        if (!appModel) return <div>NO APP MODEL</div>;
-
-        return (
-            <div>
-                <h3>Welcome to {appModel.name}</h3>
-                <p>This is an example app for clusterfun.</p>
-                <p>To Join: go to http://{ window.location.host} and enter this room code: {appModel.roomId}</p>
-                {
-                    appModel.players.length > 0
-                    ?   <div><p style={{fontWeight: 600}}>Joined team members:</p>
-                            <div className={styles.divRow}>
-                                {appModel.players.map(player => (<div className={styles.nameBox} key={player.playerId}>{player.name}</div>))}
-                            </div>
-                        </div>
-                    : null 
-                }
-                
-                {appModel.players.length < appModel.minPlayers
-                    ? <div>{`Waiting for at least ${appModel.minPlayers} players to join ...`}</div>
-                    : <button className={styles.presenterButton} onClick={() => appModel.startGame()}> Click here to start! </button>
-                }               
-            </div>
-        );
-
-    }
-}
 
 @inject("appModel") @observer
 class PausedGamePage  extends React.Component<{appModel?: WrongAnswersPresenterModel}> {
@@ -114,38 +83,9 @@ class PlayStartAnimationController  extends BaseAnimationController {
         this._playStartAnimation = new  PlayStartAnimationController(()=>{});
         props.appModel!.registerAnimation(this._playStartAnimation);
 
-        props.appModel!.onTick.subscribe("animate", (e) => this.animateFrame(e)) 
         props.appModel!.subscribe("ColorChange", "presenterColorChange", () => {
             props.media.playSound(WrongAnswersAssets.sounds.ding)
         })
-    }
-
-    // -------------------------------------------------------------------
-    // animateFrame - render a single animation frame to the canvas
-    // -------------------------------------------------------------------
-    animateFrame = (elapsed_ms: number) => {
-        const canvas = document.getElementById("presenterGameCanvas") as HTMLCanvasElement;
-        if(!canvas) return;
-        const context = canvas.getContext("2d");
-        if (!context) return;
-
-        context.fillStyle = "#888888";
-        const w = canvas.width;
-        const h = canvas.height;
-        context.fillRect(0,0,w,h);
-
-        this.props.appModel?.players.forEach(p=>
-            {
-                const px = p.x * h;
-                const py = p.y * h * .9 + h * 0.05;
-                context.font = '50px serif';
-                let label = p.name;
-                if(p.message !== "") label += ` says '${p.message}'`;
-                context.fillStyle = "#777777" 
-                context.fillText(label, px+4, py+4);
-                context.fillStyle = p.colorStyle;
-                context.fillText(label, px, py);
-            })
     }
 
     // -------------------------------------------------------------------
@@ -221,15 +161,15 @@ extends React.Component<{appModel?: WrongAnswersPresenterModel, uiProperties: UI
         const sfxVolume = 1.0;       
 
         let timeAlertLoaded = false;
-        appModel?.onTick.subscribe("Timer Watcher", ()=>{
-            if(appModel!.secondsLeftInStage > 10) timeAlertLoaded = true; 
-            if( (appModel!.gameState === WrongAnswersGameState.Playing)
-                && timeAlertLoaded 
-                && appModel!.secondsLeftInStage <= 10) {
-                timeAlertLoaded = false 
-                this.media.repeatSound("ding.wav", 5, 100);
-            }
-        })
+        // appModel?.onTick.subscribe("Timer Watcher", ()=>{
+        //     if(appModel!.secondsLeftInStage > 10) timeAlertLoaded = true; 
+        //     if( (appModel!.gameState === WrongAnswersGameState.Playing)
+        //         && timeAlertLoaded 
+        //         && appModel!.secondsLeftInStage <= 10) {
+        //         timeAlertLoaded = false 
+        //         this.media.repeatSound("ding.wav", 5, 100);
+        //     }
+        // })
         appModel?.subscribe(PresenterGameEvent.PlayerJoined,     "play joined sound", ()=> this.media.playSound(WrongAnswersAssets.sounds.hello, {volume: sfxVolume * .2}));
         appModel?.subscribe(WrongAnswersGameEvent.ResponseReceived,  "play response received sound", ()=> this.media.playSound(WrongAnswersAssets.sounds.response, {volume: sfxVolume}));
 
@@ -247,16 +187,20 @@ extends React.Component<{appModel?: WrongAnswersPresenterModel, uiProperties: UI
         switch(appModel.gameState)
         {
             case PresenterGameState.Gathering:
-                return <GatheringPlayersPage />
-            case WrongAnswersGameState.Playing:
-                return <PlayingPage media={this.media} />
-            case WrongAnswersGameState.EndOfRound:
-            case GeneralGameState.GameOver:
-                return <EndOfRoundPage />
+                return <PresenterGatheringPage />
+            case PresenterGameState.Instructions:
+                return <PresenterInstructionsPage />
+            case WrongAnswersGameState.StartOfRound:
+                return <PresenterStartRoundPage />
+            // case WrongAnswersGameState.Playing:
+            //     return <PlayingPage media={this.media} />
+            // case WrongAnswersGameState.EndOfRound:
+            // case GeneralGameState.GameOver:
+            //     return <EndOfRoundPage />
             case GeneralGameState.Paused:
                 return <PausedGamePage />
             default:
-                return <div>Whoops!  No display for this state: {appModel.gameState}</div>
+                return <div>WrongAnswers: Whoops!  No display for this state: {appModel.gameState}</div>
         }
     }
 

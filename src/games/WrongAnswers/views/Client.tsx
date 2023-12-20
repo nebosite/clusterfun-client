@@ -4,109 +4,10 @@ import { observer, inject } from "mobx-react";
 import { WrongAnswersClientModel, WrongAnswersClientState } from "../models/ClientModel";
 import styles from './Client.module.css';
 import classNames from "classnames";
-import { ClusterCanvas, UIProperties, GeneralGameState, SafeBrowser, GeneralClientGameState, UINormalizer, ErrorBoundary} from "libs";
+import { UIProperties, GeneralGameState, SafeBrowser, GeneralClientGameState, UINormalizer, ErrorBoundary} from "libs";
 import Logger from "js-logger";
+import { ClientAnsweringPage } from "./ClientAnsweringPage";
 
-
-// -------------------------------------------------------------------
-// Game Screen -  Client play UI
-// -------------------------------------------------------------------
-@inject("appModel")
-@observer
-class GameScreen extends React.Component<{appModel?: WrongAnswersClientModel}> 
-{
-    canvasDomId: string;
-    w = 100;
-    h = 100;
-    canvasContext?: CanvasRenderingContext2D;
-
-    // -------------------------------------------------------------------
-    // ctor
-    // ------------------------------------------------------------------- 
-    constructor(props: {appModel?: WrongAnswersClientModel})
-    {
-        super(props);
-
-        props.appModel!.onTick.subscribe("animate", (e) => this.animateFrame(e))
-        this.canvasDomId = "PlayCanvas" + this.props.appModel!.playerId;
-    }
-
-    // -------------------------------------------------------------------
-    // When the component mounts, learn about the canvas size and location
-    // -------------------------------------------------------------------
-    componentDidMount()
-    {
-        this.componentDidUpdate();   
-    }
-
-    // -------------------------------------------------------------------
-    // When the component mounts, learn about the canvas size and location
-    // -------------------------------------------------------------------
-    componentDidUpdate()
-    {
-        const canvas = document.getElementById(this.canvasDomId) as HTMLCanvasElement; 
-        this.canvasContext = canvas.getContext("2d") ?? undefined;
-        this.w = canvas.width; 
-        this.h = canvas.height;
-    }
-
-    // -------------------------------------------------------------------
-    // animateFrame - render a single animation frame to the canvas
-    // -------------------------------------------------------------------
-    animateFrame = (elapsed_ms: number) => {
-        const {appModel} = this.props;
-        if(appModel?.gameState !== WrongAnswersClientState.Playing) return;
-        if(!this.canvasContext) return;
-
-        // Clear canvas
-        this.canvasContext.fillStyle = "#000000"
-        this.canvasContext.fillRect(0,0,this.w,this.h);
-
-        // Draw something
-        appModel.gameThink(elapsed_ms);
-        const ball = appModel.ballData;
-        this.canvasContext.fillStyle = ball.color;
-        this.canvasContext.fillRect(ball.x * this.w - 30, ball.y * this.h - 30, 60, 60);
-    }
-
-    // -------------------------------------------------------------------
-    // Handle taps from the user
-    // -------------------------------------------------------------------
-    handleClick(x: number, y:number)
-    {
-        const {appModel} = this.props;
-        appModel!.ballData.x = x;
-        appModel!.ballData.y = y;   
-        appModel!.doTap(x,y)     
-    }
-
-    // -------------------------------------------------------------------
-    // render
-    // ------------------------------------------------------------------- 
-    render() {
-        const {appModel} = this.props;
-        if (!appModel) return <div>NO APPMODEL</div>; 
-
-        return (
-            <div>
-                <h4>{appModel!.playerName}</h4>
-
-                <div>
-                    Tap the screen to set dot position   
-                    <div className={styles.gameCanvasFrame} >
-                        <ClusterCanvas 
-                            canvasId={this.canvasDomId}
-                            width={800} height={800}
-                            onClick={(x,y) => this.handleClick(x,y)} />
-                    </div>
-                    <button className={styles.clientButton} onClick={()=>this.props.appModel!.doColorChange()}>Change Colors</button>
-                    <button className={styles.clientButton} onClick={()=>this.props.appModel!.doMessage()}>Say Something</button>
-                </div>      
-            </div>
-        );
-    };
-
-}
 
 // -------------------------------------------------------------------
 // Client Page
@@ -119,19 +20,6 @@ export default class Client
     containerOffset = {left: 0, top: 0};
 
     // -------------------------------------------------------------------
-    // When the component updates, learn about our overall offset
-    // -------------------------------------------------------------------
-    componentDidUpdate()
-    {
-        const container = document.getElementById(this.props.uiProperties.containerId) as HTMLElement; 
-        if(container)
-        {
-            var rect = container.getBoundingClientRect();
-            this.containerOffset = {left: rect.left, top: rect.top}
-        }
-    }
-
-    // -------------------------------------------------------------------
     // Do something to alert the user if the game state changed
     // ------------------------------------------------------------------- 
     alertUser() {
@@ -141,7 +29,6 @@ export default class Client
         }
         this.lastState = appModel!.gameState as string;
     }
-
 
     // -------------------------------------------------------------------
     // renderSubScreen
@@ -158,9 +45,9 @@ export default class Client
                     Sit tight, we are waiting for the host to start the game...
                     </div>
                 </React.Fragment>);  
-            case WrongAnswersClientState.Playing:
+            case WrongAnswersClientState.Answering:
                 this.alertUser();
-                return <GameScreen />
+                return <ClientAnsweringPage />
             case WrongAnswersClientState.EndOfRound:
                 this.alertUser();
                 return <div>Round is over... </div>
@@ -201,7 +88,7 @@ export default class Client
                             <span>{appModel?.playerName}</span>
                             <button className={classNames(styles.quitbutton)} onClick={()=>appModel?.quitApp()}>X</button>
                         </div>
-                        <div style={{margin: "100px"}}>
+                        <div className={styles.subScreenFrame}>
                             <ErrorBoundary>
                                 {this.renderSubScreen()}
                             </ErrorBoundary>

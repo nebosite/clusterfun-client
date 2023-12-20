@@ -1,8 +1,8 @@
 import Logger from "js-logger";
 import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, Vector2 } from "libs";
-import { observable } from "mobx";
+import { action, observable } from "mobx";
 import { WrongAnswersGameState } from "./PresenterModel";
-import { WrongAnswersColorChangeActionEndpoint, WrongAnswersMessageActionEndpoint, WrongAnswersOnboardClientEndpoint, WrongAnswersTapActionEndpoint } from "./Endpoints";
+import { WrongAnswersStartRoundMessage, WrongAnswersColorChangeActionEndpoint, WrongAnswersMessageActionEndpoint, WrongAnswersOnboardClientEndpoint, WrongAnswersStartRoundEndpoint, WrongAnswersTapActionEndpoint } from "./Endpoints";
 
 
 // -------------------------------------------------------------------
@@ -51,30 +51,28 @@ export const getWrongAnswersClientTypeHelper = (
 }
 
 export enum WrongAnswersClientState {
-    Playing = "Playing",
+    Answering = "Answering",
     EndOfRound = "EndOfRound",
 }
-
-const colors = ["white", "red", "orange", "yellow", "blue", "cyan", "magenta", "gray"]
 
 // -------------------------------------------------------------------
 // Client data and logic
 // -------------------------------------------------------------------
 export class WrongAnswersClientModel extends ClusterfunClientModel  {
-
-    ballData = {x: .5, y: .5, xm:.01, ym:.01, color: "#ffffff"}
+    @observable  private _prompt = "No Prompt";
+    get prompt() {return this._prompt}
+    set prompt(value) {action(()=>{this._prompt = value})()}
+    
+    @observable  private _currentAnswer = "";
+    get currentAnswer() {return this._currentAnswer}
+    set currentAnswer(value) {action(()=>{this._currentAnswer = value})()}
+    
 
     // -------------------------------------------------------------------
     // ctor 
     // -------------------------------------------------------------------
     constructor(sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage) {
         super("WrongAnswersClient", sessionHelper, playerName, logger, storage);
-
-        this.ballData.x = this.randomDouble(1.0);
-        this.ballData.y = this.randomDouble(1.0);
-        this.ballData.xm = (this.randomDouble(.01) + 0.005) * (this.randomInt(2) ? 1 : -1) ;
-        this.ballData.ym = (this.randomDouble(.01) + 0.005) * (this.randomInt(2) ? 1 : -1) ;
-        this.ballData.color = this.randomItem(colors);
     }
 
     // -------------------------------------------------------------------
@@ -83,77 +81,37 @@ export class WrongAnswersClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     reconstitute() {
         super.reconstitute();
+        this.listenToEndpointFromPresenter(WrongAnswersStartRoundEndpoint, this.handleStartRoundMessage);
     }
 
+    // -------------------------------------------------------------------
+    // handleRecentlyTouchedMessage
+    // -------------------------------------------------------------------
+    protected handleStartRoundMessage = (message: WrongAnswersStartRoundMessage) => {
+        this.prompt = message.prompt;
+        this.gameState = WrongAnswersClientState.Answering;
+    }
+
+    // -------------------------------------------------------------------
+    //  
+    // -------------------------------------------------------------------
     async requestGameStateFromPresenter(): Promise<void> {
         const response = await this.session.requestPresenter(WrongAnswersOnboardClientEndpoint, {});
         this.roundNumber = response.roundNumber;
         switch(response.state) {
-            case WrongAnswersGameState.Playing: this.gameState = WrongAnswersGameState.Playing; break;
-            case WrongAnswersGameState.EndOfRound: this.gameState = WrongAnswersGameState.EndOfRound; break;
+            case WrongAnswersGameState.StartOfRound: this.gameState = WrongAnswersClientState.Answering; break;
             default:
                 Logger.debug(`Server Updated State to: ${response.state}`)
                 this.gameState = GeneralClientGameState.WaitingToStart;
                 break;
         }
     }
-    
-    // -------------------------------------------------------------------
-    //  
-    // -------------------------------------------------------------------
-    assignClientStateFromServerState(serverState: string) {
-        // When the server sends and state update message, ensure the client puts itself in the right state.
-        // This is neeeded because sometimes the client can miss messages from the server
-        switch(serverState) {
-            // case RetroSpectroGameState.Discussing: this.gameState = RetroSpectroClientState.Discussing; break;
-            // case RetroSpectroGameState.Sorting: this.gameState = RetroSpectroClientState.Sorting; break;
-            // case RetroSpectroGameState.WaitingForAnswers: this.gameState = RetroSpectroClientState.SubmittingAnswers; break;
-            case WrongAnswersGameState.Playing: this.gameState = WrongAnswersGameState.Playing; break; 
-            default:
-                Logger.debug(`Server Updated State to: ${serverState}`) 
-                this.gameState = GeneralClientGameState.WaitingToStart; break;
-        }
 
-    }
-
-    // -------------------------------------------------------------------
-    // Handle game logic on a frame-by-frame basis 
-    // -------------------------------------------------------------------
-    gameThink(elapsed_ms: number) {
-        const ball = this.ballData;
-        ball.x += ball.xm;
-        if(ball.x > 1.0) {  ball.x = 1.0;  ball.xm *= -1; }
-        if(ball.x < 0.0) {  ball.x = 0.0;  ball.xm *= -1; }
-        ball.y += ball.ym;
-        if(ball.y > 1.0) {  ball.y = 1.0;  ball.ym *= -1; }
-        if(ball.y < 0.0) {  ball.y = 0.0;  ball.ym *= -1; }
-    }
-
-    // -------------------------------------------------------------------
-    // Tell the presenter to change my color
-    // -------------------------------------------------------------------
-    doColorChange(){
-        const hex = Array.from("0123456789ABCDEF");
-        let colorStyle = "#";
-        for(let i = 0; i < 6; i++) colorStyle += this.randomItem(hex);
-        this.session.sendMessageToPresenter(WrongAnswersColorChangeActionEndpoint, { colorStyle });
-    }
-   
     // -------------------------------------------------------------------
     // Tell the presenter to show a message for me
     // -------------------------------------------------------------------
     doMessage(){
         const messages = ["Hi!", "Bye?", "What's up?", "Oh No!", "Hoooooweeee!!", "More gum."]
         this.session.sendMessageToPresenter(WrongAnswersMessageActionEndpoint, { message: this.randomItem(messages)});
-    }
-   
-    // -------------------------------------------------------------------
-    // Tell the presenter that I tapped somewhere
-    // -------------------------------------------------------------------
-    doTap(x: number, y: number){
-        x = Math.floor(x * 1000)/1000;
-        y = Math.floor(y * 1000)/1000;
-        
-        this.session.sendMessageToPresenter(WrongAnswersTapActionEndpoint, { point: new Vector2(x, y) });
     }
 }

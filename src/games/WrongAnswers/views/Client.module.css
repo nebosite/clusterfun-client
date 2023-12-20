@@ -16,7 +16,7 @@
 
 .gameclient button {
     font-size: 150%;
-    padding: 20px;
+    padding: 10px;
     margin: 20px;
 }
 
@@ -45,8 +45,17 @@
     margin: 0;
 }
 
-.gameclient .gameCanvasFrame{
-    display: flex;
-    justify-content: center;
-    margin: 20px
+.gameclient .subScreenFrame {
+    margin: 30px;
+}
+
+.gameclient .promptPrefix {
+    background-color: #00000020;
+}
+.gameclient .prompt {
+    font-weight: 800;
+}
+.gameclient .inputText {
+    font-size: 200%;
+    width: 90%;
 }

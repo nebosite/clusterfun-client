@@ -10,6 +10,7 @@ import MessageEndpoint from "libs/messaging/MessageEndpoint";
 export enum PresenterGameState 
 {
     Gathering = "Gathering",
+    Instructions = "Instructions"
 }
 
 // -------------------------------------------------------------------

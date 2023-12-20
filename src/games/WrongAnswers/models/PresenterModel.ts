@@ -1,9 +1,9 @@
-import { observable } from "mobx"
-import { PLAYTIME_MS } from "./GameSettings";
+import { makeObservable, observable } from "mobx"
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, ITypeHelper, PresenterGameState, GeneralGameState, Vector2 } from "libs";
 import Logger from "js-logger";
-import { WrongAnswersColorChangeActionEndpoint, WrongAnswersMessageActionEndpoint, WrongAnswersOnboardClientEndpoint, WrongAnswersTapActionEndpoint } from "./Endpoints";
+import { WrongAnswersColorChangeActionEndpoint, WrongAnswersMessageActionEndpoint, WrongAnswersOnboardClientEndpoint, WrongAnswersStartRoundEndpoint, WrongAnswersTapActionEndpoint } from "./Endpoints";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
+import { RandomHelper } from "libs/Algorithms/RandomHelper";
 
 
 export enum WrongAnswersPlayerStatus {
@@ -11,21 +11,23 @@ export enum WrongAnswersPlayerStatus {
     WaitingForStart = "WaitingForStart",
 }
 
+interface RoundScore {
+    score:number
+}
 export class WrongAnswersPlayer extends ClusterFunPlayer {
-    @observable totalScore = 0;
-    @observable status = WrongAnswersPlayerStatus.Unknown;
-    @observable message = "";
-    @observable colorStyle= "#ffffff";
-    @observable x = 0;
-    @observable y = 0;
+    @observable scores:RoundScore[] = [];
 }
 
 // -------------------------------------------------------------------
 // The Game state  
 // -------------------------------------------------------------------
 export enum WrongAnswersGameState {
-    Playing = "Playing",
-    EndOfRound = "EndOfRound",
+    StartOfRound = "StartOfRound",
+    StartOfTourney = "StartOfTourney",
+    Battle = "Battle",
+    BattleResults = "BattleResults",
+    EndOfTourney = "EndOfTourney",
+    EndOfGame = "EndOfGame",
 }
 
 // -------------------------------------------------------------------
@@ -67,7 +69,7 @@ export const getWrongAnswersPresenterTypeHelper = (
             {
                 const doNotSerializeMe = 
                 [
-                    "Name_of_presenter_property_to_not_serialize",
+                    "_rand",
                     // TODO:  put names of properties here that should not be part
                     //        of the saved game state  
                 ]
@@ -97,6 +99,10 @@ export const getWrongAnswersPresenterTypeHelper = (
 // presenter data and logic
 // -------------------------------------------------------------------
 export class WrongAnswersPresenterModel extends ClusterfunPresenterModel<WrongAnswersPlayer> {
+    private _prompts: WrongAnswersPrompt[] = []
+    private _rand = new RandomHelper();
+
+    get currentPrompt() { return this._prompts[this.currentRound - 1]}
 
     // -------------------------------------------------------------------
     // ctor 
@@ -108,8 +114,10 @@ export class WrongAnswersPresenterModel extends ClusterfunPresenterModel<WrongAn
     {
         super("WrongAnswers", sessionHelper, logger, storage);
         Logger.info(`Constructing WrongAnswersPresenterModel ${this.gameState}`)
+        this._prompts = this._rand.pickN(AllPrompts, this.totalRounds);
+        console.log("$$$$ prompts", this._prompts)
 
-        this.allowedJoinStates = [PresenterGameState.Gathering, WrongAnswersGameState.Playing]
+        this.allowedJoinStates = [PresenterGameState.Gathering, PresenterGameState.Instructions]
 
         this.minPlayers = 2;
     }
@@ -121,9 +129,9 @@ export class WrongAnswersPresenterModel extends ClusterfunPresenterModel<WrongAn
     reconstitute() {
         super.reconstitute();
         this.listenToEndpoint(WrongAnswersOnboardClientEndpoint, this.handleOnboardClient);
-        this.listenToEndpoint(WrongAnswersColorChangeActionEndpoint, this.handleColorChangeAction);
-        this.listenToEndpoint(WrongAnswersMessageActionEndpoint, this.handleMessageAction);
-        this.listenToEndpoint(WrongAnswersTapActionEndpoint, this.handleTapAction);
+        // this.listenToEndpoint(WrongAnswersColorChangeActionEndpoint, this.handleColorChangeAction);
+        // this.listenToEndpoint(WrongAnswersMessageActionEndpoint, this.handleMessageAction);
+        // this.listenToEndpoint(WrongAnswersTapActionEndpoint, this.handleTapAction);
     }
 
 
@@ -158,49 +166,46 @@ export class WrongAnswersPresenterModel extends ClusterfunPresenterModel<WrongAn
     // -------------------------------------------------------------------
     handleTick()
     {
-        if (this.isStageOver) {
-            switch(this.gameState) {
-                case WrongAnswersGameState.Playing: 
-                    this.finishPlayingRound(); 
-                    this.saveCheckpoint();
-                    break;
-            }
-        }
+        // if (this.isStageOver) {
+        //     switch(this.gameState) {
+        //         case WrongAnswersGameState.Playing: 
+        //             this.finishPlayingRound(); 
+        //             this.saveCheckpoint();
+        //             break;
+        //     }
+        // }
     }
     
-    // -------------------------------------------------------------------
-    //  finishPlayingRound
-    // -------------------------------------------------------------------
-    finishPlayingRound() {
-        this.gameState = WrongAnswersGameState.EndOfRound;
-        this.sendToEveryone(InvalidateStateEndpoint, (p,ie) => ({}))
-    }
+    // // -------------------------------------------------------------------
+    // //  finishPlayingRound
+    // // -------------------------------------------------------------------
+    // finishPlayingRound() {
+    //     this.gameState = WrongAnswersGameState.EndOfRound;
+    //     this.sendToEveryone(InvalidateStateEndpoint, (p,ie) => ({}))
+    // }
 
     // -------------------------------------------------------------------
     //  startNextRound
     // -------------------------------------------------------------------
     startNextRound = () =>
     {
-        this.gameState = WrongAnswersGameState.Playing;
-        this.timeOfStageEnd = this.gameTime_ms + PLAYTIME_MS;
+        this.gameState = WrongAnswersGameState.StartOfRound;
+        //this.timeOfStageEnd = this.gameTime_ms + PLAYTIME_MS;
         this.currentRound++;
 
         this.players.forEach((p,i) => {
-            p.status = WrongAnswersPlayerStatus.WaitingForStart;
-            p.message = "";
-            p.colorStyle = "white";
-            p.x = .1;
-            p.y = i * .1 + .1;
+            // Reset player objects here
         })
 
         if(this.currentRound > this.totalRounds) {
-            this.gameState = GeneralGameState.GameOver;
+            this.gameState = WrongAnswersGameState.EndOfGame;
             this.requestEveryone(GameOverEndpoint, (p,ie) => ({}))
             this.saveCheckpoint();
         }    
         else {
-            this.gameState = WrongAnswersGameState.Playing;
-            this.sendToEveryone(InvalidateStateEndpoint, (p,ie) => ({}))
+            this.gameState = WrongAnswersGameState.StartOfRound;
+            const prompt = this._prompts[this.currentRound - 1];
+            this.sendToEveryone(WrongAnswersStartRoundEndpoint, (p,ie) => ({prompt: prompt.text }))
             this.saveCheckpoint();
         }
 
@@ -216,38 +221,109 @@ export class WrongAnswersPresenterModel extends ClusterfunPresenterModel<WrongAn
     }
 
 
-    handleColorChangeAction = (sender: string, message: { colorStyle: string }) => {
-        const player = this.players.find(p => p.playerId === sender);
-        if(!player) {
-            Logger.warn("No player found for message: " + JSON.stringify(message));
-            this.telemetryLogger.logEvent("Presenter", "AnswerMessage", "Deny");
-            return;
-        }
-        player.colorStyle = message.colorStyle;
-        this.saveCheckpoint();
-    }
+    // handleColorChangeAction = (sender: string, message: { colorStyle: string }) => {
+    //     const player = this.players.find(p => p.playerId === sender);
+    //     if(!player) {
+    //         Logger.warn("No player found for message: " + JSON.stringify(message));
+    //         this.telemetryLogger.logEvent("Presenter", "AnswerMessage", "Deny");
+    //         return;
+    //     }
+    //     player.colorStyle = message.colorStyle;
+    //     this.saveCheckpoint();
+    // }
 
-    handleMessageAction = (sender: string, message: { message: string }) => {
-        const player = this.players.find(p => p.playerId === sender);
-        if(!player) {
-            Logger.warn("No player found for message: " + JSON.stringify(message));
-            this.telemetryLogger.logEvent("Presenter", "AnswerMessage", "Deny");
-            return;
-        }
-        player.message = message.message;
-        this.saveCheckpoint();
-    }
+    // handleMessageAction = (sender: string, message: { message: string }) => {
+    //     const player = this.players.find(p => p.playerId === sender);
+    //     if(!player) {
+    //         Logger.warn("No player found for message: " + JSON.stringify(message));
+    //         this.telemetryLogger.logEvent("Presenter", "AnswerMessage", "Deny");
+    //         return;
+    //     }
+    //     player.message = message.message;
+    //     this.saveCheckpoint();
+    // }
 
-    handleTapAction = (sender: string, message: { point: Vector2 }) => {
-        const player = this.players.find(p => p.playerId === sender);
-        if(!player) {
-            Logger.warn("No player found for message: " + JSON.stringify(message));
-            this.telemetryLogger.logEvent("Presenter", "AnswerMessage", "Deny");
-            return;
-        }
-        player.x = message.point.x;
-        player.y = message.point.y;
-        this.saveCheckpoint();
-    }
+    // handleTapAction = (sender: string, message: { point: Vector2 }) => {
+    //     const player = this.players.find(p => p.playerId === sender);
+    //     if(!player) {
+    //         Logger.warn("No player found for message: " + JSON.stringify(message));
+    //         this.telemetryLogger.logEvent("Presenter", "AnswerMessage", "Deny");
+    //         return;
+    //     }
+    //     player.x = message.point.x;
+    //     player.y = message.point.y;
+    //     this.saveCheckpoint();
+    // }
 
 }
+
+interface WrongAnswersPrompt {
+    text: string;
+}
+const AllPrompts = [
+    { text: "Roses are red, violets are _____" },
+    { text: "Why did the chicken cross the road?" },
+    { text: "What does NASA stand for?" },
+    { text: "What happened in Jurassic Park?" },
+    { text: "Why is the sky blue" },
+    { text: "Where do babies come from?" },
+    { text: "Why should [player] get a haircut?" },
+    { text: "What makes the sun rise?" },
+    { text: "How do birds fly?" },
+    { text: "Why do we have seasons?" },
+    { text: "Where does rain come from?" },
+    { text: "Why do stars twinkle?" },
+    { text: "How do plants grow?" },
+    { text: "Why do we need to sleep?" },
+    { text: "What are clouds made of?" },
+    { text: "How does the moon change shape?" },
+    { text: "Why do we have different time zones?" },
+    { text: "How do fish breathe underwater?" },
+    { text: "Why do leaves change color in autumn?" },
+    { text: "What causes thunder and lightning?" },
+    { text: "How do airplanes stay in the sky?" },
+    { text: "Why are there so many languages?" },
+    { text: "Where does wind come from?" },
+    { text: "Why do we have dreams?" },
+    { text: "How does the internet work?" },
+    { text: "Why do animals hibernate?" },
+    { text: "What is Money?" },
+    { text: "How should I treat a paper cut?" },
+    { text: "How does voting work?" },
+    { text: "How do I pay taxes?" },
+    { text: "What is a square meal?" },
+    { text: "What is under the hood of a car?" },
+    { text: "How can I manage my time?" },
+    { text: "How do I get on my boss' good side?" },
+    { text: "How do I choose a good career?" },
+    { text: "How should I choose a home?" },
+    { text: "What is work-life balance?" },
+    { text: "How do I protect my name online?" },
+    { text: "What is a good citizen?" },
+    { text: "What's the best way to end an argument?" },
+    { text: "How do I know a person is 'The One'?" },
+    { text: "How do I fix a faucet?" },
+    { text: "An easy thing is a Piece of ____." },
+    { text: "Costs an arm and a ____." },
+    { text: "To get to know someoneone, you need to Break the ____." },
+    { text: "Hit the nail on the ____." },
+    { text: "Sure, that will happen When pigs ____." },
+    { text: "Shhh!  Don't Spill the ____." },
+    { text: "[player] is missing school today because they are Under the ____." },
+    { text: "The ball is in your ____." },
+    { text: "I know you [player] doesn't want to, but they just need to Bite the ____." },
+    { text: "[player] likes to Burn the midnight ____." },
+    { text: "[player] gets ahead by Cutting ____." },
+    { text: "I'm so sleepy! I need to Hit the ____." },
+    { text: "Let the cat out of the ____." },
+    { text: "Better hurry, you don't want to Miss the ____." },
+    { text: "Make a decision! No need to be On the ____." },
+    { text: "Once in a blue ____." },
+    { text: "Are you telling the truth, or are you Pulling my ____." },
+    { text: "[player] likes to See ____ to ____." },
+    { text: "The best of both ____." },
+    { text: "You can do it!  No need to Throw in the ____." },
+]
+
+
+
