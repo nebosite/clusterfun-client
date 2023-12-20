@@ -1,6 +1,6 @@
 import Logger from "js-logger";
 import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, Vector2 } from "libs";
-import { action, observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import { WrongAnswersGameState } from "./PresenterModel";
 import { WrongAnswersStartRoundMessage, WrongAnswersColorChangeActionEndpoint, WrongAnswersMessageActionEndpoint, WrongAnswersOnboardClientEndpoint, WrongAnswersStartRoundEndpoint, WrongAnswersTapActionEndpoint } from "./Endpoints";
 
@@ -65,14 +65,14 @@ export class WrongAnswersClientModel extends ClusterfunClientModel  {
     
     @observable  private _currentAnswer = "";
     get currentAnswer() {return this._currentAnswer}
-    set currentAnswer(value) {action(()=>{this._currentAnswer = value})()}
+    set currentAnswer(value) { action(()=>{this._currentAnswer = value})()}
     
-
     // -------------------------------------------------------------------
     // ctor 
     // -------------------------------------------------------------------
     constructor(sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage) {
         super("WrongAnswersClient", sessionHelper, playerName, logger, storage);
+        makeObservable(this);
     }
 
     // -------------------------------------------------------------------

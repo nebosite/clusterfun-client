@@ -1,6 +1,6 @@
 import Logger from "js-logger";
 import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, Vector2 } from "libs";
-import { observable } from "mobx";
+import { makeObservable, observable } from "mobx";
 import { TestatoGameState } from "./PresenterModel";
 import { TestatoColorChangeActionEndpoint, TestatoMessageActionEndpoint, TestatoOnboardClientEndpoint, TestatoTapActionEndpoint } from "./Endpoints";
 
@@ -75,6 +75,8 @@ export class TestatoClientModel extends ClusterfunClientModel  {
         this.ballData.xm = (this.randomDouble(.01) + 0.005) * (this.randomInt(2) ? 1 : -1) ;
         this.ballData.ym = (this.randomDouble(.01) + 0.005) * (this.randomInt(2) ? 1 : -1) ;
         this.ballData.color = this.randomItem(colors);
+
+        makeObservable(this);
     }
 
     // -------------------------------------------------------------------

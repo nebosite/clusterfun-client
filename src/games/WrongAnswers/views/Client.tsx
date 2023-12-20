@@ -47,7 +47,7 @@ export default class Client
                 </React.Fragment>);  
             case WrongAnswersClientState.Answering:
                 this.alertUser();
-                return <ClientAnsweringPage />
+                return <ClientAnsweringPage appModel={appModel} />
             case WrongAnswersClientState.EndOfRound:
                 this.alertUser();
                 return <div>Round is over... </div>

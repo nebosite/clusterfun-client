@@ -208,7 +208,6 @@ export abstract class BaseGameModel  {
         storage: IStorage
         )
     {
-        makeObservable(this);
         this.name = name;
         this.telemetryLogger = logger;
         this.session = sessionHelper;

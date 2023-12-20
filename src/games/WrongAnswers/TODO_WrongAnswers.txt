@@ -12,15 +12,15 @@ Wrong Answers TODO
     [x] Show a question
 
     [ ] Players enter enough answers to fill a 16 bracket
-        - Be fair about giving even number of answers, leftovers picked randomly from overflow.
-        - Player enter as many answers as they want, and can select best answers
-        - Handicap for younger players:  offer madlibs ideas
+        [ ] Each player gets a min number of answers
+        [ ] Each player must fill out min + 1 answers minimum
+        [ ] Each player picks the best N (autopick first N, tap on non-picked answers to promote to top)
     [ ] Voting phase
         - Basic bracket playoff
         - Two rounds normal points, final round double points
 
 CATCHUP
-    [ ] Replace [player] with an actual player name
+    [ ] When choosing prompts, Replace [player] with an actual player name
 
 OTHER IDEAS 
     - Super votes - Each player has a limited number of super votes to boost

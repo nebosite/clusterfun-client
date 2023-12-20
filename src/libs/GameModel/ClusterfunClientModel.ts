@@ -48,9 +48,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     constructor(name: string, sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage)
     {
         super(name, sessionHelper, logger, storage);
-        makeObservable(this);
         this._playerName = playerName;
-
     }
 
     reconstitute():void {

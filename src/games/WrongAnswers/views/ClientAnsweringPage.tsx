@@ -4,10 +4,12 @@ import { observer, inject } from "mobx-react";
 import styles from "./Client.module.css"
 import { WrongAnswersClientModel } from "../models/ClientModel";
 import { Row } from "libs";
+import { action, makeObservable, observable } from "mobx";
 
 
-@inject("appModel") @observer
+@observer
 export class ClientAnsweringPage  extends React.Component<{appModel?: WrongAnswersClientModel}> {
+
     // -------------------------------------------------------------------
     // render
     // -------------------------------------------------------------------
@@ -17,6 +19,11 @@ export class ClientAnsweringPage  extends React.Component<{appModel?: WrongAnswe
 
         const handleAnswerSubmit = () => {
 
+        }
+
+        const handleNewValue = (ev: React.ChangeEvent<HTMLInputElement>) => {
+            console.log(`Setting to ${ev.target.value}`)
+            appModel.currentAnswer = ev.target.value;   
         }
 
         return (
@@ -32,7 +39,7 @@ export class ClientAnsweringPage  extends React.Component<{appModel?: WrongAnswe
                         className={styles.inputText}
                         type="text"
                         value={appModel.currentAnswer}
-                        onChange={(ev) =>{ appModel.currentAnswer = ev.target.value;}}
+                        onChange={handleNewValue}
                     />   
                     <button onClick={handleAnswerSubmit}>+</button>                    
                 </Row>
