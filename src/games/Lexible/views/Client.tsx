@@ -31,7 +31,7 @@ class InstructionsComponent
 
         const switchTeam = async () => {
             try {
-                appModel.requestSwitchTeam();
+                await appModel.requestSwitchTeam();
             } catch (err) {
                 // TODO: Let the user know we could not switch teams
                 console.error("Could not reach presenter to switch teams", err);
