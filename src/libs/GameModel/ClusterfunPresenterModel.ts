@@ -175,7 +175,6 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
             if(this.players.length < this.maxPlayers)
             {
                 let existingPlayer = this.players.find(p => p.name === message.playerName) as unknown as PlayerType;
-                Logger.info(`Existing Player:: ${existingPlayer?.name}`)
                 if(existingPlayer) {
                     Logger.info(`Denying join because name exists`)
                     this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Name Taken)" );
@@ -183,7 +182,6 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                 }
                 else {
                     const entry = this.createFreshPlayerEntry(message.playerName, sender);
-                    this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve");
                     action(()=>{this.players.push(entry)})();                
                     this.saveCheckpoint();
                     this.invokeEvent(PresenterGameEvent.PlayerJoined, entry);     

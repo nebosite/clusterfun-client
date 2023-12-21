@@ -60,7 +60,7 @@ export function instantiateGame<T extends BaseGameModel>(typeHelper: ITypeHelper
     let returnMe: T | undefined;
 
     returnMe = typeHelper.constructType(gameTypeName) as T;
-    Logger.info(`Creating fresh ${gameTypeName}.  State is ${returnMe?.gameState}`)
+    Logger.info(`Instantiating: ${gameTypeName}.  State is ${returnMe?.gameState}`)
     if(!returnMe) throw Error(`Unable to construct ${gameTypeName}`)
 
     returnMe.serializer = serializer;
@@ -129,6 +129,7 @@ function createSerializer(typeHelper: ITypeHelper)
     return new BruteForceSerializer(deepTypeHelper);
 }
 
+let modelInstance =1 ;
 // -------------------------------------------------------------------
 // Handle basic operations for any game instance, client or presenter
 // -------------------------------------------------------------------
@@ -192,6 +193,7 @@ export abstract class BaseGameModel  {
     private _isCheckpointing = false;
     private _lastCheckpointTime = 0;
     private _isLoading = false;
+    private _instanceId = modelInstance++;
 
     // -------------------------------------------------------------------
     // ctor
@@ -212,6 +214,8 @@ export abstract class BaseGameModel  {
         this.telemetryLogger = logger;
         this.session = sessionHelper;
         this.storage = storage;
+
+        console.log(`+++ Constructing Presenter ${name} instance ${this._instanceId}`)
 
         this._scheduledEvents = new Map<number, Array<() => void>>();
         debug_model_finalizer.register(this, this.name);
@@ -247,7 +251,9 @@ export abstract class BaseGameModel  {
     //  shutdown - Shut down the model without destroying saved state
     // -------------------------------------------------------------------
     shutdown = () => {
-        Logger.info("Shutting down model");
+        if(this._isShutdown) return;
+        this._isShutdown = true;
+        Logger.info(`Shutting down model ${this.name} instance ${this._instanceId}`);
         if (this._ticker) {
             clearInterval(this._ticker);
         }
@@ -258,7 +264,6 @@ export abstract class BaseGameModel  {
         this.session.removeClosedListener(this);
         this._events.clear();
         this._scheduledEvents.clear();
-        this._isShutdown = true;
     }
 
     // -------------------------------------------------------------------
