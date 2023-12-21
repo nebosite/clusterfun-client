@@ -319,6 +319,9 @@ export class LexibleClientModel extends ClusterfunClientModel  {
                             this.wordList = hintResponse.wordList;
                         })();
                         this.saveCheckpoint();
+                    }, err => {
+                        console.warn("Could not reach presenter for word list", err)
+                        // Ignore things otherwise, since we can live without a word list
                     });
                 }
             })()

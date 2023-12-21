@@ -128,8 +128,13 @@ export default class LexibleClientGameComponent extends React.Component<ClientGa
             setTimeout(()=> this.canClick = true,50);
         }
 
-        const onWordSubmitClick = () => {
-            appModel.submitWord();
+        const onWordSubmitClick = async () => {
+            try {
+                await appModel.submitWord();
+            } catch (err) {
+                // TODO: Notify the user via the UI that the word could not be submitted
+                console.error("Could not submit word:", err);
+            }
         }
 
         return (
