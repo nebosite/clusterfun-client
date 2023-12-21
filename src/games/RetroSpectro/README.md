@@ -1,3 +1,3 @@
 # RetroSpectro
 
-A boggle-style word race game
+A retrospective discussion tool

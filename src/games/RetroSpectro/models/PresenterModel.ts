@@ -1,5 +1,5 @@
 import { action, makeObservable, observable } from "mobx"
-import { ClusterFunGameProps, ClusterFunPlayer, ClusterfunPresenterModel, GeneralGameState, ISessionHelper, ITypeHelper, PresenterGameState } from "libs";
+import { ClusterFunGameProps, ClusterFunPlayer, ClusterfunPresenterModel, GeneralGameState, ISessionHelper, ITypeHelper, PresenterGameEvent, PresenterGameState } from "libs";
 import { ITelemetryLogger } from "libs/telemetry/TelemetryLogger";
 import { IStorage } from "libs/storage/StorageHelper";
 import { ANSWER_STAGE_TIME_MS } from "./GameSettings";
