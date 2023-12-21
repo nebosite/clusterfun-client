@@ -17,12 +17,16 @@ Wrong Answers TODO
         [x] Edit answers
         [x] Remove answers
         [x] Promote answers
+        [x] Bug: players is undefined when receiving answerUpdate message
+        [x] Server shows the progress in receiving answers
+        [ ] When enough answers are in, move to the combat phase
     [ ] Voting phase
         - Basic bracket playoff
         - Two rounds normal points, final round double points
 
 CATCHUP
     [ ] When choosing prompts, Replace [player] with an actual player name
+
 
 OTHER IDEAS 
     - Super votes - Each player has a limited number of super votes to boost

@@ -107,10 +107,7 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
         storage: IStorage)
     {
         super("Testato", sessionHelper, logger, storage);
-        Logger.info(`Constructing TestatoPresenterModel ${this.gameState}`)
-
         this.allowedJoinStates = [PresenterGameState.Gathering, TestatoGameState.Playing]
-
         this.minPlayers = 2;
     }
 

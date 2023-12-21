@@ -9,11 +9,30 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+.gamepresenter .header {
+    background-color: #ffffff80;
+    padding: 20px;
+}
+
 .gamepresenter .gameTitle {
     font-size: 150%;
     font-weight: 600;
 }
 
+.gamepresenter .promptIntro {
+    font-size: 150%;
+    margin-bottom: 100px;
+    
+}
+.gamepresenter .promptText {
+    font-size: 200%;
+    font-weight: 600;
+    margin-left: 100px;
+}
+.gamepresenter .progressTitle {
+    font-size: 150%;
+    margin-top: 100px;  
+}
 
 .gamepresenter button {
     font-size: 120%;
@@ -28,6 +47,11 @@
     font-size: 150%;
     font-style: italic;
     padding: 20px;
+}
+
+.gamepresenter .textHighlight {
+    font-weight: 600;
+    color: #ffff00A0;
 }
 
 
@@ -47,6 +71,17 @@
 
 .gamepresenter .roomCode {
     margin-right: 50px;
+    margin-left: 50px;
+    color: #000000a0;
+    font-weight: 600;
+    border: 5px solid #ffffff80;
+    padding: 10px;
+}
+
+.gamepresenter .version {
+    font-size: 80%;
+    margin-left: 10px;
+    margin-top:40px;
 }
 
 .gamepresenter .gameCanvasFrame{

@@ -46,8 +46,7 @@ export const getWrongAnswersClientTypeHelper = (
         {
             switch(propertyName)
             {
-                case "votedAnswerIndices": 
-                case "unvotedAnswerIndices": return observable<number>(rehydratedObject as number[]); 
+                case "answers": return observable<string>(rehydratedObject as string[]); 
             } 
 
             return rehydratedObject;
@@ -91,39 +90,48 @@ export class WrongAnswersClientModel extends ClusterfunClientModel  {
     // 
     //--------------------------------------------------------------------------------------
     enterAnswer() {
-        this.answers.unshift(this.currentAnswer);
-        this.currentAnswer = "";
-        this.saveCheckpoint();
-        this.session.sendMessageToPresenter(WrongAnswersAnswerUpdate, { answers: this.answers})
+        action(()=>{
+            this.answers.unshift(this.currentAnswer);
+            this.currentAnswer = "";
+            this.saveCheckpoint();
+            this.session.sendMessageToPresenter(WrongAnswersAnswerUpdate, { answers: this.answers})
+        })()
     }
 
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
     editAnswer(index: number) {
-        this.currentAnswer = this.answers[index];
-        this.answers.remove(this.currentAnswer);
-        this.saveCheckpoint();
+        action(()=>{
+            this.currentAnswer = this.answers[index];
+            this.answers.remove(this.currentAnswer);
+            this.saveCheckpoint();            
+        })()
+
     }
 
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
     promoteAnswer(index: number) {
-        const promoteMe = this.answers[index]
-        this.answers.remove(promoteMe);
-        this.answers.unshift(promoteMe);
-        this.saveCheckpoint();
-        this.session.sendMessageToPresenter(WrongAnswersAnswerUpdate, { answers: this.answers})
+        action(()=>{
+            const promoteMe = this.answers[index]
+            this.answers.remove(promoteMe);
+            this.answers.unshift(promoteMe);
+            this.saveCheckpoint();
+            this.session.sendMessageToPresenter(WrongAnswersAnswerUpdate, { answers: this.answers})
+        })()
     }
 
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
     deleteAnswer(index: number) {
-        this.answers.remove(this.answers[index])
-        this.saveCheckpoint();
-        this.session.sendMessageToPresenter(WrongAnswersAnswerUpdate, { answers: this.answers})
+        action(()=>{
+            this.answers.remove(this.answers[index])
+            this.saveCheckpoint();
+            this.session.sendMessageToPresenter(WrongAnswersAnswerUpdate, { answers: this.answers})
+        })()
     }
 
     // -------------------------------------------------------------------
@@ -140,7 +148,6 @@ export class WrongAnswersClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     protected handleStartRoundMessage = (message: WrongAnswersStartRoundMessage) => {
         this.prompt = message.prompt;
-        console.log(`GOT ${message.minAnswers} answers`)
         this.minAnswers = message.minAnswers;
         this.gameState = WrongAnswersClientState.Answering;
         this.saveCheckpoint();

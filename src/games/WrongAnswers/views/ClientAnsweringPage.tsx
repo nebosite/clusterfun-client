@@ -21,7 +21,6 @@ export class ClientAnsweringPage  extends React.Component<{appModel?: WrongAnswe
         }
 
         const handleNewValue = (ev: React.ChangeEvent<HTMLInputElement>) => {
-            console.log(`Setting to ${ev.target.value}`)
             appModel.currentAnswer = ev.target.value;   
         }
 

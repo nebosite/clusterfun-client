@@ -382,6 +382,7 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
     //  playAgain
     // -------------------------------------------------------------------
     playAgain() {
+        // TODO: Delete.  This function has been moved to ClusterfunPresenterModel
         const players = this.players.slice(0);
         this.players.clear();
 

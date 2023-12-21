@@ -2,6 +2,8 @@
 import React from "react";
 import { observer, inject } from "mobx-react";
 import { WrongAnswersPresenterModel } from "../models/PresenterModel";
+import styles from "./Presenter.module.css"
+
 
 
 @inject("appModel") @observer
@@ -15,9 +17,9 @@ export class PresenterStartRoundPage  extends React.Component<{appModel?: WrongA
 
         return (
             <div>
-                <h3>{appModel.name}</h3>
-                <p>Use you devices to give wrong answers for this prompt:</p>
-                <p>{appModel.currentPrompt.text}</p>             
+                <div className={styles.promptIntro}>Use your devices to give <span className={styles.textHighlight}>wrong answers</span> for this prompt:</div>
+                <div className={styles.promptText}>{appModel.currentPrompt.text}</div>   
+                <div className={styles.progressTitle}>Waiting for {appModel.answerSetSize - appModel.foundAnswers.length} answers!</div>          
             </div>
         );
 

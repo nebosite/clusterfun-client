@@ -1,10 +1,11 @@
-import { action, observable } from "mobx"
+import { action, computed, makeObservable, observable } from "mobx"
 import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, 
     IStorage, ITypeHelper, PresenterGameState } from "libs";
 import Logger from "js-logger";
-import { WrongAnswersOnboardClientEndpoint, WrongAnswersStartRoundEndpoint } from "./Endpoints";
+import { WrongAnswersAnswerUpdate, WrongAnswersAnswerUpdateMessage, WrongAnswersOnboardClientEndpoint, WrongAnswersStartRoundEndpoint } from "./Endpoints";
 import { GameOverEndpoint } from "libs/messaging/basicEndpoints";
 import { RandomHelper } from "libs/Algorithms/RandomHelper";
+import MessageEndpoint from "libs/messaging/MessageEndpoint";
 
 
 export enum WrongAnswersPlayerStatus {
@@ -16,7 +17,13 @@ interface RoundScore {
     score:number
 }
 export class WrongAnswersPlayer extends ClusterFunPlayer {
-    @observable scores:RoundScore[] = [];
+    scores = observable<RoundScore>([])
+    currentAnswers = observable<PlayerAnswer>([])
+
+    constructor() {
+        super();
+        makeObservable(this);
+    }
 }
 
 // -------------------------------------------------------------------
@@ -36,6 +43,11 @@ export enum WrongAnswersGameState {
 // -------------------------------------------------------------------
 export enum WrongAnswersGameEvent {
     ResponseReceived = "ResponseReceived",
+}
+
+export interface PlayerAnswer {
+    playerId: string;
+    answer: string;
 }
 
 // -------------------------------------------------------------------
@@ -85,16 +97,15 @@ export const getWrongAnswersPresenterTypeHelper = (
             {
                 // TODO: if there are any properties that need special treatment on 
                 // deserialization, you can override it here.  e.g.:
-                // switch(propertyName) {
-                //     case "myOservableCollection": 
-                //         return observable<ItemType>(rehydratedObject as ItemType[]); 
-                // }
+                switch(propertyName) {
+                    case "foundAnswers": 
+                        return observable<PlayerAnswer>(rehydratedObject as PlayerAnswer[]); 
+                }
             }
             return rehydratedObject;
         }
      }
 }
-
 
 // -------------------------------------------------------------------
 // presenter data and logic
@@ -106,6 +117,16 @@ export class WrongAnswersPresenterModel extends ClusterfunPresenterModel<WrongAn
     @observable  private _answerSetSize = 8
     get answerSetSize() {return this._answerSetSize}
     set answerSetSize(value) {action(()=>{this._answerSetSize = value})()}
+
+    @observable  private _playerSetSize = 1;
+    get playerSetSize() {return this._playerSetSize}
+    set playerSetSize(value) {action(()=>{this._playerSetSize = value})()}
+
+    @observable  private _foundAnswers:PlayerAnswer[] = [];
+    get foundAnswers() {return this._foundAnswers}
+    set foundAnswers(value) {action(()=>{this._foundAnswers = value})()}
+    
+    
 
     private _prompts: WrongAnswersPrompt[] = []
     private _rand = new RandomHelper();
@@ -120,13 +141,12 @@ export class WrongAnswersPresenterModel extends ClusterfunPresenterModel<WrongAn
         storage: IStorage)
     {
         super("WrongAnswers", sessionHelper, logger, storage);
-        Logger.info(`Constructing WrongAnswersPresenterModel ${this.gameState}`)
         this._prompts = this._rand.pickN(AllPrompts, this.totalRounds);
-        console.log("$$$$ prompts", this._prompts)
 
         this.allowedJoinStates = [PresenterGameState.Gathering, PresenterGameState.Instructions]
 
         this.minPlayers = 2;
+        makeObservable(this);
     }
 
     // -------------------------------------------------------------------
@@ -136,11 +156,36 @@ export class WrongAnswersPresenterModel extends ClusterfunPresenterModel<WrongAn
     reconstitute() {
         super.reconstitute();
         this.listenToEndpoint(WrongAnswersOnboardClientEndpoint, this.handleOnboardClient);
-        // this.listenToEndpoint(WrongAnswersColorChangeActionEndpoint, this.handleColorChangeAction);
-        // this.listenToEndpoint(WrongAnswersMessageActionEndpoint, this.handleMessageAction);
-        // this.listenToEndpoint(WrongAnswersTapActionEndpoint, this.handleTapAction);
+        this.listenToEndpoint(WrongAnswersAnswerUpdate, this.handleAnswerUpdate);
     }
 
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    handleAnswerUpdate = (sender:string, message: WrongAnswersAnswerUpdateMessage) => {
+        if(!this.players) {
+            console.log("WEIRD: undefined players!");
+            return;
+        }
+
+        const player = this.players.find(p => p.playerId === sender);
+        if(!player) {
+            console.log(`Could not find player with id: ${sender}`)
+            return;
+        }
+
+        player.currentAnswers.clear();
+        player.currentAnswers.push(...message.answers.map(answer => ({playerId: sender, answer})))
+
+        const answerSet:PlayerAnswer[] = [];
+
+        this.players.forEach(p => {
+            for(let i = 0; i < this.playerSetSize && i <p.currentAnswers.length; i++) {
+                answerSet.push(p.currentAnswers[i]);
+            }
+        })
+        this.foundAnswers = answerSet;
+    }
 
     // -------------------------------------------------------------------
     //  createFreshPlayerEntry
@@ -212,8 +257,12 @@ export class WrongAnswersPresenterModel extends ClusterfunPresenterModel<WrongAn
         else {
             this.gameState = WrongAnswersGameState.StartOfRound;
             const prompt = this._prompts[this.currentRound - 1];
-            const minAnswers = Math.ceil(this.answerSetSize / this.players.length);
-            this.sendToEveryone(WrongAnswersStartRoundEndpoint, (p,ie) => ({prompt: prompt.text, minAnswers }))
+            this.playerSetSize =  Math.ceil(this.answerSetSize / this.players.length);
+            this.sendToEveryone(WrongAnswersStartRoundEndpoint, 
+                (p,ie) => ({
+                    prompt: prompt.text, 
+                    minAnswers: this.playerSetSize 
+                }))
             this.saveCheckpoint();
         }
 

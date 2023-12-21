@@ -6,7 +6,7 @@ import classNames from "classnames";
 import { observable } from "mobx";
 import WrongAnswersAssets from "../assets/Assets";
 import { WrongAnswersVersion } from "../models/GameSettings";
-import { BaseAnimationController, MediaHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, DevUI, UINormalizer } from "libs";
+import { BaseAnimationController, MediaHelper, UIProperties, PresenterGameEvent, PresenterGameState, GeneralGameState, DevUI, UINormalizer, Row } from "libs";
 import { WrongAnswersPresenterModel, WrongAnswersGameState, WrongAnswersGameEvent } from "../models/PresenterModel";
 import { PresenterGatheringPage } from "./PresenterGatheringPage";
 import { PresenterInstructionsPage } from "./PresenterInstructionsPage";
@@ -211,7 +211,7 @@ extends React.Component<{appModel?: WrongAnswersPresenterModel, uiProperties: UI
         const {appModel} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>;
         return (
-            <div className={classNames(styles.divRow)}>
+            <Row className={classNames(styles.header)}>
                 <button className={classNames(styles.button)} 
                     style={{marginRight: "30px"}}
                     onClick={()=>appModel.quitApp()}>
@@ -223,10 +223,11 @@ extends React.Component<{appModel?: WrongAnswersPresenterModel, uiProperties: UI
                     onClick={()=>appModel.pauseGame()}>
                         Pause
                 </button>
+                <div className={styles.gameTitle}>{appModel.name}</div>
+                <div className={styles.version}>v{WrongAnswersVersion}</div>
                 <div className={classNames(styles.roomCode)}>Room Code: {appModel.roomId}</div>
                 <DevUI context={appModel} children={<div></div>} />
-                <div style={{marginLeft: "50px"}}>v{WrongAnswersVersion}</div>
-            </div>)
+            </Row>)
     }
 
     // -------------------------------------------------------------------
