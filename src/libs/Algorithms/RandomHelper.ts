@@ -63,6 +63,7 @@ export class RandomHelper {
         }
     }
 
+    /* eslint-disable */
     //--------------------------------------------------------------------------------------
     // sfc32 is part of the PractRand random number testing suite. 
     // sfc32 has a 128-bit state and is very fast in JS.
@@ -80,4 +81,5 @@ export class RandomHelper {
           return (t >>> 0) / 4294967296;
         }
     }
+    /* eslint-enable */
 }

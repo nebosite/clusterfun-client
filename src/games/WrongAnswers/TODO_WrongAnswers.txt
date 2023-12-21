@@ -11,10 +11,12 @@ Wrong Answers TODO
     
     [x] Show a question
 
-    [ ] Players enter enough answers to fill a 16 bracket
-        [ ] Each player gets a min number of answers
-        [ ] Each player must fill out min + 1 answers minimum
-        [ ] Each player picks the best N (autopick first N, tap on non-picked answers to promote to top)
+    [x] Players enter enough answers to fill a 16 bracket
+        [x] Send min answers from Server
+        [x] Highlight top N answers from player
+        [x] Edit answers
+        [x] Remove answers
+        [x] Promote answers
     [ ] Voting phase
         - Basic bracket playoff
         - Two rounds normal points, final round double points

@@ -1,8 +1,9 @@
-import { makeObservable, observable } from "mobx"
-import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, IStorage, ITypeHelper, PresenterGameState, GeneralGameState, Vector2 } from "libs";
+import { action, observable } from "mobx"
+import { ClusterFunPlayer, ISessionHelper, ClusterFunGameProps, ClusterfunPresenterModel, ITelemetryLogger, 
+    IStorage, ITypeHelper, PresenterGameState } from "libs";
 import Logger from "js-logger";
-import { WrongAnswersColorChangeActionEndpoint, WrongAnswersMessageActionEndpoint, WrongAnswersOnboardClientEndpoint, WrongAnswersStartRoundEndpoint, WrongAnswersTapActionEndpoint } from "./Endpoints";
-import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
+import { WrongAnswersOnboardClientEndpoint, WrongAnswersStartRoundEndpoint } from "./Endpoints";
+import { GameOverEndpoint } from "libs/messaging/basicEndpoints";
 import { RandomHelper } from "libs/Algorithms/RandomHelper";
 
 
@@ -99,10 +100,16 @@ export const getWrongAnswersPresenterTypeHelper = (
 // presenter data and logic
 // -------------------------------------------------------------------
 export class WrongAnswersPresenterModel extends ClusterfunPresenterModel<WrongAnswersPlayer> {
+
+    get currentPrompt() { return this._prompts[this.currentRound - 1]}
+    
+    @observable  private _answerSetSize = 8
+    get answerSetSize() {return this._answerSetSize}
+    set answerSetSize(value) {action(()=>{this._answerSetSize = value})()}
+
     private _prompts: WrongAnswersPrompt[] = []
     private _rand = new RandomHelper();
 
-    get currentPrompt() { return this._prompts[this.currentRound - 1]}
 
     // -------------------------------------------------------------------
     // ctor 
@@ -205,7 +212,8 @@ export class WrongAnswersPresenterModel extends ClusterfunPresenterModel<WrongAn
         else {
             this.gameState = WrongAnswersGameState.StartOfRound;
             const prompt = this._prompts[this.currentRound - 1];
-            this.sendToEveryone(WrongAnswersStartRoundEndpoint, (p,ie) => ({prompt: prompt.text }))
+            const minAnswers = Math.ceil(this.answerSetSize / this.players.length);
+            this.sendToEveryone(WrongAnswersStartRoundEndpoint, (p,ie) => ({prompt: prompt.text, minAnswers }))
             this.saveCheckpoint();
         }
 

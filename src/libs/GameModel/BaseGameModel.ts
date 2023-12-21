@@ -3,7 +3,7 @@ import { ITypeHelper, ISessionHelper, ITelemetryLogger,
     BaseAnimationController, BruteForceSerializer
 } from "../../libs";
 
-import { action, makeObservable, observable } from "mobx";
+import { action, observable } from "mobx";
 import Logger from "js-logger";
 import ClusterfunListener from "libs/messaging/ClusterfunListener";
 import MessageEndpoint from "libs/messaging/MessageEndpoint";

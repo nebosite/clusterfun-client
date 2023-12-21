@@ -5,7 +5,7 @@ export class Row extends React.Component<{className?: string, style?: React.CSSP
     render()
     {
 
-        return <div className={this.props.className} style={this.props.style}> 
+        return <div className={this.props.className} style={{display: "flex", ...this.props.style}}> 
             {
                 React.Children.map(this.props.children, c => {
                     return <div style={{display:"inline-block", whiteSpace: "nowrap"}}>{c}</div>

@@ -56,6 +56,27 @@
     font-weight: 800;
 }
 .gameclient .inputText {
-    font-size: 200%;
-    width: 90%;
+    font-size: 150%;
+    width: 95%;
+}
+
+.gameclient .answerBox {
+    border: 3px solid #00000080;
+    margin: 5px;
+    padding: 5px;
+    margin-bottom: 20px;
+    width: 700px;
+}
+.gameclient .answerText {
+    text-wrap: wrap;
+    width: 700px;
+    font-size: 80%;
+    height: 100%;
+}
+.gameclient .answerButton {
+    font-size: 80%;
+    width: 100px;
+    height: 80px;
+    padding: 0px;
+    margin: 5px;
 }

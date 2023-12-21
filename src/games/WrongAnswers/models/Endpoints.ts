@@ -6,6 +6,11 @@ import { Vector2 } from "libs/types";
 
 export interface WrongAnswersStartRoundMessage {
     prompt: string
+    minAnswers: number
+}
+
+export interface WrongAnswersAnswerUpdateMessage {
+    answers: string[]
 }
 
 export const WrongAnswersOnboardClientEndpoint: 
@@ -17,6 +22,10 @@ export const WrongAnswersOnboardClientEndpoint:
     route: "/games/WrongAnswers/lifecycle/onboard",
     suggestedRetryIntervalMs: 5000,
     suggestedTotalLifetimeMs: 30000
+}
+
+export const WrongAnswersAnswerUpdate: MessageEndpoint<WrongAnswersAnswerUpdateMessage, void> = {
+    route: "/games/WrongAnswers/actions/answerupdate",
 }
 
 export const WrongAnswersStartRoundEndpoint: MessageEndpoint<WrongAnswersStartRoundMessage, void> = {

@@ -1,7 +1,6 @@
 // App Navigation handled here
 import React from "react";
 import { observer, inject } from "mobx-react";
-import styles from "./Presenter.module.css"
 import { WrongAnswersPresenterModel } from "../models/PresenterModel";
 
 

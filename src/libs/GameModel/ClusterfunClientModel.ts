@@ -1,6 +1,6 @@
 
 import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage } from "../../libs";
-import { makeObservable, observable } from "mobx";
+import { observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 import Logger from "js-logger";
 import { GameOverEndpoint, InvalidateStateEndpoint, JoinEndpoint, PauseGameEndpoint, PingEndpoint, QuitEndpoint, ResumeGameEndpoint, TerminateGameEndpoint } from "libs/messaging/basicEndpoints";

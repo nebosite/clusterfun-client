@@ -1,8 +1,13 @@
 import Logger from "js-logger";
-import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger, IStorage, GeneralClientGameState, ITypeHelper, Vector2 } from "libs";
+import { ISessionHelper, ClusterFunGameProps, ClusterfunClientModel, ITelemetryLogger,
+     IStorage, GeneralClientGameState, ITypeHelper } from "libs";
 import { action, makeObservable, observable } from "mobx";
 import { WrongAnswersGameState } from "./PresenterModel";
-import { WrongAnswersStartRoundMessage, WrongAnswersColorChangeActionEndpoint, WrongAnswersMessageActionEndpoint, WrongAnswersOnboardClientEndpoint, WrongAnswersStartRoundEndpoint, WrongAnswersTapActionEndpoint } from "./Endpoints";
+import { WrongAnswersStartRoundMessage, 
+    WrongAnswersMessageActionEndpoint, 
+    WrongAnswersOnboardClientEndpoint, 
+    WrongAnswersStartRoundEndpoint, 
+    WrongAnswersAnswerUpdate } from "./Endpoints";
 
 
 // -------------------------------------------------------------------
@@ -66,6 +71,13 @@ export class WrongAnswersClientModel extends ClusterfunClientModel  {
     @observable  private _currentAnswer = "";
     get currentAnswer() {return this._currentAnswer}
     set currentAnswer(value) { action(()=>{this._currentAnswer = value})()}
+
+    @observable  private _minAnswers = 1;
+    get minAnswers() {return this._minAnswers}
+    set minAnswers(value) {action(()=>{this._minAnswers = value})()}
+    
+
+    answers = observable<string>([]);
     
     // -------------------------------------------------------------------
     // ctor 
@@ -73,6 +85,45 @@ export class WrongAnswersClientModel extends ClusterfunClientModel  {
     constructor(sessionHelper: ISessionHelper, playerName: string, logger: ITelemetryLogger, storage: IStorage) {
         super("WrongAnswersClient", sessionHelper, playerName, logger, storage);
         makeObservable(this);
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    enterAnswer() {
+        this.answers.unshift(this.currentAnswer);
+        this.currentAnswer = "";
+        this.saveCheckpoint();
+        this.session.sendMessageToPresenter(WrongAnswersAnswerUpdate, { answers: this.answers})
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    editAnswer(index: number) {
+        this.currentAnswer = this.answers[index];
+        this.answers.remove(this.currentAnswer);
+        this.saveCheckpoint();
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    promoteAnswer(index: number) {
+        const promoteMe = this.answers[index]
+        this.answers.remove(promoteMe);
+        this.answers.unshift(promoteMe);
+        this.saveCheckpoint();
+        this.session.sendMessageToPresenter(WrongAnswersAnswerUpdate, { answers: this.answers})
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    deleteAnswer(index: number) {
+        this.answers.remove(this.answers[index])
+        this.saveCheckpoint();
+        this.session.sendMessageToPresenter(WrongAnswersAnswerUpdate, { answers: this.answers})
     }
 
     // -------------------------------------------------------------------
@@ -89,7 +140,10 @@ export class WrongAnswersClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     protected handleStartRoundMessage = (message: WrongAnswersStartRoundMessage) => {
         this.prompt = message.prompt;
+        console.log(`GOT ${message.minAnswers} answers`)
+        this.minAnswers = message.minAnswers;
         this.gameState = WrongAnswersClientState.Answering;
+        this.saveCheckpoint();
     }
 
     // -------------------------------------------------------------------
