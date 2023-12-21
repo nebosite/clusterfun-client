@@ -118,7 +118,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
                 await this.requestEveryone(TerminateGameEndpoint, (p, ie) => ({}) );  
                 setTimeout(()=>{
                     this.session.serverCall<void>("/api/terminategame", {  roomId: this.roomId, presenterSecret: this.session.personalSecret })           
-                },200)                
+                },200)
             }
         })
         this.onTick.subscribe("PresenterState", ()=> this.manageState())
@@ -207,7 +207,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     // -------------------------------------------------------------------
     //  handlePlayerQuitMessage
     // -------------------------------------------------------------------
-    handlePlayerQuitMessage = (sender: string, message: any) => {
+    handlePlayerQuitMessage = async (sender: string, message: any) => {
         if(this.gameState === GeneralGameState.Destroyed) return;
         Logger.info("received quit message from " + sender)
         this.telemetryLogger.logEvent("Presenter", "QuitRequest");
@@ -218,7 +218,7 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
 
             if(this.players.length < this.minPlayers 
                 && this.gameState !== PresenterGameState.Gathering) {
-                this.pauseGame();
+                await this.pauseGame();
             }
             this.saveCheckpoint();
         }
@@ -296,13 +296,17 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     // -------------------------------------------------------------------
     //  resumeGame
     // -------------------------------------------------------------------
-    resumeGame = () => {
+    resumeGame = async () => {
         if(this._stateBeforePause === GeneralGameState.Unknown) {
             Logger.warn(`WEIRD:  Attempted resuming with previous unknown state. Current state is ${this.gameState}`)
         }
         else {
             this.gameState = this._stateBeforePause;
-            this.requestEveryone(ResumeGameEndpoint, (p,exited) => ({}))
+            try {
+                await this.requestEveryone(ResumeGameEndpoint, (p,exited) => ({}));
+            } catch (err) {
+                console.error("Not able to reach everyone for resume", err);
+            }
         }
         this.isPaused = false;
     }
@@ -310,10 +314,14 @@ export abstract class ClusterfunPresenterModel<PlayerType extends ClusterFunPlay
     // -------------------------------------------------------------------
     //  pauseGame
     // -------------------------------------------------------------------
-    pauseGame = () => {
+    pauseGame = async () => {
         this._stateBeforePause = this.gameState;
         this.gameState = GeneralGameState.Paused;
-        this.requestEveryone(PauseGameEndpoint, (p,exited) => ({}));
+        try {
+            await this.requestEveryone(PauseGameEndpoint, (p,exited) => ({}));
+        } catch (err) {
+            console.error("Not able to reach all players for pause")
+        }
         this.isPaused = true;
     }
 

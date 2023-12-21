@@ -98,9 +98,13 @@ export class StressatoClientModel extends ClusterfunClientModel  {
     // -------------------------------------------------------------------
     reconstitute() {
         super.reconstitute();
-        this.onTick.subscribe("TestClientTick", (t) => {
+        this.onTick.subscribe("TestClientTick", async (t) => {
             if(t > this.nextSend) {
-                this.sendAction(SEED_STRING.substring(0,this.messageSize))
+                try {
+                    await this.sendAction(SEED_STRING.substring(0,this.messageSize))
+                } catch (err) {
+                    console.error("Could not send to presenter", err);
+                }
 
                 this.nextSend = this.sendRate 
                     ? t + (RATE_UNIT/this.sendRate)

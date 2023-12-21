@@ -74,7 +74,18 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
         this.session.requestPresenter(JoinEndpoint, { playerName: this._playerName }).then(ack => {
             this.handleJoinAck(ack);
             this._stateIsInvalid = true;
-            this.requestGameStateFromPresenter().then(() => this._stateIsInvalid = false);
+            this.requestGameStateFromPresenter().then(
+                () => this._stateIsInvalid = false,
+                (err) => {
+                    console.error("Could not reach presenter to update game state: ",err);
+                    // TODO: Notify the user of this somehow so they can fix their Internet connection
+                });
+        }, err => {
+            this.handleJoinAck({
+                didJoin: false,
+                isRejoin: false,
+                joinError: "Could not reach presenter - are both you and the presenter connected to the Internet?"
+            });
         });
         this.keepAlive();
     }
@@ -129,7 +140,13 @@ export abstract class ClusterfunClientModel extends BaseGameModel  {
     // -------------------------------------------------------------------
     handleInvalidateStateMessage = (message: unknown) => {
         this._stateIsInvalid = true;
-        this.requestGameStateFromPresenter().then(() => this._stateIsInvalid = false);
+        this.requestGameStateFromPresenter().then(
+            () => this._stateIsInvalid = false,
+            (err) => {
+                console.error("Could not reach presenter to update game state: ",err);
+                // TODO: Notify the user of this somehow so they can fix their Internet connection,
+                //       and also try again later
+            });
     }
 
     // -------------------------------------------------------------------

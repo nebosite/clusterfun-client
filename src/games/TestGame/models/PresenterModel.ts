@@ -193,6 +193,10 @@ export class TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlaye
         if(this.currentRound > this.totalRounds) {
             this.gameState = GeneralGameState.GameOver;
             this.requestEveryone(GameOverEndpoint, (p,ie) => ({}))
+                .then(_result => {})
+                .catch(err => {
+                    console.warn("Not able to send Game Over to everyone:", err)
+                })
             this.saveCheckpoint();
         }    
         else {

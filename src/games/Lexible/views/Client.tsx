@@ -29,8 +29,13 @@ class InstructionsComponent
         const {appModel} = this.props;
         if (!appModel) return <div>NO APP MODEL</div>
 
-        const switchTeam = () => {
-            appModel.requestSwitchTeam();
+        const switchTeam = async () => {
+            try {
+                await appModel.requestSwitchTeam();
+            } catch (err) {
+                // TODO: Let the user know we could not switch teams
+                console.error("Could not reach presenter to switch teams", err);
+            }
         }
 
         return <div>

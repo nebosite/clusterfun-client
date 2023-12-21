@@ -252,6 +252,10 @@ export class WrongAnswersPresenterModel extends ClusterfunPresenterModel<WrongAn
         if(this.currentRound > this.totalRounds) {
             this.gameState = WrongAnswersGameState.EndOfGame;
             this.requestEveryone(GameOverEndpoint, (p,ie) => ({}))
+                .then(_result => {})
+                .catch(err => {
+                    console.warn("Not able to send Game Over to everyone:", err)
+                })
             this.saveCheckpoint();
         }    
         else {
