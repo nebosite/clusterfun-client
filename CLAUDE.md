@@ -193,7 +193,7 @@ npm install
 npm start          # .env.dev → development → Test Lobby at http://localhost:3000
 npm run startlocal # .env.local variant
 npm run build      # production build → build/  (served by the relay server / deploy)
-npm test           # react-scripts test (passWithNoTests)
+npm test           # react-scripts (Jest) test runner, single pass
 ```
 
 Env files (CRA `REACT_APP_*`):
@@ -203,6 +203,28 @@ Env files (CRA `REACT_APP_*`):
 - `REACT_APP_USE_REAL_TELEMETRY=1` swaps the mock telemetry for real GA and pulls tracking
   IDs from `src/secrets.ts` (create from `src/secrets.ts.template`; git-ignored).
 - `proxy` in `package.json` points API/socket calls at `http://localhost:8080` (the relay).
+
+## Testing
+
+**Add tests for new logic, and run the suite before you commit.** Tests are the cheapest way
+to keep the presenter/client/serialization machinery from silently breaking as games change.
+
+- Runner is **Jest** via `react-scripts test` (works today on Node 26). `npm test` runs one
+  pass; `npm test -- --watch` watches; `npm test -- --coverage` reports coverage.
+- Test files live next to their source as `*.spec.ts` / `*.spec.tsx` (Jest also picks up
+  `*.test.*` and `__tests__/`). `src/setupTests.ts` registers `@testing-library/jest-dom`.
+- **Logic** (highest value): pure units like `libs/comms/messageParsing`,
+  `libs/storage/BruteForceSerializer` (the save/restore engine — round-trip classes, Maps,
+  Sets, and shared/circular refs), `libs/messaging/EventThing`, `libs/messaging/MessageThing`
+  (the `LocalMessageThing` virtual transport), `libs/types/Vector2`, and game algorithms like
+  Lexible's `LetterGridPath`. Use Jest's `expect` (a few older specs use `chai` — either is fine).
+- **UI** where it earns its keep: use `@testing-library/react` (`render`/`screen`/`fireEvent`)
+  for self-contained components with real interaction logic (see `libs/components/LabelBox.spec.tsx`).
+  Components wired to a full MobX model + `SessionHelper` are usually better exercised through
+  their model's logic tests and the Test Lobby than through heavy render tests.
+- **When you add a new game or change a model:** cover the presenter/client state transitions
+  and any new serializable types (a serializer round-trip test catches type-helper mistakes
+  that would otherwise only surface as a broken save/restore mid-game).
 
 ## Conventions
 
@@ -214,6 +236,7 @@ Env files (CRA `REACT_APP_*`):
 - Presenter owns state; clients stay thin. Don't push rendering or authoritative logic to the
   client model.
 - After state changes that must survive a refresh, ensure a `saveCheckpoint()` happens.
+- **Cover new logic with a `*.spec.ts` and run `npm test` before committing** (see Testing).
 
 ## `.d.ts` files in `src`
 
