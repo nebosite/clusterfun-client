@@ -5,7 +5,7 @@ import { parseMessage, parseHeaderOnly, stringifyMessage } from "./messageParsin
 // Every message on the wire is `{header}^{routing}^{payload}`. The relay reads
 // only the header; the client relies on this exact encoding round-tripping.
 
-const header: ClusterFunMessageHeader = { t: "test", r: "receiver-id", s: "sender-id", id: "42" };
+const header: ClusterFunMessageHeader = { r: "receiver-id", s: "sender-id", id: "42" };
 const routing: ClusterFunRoutingHeader = {
   requestId: "42",
   route: "/games/test/action",
