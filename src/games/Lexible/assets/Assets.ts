@@ -6,20 +6,18 @@ import ding from "./sounds/ding.wav";
 import hello from "./sounds/hello.mp3";
 import response from "./sounds/response.mp3";
 
-const LexibleAssets =
-{
-    images: {
-        logo,
-        instructions1,
-        instructions2,
-        instructions3
-    },
-    sounds: {
-        ding,
-        hello,
-        response,
-       
-    }
-}
+const LexibleAssets = {
+  images: {
+    logo,
+    instructions1,
+    instructions2,
+    instructions3,
+  },
+  sounds: {
+    ding,
+    hello,
+    response,
+  },
+};
 
-export default LexibleAssets
+export default LexibleAssets;

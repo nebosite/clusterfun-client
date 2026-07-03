@@ -12,16 +12,17 @@ const lazyClient = React.lazy(() => import(`./client/Client`));
 // Main Game Page
 // -------------------------------------------------------------------
 export default class RetroSpectroGameComponent extends ClusterfunGameComponent {
-    // -------------------------------------------------------------------
-    // ctor
-    // -------------------------------------------------------------------
-    constructor(props: ClusterFunGameProps) {
-        super(props);
+  // -------------------------------------------------------------------
+  // ctor
+  // -------------------------------------------------------------------
+  constructor(props: ClusterFunGameProps) {
+    super(props);
 
-        this.init(
-            lazyPresenter, 
-            lazyClient, 
-            getRetroSpectroPresenterTypeHelper, 
-            getRetroSpectroClientTypeHelper)
-    }
+    this.init(
+      lazyPresenter,
+      lazyClient,
+      getRetroSpectroPresenterTypeHelper,
+      getRetroSpectroClientTypeHelper,
+    );
+  }
 }

@@ -1,2 +1,2 @@
-export * from './UIProperties';
-export * from './Vector2';
+export * from "./UIProperties";
+export * from "./Vector2";

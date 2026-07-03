@@ -1,0 +1,15 @@
+# Dependencies & build output
+node_modules
+build
+lib
+coverage
+*.tgz
+
+# Generated declaration files (produced by the lib-packaging webpack configs)
+src/**/*.d.ts
+
+# Local secrets (git-ignored)
+src/secrets.ts
+
+# Lock files
+package-lock.json

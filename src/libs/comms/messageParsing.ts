@@ -6,31 +6,39 @@ import { ClusterFunRoutingHeader } from "./ClusterFunRoutingHeader";
 const MESSAGE_REGEX = /^(?<header>{[^^]*})\^(?<routing>{[^^]*})\^(?<payload>.*)$/;
 const MESSAGE_HEADER_ONLY_REGEX = /^(?<header>{[^^]*})\^/;
 
-export function parseMessage(data: string): { header: ClusterFunMessageHeader, routing: ClusterFunRoutingHeader, payload: any } {
-    const regexMatch = data.match(MESSAGE_REGEX);
-    if (!regexMatch) {
-        throw new SyntaxError("Improperly formatted message");
-    }
-    const header = JSON.parse(regexMatch.groups!["header"]) as ClusterFunMessageHeader;
-    const routing = JSON.parse(regexMatch.groups!["routing"]) as ClusterFunRoutingHeader;
-    const payloadString = regexMatch.groups!["payload"];
-    let payload: any;
-    if (payloadString === "" || payloadString === "undefined") {
-        payload = undefined;
-    } else {
-        payload = JSON.parse(regexMatch.groups!["payload"]);
-    }
-    return { header, routing, payload };
+export function parseMessage(data: string): {
+  header: ClusterFunMessageHeader;
+  routing: ClusterFunRoutingHeader;
+  payload: any;
+} {
+  const regexMatch = data.match(MESSAGE_REGEX);
+  if (!regexMatch) {
+    throw new SyntaxError("Improperly formatted message");
+  }
+  const header = JSON.parse(regexMatch.groups!["header"]) as ClusterFunMessageHeader;
+  const routing = JSON.parse(regexMatch.groups!["routing"]) as ClusterFunRoutingHeader;
+  const payloadString = regexMatch.groups!["payload"];
+  let payload: any;
+  if (payloadString === "" || payloadString === "undefined") {
+    payload = undefined;
+  } else {
+    payload = JSON.parse(regexMatch.groups!["payload"]);
+  }
+  return { header, routing, payload };
 }
 
 export function parseHeaderOnly(data: string): ClusterFunMessageHeader {
-    const regexMatch = data.match(MESSAGE_HEADER_ONLY_REGEX);
-    if (!regexMatch) {
-        throw new SyntaxError("Improperly formatted message");
-    }
-    return JSON.parse(regexMatch.groups!["header"]) as ClusterFunMessageHeader;
+  const regexMatch = data.match(MESSAGE_HEADER_ONLY_REGEX);
+  if (!regexMatch) {
+    throw new SyntaxError("Improperly formatted message");
+  }
+  return JSON.parse(regexMatch.groups!["header"]) as ClusterFunMessageHeader;
 }
 
-export function stringifyMessage(header: ClusterFunMessageHeader, routing: ClusterFunRoutingHeader, payload: any): string {
-    return JSON.stringify(header) + "^" + JSON.stringify(routing) + "^" + JSON.stringify(payload);
+export function stringifyMessage(
+  header: ClusterFunMessageHeader,
+  routing: ClusterFunRoutingHeader,
+  payload: any,
+): string {
+  return JSON.stringify(header) + "^" + JSON.stringify(routing) + "^" + JSON.stringify(payload);
 }

@@ -1,2 +1,2 @@
-export * from "./Components"
-export * from "./models"
+export * from "./Components";
+export * from "./models";

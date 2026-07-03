@@ -11,7 +11,7 @@ are code-split and lazy-loaded so only the chosen game's bundle downloads.
 
 Every game is really **two apps** running the same game module in different roles:
 
-- **Presenter** — one per room. Runs the game instance, owns *all* game state, decides state
+- **Presenter** — one per room. Runs the game instance, owns _all_ game state, decides state
   transitions, and drives the shared screen everyone watches. Base class:
   `ClusterfunPresenterModel<PlayerType>`.
 - **Client** — one per player device. A lightweight controller: it captures the player's
@@ -45,17 +45,17 @@ src/
 
 ### `libs/` — the game framework
 
-| Area | Key files | Purpose |
-|------|-----------|---------|
-| Game models | `GameModel/BaseGameModel.ts`, `GameModel/ClusterfunPresenterModel.ts`, `GameModel/ClusterfunClientModel.ts` | Base classes for presenter/client. |
-| Messaging | `messaging/SessionHelper.ts`, `messaging/MessageEndpoint.ts`, `messaging/ClusterfunListener.ts`, `messaging/ClusterfunRequest.ts`, `messaging/basicEndpoints.ts` | Typed request/response + fire-and-forget over the relay. |
-| Transport | `messaging/MessageThing.ts` | `WebSocketMessageThing` (real) and `LocalMessageThing` (virtual/in-memory for the test lobby). |
-| Wire format | `comms/ClusterFunMessageHeader.ts`, `comms/ClusterFunRoutingHeader.ts`, `comms/messageParsing.ts` | `{header}^{routing}^{payload}` string encoding. Header shape mirrors the server. |
-| Serialization | `storage/BruteForceSerializer.ts`, `debugging/serialization.ts` | Class-aware (de)serialization driven by each game's `ITypeHelper`. |
-| Storage | `storage/StorageHelper.ts` | `IStorage` (localStorage-backed). Keyed per role in the test lobby. |
-| Telemetry | `telemetry/TelemetryLogger.ts`, `telemetry/MockTelemetryLogger.ts` | Google Analytics (prod) or a no-op mock (dev). |
-| UI base | `components/ClusterfunGameComponent`, `components/ClusterCanvas`, `components/DevUIComponent` | Shared React components. |
-| Misc | `Animation/`, `Media/` (sound/`MediaHelper`), `types/Vector2.ts`, `Input/`, `Browser/` | Support utilities. |
+| Area          | Key files                                                                                                                                                        | Purpose                                                                                        |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Game models   | `GameModel/BaseGameModel.ts`, `GameModel/ClusterfunPresenterModel.ts`, `GameModel/ClusterfunClientModel.ts`                                                      | Base classes for presenter/client.                                                             |
+| Messaging     | `messaging/SessionHelper.ts`, `messaging/MessageEndpoint.ts`, `messaging/ClusterfunListener.ts`, `messaging/ClusterfunRequest.ts`, `messaging/basicEndpoints.ts` | Typed request/response + fire-and-forget over the relay.                                       |
+| Transport     | `messaging/MessageThing.ts`                                                                                                                                      | `WebSocketMessageThing` (real) and `LocalMessageThing` (virtual/in-memory for the test lobby). |
+| Wire format   | `comms/ClusterFunMessageHeader.ts`, `comms/ClusterFunRoutingHeader.ts`, `comms/messageParsing.ts`                                                                | `{header}^{routing}^{payload}` string encoding. Header shape mirrors the server.               |
+| Serialization | `storage/BruteForceSerializer.ts`, `debugging/serialization.ts`                                                                                                  | Class-aware (de)serialization driven by each game's `ITypeHelper`.                             |
+| Storage       | `storage/StorageHelper.ts`                                                                                                                                       | `IStorage` (localStorage-backed). Keyed per role in the test lobby.                            |
+| Telemetry     | `telemetry/TelemetryLogger.ts`, `telemetry/MockTelemetryLogger.ts`                                                                                               | Google Analytics (prod) or a no-op mock (dev).                                                 |
+| UI base       | `components/ClusterfunGameComponent`, `components/ClusterCanvas`, `components/DevUIComponent`                                                                    | Shared React components.                                                                       |
+| Misc          | `Animation/`, `Media/` (sound/`MediaHelper`), `types/Vector2.ts`, `Input/`, `Browser/`                                                                           | Support utilities.                                                                             |
 
 Most things are re-exported from `libs/index.ts`, so games import from `"libs"`.
 
@@ -148,7 +148,7 @@ types like `ClusterFunPlayer`.
   lazy-loads a game's component by name.
 
 > In **production** the lobby intersects this registry with the server's hardcoded
-> `game_manifest` — a game must be in *both* to appear. In dev/test lobby the manifest is
+> `game_manifest` — a game must be in _both_ to appear. In dev/test lobby the manifest is
 > bypassed and the debug list is used directly.
 
 ## Lobby vs Test Lobby (`index.tsx` chooses)
@@ -237,6 +237,10 @@ to keep the presenter/client/serialization machinery from silently breaking as g
   client model.
 - After state changes that must survive a refresh, ensure a `saveCheckpoint()` happens.
 - **Cover new logic with a `*.spec.ts` and run `npm test` before committing** (see Testing).
+- **Format with Prettier before committing.** Run `npm run format` (`prettier --write --cache .`);
+  `npm run format:check` verifies without writing. Config is in `.prettierrc.json`:
+  `printWidth: 100` (100 columns) and **double quotes** (`singleQuote: false`); all else is
+  Prettier defaults. Generated `.d.ts` files, `build/`, and `lib/` are in `.prettierignore`.
 
 ## `.d.ts` files in `src`
 

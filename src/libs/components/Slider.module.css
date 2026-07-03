@@ -1,10 +1,10 @@
 .sliderControl {
-    overflow: hidden;
-    cursor: pointer;
-    position: relative;
-    user-select: none;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
 }
 
 .sliderChild {
-    position: absolute;
+  position: absolute;
 }

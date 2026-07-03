@@ -1,1 +1,1 @@
-export const lobbyFoo = 1
+export const lobbyFoo = 1;

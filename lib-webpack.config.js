@@ -1,44 +1,41 @@
-const path = require('path');
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
+const path = require("path");
+const { CleanWebpackPlugin } = require("clean-webpack-plugin");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 module.exports = {
   name: "Production Library Export",
   mode: "development",
-  entry: './lib.ts',
-  devtool: 'inline-source-map',
-  context: path.resolve(__dirname, 'src'),
-  
+  entry: "./lib.ts",
+  devtool: "inline-source-map",
+  context: path.resolve(__dirname, "src"),
+
   experiments: {
-    outputModule: true
+    outputModule: true,
   },
   module: {
     rules: [
       {
         test: /\.tsx?$/,
         use: {
-            loader: 'ts-loader',
-            options: {
-                "compilerOptions": {
-                    "noEmit": false,
-                    "declaration": true,
-                    "declarationDir": "lib"
-                }
-            }
+          loader: "ts-loader",
+          options: {
+            compilerOptions: {
+              noEmit: false,
+              declaration: true,
+              declarationDir: "lib",
+            },
+          },
         },
-        exclude: [
-          /node_modules/,
-          /index.tsx/
-        ]
+        exclude: [/node_modules/, /index.tsx/],
       },
       {
         test: /\.css$/,
-        use: 'css-loader',
+        use: "css-loader",
         exclude: /node_modules/,
       },
       {
         test: /\.(png|svg|jpg|gif)$/,
-        use: ['file-loader'],
+        use: ["file-loader"],
       },
     ],
   },
@@ -49,15 +46,15 @@ module.exports = {
     "react-ga4",
     "mobx",
     "mobx-react",
-    "mobx-react-lite"
+    "mobx-react-lite",
   ],
   resolve: {
-    extensions: [ '.tsx', '.ts', '.js', '.css' ],
-    fallback: { "zlib": require.resolve("browserify-zlib") }
+    extensions: [".tsx", ".ts", ".js", ".css"],
+    fallback: { zlib: require.resolve("browserify-zlib") },
   },
   output: {
     library: {
-      type: "module"
+      type: "module",
     },
     environment: {
       // The environment supports arrow functions ('() => { ... }').
@@ -79,8 +76,7 @@ module.exports = {
       // The environment supports template literals.
       templateLiteral: true,
     },
-    filename: 'lib.js',
-    path: path.resolve(__dirname, 'lib'),
+    filename: "lib.js",
+    path: path.resolve(__dirname, "lib"),
   },
 };
-

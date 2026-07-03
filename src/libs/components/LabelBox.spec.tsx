@@ -7,54 +7,53 @@ import { LabelBox } from "./LabelBox";
 // blur.
 
 function clickToEdit(text: string) {
-    const label = screen.getByText(text);
-    fireEvent.mouseDown(label);
-    fireEvent.mouseUp(label);
+  const label = screen.getByText(text);
+  fireEvent.mouseDown(label);
+  fireEvent.mouseUp(label);
 }
 
 describe("LabelBox", () => {
+  it("shows the label text as read-only initially", () => {
+    render(<LabelBox text="Hello" onSubmit={() => {}} />);
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
 
-    it("shows the label text as read-only initially", () => {
-        render(<LabelBox text="Hello" onSubmit={() => { }} />);
-        expect(screen.getByText("Hello")).toBeInTheDocument();
-        expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    });
+  it("switches to an editable input seeded with the current text when clicked", () => {
+    render(<LabelBox text="Hello" onSubmit={() => {}} />);
+    clickToEdit("Hello");
+    expect(screen.getByRole("textbox")).toHaveValue("Hello");
+  });
 
-    it("switches to an editable input seeded with the current text when clicked", () => {
-        render(<LabelBox text="Hello" onSubmit={() => { }} />);
-        clickToEdit("Hello");
-        expect(screen.getByRole("textbox")).toHaveValue("Hello");
-    });
+  it("submits the edited value when Enter is pressed", () => {
+    const onSubmit = jest.fn();
+    render(<LabelBox text="Hello" onSubmit={onSubmit} />);
+    clickToEdit("Hello");
 
-    it("submits the edited value when Enter is pressed", () => {
-        const onSubmit = jest.fn();
-        render(<LabelBox text="Hello" onSubmit={onSubmit} />);
-        clickToEdit("Hello");
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "World" } });
+    fireEvent.keyDown(input, { keyCode: 13 });
 
-        const input = screen.getByRole("textbox");
-        fireEvent.change(input, { target: { value: "World" } });
-        fireEvent.keyDown(input, { keyCode: 13 });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith("World");
+  });
 
-        expect(onSubmit).toHaveBeenCalledTimes(1);
-        expect(onSubmit).toHaveBeenCalledWith("World");
-    });
+  it("submits the edited value when the input loses focus", () => {
+    const onSubmit = jest.fn();
+    render(<LabelBox text="Hi" onSubmit={onSubmit} />);
+    clickToEdit("Hi");
 
-    it("submits the edited value when the input loses focus", () => {
-        const onSubmit = jest.fn();
-        render(<LabelBox text="Hi" onSubmit={onSubmit} />);
-        clickToEdit("Hi");
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "Bye" } });
+    fireEvent.blur(input);
 
-        const input = screen.getByRole("textbox");
-        fireEvent.change(input, { target: { value: "Bye" } });
-        fireEvent.blur(input);
+    expect(onSubmit).toHaveBeenCalledWith("Bye");
+  });
 
-        expect(onSubmit).toHaveBeenCalledWith("Bye");
-    });
-
-    it("returns to read-only text after submitting", () => {
-        render(<LabelBox text="Hello" onSubmit={() => { }} />);
-        clickToEdit("Hello");
-        fireEvent.keyDown(screen.getByRole("textbox"), { keyCode: 13 });
-        expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    });
+  it("returns to read-only text after submitting", () => {
+    render(<LabelBox text="Hello" onSubmit={() => {}} />);
+    clickToEdit("Hello");
+    fireEvent.keyDown(screen.getByRole("textbox"), { keyCode: 13 });
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
 });

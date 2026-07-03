@@ -1,2 +1,2 @@
-export * from './ButtonPad';
-export * from './TouchJoystick';
+export * from "./ButtonPad";
+export * from "./TouchJoystick";

@@ -1,242 +1,234 @@
 .gamepresenter {
-    width: 100%;
-    height: 100%;
-    background-color: rgb(219, 214, 183);
-    background-size: 100%;
-    background-repeat: no-repeat;
-    overflow: hidden;
-    font-size: 40px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  width: 100%;
+  height: 100%;
+  background-color: rgb(219, 214, 183);
+  background-size: 100%;
+  background-repeat: no-repeat;
+  overflow: hidden;
+  font-size: 40px;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .gamepresenter .gameTitle {
-    font-size: 150%;
-    font-weight: 600;
+  font-size: 150%;
+  font-weight: 600;
 }
 
-
 .gamepresenter button {
-    font-size: 120%;
-    padding: 5px;
+  font-size: 120%;
+  padding: 5px;
 }
 
 .gamepresenter .instructionFrame {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    padding: 50px;
-    top: 50px;
-    font-size: 150%;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 50px;
+  top: 50px;
+  font-size: 150%;
 }
 
 .gamepresenter .instructionParagraph {
-    white-space: initial;
+  white-space: initial;
 }
 
-
-
 .gamepresenter .debugButton {
-    position: absolute;
-    left: 0px;
-    bottom: 0px;
-    width:30px;
-    height:30px;
-    background-color: #00000010;
-    border-color: transparent;
+  position: absolute;
+  left: 0px;
+  bottom: 0px;
+  width: 30px;
+  height: 30px;
+  background-color: #00000010;
+  border-color: transparent;
 }
 
 .gamepresenter .quitButton {
-    position: absolute;
-    font-size: 80%;
-    font-weight: 800;
-    top: 10px;
-    right: 30px;
-    width: 60px;
-    height: 60px;
-    border-radius: 20px;
-    background: #dd9999;
+  position: absolute;
+  font-size: 80%;
+  font-weight: 800;
+  top: 10px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  border-radius: 20px;
+  background: #dd9999;
 }
 
 .gamepresenter .debugtext {
-    position: absolute;
-    left: 80px;
-    bottom: 0px;
-    font-size: 50%;
+  position: absolute;
+  left: 80px;
+  bottom: 0px;
+  font-size: 50%;
 }
 
 .gamepresenter input {
-    font-size: 100%
+  font-size: 100%;
 }
 
 .gamepresenter .question {
-    font-size: 150%;
-    font-style: italic;
-    padding: 20px;
+  font-size: 150%;
+  font-style: italic;
+  padding: 20px;
 }
 
-
 .gamepresenter .divRow {
-    display: flex;
-    flex-wrap: nowrap;
+  display: flex;
+  flex-wrap: nowrap;
 }
 
 .gamepresenter .answerBox {
-    width: 40%;
-    text-align: right;
+  width: 40%;
+  text-align: right;
 }
 
 .gamepresenter .nameBox {
-    padding: 20px;
+  padding: 20px;
 }
 
 .gamepresenter .roomCode {
-    font-size: 80%;
-    position: absolute;
-    left: 20px;
-    bottom: 20px;
-    width: 200px;
-    text-align: center;
-    
+  font-size: 80%;
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  width: 200px;
+  text-align: center;
 }
 
 .gamepresenter .currentRound {
-    font-size: 80%;
-    position: absolute;
-    right: 20px;
-    bottom: 20px;
-    width: 200px;
-    text-align: center;
-    
+  font-size: 80%;
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  width: 200px;
+  text-align: center;
 }
 
 .gamepresenter .version {
-    font-size: 80%;
-    position: absolute;
-    right: 10px;
-    bottom: 2px;
-    width: 200px;
-    text-align: right;
+  font-size: 80%;
+  position: absolute;
+  right: 10px;
+  bottom: 2px;
+  width: 200px;
+  text-align: right;
 }
 
-.gamepresenter .gameCanvasFrame{
-
-    margin: 50px
+.gamepresenter .gameCanvasFrame {
+  margin: 50px;
 }
 
-.gamepresenter .instructionArea {    
-    height: 100%;
-    width: 100%;
-    margin: 20px;
-    margin-top: 150px;
-    display: flex;
-    flex-direction: column;
+.gamepresenter .instructionArea {
+  height: 100%;
+  width: 100%;
+  margin: 20px;
+  margin-top: 150px;
+  display: flex;
+  flex-direction: column;
 }
 
-.gamepresenter .waitingText {    
-    padding: 40px;
-    font-size: 200%;
+.gamepresenter .waitingText {
+  padding: 40px;
+  font-size: 200%;
 }
 
-.gamepresenter .startButton {    
-    padding: 40px;
-    font-size: 200%;
+.gamepresenter .startButton {
+  padding: 40px;
+  font-size: 200%;
 }
 
 .gamepresenter .instructionArea .joinBlock {
-    border: 1px solid black;
-    margin: 20px;
-    padding: 20px;
-    background: #ffffff40;
-    font-size: 120%;
+  border: 1px solid black;
+  margin: 20px;
+  padding: 20px;
+  background: #ffffff40;
+  font-size: 120%;
 }
 
 .gamepresenter .gameCanvas {
-
-    background-color: gray;
+  background-color: gray;
 }
 
 .gamepresenter .letterRow {
-    display: flex;
-    flex-shrink: unset;
+  display: flex;
+  flex-shrink: unset;
 }
 
 .gamepresenter .teamColumn {
-    width: 250px;
-    margin-top: 80px;
-    margin-bottom: 100px;
-    height: 80%;
-    font-size: 110%;
-    overflow: hidden;
+  width: 250px;
+  margin-top: 80px;
+  margin-bottom: 100px;
+  height: 80%;
+  font-size: 110%;
+  overflow: hidden;
 }
 .gamepresenter .playColumn {
-    width: 1390px;
-    height: 980px;
-    font-size: 80%;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  width: 1390px;
+  height: 980px;
+  font-size: 80%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .gamepresenter .presenterRow {
-    display: flex;
+  display: flex;
 }
 
 .gamepresenter .teamTitle {
-    text-align: center;
-    font-weight: 800;
-    margin: 20px;
-    border: 1px solid black;
+  text-align: center;
+  font-weight: 800;
+  margin: 20px;
+  border: 1px solid black;
 }
 
 .gamepresenter .teamPlayerName {
-    text-align: center;
-    margin: 10px;
+  text-align: center;
+  margin: 10px;
 }
 
 .gamepresenter .overlay {
-    position:absolute;
-    background: #ffffffD0; 
-    top: 50%; 
-    left: 50%;
-    transform: translate(-50%, -50%);
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
+  position: absolute;
+  background: #ffffffd0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
 }
 
 .gamepresenter .endOfRoundText {
-    text-align: center;
-    margin: 50px;
+  text-align: center;
+  margin: 50px;
 }
 
 .gamepresenter .settingsArea {
-    margin: 30px;
+  margin: 30px;
 }
 
 .gamepresenter .settingsCheckbox {
-    width: 30px;
-    height: 30px;
-    margin: 10px;
+  width: 30px;
+  height: 30px;
+  margin: 10px;
 }
 
 .gamepresenter .settingsBox {
-    border: 1px solid black;
-    position: absolute;
-    padding: 20px;
-    bottom: 30px;
+  border: 1px solid black;
+  position: absolute;
+  padding: 20px;
+  bottom: 30px;
 }
 
 .gamepresenter .settingsButton {
-    border: 1px solid black;
-    padding: 5px;
-    font-weight: 800;
-    background: limegreen;
-    border-radius: 10px;
-    user-select: none;
+  border: 1px solid black;
+  padding: 5px;
+  font-weight: 800;
+  background: limegreen;
+  border-radius: 10px;
+  user-select: none;
 }
-.gamepresenter .settingsButton :hover{
-    cursor: pointer;
+.gamepresenter .settingsButton :hover {
+  cursor: pointer;
 }

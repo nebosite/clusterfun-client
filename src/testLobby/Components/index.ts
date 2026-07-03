@@ -1,2 +1,2 @@
-export * from "./GameTestComponent"
-export * from "./QuickTestComponent"
+export * from "./GameTestComponent";
+export * from "./QuickTestComponent";

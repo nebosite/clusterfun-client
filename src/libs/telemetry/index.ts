@@ -1,2 +1,2 @@
-export * from './TelemetryLogger';
-export * from './MockTelemetryLogger';
+export * from "./TelemetryLogger";
+export * from "./MockTelemetryLogger";

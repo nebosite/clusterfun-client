@@ -1,1 +1,1 @@
-export * from './SafeBrowser';
+export * from "./SafeBrowser";
