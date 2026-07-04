@@ -24,6 +24,24 @@ The presenter walks through these states (`RetroSpectroGameState` + shared state
 The client (phone) is a thin controller: wait → submit an idea as 👍 Positive / 👎 Negative →
 categorizing wait → discussion nudge (highlighted when one of your ideas is on screen).
 
+### Group auto-naming (sorting)
+
+When ideas are dragged together during **Sorting**, a group that still has an auto-generated name
+(empty, or `"Group A"`, `"Group B"`, …) is renamed to the meaningful words its ideas share. On
+each drop, the newcomer's text is compared against the ideas already in the group; if they share a
+**contiguous run of one or more words** where at least one word isn't a common utility word
+("a", "of", "the", …), the group takes that shared phrase as its name (longest wins, edge
+utility-words trimmed). Once a group has a real name, later drops leave it unchanged.
+
+_Example:_ a group holding "Buggy soda fountain" + "incorrect drinks" is auto-named; dropping
+"Fix the soda fountain" renames it to **"soda fountain"**; dropping "I like the soda fountain"
+after that changes nothing.
+
+The rule lives in pure, unit-tested helpers in [`models/groupNaming.ts`](models/groupNaming.ts)
+(`sharedSignificantPhrase`, `pickGroupNameFromSharedWords`, `isAutoGroupName`) and is wired into
+`RetroSpectroAnswerCollection.handleDrop` in `models/PresenterModel.ts`. See
+[`models/groupNaming.spec.ts`](models/groupNaming.spec.ts).
+
 ## Design system — "Light corporate"
 
 Chosen because the game is shown in business meetings via screen-share / projector, where a

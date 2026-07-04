@@ -6,7 +6,6 @@ import {
   GeneralGameState,
   ISessionHelper,
   ITypeHelper,
-  PresenterGameEvent,
   PresenterGameState,
 } from "libs";
 import { ITelemetryLogger } from "libs/telemetry/TelemetryLogger";
@@ -23,6 +22,7 @@ import {
   RetroSpectroAnswerResponse,
   RetroSpectroAnswerMessage,
 } from "./EndPoints";
+import { isAutoGroupName, pickGroupNameFromSharedWords } from "./groupNaming";
 
 export enum RetroSpectroPlayerStatus {
   Unknown = "Unknown",
@@ -183,15 +183,31 @@ export class RetroSpectroAnswerCollection {
   // handleDrop
   // -------------------------------------------------------------------
   handleDrop = (droppedItem: RetroSpectroAnswer | RetroSpectroAnswerCollection) => {
+    // Snapshot the ideas already in this group (before adding the newcomer)
+    // so we can name the group after the words they have in common.
+    const existingTexts = this.answers.map((a) => a.text);
+    let droppedTexts: string[] = [];
+
     if (droppedItem instanceof RetroSpectroAnswer) {
       if (this.answers.find((a) => a.id === droppedItem.id)) {
         // don't drop an answer on itself
         return;
-      } else this.addAnswer(droppedItem);
+      }
+      droppedTexts = [droppedItem.text];
+      this.addAnswer(droppedItem);
     } else if (droppedItem instanceof RetroSpectroAnswerCollection) {
       if (this.id === droppedItem.id) return; // don't drop collection on itself
       if (!this.name) this.name = droppedItem.name;
+      droppedTexts = Array.from(droppedItem.answers).map((a) => a.text);
       Array.from(droppedItem.answers).forEach((a) => this.addAnswer(a));
+    }
+
+    // While the group is still auto-named ("" or "Group X"), rename it to the
+    // meaningful words the newcomer shares with an idea already in the group.
+    // Once a group has a real name, dropping more ideas leaves it unchanged.
+    if (isAutoGroupName(this.name)) {
+      const sharedName = pickGroupNameFromSharedWords(droppedTexts, existingTexts);
+      if (sharedName) this.name = sharedName;
     }
 
     if (!this.name) {
