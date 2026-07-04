@@ -10,6 +10,7 @@ import {
   DragSourceOptions,
 } from "react-dnd";
 import styles from "./Presenter.module.css";
+import classNames from "classnames";
 
 interface AnswerCardProps {
   context: RetroSpectroAnswer;
@@ -71,17 +72,19 @@ class AnswerCard extends React.Component<AnswerCardProps> {
       <div className={styles.answerCard}>
         <div className={styles.voterButtons}>
           <button className={styles.voterButton} onClick={handleDownvote}>
-            -
+            −
           </button>
           <button className={styles.voterButton} onClick={handleUpvote}>
             +
           </button>
         </div>
         <div
-          className={styles.answerBox}
+          className={classNames(styles.answerBox, {
+            [styles.answerPositive]: context.answerType === "Positive",
+            [styles.answerNegative]: context.answerType !== "Positive",
+          })}
           style={{
-            background: context.answerType === "Positive" ? "limegreen" : "red",
-            height: `${80 + this.props.context.votes * 90}px`,
+            minHeight: `${64 + this.props.context.votes * 56}px`,
           }}
           key={context.id}
         >

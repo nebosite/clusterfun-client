@@ -14,7 +14,6 @@ import {
   GeneralGameState,
   PresenterGameEvent,
   PresenterGameState,
-  Row,
 } from "libs";
 import styles from "./Presenter.module.css";
 import classNames from "classnames";
@@ -38,48 +37,56 @@ class GatheringPlayersPage extends React.Component<{ appModel?: RetroSpectroPres
 
     return (
       <div>
-        <h3>Welcome to {appModel.name}</h3>
-        <div style={{ fontSize: "120%" }}>
-          This app is for people who want to talk! Invite people to join and we will help you
-          discover what is on everone's mind.
-        </div>
-        <div
-          style={{ fontSize: "100%", marginTop: "60px", marginBottom: "60px", marginLeft: "100px" }}
-        >
-          <b>To Join</b>:
-          <ol style={{ marginLeft: "150px" }}>
-            <li>
-              On any web browser, go to{" "}
-              <u style={{ color: "blue" }}>http://{window.location.host}</u>
-            </li>
-            <li>Enter this room code: {appModel.roomId}</li>
-          </ol>
-        </div>
-        <div style={{ fontSize: "120%", marginBottom: "30px" }}>
-          (If you are hosting, then you will also want to join from your personal device or another
-          browser window.)
-        </div>
-        {appModel.players.length > 0 ? (
-          <div>
-            <p style={{ fontWeight: 600 }}>Joined team members:</p>
-            <div className={styles.divRow}>
-              {appModel.players.map((player) => (
-                <div className={styles.nameBox} key={player.playerId}>
-                  {player.name}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
+        <h2>Welcome to {appModel.name}</h2>
+        <p className={styles.lead}>
+          A fast, structured retrospective. Invite the team to join from their own devices and
+          we&apos;ll help surface what&apos;s on everyone&apos;s mind.
+        </p>
 
-        {appModel.players.length < appModel.minPlayers ? (
-          <div>{`Waiting for at least ${appModel.minPlayers} players to join ...`}</div>
-        ) : (
-          <button className={styles.presenterButton} onClick={() => appModel.startGame()}>
-            {" "}
-            Click here to start!{" "}
-          </button>
-        )}
+        <div className={styles.contentGrid} style={{ marginTop: 20 }}>
+          <div className={styles.panel}>
+            <div className={styles.sectionLabel}>To join</div>
+            <ol className={styles.joinSteps}>
+              <li>
+                On any browser, go to{" "}
+                <span className={styles.joinUrl}>http://{window.location.host}</span>
+              </li>
+              <li>
+                Enter the room code <span className={styles.joinCodeInline}>{appModel.roomId}</span>
+              </li>
+            </ol>
+            <p className={styles.waitingNote}>
+              Hosting? Join from your own device or a second browser window too.
+            </p>
+          </div>
+
+          <div className={styles.panel}>
+            <div className={styles.sectionLabel}>Joined&nbsp;·&nbsp;{appModel.players.length}</div>
+            {appModel.players.length > 0 ? (
+              <div className={styles.nameGrid}>
+                {appModel.players.map((player) => (
+                  <div className={styles.nameBox} key={player.playerId}>
+                    {player.name}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className={styles.waitingNote}>No one has joined yet.</p>
+            )}
+          </div>
+        </div>
+
+        <div style={{ marginTop: 24 }}>
+          {appModel.players.length < appModel.minPlayers ? (
+            <p className={styles.waitingNote}>
+              Waiting for at least {appModel.minPlayers} players to join…
+            </p>
+          ) : (
+            <button className={styles.presenterButton} onClick={() => appModel.startGame()}>
+              Start the retrospective
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -97,32 +104,41 @@ class InstructionsPage extends React.Component<{ appModel?: RetroSpectroPresente
   render() {
     return (
       <div>
+        <h2>How this works</h2>
         <div className={styles.instructions}>
-          <h3>New? Here’s how this works: </h3>
-          <p>
-            <b>Stage 1: Brainstorm!</b> The meeting should have a topic, it can be anything. Maybe
-            "How did things go last week?" or "Family Vacation Ideas." Now, what thoughts are
-            popping into your head? Enter them as fast as you can! You only get five words, so
-            you'll have to summarize them. (Note: what you will write will NOT be anonymous in stage
-            3.){" "}
-          </p>
-
-          <p>
-            <b>Stage 2: Categorize! </b> When the timer finishes, group the ideas according to
-            theme.{" "}
-          </p>
-
-          <p>
-            <b>Stage 3: Talk!</b>
-            &nbsp; The app will show groupings one at a time, biggest first. Now Everyone gets to
-            talk. Why did that idea come up? Do you agree with it? Does it generate new ideas for
-            you? Is there something we could do about it? Once you Feel like a category is talked
-            out, go to the next one. Keep going like this until you run out of cards or run out of
-            time.
-          </p>
+          <div className={styles.stepRow}>
+            <div className={styles.stepNum}>1</div>
+            <div>
+              <div className={styles.stepTitle}>Brainstorm</div>
+              <div className={styles.stepBody}>
+                Pick a topic — &ldquo;How did last week go?&rdquo; or anything. Enter thoughts as
+                fast as they come, up to five words each. (Note: entries are not anonymous in the
+                discussion stage.)
+              </div>
+            </div>
+          </div>
+          <div className={styles.stepRow}>
+            <div className={styles.stepNum}>2</div>
+            <div>
+              <div className={styles.stepTitle}>Categorize</div>
+              <div className={styles.stepBody}>
+                When the timer ends, drag the ideas together to group them by theme.
+              </div>
+            </div>
+          </div>
+          <div className={styles.stepRow}>
+            <div className={styles.stepNum}>3</div>
+            <div>
+              <div className={styles.stepTitle}>Talk</div>
+              <div className={styles.stepBody}>
+                Groups come up one at a time, biggest first. Discuss why each idea came up, whether
+                you agree, and what to do about it. Capture notes and tasks, then move on.
+              </div>
+            </div>
+          </div>
         </div>
         <button className={styles.letsGo} onClick={() => this.props.appModel?.startNextRound()}>
-          We have a topic, let's start...
+          We have a topic — let&apos;s start
         </button>
       </div>
     );
@@ -139,47 +155,68 @@ class WaitingForAnswersPage extends React.Component<{ appModel?: RetroSpectroPre
     const { appModel } = this.props;
     if (!appModel) return <div>No Data</div>;
 
+    const low = appModel.secondsLeftInStage <= 15;
+
     return (
       <div className={styles.answeringPage}>
-        <p>Begin entering your ideas! See you device for instructions. </p>
-        <p style={{ fontSize: "80%" }}>
-          Join any time by visiting <u>http://{window.location.host}</u> and entering the room
-          code.{" "}
-        </p>
-        <DevOnly>
-          {" "}
-          <button onClick={() => appModel.generateAnswers()}>Make answers</button>
-        </DevOnly>
-        <div className={styles.secondsCounterRow}>
-          <div>Seconds left: </div>
-          <div className={styles.secondsCounter}>{appModel.secondsLeftInStage}</div>
-          <div>Add Time: </div>
+        <div>
+          <h2>Brainstorm</h2>
+          <p className={styles.lead}>
+            Enter your ideas — see your device for instructions. Join any time at{" "}
+            <span className={styles.joinUrl}>http://{window.location.host}</span>.
+          </p>
+        </div>
+
+        <div className={styles.timerBar}>
+          <div className={styles.secondsCounterRow}>
+            <span className={styles.timerLabel}>Time left</span>
+            <span
+              className={classNames(styles.secondsCounter, { [styles.secondsCounterLow]: low })}
+            >
+              {appModel.secondsLeftInStage}
+            </span>
+          </div>
+          <span className={styles.timerLabel}>Add time</span>
           <button className={styles.discussionButton} onClick={() => appModel.addTime(10)}>
-            10 seconds
+            +10s
           </button>
           <button className={styles.discussionButton} onClick={() => appModel.addTime(60)}>
-            1 minute
+            +1m
           </button>
+          <div className={styles.timerSpacer} />
+          <span className={styles.answerCountPill}>
+            {appModel.answerCollections.length} ideas in
+          </span>
+          <DevOnly>
+            <button className={styles.discussionButton} onClick={() => appModel.generateAnswers()}>
+              Make answers
+            </button>
+          </DevOnly>
         </div>
-        <p>Answers:</p>
+
         <div className={styles.answerList}>
           {appModel.answerCollections.map((a) => (
             <div
-              className={styles.nameBox}
-              style={{ background: a.answers[0].answerType === "Positive" ? "limegreen" : "red" }}
+              className={classNames(styles.answerChip, {
+                [styles.chipPositive]: a.answers[0].answerType === "Positive",
+                [styles.chipNegative]: a.answers[0].answerType !== "Positive",
+              })}
               key={a.id}
             >
               <img
                 className={styles.lightbulb}
                 src={RetroSpectroAssets.images.lightbulb}
-                alt="💡"
+                alt="idea"
               />
             </div>
           ))}
         </div>
-        <button className={styles.doneSortingButton} onClick={() => appModel.finishRound()}>
-          Done
-        </button>
+
+        <div>
+          <button className={styles.presenterButton} onClick={() => appModel.finishRound()}>
+            Done — start categorizing
+          </button>
+        </div>
       </div>
     );
   }
@@ -198,15 +235,18 @@ class SortingAnswersPage extends React.Component<{ appModel?: RetroSpectroPresen
     return (
       <DndProvider backend={HTML5Backend}>
         <div>
-          <p>Drag and drop to create groups out of similar ideas.</p>
+          <div className={styles.discussionHeader}>
+            <div>
+              <h2>Categorize</h2>
+              <p className={styles.sortHint}>
+                Drag and drop to group similar ideas. Use +/− to weight the strongest ones.
+              </p>
+            </div>
+            <button className={styles.presenterButton} onClick={() => appModel.doneSorting()}>
+              Done — discuss
+            </button>
+          </div>
           <AnswerSortingBox context={appModel} />
-          <button
-            className={classNames(styles.doneSortingButton)}
-            style={{ marginRight: "30px" }}
-            onClick={() => appModel.doneSorting()}
-          >
-            Done
-          </button>
         </div>
       </DndProvider>
     );
@@ -228,28 +268,27 @@ class GameOverPage extends React.Component<{ appModel?: RetroSpectroPresenterMod
 
     return (
       <div>
-        <h2>Game Over</h2>
-        <p>Final Scores: </p>
+        <h2>Retrospective complete</h2>
+        <div className={styles.sectionLabel} style={{ marginTop: 16 }}>
+          Final scores
+        </div>
         {appModel.players.map((p) => (
-          <div key={p.playerId}>
-            {p.name}: {p.totalScore}{" "}
-            {p.winner ? (
-              <span>
-                <b>WINNER!!!</b>
-              </span>
-            ) : null}
+          <div
+            key={p.playerId}
+            className={classNames(styles.scoreRow, { [styles.scoreWinner]: p.winner })}
+          >
+            <span style={{ fontWeight: 600 }}>{p.name}</span>
+            <span style={{ marginLeft: "auto", fontFamily: "var(--mono)" }}>{p.totalScore}</span>
+            {p.winner ? <span className={styles.winnerTag}>Winner</span> : null}
           </div>
         ))}
-        ---
-        <div className={classNames(styles.divRow)}>
-          <div>
-            <button onClick={() => appModel.playAgain()}>Play Again</button>
-          </div>
-          <div>
-            <button className={styles.presenterButton} onClick={() => appModel.quitApp()}>
-              Quit
-            </button>
-          </div>
+        <div className={styles.divRow} style={{ gap: 12, marginTop: 20 }}>
+          <button className={styles.discussionButton} onClick={() => appModel.playAgain()}>
+            Play again
+          </button>
+          <button className={styles.presenterButton} onClick={() => appModel.quitApp()}>
+            Quit
+          </button>
         </div>
       </div>
     );
@@ -271,15 +310,18 @@ class PausePage extends React.Component<{ appModel?: RetroSpectroPresenterModel 
 
     return (
       <div>
-        <h2>Paused - waiting for players to rejoin</h2>
-        <Row>
-          <div>Current Players:</div>
+        <h2>Paused</h2>
+        <p className={styles.lead}>Waiting for players to rejoin.</p>
+        <div className={styles.sectionLabel} style={{ marginTop: 16 }}>
+          Current players
+        </div>
+        <div className={styles.nameGrid}>
           {appModel.players.map((player) => (
             <div className={styles.nameBox} key={player.playerId}>
               {player.name}
             </div>
           ))}
-        </Row>
+        </div>
       </div>
     );
   }
@@ -373,21 +415,17 @@ export default class Presenter extends React.Component<{
     if (!appModel) return <div>No Data</div>;
 
     return (
-      <div className={classNames(styles.divRow, styles.navbar)}>
-        <img src={RetroSpectroAssets.images.logo} alt="RS" className={styles.icon} />
-        <div className={styles.divRow}>
-          <div className={styles.appTitle}>RetroSpectro</div>
-          <div className={styles.appVersion}>v{RetroSpectroVersion}</div>
+      <div className={styles.navbar}>
+        <img src={RetroSpectroAssets.images.logo} alt="RetroSpectro" className={styles.icon} />
+        <div className={styles.brand}>
+          <span className={styles.appTitle}>RetroSpectro</span>
+          <span className={styles.appVersion}>v{RetroSpectroVersion}</span>
         </div>
-        <div className={classNames(styles.roomCode)}>
-          Room Code: <span style={{ fontSize: "120%", fontWeight: 800 }}>{appModel.roomId}</span>
+        <div className={styles.roomCode}>
+          Room code <span className={styles.roomCodeValue}>{appModel.roomId}</span>
         </div>
         <DevUI context={appModel} />
-        <button
-          className={styles.presenterButton}
-          style={{ marginRight: "30px", width: "100px", fontSize: "90%" }}
-          onClick={() => appModel.quitApp()}
-        >
+        <button className={styles.ghostButton} onClick={() => appModel.quitApp()}>
           Quit
         </button>
       </div>

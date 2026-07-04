@@ -1,357 +1,689 @@
-p {
-  margin-top: 20px;
-  margin-bottom: 20px;
-}
+/* ================================================================
+   RetroSpectro — presenter (shared meeting-room screen)
+   "Light corporate" skin: white surfaces, near-black text, one indigo
+   accent, muted green/red retro semantics. Tuned for information
+   density and readability over a screen-share / projector.
+   Virtual canvas is 1920x1080 (see UINormalizer in Presenter.tsx).
+   ================================================================ */
+
 .gamepresenter {
+  /* Surfaces */
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f7f8fa;
+  --inset: #eef0f3;
+  --border: #e3e6eb;
+  --border-strong: #cdd2da;
+
+  /* Text */
+  --text: #1a1d24;
+  --text-dim: #5b6472;
+  --text-faint: #8b94a3;
+
+  /* Indigo accent */
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-soft: #eef0fe;
+  --on-accent: #ffffff;
+
+  /* Retro semantics — muted, not stoplight */
+  --pos: #15803d;
+  --pos-soft: #e9f5ee;
+  --pos-border: #b7e0c6;
+  --neg: #b91c1c;
+  --neg-soft: #fbeaea;
+  --neg-border: #f0c6c6;
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0 1px 3px rgba(16, 24, 40, 0.1), 0 1px 2px rgba(16, 24, 40, 0.06);
+  --radius: 10px;
+
+  --ui: "Space Grotesk", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  --mono: "Space Mono", ui-monospace, "Courier New", monospace;
+
   width: 100%;
   height: 100%;
-  background-color: rgb(142, 251, 191);
-  background-size: 100%;
-  background-repeat: no-repeat;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  font-size: 40px;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ui);
+  font-size: 22px;
+  line-height: 1.4;
+}
+.gamepresenter *,
+.gamepresenter *::before,
+.gamepresenter *::after {
+  box-sizing: border-box;
+}
+.gamepresenter p {
+  margin: 12px 0;
+}
+.gamepresenter b {
+  font-weight: 700;
 }
 
+/* ---- Header / navbar ---- */
 .gamepresenter .navbar {
-  justify-content: space-evenly;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  height: 84px;
+  padding: 0 32px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
-
-.gamepresenter .icon {
-  width: 200px;
-  margin: 20px;
-  margin-top: -50px;
-  margin-bottom: -50px;
-}
-
-.gamepresenter .appTitle {
-  font-size: 200%;
-  font-weight: 800;
-  color: red;
-}
-
-.gamepresenter .pageContent {
-  margin: 2%;
-}
-.gamepresenter .appVersion {
-  font-size: 80%;
-}
-
-.gamepresenter .gameTitle {
-  font-size: 150%;
-  font-weight: 600;
-}
-
 .gamepresenter .divRow {
   display: flex;
   flex-wrap: nowrap;
 }
-.gamepresenter button {
-  padding: 10px;
-  margin: 10px;
-  font-size: 50%;
-  font-weight: 600;
-  border-radius: 20px;
-  font-size: 120%;
+.gamepresenter .icon {
+  height: 52px;
+  width: auto;
+  margin: 0;
+  border-radius: 8px;
 }
-
-.gamepresenter .input {
-  font-size: 100%;
-}
-
-.gamepresenter .roomCode {
-  align-self: flex-end;
-  font-size: 120%;
-  font-weight: 400;
-  margin-right: 50px;
-}
-
-.gamepresenter .nameBox {
-  background: greenyellow;
-  margin: 10px;
-  padding: 10px;
+.gamepresenter .brand {
   display: flex;
-  flex-wrap: nowrap;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.gamepresenter .appTitle {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.gamepresenter .appVersion {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-faint);
+}
+.gamepresenter .roomCode {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 16px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 10px 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.gamepresenter .roomCodeValue {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent);
 }
 
+/* ---- Content area ---- */
+.gamepresenter .pageContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 28px 40px;
+}
+
+/* ---- Headings ---- */
+.gamepresenter h2 {
+  font-size: 30px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+.gamepresenter h3 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+/* ---- Buttons ---- */
+.gamepresenter button {
+  font-family: var(--ui);
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 11px 20px;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.gamepresenter button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Primary (indigo) — presenterButton + letsGo are the main CTAs */
+.gamepresenter .presenterButton,
+.gamepresenter .letsGo {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+.gamepresenter .presenterButton:hover,
+.gamepresenter .letsGo:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+/* Secondary — neutral outline */
+.gamepresenter .discussionButton,
+.gamepresenter .doneSortingButton {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+.gamepresenter .discussionButton:hover,
+.gamepresenter .doneSortingButton:hover {
+  background: var(--surface-2);
+}
+/* Ghost — quiet header actions */
+.gamepresenter .ghostButton {
+  background: transparent;
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+.gamepresenter .ghostButton:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* ---- Generic panel + steps (Gathering / Instructions) ---- */
+.gamepresenter .panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 24px 28px;
+}
+.gamepresenter .lead {
+  font-size: 22px;
+  color: var(--text-dim);
+  max-width: 1100px;
+}
+.gamepresenter .contentGrid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.gamepresenter .joinSteps {
+  margin: 0;
+  padding-left: 24px;
+}
+.gamepresenter .joinSteps li {
+  margin: 8px 0;
+}
+.gamepresenter .joinUrl {
+  font-family: var(--mono);
+  color: var(--accent);
+  font-weight: 700;
+}
+.gamepresenter .joinCodeInline {
+  font-family: var(--mono);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text);
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  padding: 1px 10px;
+  border-radius: 6px;
+}
+.gamepresenter .sectionLabel {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  margin-bottom: 10px;
+}
+.gamepresenter .nameGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.gamepresenter .nameBox {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.gamepresenter .waitingNote {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* Numbered step chips for the instructions */
+.gamepresenter .instructions {
+  padding: 0;
+}
+.gamepresenter .stepRow {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 18px;
+}
+.gamepresenter .stepNum {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-weight: 700;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gamepresenter .stepTitle {
+  font-weight: 700;
+}
+.gamepresenter .stepBody {
+  color: var(--text-dim);
+  font-size: 20px;
+}
+
+/* ---- Waiting for answers ---- */
+.gamepresenter .answeringPage {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  height: 100%;
+}
+.gamepresenter .timerBar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 16px 22px;
+}
+.gamepresenter .secondsCounterRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.gamepresenter .timerLabel {
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+.gamepresenter .secondsCounter {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 52px;
+  line-height: 1;
+  color: var(--text);
+  min-width: 120px;
+}
+.gamepresenter .secondsCounterLow {
+  color: var(--neg);
+}
+.gamepresenter .timerSpacer {
+  flex: 1;
+}
+.gamepresenter .answerCountPill {
+  font-size: 17px;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 16px;
+}
 .gamepresenter .answerList {
   display: flex;
   flex-wrap: wrap;
+  gap: 10px;
+  align-content: flex-start;
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
 }
-
-.gamepresenter .secondsCounterRow {
+.gamepresenter .answerChip {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
   display: flex;
-  flex-direction: row;
   align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+}
+.gamepresenter .chipPositive {
+  background: var(--pos-soft);
+  border-color: var(--pos-border);
+}
+.gamepresenter .chipNegative {
+  background: var(--neg-soft);
+  border-color: var(--neg-border);
+}
+.gamepresenter .lightbulb {
+  width: 34px;
+  height: auto;
+  opacity: 0.85;
 }
 
-.gamepresenter .secondsCounter {
-  font-family: "Courier New", Courier, monospace;
-  font-weight: 700;
-  font-size: 200%;
-  min-width: 280px;
-  margin-left: 30px;
-}
-
-::-webkit-scrollbar {
-  width: 20px;
-  height: 20px;
-}
-
-::-webkit-scrollbar-track {
-  box-shadow: inset 4px 4px 10px black;
-  -webkit-box-shadow: inset 4px 4px 10px black;
-  background-color: darkgray;
-}
-
-::-webkit-scrollbar-thumb {
-  background-color: rgb(221, 221, 221);
-  outline: 1px solid slategrey;
-}
-
-.gamepresenter .answeringPage {
-  font-size: 150%;
+/* ---- Sorting ---- */
+.gamepresenter .sortHint {
+  color: var(--text-dim);
+  margin-bottom: 12px;
 }
 .gamepresenter .sortList {
   display: flex;
   align-items: flex-start;
   flex-wrap: nowrap;
   flex-direction: row;
+  overflow-x: auto;
   overflow-y: auto;
   scroll-behavior: smooth;
-  overflow-x: auto;
-  height: 740px;
+  height: 760px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
 }
-
 .gamepresenter .listSpacer {
   height: 700px;
-  width: 15px;
-  transition: height 0.3s;
-  transition: width 0.3s;
+  width: 10px;
+  border-radius: 6px;
+  transition:
+    width 0.2s ease,
+    background 0.2s ease;
 }
-
 .gamepresenter .answerCard {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: rgb(110, 110, 184);
-  padding: 3px;
+  padding: 2px;
 }
-
 .gamepresenter .answerCollection {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 3px;
+  align-items: stretch;
+  gap: 6px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  min-width: 176px;
 }
-
 .gamepresenter .answerCollectionHandle {
-  background: rgb(110, 110, 184);
-  border-style: outset;
-  height: 30px;
-  width: 162px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--inset);
+  cursor: grab;
 }
-
 .gamepresenter .answerCardTitle {
-  font-size: 18px;
-  font-weight: 800;
-  flex-wrap: wrap;
-  text-overflow: ellipsis;
-  background: rgb(110, 110, 184);
-  border-style: outset;
-  min-height: 50px;
-  width: 162px;
-  padding: 0px;
+  font-size: 17px;
+  font-weight: 700;
   text-align: center;
+  color: var(--text);
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-height: 40px;
+  width: 164px;
+  padding: 8px 6px;
+  cursor: text;
 }
-
 .gamepresenter .answerCardTitleEdit {
+  font-family: var(--ui);
   font-size: 16px;
-  font-weight: 500;
-  flex-wrap: wrap;
-  text-overflow: ellipsis;
-  background: rgb(209, 209, 255);
-  border-style: outset;
-  min-height: 50px;
-  width: 162px;
-  padding: 0px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  min-height: 40px;
+  width: 164px;
+  padding: 8px 6px;
 }
-
 .gamepresenter .cardAnswerList {
   display: flex;
   flex-direction: column;
-  flex-wrap: nowrap;
+  gap: 6px;
 }
-
 .gamepresenter .answerBox {
-  display: inline-flex;
-  font-size: 18px;
-  line-height: 18px;
-
-  font-weight: 600;
-  height: 100px;
-  margin: 3px;
-  padding: 5px;
-  width: 150px;
-  max-width: 150px;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
   justify-content: center;
   text-align: center;
-  align-items: center;
-  box-shadow: 4px 4px 15px rgb(41, 41, 41);
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 600;
+  width: 164px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  overflow: hidden;
+  cursor: grab;
+  box-shadow: var(--shadow-sm);
 }
-
-.gamepresenter .lightbulb {
-  width: 60px;
+.gamepresenter .answerPositive {
+  background: var(--pos-soft);
+  border-color: var(--pos-border);
+  color: #0f5a2c;
 }
-
-.gamepresenter .doneSortingButton {
+.gamepresenter .answerNegative {
+  background: var(--neg-soft);
+  border-color: var(--neg-border);
+  color: #8f1616;
+}
+.gamepresenter .voterButtons {
+  z-index: 2;
   position: absolute;
-  bottom: 10px;
-  right: 10px;
+  right: 4px;
+  top: -6px;
+  display: flex;
+  gap: 4px;
+}
+.gamepresenter .voterButton {
+  color: var(--text-dim);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gamepresenter .voterButton:hover {
+  background: var(--surface-2);
+  color: var(--text);
 }
 
+/* ---- Discussion ---- */
+.gamepresenter .discussionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.gamepresenter .discussionIntro {
+  color: var(--text-dim);
+  font-size: 20px;
+}
+.gamepresenter .discussionMain {
+  display: grid;
+  grid-template-columns: 1fr 480px;
+  gap: 18px;
+  align-items: stretch;
+}
 .gamepresenter .discussionGroup {
   display: flex;
   flex-wrap: wrap;
-  scroll-behavior: auto;
-  height: 670px;
-  width: 1200px;
+  gap: 12px;
+  align-content: flex-start;
+  height: 640px;
+  overflow-y: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
 }
-
-.gamepresenter .discussionNotes {
-  display: flex;
-  font-size: 60%;
-  background: #ffffff90;
-  flex-direction: column;
-  flex-wrap: none;
-  scroll-behavior: auto;
-  height: 670px;
-  width: 620px;
-}
-
-.gamepresenter .discussionNotesInput {
-  font-size: 80%;
-  background: #ffffff80;
-  height: 45%;
-  scroll-behavior: auto;
-}
-
 .gamepresenter .discussionCard {
-  background: gray;
-  margin: 10px;
-  max-width: 300px;
-  padding: 8px;
-  height: 180px;
-}
-
-.gamepresenter .discussionCardText {
-  font-size: 70%;
-  padding: 10px;
-  height: 115px;
+  display: flex;
+  flex-direction: column;
+  width: 260px;
+  height: 150px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--border-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
-  text-wrap: wrap;
+}
+.gamepresenter .discussionCardPositive {
+  border-top-color: var(--pos);
+}
+.gamepresenter .discussionCardNegative {
+  border-top-color: var(--neg);
+}
+.gamepresenter .discussionCardText {
+  flex: 1;
+  font-size: 19px;
+  font-weight: 600;
+  padding: 12px 14px;
+  overflow: hidden;
+  color: var(--text);
 }
 .gamepresenter .discussionCardAuthor {
-  font-size: 70%;
-  padding: 10px;
-  width: 100%;
-  text-align: center;
-  padding-bottom: 5px;
+  font-size: 15px;
+  color: var(--text-faint);
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
 }
-
-.gamepresenter .discussionButtonRow {
-  width: 100%;
+.gamepresenter .discussionNotes {
   display: flex;
-  flex-wrap: wrap;
-  flex: 1 1 150px;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
+  height: 640px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+.gamepresenter .discussionNotesInput {
+  flex: 1;
+  font-family: var(--ui);
+  font-size: 17px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  resize: none;
+}
+.gamepresenter .discussionNotesInput:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.gamepresenter .discussionButtonRow {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
 }
-
-/* .gamepresenter .cellLeft{
-    flex-grow: 1;
-    justify-content: flex-start;
-}
-
-.gamepresenter .cellCenter{
-    flex-grow: 1;
-    justify-content: center;
-}
-
-.gamepresenter .cellRight{
-    flex-grow: 1;
-    background: red;
-    justify-content: flex-end;
-} */
-
 .gamepresenter .discussionCategoryLabel {
-  font-size: 150%;
+  font-size: 26px;
   font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  flex: 1;
 }
 
-.gamepresenter .discussionButton {
-  font-size: 100%;
-  background: rgb(160, 160, 160);
-  margin-right: 40px;
-  padding: 10px;
-  padding-left: 30px;
-  padding-right: 30px;
-  border-radius: 20px;
-  box-shadow: 4px 4px 15px rgb(41, 41, 41);
-}
-
-.gamepresenter .instructions {
-  height: 800px;
-  font-size: 100%;
-  scroll-behavior: auto;
-  padding: 20px;
-}
-
-.gamepresenter .letsGo {
-  font-size: 100%;
-  margin-top: 50px;
-  margin-left: 1200px;
-}
-
-.gamepresenter .doneSortingButton {
-  font-size: 100%;
-}
-
+/* ---- Summary overlay ---- */
 .gamepresenter .summaryBox {
-  font-size: 60%;
+  font-family: var(--mono);
+  font-size: 16px;
   display: flex;
   position: absolute;
   width: 1300px;
   height: 800px;
   left: 300px;
-  background: white;
+  top: 120px;
+  background: var(--surface);
+  color: var(--text);
   z-index: 5;
   flex-direction: column;
-  overflow: scroll;
-  overflow-y: auto;
-  overflow-x: auto;
-  box-shadow: 8px 8px 35px rgb(41, 41, 41);
-  padding: 20px;
+  overflow: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 60px rgba(16, 24, 40, 0.28);
+  padding: 24px;
 }
 
-.gamepresenter .voterButtons {
-  z-index: 2;
-  position: absolute;
-  right: 5px;
-  top: -15px;
-  height: 30px;
+/* ---- Scoreboard (game over) ---- */
+.gamepresenter .scoreRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+  max-width: 640px;
+}
+.gamepresenter .scoreWinner {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.gamepresenter .winnerTag {
+  margin-left: auto;
+  color: var(--accent-hover);
+  font-weight: 700;
 }
 
-.gamepresenter .voterButton {
-  color: #ffffffaa;
-  margin: 0px;
-  font-size: 20px;
-  padding: 0;
-  background: #ffffff60;
-  border: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
+/* ---- Scrollbars ---- */
+.gamepresenter ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+.gamepresenter ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.gamepresenter ::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border-radius: 8px;
+  border: 3px solid var(--bg);
+}
+.gamepresenter ::-webkit-scrollbar-thumb:hover {
+  background-color: #b3b9c2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gamepresenter * {
+    transition: none !important;
+  }
 }

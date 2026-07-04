@@ -5,7 +5,6 @@ import React from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import styles from "./Presenter.module.css";
-import { Row } from "libs";
 
 // -------------------------------------------------------------------
 // DiscussionPage
@@ -37,11 +36,15 @@ export class DiscussionPage extends React.Component<{ appModel?: RetroSpectroPre
       return (
         <div className={styles.discussionGroup}>
           {appModel.currentDiscussion.answers.map((a) => (
-            <div className={styles.discussionCard} key={a.id}>
-              <div style={{ background: a.answerType === "Positive" ? "limegreen" : "#ff6666" }}>
-                <div className={styles.discussionCardText}>{a.text}</div>
-                <div className={styles.discussionCardAuthor}>({a.player?.name})</div>
-              </div>
+            <div
+              className={classNames(styles.discussionCard, {
+                [styles.discussionCardPositive]: a.answerType === "Positive",
+                [styles.discussionCardNegative]: a.answerType !== "Positive",
+              })}
+              key={a.id}
+            >
+              <div className={styles.discussionCardText}>{a.text}</div>
+              <div className={styles.discussionCardAuthor}>{a.player?.name}</div>
             </div>
           ))}
         </div>
@@ -53,13 +56,13 @@ export class DiscussionPage extends React.Component<{ appModel?: RetroSpectroPre
       if (!discussion) return null;
       return (
         <div className={styles.discussionNotes}>
-          <div>Notes</div>
+          <div className={styles.sectionLabel}>Notes</div>
           <textarea
             className={styles.discussionNotesInput}
             value={discussion.notes}
             onChange={(e) => (discussion.notes = e.target.value)}
           />
-          <div>Tasks</div>
+          <div className={styles.sectionLabel}>Tasks</div>
           <textarea
             className={styles.discussionNotesInput}
             value={discussion.tasks}
@@ -69,8 +72,8 @@ export class DiscussionPage extends React.Component<{ appModel?: RetroSpectroPre
       );
     };
 
-    const prevOpacity = appModel.hasPrev ? 1.0 : 0.2;
-    const nextOpacity = appModel.hasNext ? 1.0 : 0.2;
+    const prevOpacity = appModel.hasPrev ? 1.0 : 0.35;
+    const nextOpacity = appModel.hasNext ? 1.0 : 0.35;
 
     const showSummary = () => {
       this.setState({ summaryVisible: !summaryVisible });
@@ -103,50 +106,50 @@ export class DiscussionPage extends React.Component<{ appModel?: RetroSpectroPre
     return (
       <DndProvider backend={HTML5Backend}>
         <div>
-          <div
-            className={styles.summaryBox}
-            style={{ opacity: summaryVisible ? 1 : 0, width: summaryVisible ? undefined : "0px" }}
-          >
-            <pre>{summary}</pre>
-          </div>
-          <div className={styles.divRow}>
-            <div style={{ width: "100%" }}>
-              <b>Discussion Time! </b> &nbsp; Submitters, tell us your thoughts.
-              <br />
-              Everyone: What have we learned? Is there an action we can take?
-              <button style={{ fontSize: "15px" }} onClick={() => appModel.goBackToCategorizing()}>
-                Go back to categorizing
-              </button>
+          {summaryVisible ? (
+            <div className={styles.summaryBox}>
+              <pre>{summary}</pre>
             </div>
-            <div>
-              <button
-                className={classNames(styles.discussionButton)}
-                style={{ marginLeft: "250px", fontSize: "50%" }}
-                onClick={() => showSummary()}
-              >
-                Show Summary
-              </button>
+          ) : null}
+
+          <div className={styles.discussionHeader}>
+            <div className={styles.discussionIntro}>
+              <b>Discussion.</b> Submitters, share your thinking. Everyone: what did we learn, and
+              is there an action to take?
+              <div style={{ marginTop: 8 }}>
+                <button
+                  className={styles.ghostButton}
+                  onClick={() => appModel.goBackToCategorizing()}
+                >
+                  ← Back to categorizing
+                </button>
+              </div>
             </div>
+            <button className={styles.discussionButton} onClick={() => showSummary()}>
+              {summaryVisible ? "Hide summary" : "Show summary"}
+            </button>
           </div>
-          <Row>
+
+          <div className={styles.discussionMain}>
             {discussionBox()}
             {notesSection()}
-          </Row>
+          </div>
+
           <div className={styles.discussionButtonRow}>
             <button
-              className={classNames(styles.discussionButton)}
+              className={styles.discussionButton}
               style={{ opacity: prevOpacity }}
               onClick={() => appModel.prevDiscussion()}
             >
-              {appModel.prevName + " "}⬅ Prev
+              ⬅ Prev{appModel.prevName ? " · " + appModel.prevName : ""}
             </button>
             <div className={styles.discussionCategoryLabel}>{appModel.currentDiscussion?.name}</div>
             <button
-              className={classNames(styles.discussionButton)}
+              className={styles.discussionButton}
               style={{ opacity: nextOpacity }}
               onClick={() => appModel.nextDiscussion()}
             >
-              Next ➡{" " + appModel.nextName}
+              Next{appModel.nextName ? " · " + appModel.nextName : ""} ➡
             </button>
           </div>
         </div>

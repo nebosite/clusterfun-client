@@ -54,69 +54,62 @@ export default class Client extends React.Component<{
     switch (appModel.gameState) {
       case GeneralClientGameState.WaitingToStart:
         return (
-          <React.Fragment>
-            <div className={styles.wait_text}>
-              Sit tight, waiting for the host to start the retrospective...
-            </div>
-          </React.Fragment>
+          <div className={styles.wait_text}>
+            Sit tight — waiting for the host to start the retrospective…
+          </div>
         );
       case RetroSpectroClientState.SubmittingAnswers:
         this.alertUser();
         return (
           <React.Fragment>
+            <div className={styles.heading}>Brainstorm</div>
             <p>
-              As you think about the topic, write down whatever pops into your head. There are no
-              good or bad ideas. Trust your brain!
+              Write down whatever pops into your head — there are no good or bad ideas. Summarize
+              each in five words or less.
             </p>
-            <p> Summarize your idea here in 5 words or less:</p>
-            <div>
-              <input
-                type="text"
-                value={appModel.currentAnswer}
-                onChange={(ev) => {
-                  appModel.currentAnswer = ev.target.value;
-                }}
-              />
-            </div>
-            <div className={styles.divRow}>
+            <input
+              className={styles.field}
+              type="text"
+              placeholder="Your idea…"
+              value={appModel.currentAnswer}
+              onChange={(ev) => {
+                appModel.currentAnswer = ev.target.value;
+              }}
+            />
+            <div className={styles.submitRow}>
               <button
-                className={classNames(styles.submitButton)}
-                style={{ background: "green" }}
+                className={classNames(styles.submitButton, styles.buttonPositive)}
                 disabled={!appModel.currentAnswerOK}
                 onClick={() => appModel.submitAnswer(AnswerType.Positive)}
               >
-                Submit as Positive
-                <br />
-                👍
+                👍 Positive
               </button>
               <button
-                className={classNames(styles.submitButton)}
-                style={{ background: "red" }}
+                className={classNames(styles.submitButton, styles.buttonNegative)}
                 disabled={!appModel.currentAnswerOK}
                 onClick={() => appModel.submitAnswer(AnswerType.Negative)}
               >
-                Submit as Negative
-                <br />
-                👎
+                👎 Negative
               </button>
             </div>
-            <p>Examples:</p>
-            <p style={{ marginLeft: "50px" }}>
-              "Bug Tacking System"
-              <br />
-              "Fred Fenning"
-              <br />
-              "coffee machine"
-              <br />
-            </p>
+            <div className={styles.submitHint}>
+              Tag each idea as something that went well or not.
+            </div>
+            <div className={styles.examples}>
+              <div className={styles.examplesLabel}>Examples</div>
+              <span className={styles.exampleChip}>Bug tracking system</span>
+              <span className={styles.exampleChip}>Fred Fenning</span>
+              <span className={styles.exampleChip}>Coffee machine</span>
+            </div>
           </React.Fragment>
         );
       case RetroSpectroClientState.Sorting:
         return (
           <React.Fragment>
+            <div className={styles.heading}>Categorizing</div>
             <p>
-              The presenter is now sorting all of the suggestions into categories. Feel free to
-              suggest how to group the different items.
+              The host is grouping everyone&apos;s ideas into categories. Feel free to suggest how
+              to group them.
             </p>
           </React.Fragment>
         );
@@ -124,10 +117,11 @@ export default class Client extends React.Component<{
         if (appModel.hasOnscreenAnswer) this.alertUser();
         return (
           <React.Fragment>
-            <p>We are now in a team discussion.</p>
+            <div className={styles.heading}>Discussion</div>
+            <p>The team is talking through a category on the shared screen.</p>
             {appModel.hasOnscreenAnswer ? (
               <div className={styles.answerAlert}>
-                You have an answer on this page - tell us more!
+                One of your ideas is on screen — tell us more!
               </div>
             ) : null}
           </React.Fragment>
@@ -136,21 +130,23 @@ export default class Client extends React.Component<{
       case GeneralGameState.GameOver:
         return (
           <React.Fragment>
-            <p>Game is over, thanks for playing!</p>
-            <div>
-              <button onClick={() => appModel.quitApp()}>Quit</button>
-            </div>
+            <div className={styles.heading}>Thanks for playing!</div>
+            <p>The retrospective has wrapped up.</p>
+            <button className={styles.primaryButton} onClick={() => appModel.quitApp()}>
+              Quit
+            </button>
           </React.Fragment>
         );
       case GeneralClientGameState.JoinError:
         return (
           <React.Fragment>
-            <p>Could not join the game because: {appModel.joinError}</p>
+            <div className={styles.heading}>Couldn&apos;t join</div>
+            <p>{appModel.joinError}</p>
           </React.Fragment>
         );
 
       default:
-        return <div>These are not the droids you are looking for... ({appModel.gameState})</div>;
+        return <div>These are not the droids you are looking for… ({appModel.gameState})</div>;
     }
   }
 
@@ -169,14 +165,14 @@ export default class Client extends React.Component<{
           virtualWidth={1080}
         >
           <div className={styles.gameclient}>
-            <div className={classNames(styles.divRow, styles.topbar)}>
-              <span className={classNames(styles.gametitle)}>RetroSpectro</span>
-              <span>{appModel.playerName}</span>
-              <button className={classNames(styles.quitbutton)} onClick={() => appModel.quitApp()}>
-                X
+            <div className={styles.topbar}>
+              <span className={styles.gametitle}>RetroSpectro</span>
+              <span className={styles.playerName}>{appModel.playerName}</span>
+              <button className={styles.quitbutton} onClick={() => appModel.quitApp()}>
+                ✕
               </button>
             </div>
-            <div style={{ margin: "100px" }}>
+            <div className={styles.content}>
               <ErrorBoundary>{this.renderSubScreen()}</ErrorBoundary>
             </div>
           </div>
