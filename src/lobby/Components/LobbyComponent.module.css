@@ -1,248 +1,729 @@
-@import url('https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet');
+/* ================================================================
+   ClusterFun lobby — "Neon Arcade" skin
+   Presenter (wide, 1920x1080 virtual) + Client (tall, 1080x1920 virtual)
+   are each rendered inside a fixed UINormalizer canvas, so sizes here
+   are authored for those canvases and then scaled to fit the device.
+   ================================================================ */
 
-* {
-  padding: 0;
-  margin: 0;
+.root {
+  /* Background & surface (dark, cool-neutral) */
+  --bg: #08080d;
+  --bg-raised: #0d0d14;
+  --surface: rgba(255, 255, 255, 0.055);
+  --surface-hover: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.08);
+  --field: rgba(0, 0, 0, 0.25);
+
+  /* Text */
+  --text: #ffffff;
+  --text-dim: rgba(255, 255, 255, 0.53);
+  --text-faint: rgba(255, 255, 255, 0.33);
+
+  /* Neon accents */
+  --cyan: #22e0ff;
+  --magenta: #ff3ea5;
+  --lime: #b6ff3a;
+  --yellow: #ffd21a;
+
+  --display: "Bungee", "Space Grotesk", sans-serif;
+  --ui: "Space Grotesk", system-ui, sans-serif;
+  --mono: "Space Mono", ui-monospace, monospace;
+
+  box-sizing: border-box;
+  color: var(--text);
+  font-family: var(--ui);
+}
+.root *,
+.root *::before,
+.root *::after {
   box-sizing: border-box;
 }
 
-.errorMessage {
-  color: red;
-}
-
-/* Lobby Formating */
-.divRow {
-  display: flex;
-  flex-wrap: nowrap;
-}
-
-.lobby {
-  background: url("../../lobby/assets/images/background1.png") center center/cover no-repeat;
-  height: 100%;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  position: relative;
-}
-
-.logo {
-  align-self: center;
-  justify-self: flex-start;
-  display: flex;
-  justify-content: center;
-  margin-top: 50px;
-  margin-bottom: 30px;
-  background: var(--background-color);
-  border-radius: 60px;
-  /* box-shadow: 5px 4px 4px; */
-  z-index: 1;
-  /* animation: animateLogo 2s forwards infinite ease-in-out; */
-}
-
-.img {
-  height: 300px;
-  width: auto;
-  border-radius: 60px;
-  border: #dddddd 10px solid;
-  /* animation: animateLogo 2s forwards infinite ease-in-out; */
-}
-
-.input_background input {
-  padding: 3rem;
-  font-size: 200%;
-  text-align: center;
-  width: 100%;
-  align-self: center;
-  background: #3333;
-  z-index: 1;
-  color: white;
-}
-
-.input_background input:focus {
-  background: #111a;
-}
-
-.input_background {
-  border-radius: 60px;
-  /* box-shadow: 4px 4px 5px; */
-  font-size: 200%;
-  text-align: center;
-  width: 70%;
-  align-self: center;
-  border-top: white 10px solid;
-  border-left: white 10px solid;
-  border-right: white 10px solid;
-  z-index: 2;
-}
-
-.room_code {
-  border-top-left-radius: 60px;
-  border-top-right-radius: 60px;
-  border-bottom: white 10px solid;
-  outline: none;
-}
-
-.nickname {
-  border-bottom-right-radius: 60px;
-  border-bottom-left-radius: 60px;
-  border-bottom: white 10px solid;
-  outline: none;
-}
-
-.container input::placeholder {
-  color: white;
-  text-align: center;
-  font-family: Arial, Helvetica, sans-serif;
-  z-index: 3;
-}
-
-.container button:active {
-}
-
-.bottom_text {
-  font-style: italic;
-  margin-bottom: 10rem;
-  z-index: 2;
-  color: white;
-}
-
-.version {
-  align-self: flex-end;
-  font-style: italic;
-  position: fixed;
-  bottom: 0;
-  color: white;
-}
-
-/* Text Boxes */
-
-.container {
-  font-size: 300%;
-  font-family: Arial, Helvetica, sans-serif;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 10px;
-}
-
-/* Lobby Button */
-.joinButton {
-  padding: 1rem;
-  margin-top: 3rem;
-  background: #ed854b;
-  color: white;
-  border-radius: 60px;
-  border: 4px solid white;
-  outline: none;
-  font-size: 150%;
-  width: 50%;
-  z-index: 3;
-}
-
-.lobby .joinButton:disabled {
-  background-color: red;
-}
-
-/* Presenter Functions */
-
-.gmMenu {
-  background: url("../../lobby/assets/images/background1.png") center center/cover no-repeat;
-  height: 1080px;
-  font-family: Arial, Helvetica, sans-serif;
-
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-}
-
-.gmContainer {
-  border: 3px white solid;
-  border-radius: 20%;
-  z-index: 1;
-  margin-bottom: 5px;
-  background: var(--background-color);
-}
-
-.gmContainer img {
-  height: 75px;
-  width: auto;
-}
-
-.gmTitle {
-  width: 100%;
-  padding: 10px 0px;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.7);
-  color: #000000;
-  font-family: "Russo One", Helvetica, sans-serif;
-  font-weight: bold;
-  font-size: 2rem;
-  margin-bottom: 10px;
-  z-index: 1;
-  border: 2px solid white;
-  border-left-style: none;
-  border-right-style: none;
-}
-
-.btnMenu {
-  width: 100%;
-  display: flex;
-  justify-content: space-evenly;
-  align-items: center;
-  list-style: none;
-}
-
-.gmButton {
-  height: 150px;
-  width: auto;
+/* Two corner glows — one per corner, blurred radial blobs on dark. */
+.glowCyan,
+.glowMagenta {
+  position: absolute;
+  width: 620px;
+  height: 620px;
   border-radius: 50%;
-  animation: gmButton 2s forwards infinite ease-in-out;
+  filter: blur(150px);
+  opacity: 0.2;
+  pointer-events: none;
+  z-index: 0;
+}
+.glowCyan {
+  top: -220px;
+  left: -180px;
+  background: var(--cyan);
+}
+.glowMagenta {
+  bottom: -240px;
+  right: -180px;
+  background: var(--magenta);
+}
+
+.errorMessage {
   position: relative;
-  border: 2px white solid;
-}
-
-/* @keyframes gmButton {
-    0% {
-      transform: rotate(30deg);
-    }
-  
-    50% {
-      transform: rotate(-30deg);
-    }
-  
-    100%{
-      transform: rotate(30deg);
-    }
-  } */
-
-/* Presenter top menu */
-
-.new_game_menu {
-  list-style: none;
-  display: flex;
-}
-
-.joinGameButton {
-  font-size: 120%;
-  padding: 20px;
-  margin-top: 50px;
-  opacity: 0.99;
-}
-.gameLogoLabel {
-  color: black;
-  font-size: 30px;
-  text-align: center;
-  width: 100%;
-}
-.gameLogoTag {
-  color: black;
+  z-index: 2;
+  margin-bottom: 18px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  background: rgba(255, 62, 165, 0.12);
+  border: 1px solid rgba(255, 62, 165, 0.4);
+  color: #ffb3d6;
+  font-family: var(--mono);
   font-size: 20px;
-  text-align: center;
+}
+
+/* ---- Shared logo (Party Burst) ---- */
+.logoRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.wordmark {
+  font-family: var(--display);
+  line-height: 1;
+  letter-spacing: 0.5px;
+}
+.wordmarkFun {
+  color: var(--magenta);
+}
+
+/* Small mono label used across cards / badges. */
+.metaLabel {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+/* ================================================================
+   PRESENTER (wide screen) — 1920 x 1080
+   ================================================================ */
+.presenter {
+  position: relative;
   width: 100%;
+  height: 100%;
+  background: var(--bg);
+  padding: 44px 52px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  overflow: hidden;
+}
+
+.presenterTopBar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.presenter .wordmark {
+  font-size: 40px;
+}
+.topBarRight {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+.liveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 18px;
+  color: var(--lime);
+}
+.liveDot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 12px var(--lime);
+}
+.dropsNote {
+  font-family: var(--mono);
+  font-size: 18px;
+  color: var(--text-dim);
+}
+.joinPill {
+  font-family: var(--mono);
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  color: var(--cyan);
+  padding: 11px 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 224, 255, 0.4);
+  background: rgba(34, 224, 255, 0.08);
+}
+
+/* ---- Featured spotlight ---- */
+.spotlight {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  padding: 34px 40px;
+  border-radius: 28px;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(120deg, rgba(34, 224, 255, 0.12), rgba(255, 62, 165, 0.12)), var(--bg-raised);
+}
+.spotlightTile {
+  flex: 0 0 auto;
+  width: 172px;
+  height: 172px;
+  border-radius: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-size: 62px;
+  color: #08080d;
+}
+.spotlightBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.spotlightKicker {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 17px;
+  color: var(--cyan);
+}
+.spotlightName {
+  font-family: var(--display);
+  font-size: 52px;
+  line-height: 1;
+}
+.spotlightBlurb {
+  font-size: 21px;
+  color: var(--text-dim);
+  max-width: 900px;
+}
+.spotlightActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 6px;
+}
+.playNow {
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 20px;
+  color: #08080d;
+  background: var(--lime);
+  border: none;
+  border-radius: 999px;
+  padding: 13px 26px;
+  cursor: pointer;
+  box-shadow: 0 0 26px -6px var(--lime);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.playNow:hover {
+  transform: translateY(-2px);
+}
+.badge {
+  font-family: var(--mono);
+  font-size: 17px;
+  color: var(--text-dim);
+  padding: 9px 15px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--field);
+}
+
+/* ---- Category tabs ---- */
+.tabRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.tab {
+  font-family: var(--ui);
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--text-dim);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 22px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.tab:hover {
+  background: var(--surface-hover);
+}
+.tabActive {
+  background: var(--cyan);
+  color: #08080d;
+  border-color: var(--cyan);
+}
+.tabActive:hover {
+  background: var(--cyan);
+}
+
+/* ---- Game grid ---- */
+.gameGrid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  align-content: start;
+  overflow-y: auto;
+  padding-right: 6px;
+  flex: 1 1 auto;
+  list-style: none;
+}
+.gameCard {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 15px;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
+}
+.gameCard:hover {
+  transform: translateY(-3px);
+  background: var(--surface-hover);
+}
+.monogram {
+  flex: 0 0 auto;
+  width: 68px;
+  height: 68px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 26px;
+  color: #08080d;
+}
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.cardName {
+  font-family: var(--ui);
+  font-weight: 600;
+  font-size: 23px;
+  line-height: 1.1;
+}
+.cardCategory {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 14px;
+}
+.cardBlurb {
+  font-size: 16px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cardBadges {
+  display: flex;
+  gap: 8px;
+  margin-top: 3px;
+}
+.cardBadge {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text-faint);
+}
+.gameTag {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 12px;
+  color: var(--yellow);
+}
+
+.presenterFooter {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.roomCodeButton {
+  font-family: var(--ui);
+  font-weight: 600;
+  font-size: 19px;
+  color: var(--cyan);
+  background: transparent;
+  border: 1px solid rgba(34, 224, 255, 0.4);
+  border-radius: 999px;
+  padding: 12px 26px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.roomCodeButton:hover {
+  background: rgba(34, 224, 255, 0.08);
+}
+.version {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--text-faint);
+}
+
+/* ================================================================
+   CLIENT (tall screen) — 1080 x 1920
+   ================================================================ */
+.client {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  padding: 52px 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  overflow-y: auto;
+}
+.client .logoRow {
+  justify-content: center;
+}
+.client .wordmark {
+  font-size: 34px;
+}
+.clientHeading {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.clientTitle {
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 46px;
+  line-height: 1;
+}
+.clientSub {
+  font-size: 22px;
+  color: var(--text-dim);
+}
+
+.joinCard {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fieldHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.fieldLabel {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 18px;
+  color: var(--text-dim);
+}
+.welcomeBadge {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 14px;
+  color: #08080d;
+  background: var(--lime);
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+.textInput {
+  width: 100%;
+  font-family: var(--ui);
+  font-weight: 500;
+  font-size: 30px;
+  color: var(--text);
+  background: var(--field);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 22px;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.textInput::placeholder {
+  color: var(--text-faint);
+}
+.textInput:focus-visible {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px var(--cyan);
+}
+.resetLink {
+  align-self: flex-start;
+  font-family: var(--ui);
+  font-size: 18px;
+  color: var(--cyan);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ---- Avatar picker ---- */
+.avatarGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 10px;
+}
+.avatarButton {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--field);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  padding: 0;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.avatarButton svg {
+  width: 62%;
+  height: 62%;
+}
+.avatarSelected {
+  box-shadow:
+    0 0 0 2px #08080d,
+    0 0 0 4px var(--cyan);
+  transform: scale(1.05);
+}
+
+/* ---- Color picker ---- */
+.colorGrid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 10px;
+}
+.colorSwatch {
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease;
+}
+
+/* ---- Game code cells ---- */
+.codeField {
+  position: relative;
+}
+.codeCells {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.codeCell {
+  aspect-ratio: 3 / 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 64px;
+  color: var(--text);
+  background: var(--field);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+}
+.codeCellActive {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px rgba(34, 224, 255, 0.35);
+}
+.codeInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: text;
+  border: none;
+  background: transparent;
+}
+
+/* ---- Join / host buttons ---- */
+.joinButton {
+  width: 100%;
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 28px;
+  color: #08080d;
+  background: linear-gradient(90deg, var(--cyan), var(--lime));
+  border: none;
+  border-radius: 18px;
+  padding: 22px;
+  cursor: pointer;
+  box-shadow: 0 0 34px -8px var(--cyan);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+.joinButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.joinButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.orDivider {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 16px;
+}
+.orDivider::before,
+.orDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.hostButton {
+  width: 100%;
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 26px;
+  color: var(--magenta);
+  background: transparent;
+  border: 2px solid var(--magenta);
+  border-radius: 18px;
+  padding: 18px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+.hostButton:hover {
+  background: rgba(255, 62, 165, 0.1);
+  transform: translateY(-2px);
+}
+.hostSub {
+  font-family: var(--ui);
+  font-weight: 400;
+  font-size: 17px;
+  color: var(--text-dim);
+}
+
+/* ---- Fidget toy ---- */
+.fidget {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+}
+.fidgetLabel {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 16px;
+  color: var(--text-faint);
+}
+.fidgetGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+  width: 100%;
+}
+.fidgetBubble {
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 0 18px -4px currentColor;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.fidgetPopped {
+  transform: scale(0.72);
+  box-shadow: inset 0 6px 14px rgba(0, 0, 0, 0.55);
+  filter: brightness(0.5);
+}
+
+.clientVersion {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--text-faint);
+}
+
+/* Focus rings on all interactive elements. */
+.root button:focus-visible,
+.root input:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* Respect reduced motion — drop hover lifts and fidget squish. */
+@media (prefers-reduced-motion: reduce) {
+  .root * {
+    transition: none !important;
+  }
+  .gameCard:hover,
+  .playNow:hover,
+  .joinButton:hover:not(:disabled),
+  .hostButton:hover {
+    transform: none;
+  }
+  .fidgetPopped {
+    transform: none;
+  }
 }
