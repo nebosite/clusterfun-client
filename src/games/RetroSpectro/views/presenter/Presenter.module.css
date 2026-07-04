@@ -41,6 +41,9 @@
   --ui: "Space Grotesk", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   --mono: "Space Mono", ui-monospace, "Courier New", monospace;
 
+  /* Global font-scale knob — every font-size is calc(<px> * var(--fs)). */
+  --fs: 1.5;
+
   width: 100%;
   height: 100%;
   display: flex;
@@ -49,7 +52,7 @@
   background: var(--bg);
   color: var(--text);
   font-family: var(--ui);
-  font-size: 22px;
+  font-size: calc(22px * var(--fs));
   line-height: 1.4;
 }
 .gamepresenter *,
@@ -91,14 +94,14 @@
   line-height: 1.1;
 }
 .gamepresenter .appTitle {
-  font-size: 26px;
+  font-size: calc(26px * var(--fs));
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.01em;
 }
 .gamepresenter .appVersion {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: calc(13px * var(--fs));
   color: var(--text-faint);
 }
 .gamepresenter .roomCode {
@@ -106,7 +109,7 @@
   display: inline-flex;
   align-items: baseline;
   gap: 12px;
-  font-size: 16px;
+  font-size: calc(16px * var(--fs));
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -117,7 +120,7 @@
 }
 .gamepresenter .roomCodeValue {
   font-family: var(--mono);
-  font-size: 28px;
+  font-size: calc(28px * var(--fs));
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--accent);
@@ -133,12 +136,12 @@
 
 /* ---- Headings ---- */
 .gamepresenter h2 {
-  font-size: 30px;
+  font-size: calc(30px * var(--fs));
   font-weight: 700;
   margin: 0 0 12px;
 }
 .gamepresenter h3 {
-  font-size: 24px;
+  font-size: calc(24px * var(--fs));
   font-weight: 700;
   margin: 0 0 12px;
 }
@@ -146,7 +149,7 @@
 /* ---- Buttons ---- */
 .gamepresenter button {
   font-family: var(--ui);
-  font-size: 18px;
+  font-size: calc(18px * var(--fs));
   font-weight: 600;
   border-radius: 8px;
   border: 1px solid transparent;
@@ -206,7 +209,7 @@
   padding: 24px 28px;
 }
 .gamepresenter .lead {
-  font-size: 22px;
+  font-size: calc(22px * var(--fs));
   color: var(--text-dim);
   max-width: 1100px;
 }
@@ -239,7 +242,7 @@
   border-radius: 6px;
 }
 .gamepresenter .sectionLabel {
-  font-size: 14px;
+  font-size: calc(14px * var(--fs));
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -256,7 +259,7 @@
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   padding: 8px 16px;
-  font-size: 18px;
+  font-size: calc(18px * var(--fs));
   font-weight: 600;
   color: var(--text);
   display: inline-flex;
@@ -286,7 +289,7 @@
   background: var(--accent-soft);
   color: var(--accent-hover);
   font-weight: 700;
-  font-size: 20px;
+  font-size: calc(20px * var(--fs));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -296,7 +299,7 @@
 }
 .gamepresenter .stepBody {
   color: var(--text-dim);
-  font-size: 20px;
+  font-size: calc(20px * var(--fs));
 }
 
 /* ---- Waiting for answers ---- */
@@ -322,7 +325,7 @@
   gap: 14px;
 }
 .gamepresenter .timerLabel {
-  font-size: 15px;
+  font-size: calc(15px * var(--fs));
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
@@ -330,7 +333,7 @@
 .gamepresenter .secondsCounter {
   font-family: var(--mono);
   font-weight: 700;
-  font-size: 52px;
+  font-size: calc(52px * var(--fs));
   line-height: 1;
   color: var(--text);
   min-width: 120px;
@@ -342,7 +345,7 @@
   flex: 1;
 }
 .gamepresenter .answerCountPill {
-  font-size: 17px;
+  font-size: calc(17px * var(--fs));
   color: var(--text-dim);
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -434,7 +437,7 @@
   cursor: grab;
 }
 .gamepresenter .answerCardTitle {
-  font-size: 17px;
+  font-size: calc(17px * var(--fs));
   font-weight: 700;
   text-align: center;
   color: var(--text);
@@ -448,7 +451,7 @@
 }
 .gamepresenter .answerCardTitleEdit {
   font-family: var(--ui);
-  font-size: 16px;
+  font-size: calc(16px * var(--fs));
   font-weight: 600;
   text-align: center;
   color: var(--text);
@@ -469,7 +472,7 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-size: 17px;
+  font-size: calc(17px * var(--fs));
   line-height: 1.2;
   font-weight: 600;
   width: 164px;
@@ -500,7 +503,7 @@
 }
 .gamepresenter .voterButton {
   color: var(--text-dim);
-  font-size: 16px;
+  font-size: calc(16px * var(--fs));
   font-weight: 700;
   line-height: 1;
   padding: 0;
@@ -529,7 +532,7 @@
 }
 .gamepresenter .discussionIntro {
   color: var(--text-dim);
-  font-size: 20px;
+  font-size: calc(20px * var(--fs));
 }
 .gamepresenter .discussionMain {
   display: grid;
@@ -569,14 +572,14 @@
 }
 .gamepresenter .discussionCardText {
   flex: 1;
-  font-size: 19px;
+  font-size: calc(19px * var(--fs));
   font-weight: 600;
   padding: 12px 14px;
   overflow: hidden;
   color: var(--text);
 }
 .gamepresenter .discussionCardAuthor {
-  font-size: 15px;
+  font-size: calc(15px * var(--fs));
   color: var(--text-faint);
   padding: 8px 14px;
   border-top: 1px solid var(--border);
@@ -595,7 +598,7 @@
 .gamepresenter .discussionNotesInput {
   flex: 1;
   font-family: var(--ui);
-  font-size: 17px;
+  font-size: calc(17px * var(--fs));
   color: var(--text);
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -615,7 +618,7 @@
   margin-top: 16px;
 }
 .gamepresenter .discussionCategoryLabel {
-  font-size: 26px;
+  font-size: calc(26px * var(--fs));
   font-weight: 700;
   color: var(--text);
   text-align: center;
@@ -625,7 +628,7 @@
 /* ---- Summary overlay ---- */
 .gamepresenter .summaryBox {
   font-family: var(--mono);
-  font-size: 16px;
+  font-size: calc(16px * var(--fs));
   display: flex;
   position: absolute;
   width: 1300px;

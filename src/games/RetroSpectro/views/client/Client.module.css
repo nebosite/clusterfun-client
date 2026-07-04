@@ -29,13 +29,16 @@
   --ui: "Space Grotesk", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   --mono: "Space Mono", ui-monospace, "Courier New", monospace;
 
+  /* Global font-scale knob — every font-size is calc(<px> * var(--fs)). */
+  --fs: 1.5;
+
   width: 100%;
   height: 100%;
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: var(--ui);
-  font-size: 34px;
+  font-size: calc(34px * var(--fs));
   line-height: 1.4;
   display: flex;
   flex-direction: column;
@@ -68,12 +71,12 @@
 }
 .gameclient .gametitle {
   font-weight: 700;
-  font-size: 40px;
+  font-size: calc(40px * var(--fs));
   letter-spacing: -0.01em;
 }
 .gameclient .playerName {
   margin-left: auto;
-  font-size: 30px;
+  font-size: calc(30px * var(--fs));
   color: var(--text-dim);
   max-width: 420px;
   overflow: hidden;
@@ -83,7 +86,7 @@
 .gameclient .quitbutton {
   flex: 0 0 auto;
   font-weight: 700;
-  font-size: 34px;
+  font-size: calc(34px * var(--fs));
   width: 72px;
   height: 72px;
   margin: 0;
@@ -102,13 +105,13 @@
   padding: 48px 44px;
 }
 .gameclient .heading {
-  font-size: 44px;
+  font-size: calc(44px * var(--fs));
   font-weight: 700;
   margin-bottom: 8px;
 }
 
 .gameclient .wait_text {
-  font-size: 44px;
+  font-size: calc(44px * var(--fs));
   font-weight: 600;
   color: var(--text-dim);
   text-align: center;
@@ -120,7 +123,7 @@
   display: block;
   width: 100%;
   font-family: var(--ui);
-  font-size: 44px;
+  font-size: calc(44px * var(--fs));
   color: var(--text);
   background: var(--surface);
   border: 2px solid var(--border-strong);
@@ -140,7 +143,7 @@
 .gameclient .submitButton {
   flex: 1;
   min-height: 140px;
-  font-size: 34px;
+  font-size: calc(34px * var(--fs));
   font-weight: 700;
   color: #ffffff;
   border: none;
@@ -168,7 +171,7 @@
   background: var(--neg-hover);
 }
 .gameclient .submitHint {
-  font-size: 26px;
+  font-size: calc(26px * var(--fs));
   color: var(--text-faint);
   margin-top: 8px;
 }
@@ -176,7 +179,7 @@
   margin-top: 36px;
 }
 .gameclient .examplesLabel {
-  font-size: 24px;
+  font-size: calc(24px * var(--fs));
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -186,7 +189,7 @@
 .gameclient .exampleChip {
   display: inline-block;
   font-family: var(--mono);
-  font-size: 28px;
+  font-size: calc(28px * var(--fs));
   color: var(--text-dim);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -198,7 +201,7 @@
 /* ---- Discussion alert ---- */
 .gameclient .answerAlert {
   font-weight: 700;
-  font-size: 34px;
+  font-size: calc(34px * var(--fs));
   color: #8f1616;
   background: #fbeaea;
   border: 1px solid #f0c6c6;
@@ -212,7 +215,7 @@
   font-family: var(--ui);
 }
 .gameclient .primaryButton {
-  font-size: 34px;
+  font-size: calc(34px * var(--fs));
   font-weight: 700;
   color: var(--on-accent);
   background: var(--accent);

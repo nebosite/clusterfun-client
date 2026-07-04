@@ -29,6 +29,9 @@
   --ui: "Space Grotesk", system-ui, sans-serif;
   --mono: "Space Mono", ui-monospace, monospace;
 
+  /* Global font-scale knob — every font-size is calc(<px> * var(--fs)). */
+  --fs: 1.5;
+
   box-sizing: border-box;
   color: var(--text);
   font-family: var(--ui);
@@ -72,7 +75,7 @@
   border: 1px solid rgba(255, 62, 165, 0.4);
   color: #ffb3d6;
   font-family: var(--mono);
-  font-size: 20px;
+  font-size: calc(20px * var(--fs));
 }
 
 /* ---- Shared logo (Party Burst) ---- */
@@ -121,7 +124,7 @@
   justify-content: space-between;
 }
 .presenter .wordmark {
-  font-size: 40px;
+  font-size: calc(40px * var(--fs));
 }
 .topBarRight {
   display: flex;
@@ -135,7 +138,7 @@
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  font-size: 18px;
+  font-size: calc(18px * var(--fs));
   color: var(--lime);
 }
 .liveDot {
@@ -147,12 +150,12 @@
 }
 .dropsNote {
   font-family: var(--mono);
-  font-size: 18px;
+  font-size: calc(18px * var(--fs));
   color: var(--text-dim);
 }
 .joinPill {
   font-family: var(--mono);
-  font-size: 18px;
+  font-size: calc(18px * var(--fs));
   letter-spacing: 0.04em;
   color: var(--cyan);
   padding: 11px 20px;
@@ -183,7 +186,7 @@
   align-items: center;
   justify-content: center;
   font-family: var(--display);
-  font-size: 62px;
+  font-size: calc(62px * var(--fs));
   color: #08080d;
 }
 .spotlightBody {
@@ -196,16 +199,16 @@
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  font-size: 17px;
+  font-size: calc(17px * var(--fs));
   color: var(--cyan);
 }
 .spotlightName {
   font-family: var(--display);
-  font-size: 52px;
+  font-size: calc(52px * var(--fs));
   line-height: 1;
 }
 .spotlightBlurb {
-  font-size: 21px;
+  font-size: calc(21px * var(--fs));
   color: var(--text-dim);
   max-width: 900px;
 }
@@ -218,7 +221,7 @@
 .playNow {
   font-family: var(--ui);
   font-weight: 700;
-  font-size: 20px;
+  font-size: calc(20px * var(--fs));
   color: #08080d;
   background: var(--lime);
   border: none;
@@ -235,7 +238,7 @@
 }
 .badge {
   font-family: var(--mono);
-  font-size: 17px;
+  font-size: calc(17px * var(--fs));
   color: var(--text-dim);
   padding: 9px 15px;
   border-radius: 999px;
@@ -254,7 +257,7 @@
 .tab {
   font-family: var(--ui);
   font-weight: 600;
-  font-size: 18px;
+  font-size: calc(18px * var(--fs));
   color: var(--text-dim);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -317,7 +320,7 @@
   justify-content: center;
   font-family: var(--ui);
   font-weight: 700;
-  font-size: 26px;
+  font-size: calc(26px * var(--fs));
   color: #08080d;
 }
 .cardBody {
@@ -329,17 +332,17 @@
 .cardName {
   font-family: var(--ui);
   font-weight: 600;
-  font-size: 23px;
+  font-size: calc(23px * var(--fs));
   line-height: 1.1;
 }
 .cardCategory {
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  font-size: 14px;
+  font-size: calc(14px * var(--fs));
 }
 .cardBlurb {
-  font-size: 16px;
+  font-size: calc(16px * var(--fs));
   color: var(--text-dim);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -352,14 +355,14 @@
 }
 .cardBadge {
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: calc(14px * var(--fs));
   color: var(--text-faint);
 }
 .gameTag {
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  font-size: 12px;
+  font-size: calc(12px * var(--fs));
   color: var(--yellow);
 }
 
@@ -373,7 +376,7 @@
 .roomCodeButton {
   font-family: var(--ui);
   font-weight: 600;
-  font-size: 19px;
+  font-size: calc(19px * var(--fs));
   color: var(--cyan);
   background: transparent;
   border: 1px solid rgba(34, 224, 255, 0.4);
@@ -387,7 +390,7 @@
 }
 .version {
   font-family: var(--mono);
-  font-size: 15px;
+  font-size: calc(15px * var(--fs));
   color: var(--text-faint);
 }
 
@@ -410,7 +413,7 @@
   justify-content: center;
 }
 .client .wordmark {
-  font-size: 34px;
+  font-size: calc(34px * var(--fs));
 }
 .clientHeading {
   text-align: center;
@@ -421,11 +424,11 @@
 .clientTitle {
   font-family: var(--ui);
   font-weight: 700;
-  font-size: 46px;
+  font-size: calc(46px * var(--fs));
   line-height: 1;
 }
 .clientSub {
-  font-size: 22px;
+  font-size: calc(22px * var(--fs));
   color: var(--text-dim);
 }
 
@@ -455,14 +458,14 @@
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  font-size: 18px;
+  font-size: calc(18px * var(--fs));
   color: var(--text-dim);
 }
 .welcomeBadge {
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: 14px;
+  font-size: calc(14px * var(--fs));
   color: #08080d;
   background: var(--lime);
   border-radius: 999px;
@@ -472,7 +475,7 @@
   width: 100%;
   font-family: var(--ui);
   font-weight: 500;
-  font-size: 30px;
+  font-size: calc(30px * var(--fs));
   color: var(--text);
   background: var(--field);
   border: 1px solid var(--border);
@@ -493,7 +496,7 @@
 .resetLink {
   align-self: flex-start;
   font-family: var(--ui);
-  font-size: 18px;
+  font-size: calc(18px * var(--fs));
   color: var(--cyan);
   background: none;
   border: none;
@@ -564,7 +567,7 @@
   justify-content: center;
   font-family: var(--mono);
   font-weight: 700;
-  font-size: 64px;
+  font-size: calc(64px * var(--fs));
   color: var(--text);
   background: var(--field);
   border: 2px solid var(--border);
@@ -590,7 +593,7 @@
   width: 100%;
   font-family: var(--ui);
   font-weight: 700;
-  font-size: 28px;
+  font-size: calc(28px * var(--fs));
   color: #08080d;
   background: linear-gradient(90deg, var(--cyan), var(--lime));
   border: none;
@@ -621,7 +624,7 @@
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  font-size: 16px;
+  font-size: calc(16px * var(--fs));
 }
 .orDivider::before,
 .orDivider::after {
@@ -635,7 +638,7 @@
   width: 100%;
   font-family: var(--ui);
   font-weight: 700;
-  font-size: 26px;
+  font-size: calc(26px * var(--fs));
   color: var(--magenta);
   background: transparent;
   border: 2px solid var(--magenta);
@@ -657,7 +660,7 @@
 .hostSub {
   font-family: var(--ui);
   font-weight: 400;
-  font-size: 17px;
+  font-size: calc(17px * var(--fs));
   color: var(--text-dim);
 }
 
@@ -673,7 +676,7 @@
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  font-size: 16px;
+  font-size: calc(16px * var(--fs));
   color: var(--text-faint);
 }
 .fidgetGrid {
@@ -701,7 +704,7 @@
 
 .clientVersion {
   font-family: var(--mono);
-  font-size: 15px;
+  font-size: calc(15px * var(--fs));
   color: var(--text-faint);
 }
 

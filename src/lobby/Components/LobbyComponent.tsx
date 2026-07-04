@@ -81,7 +81,7 @@ class PresenterComponent extends React.Component<
 
         {/* Top bar */}
         <div className={styles.presenterTopBar}>
-          <PartyBurstLogo size={40} fontSize={40} />
+          <PartyBurstLogo size={40} fontSize={60} />
           <div className={styles.topBarRight}>
             <span className={styles.liveBadge}>
               <span className={styles.liveDot} /> live
@@ -305,7 +305,7 @@ class GameClientComponent extends React.Component<
           <div className={styles.errorMessage}>{lobbyModel.lobbyErrorMessage}</div>
         ) : null}
 
-        <PartyBurstLogo size={26} fontSize={30} />
+        <PartyBurstLogo size={26} fontSize={45} />
 
         <div className={styles.clientHeading}>
           <span className={styles.clientTitle}>Jump in</span>
