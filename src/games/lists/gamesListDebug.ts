@@ -1,17 +1,9 @@
 import StressatoAssets from "games/stressgame/assets/Assets";
 import TestatoAssets from "games/TestGame/assets/Assets";
-import PartyPixAssets from "games/PartyPix/assets/Assets";
 import { GameDescriptor } from "./GameDescriptor";
 import releaseGames from "./gamesListRelease";
 
 const debugOnlyGames: GameDescriptor[] = [
-  {
-    name: "PartyPix",
-    displayName: "PartyPix",
-    tags: ["debug"],
-    logoName: PartyPixAssets.images.logo,
-    importThunk: () => import("../PartyPix/views/GameComponent"),
-  },
   {
     name: "Stressato",
     displayName: "Stress Game",
