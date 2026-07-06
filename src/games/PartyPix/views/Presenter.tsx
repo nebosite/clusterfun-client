@@ -30,6 +30,49 @@ const Wordmark: React.FC<{ className?: string }> = ({ className }) => (
 @inject("appModel")
 @observer
 class JoinPage extends React.Component<{ appModel?: PartyPixPresenterModel }> {
+  private renderFolder(appModel: PartyPixPresenterModel) {
+    switch (appModel.folderStatus) {
+      case "connected":
+        return (
+          <span className={styles.folderConnected}>
+            💾 Saving photos to <b>{appModel.folderName}</b>
+          </span>
+        );
+      case "needsReconnect":
+        return (
+          <button className={styles.folderButton} onClick={() => appModel.reconnectFolder()}>
+            Reconnect photo folder{appModel.folderName ? ` · ${appModel.folderName}` : ""}
+          </button>
+        );
+      case "unsupported":
+        return (
+          <span className={styles.folderNote}>
+            Photo saving needs Chrome or Edge — photos are kept for this session only.
+          </span>
+        );
+      case "none":
+      default:
+        return (
+          <>
+            <button className={styles.folderButton} onClick={() => appModel.chooseFolder()}>
+              Choose a photo folder
+            </button>
+            <label className={styles.folderCheck}>
+              <input
+                type="checkbox"
+                checked={appModel.includeExistingChoice}
+                onChange={(e) => appModel.setIncludeExistingChoice(e.target.checked)}
+              />
+              Include photos already in the folder
+            </label>
+            <span className={styles.folderNote}>
+              Saves photos so the slideshow survives a refresh. Optional.
+            </span>
+          </>
+        );
+    }
+  }
+
   render() {
     const { appModel } = this.props;
     if (!appModel) return <div>NO APP MODEL</div>;
@@ -54,6 +97,8 @@ class JoinPage extends React.Component<{ appModel?: PartyPixPresenterModel }> {
         <div className={styles.joinHint}>
           Everyone starts with <b>3 photo credits</b>. The slideshow begins with the first photo.
         </div>
+
+        <div className={styles.folderCard}>{this.renderFolder(appModel)}</div>
 
         <div className={styles.playerStrip}>
           <span className={styles.playerCount}>{appModel.players.length} players in</span>
@@ -134,6 +179,11 @@ class SlideshowPage extends React.Component<
         <div className={styles.showTopRight}>
           Join at {window.location.host} · <b>{appModel.roomId}</b>
         </div>
+        {appModel.folderStatus === "needsReconnect" ? (
+          <button className={styles.reconnectChip} onClick={() => appModel.reconnectFolder()}>
+            ⚠ Reconnect photo folder to keep saving
+          </button>
+        ) : null}
 
         {this.state.banner ? <div className={styles.banner}>{this.state.banner}</div> : null}
         {this.state.toast ? <div className={styles.toast}>🎉 {this.state.toast}</div> : null}

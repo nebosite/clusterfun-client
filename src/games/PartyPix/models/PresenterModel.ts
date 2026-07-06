@@ -30,6 +30,7 @@ import {
   shouldAutoDelete,
   upvotesUntilNextCredit,
 } from "./partyPixLogic";
+import { PhotoStore } from "./PhotoStore";
 
 // -------------------------------------------------------------------
 // Player + photo domain objects
@@ -53,6 +54,14 @@ export class PartyPixPhoto {
   full: string; // base64 data URL, full slideshow resolution
   thumb: string; // base64 data URL, small (phone "now showing")
   createdAt: number;
+
+  // On-disk backing (when a folder is connected). `managed` = PartyPix created
+  // the file, so it may be deleted; pre-existing files are only ever hidden.
+  // `removed` guards the upload→save race: if the photo is deleted before its
+  // async disk write finishes, the write's callback cleans the orphaned file up.
+  fileName?: string;
+  managed = true;
+  removed = false;
 
   upVoters = new Set<string>();
   downVoters = new Set<string>();
@@ -131,13 +140,24 @@ export const getPartyPixPresenterTypeHelper = (
     },
     shouldStringify(typeName: string, propertyName: string, object: any): boolean {
       if (object instanceof PartyPixPresenterModel) {
-        // Never serialize the in-memory photo blobs (they'd blow the
-        // localStorage checkpoint). Because `photos` is skipped, PartyPixPhoto
-        // is deliberately NOT registered in getTypeName/constructType above —
-        // if you ever serialize a photo (e.g. drop this skip or add a
-        // serialized field holding a photo ref), the deep serializer will throw
-        // until PartyPixPhoto is registered too.
-        if (propertyName === "photos") return false;
+        // Skip these on the presenter model:
+        //  - `photos`: the base64 blobs would blow the localStorage checkpoint
+        //    (and PartyPixPhoto is intentionally unregistered — see below).
+        //  - `photoStore`: a PhotoStore instance; the deep serializer throws on
+        //    any unregistered class, so leaving it in would break EVERY
+        //    checkpoint (killing player credit/totalUp persistence). The folder
+        //    handle is remembered separately in IndexedDB by PhotoStore.
+        //  - folder UI scalars: transient; re-derived by initPhotoStore on load.
+        // Because `photos` is skipped, PartyPixPhoto is deliberately NOT
+        // registered in getTypeName/constructType above.
+        const skip = [
+          "photos",
+          "photoStore",
+          "folderStatus",
+          "folderName",
+          "includeExistingChoice",
+        ];
+        if (skip.indexOf(propertyName) !== -1) return false;
       }
       return true;
     },
@@ -156,6 +176,14 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
   @observable currentIndex = 0;
   private _nextSlideAt = 0;
 
+  // On-disk photo folder (optional; File System Access API). Kept out of
+  // serialization — the folder handle is remembered separately in IndexedDB by
+  // PhotoStore, so a same-session refresh reconnects silently.
+  private photoStore = new PhotoStore();
+  @observable folderStatus: "unsupported" | "none" | "needsReconnect" | "connected" = "none";
+  @observable folderName = "";
+  @observable includeExistingChoice = true;
+
   constructor(sessionHelper: ISessionHelper, logger: ITelemetryLogger, storage: IStorage) {
     super("PartyPix", sessionHelper, logger, storage);
     makeObservable(this);
@@ -167,13 +195,96 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
 
   reconstitute() {
     super.reconstitute();
-    // Photos aren't persisted; if we reloaded into an empty show, drop back to
-    // the join screen.
+    // Photos live on disk (if a folder is connected) or in memory only. Start on
+    // the join screen; initPhotoStore() will reconnect a remembered folder and
+    // reload its photos, flipping to the slideshow if any exist.
     if (this.photos.length === 0) this.gameState = PresenterGameState.Gathering;
     this.listenToEndpoint(PartyPixOnboardEndpoint, this.handleOnboard);
     this.listenToEndpoint(PartyPixUploadEndpoint, this.handleUpload);
     this.listenToEndpoint(PartyPixVoteEndpoint, this.handleVote);
+    void this.initPhotoStore();
   }
+
+  // -------------------------------------------------------------------
+  //  Photo folder (persistence). The pick/reconnect calls need a user
+  //  gesture, so the view triggers them from a button; restore does not.
+  // -------------------------------------------------------------------
+  private initPhotoStore = async () => {
+    const perm = await this.photoStore.restore();
+    action(() => {
+      if (perm === "unsupported") this.folderStatus = "unsupported";
+      else if (perm === "none") this.folderStatus = "none";
+      else if (perm === "granted") {
+        this.folderStatus = "connected";
+        this.folderName = this.photoStore.folderName;
+      } else {
+        // "prompt" / "denied": remembered, but needs a one-click re-grant.
+        this.folderStatus = "needsReconnect";
+        this.folderName = this.photoStore.folderName;
+      }
+    })();
+    if (perm === "granted") await this.loadPhotosFromDisk();
+  };
+
+  setIncludeExistingChoice(value: boolean) {
+    action(() => {
+      this.includeExistingChoice = value;
+    })();
+  }
+
+  chooseFolder = async () => {
+    const ok = await this.photoStore.pickFolder(this.includeExistingChoice);
+    if (!ok) return;
+    action(() => {
+      this.folderStatus = "connected";
+      this.folderName = this.photoStore.folderName;
+    })();
+    await this.loadPhotosFromDisk();
+  };
+
+  reconnectFolder = async () => {
+    const ok = await this.photoStore.requestPermission();
+    if (!ok) return;
+    action(() => {
+      this.folderStatus = "connected";
+      this.folderName = this.photoStore.folderName;
+    })();
+    await this.loadPhotosFromDisk();
+  };
+
+  private loadPhotosFromDisk = async () => {
+    // Persist any in-memory photos taken before the folder was connected (e.g.
+    // uploads that happened while a remembered folder awaited a one-click
+    // reconnect) so rebuilding from disk below doesn't drop them.
+    const unsaved = this.photos.filter((p) => p.managed && !p.fileName && !p.removed);
+    for (const p of unsaved) {
+      const fileName = await this.photoStore.savePhoto(p.full, p.authorName, p.createdAt);
+      if (fileName) action(() => (p.fileName = fileName))();
+    }
+
+    const loaded = await this.photoStore.listPhotos();
+    action(() => {
+      this.photos.clear();
+      for (const lp of loaded) {
+        const photo = new PartyPixPhoto(
+          `disk-${lp.fileName}`,
+          "", // no live player owns a photo loaded from disk
+          lp.author,
+          lp.full,
+          lp.thumb,
+          lp.createdAt,
+        );
+        photo.fileName = lp.fileName;
+        photo.managed = lp.managed;
+        this.photos.push(photo);
+      }
+      this.currentIndex = 0;
+      this._nextSlideAt = this.gameTime_ms + SLIDE_INTERVAL_MS;
+      this.gameState =
+        this.photos.length > 0 ? PartyPixGameState.Slideshow : PresenterGameState.Gathering;
+    })();
+    this.pushSlide();
+  };
 
   createFreshPlayerEntry(name: string, id: string): PartyPixPlayer {
     const p = new PartyPixPlayer();
@@ -237,17 +348,17 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
       return { success: false, credits: player.credits, error: "You're out of credits." };
     }
 
+    const photo = new PartyPixPhoto(
+      `photo-${++photoCounter}`,
+      player.playerId,
+      player.name,
+      message.full,
+      message.thumb,
+      Date.now(),
+    );
     action(() => {
       player.credits -= UPLOAD_COST;
       player.uploads += 1;
-      const photo = new PartyPixPhoto(
-        `photo-${++photoCounter}`,
-        player.playerId,
-        player.name,
-        message.full,
-        message.thumb,
-        Date.now(),
-      );
       this.photos.push(photo);
       this.currentIndex = this.photos.length - 1; // show the newcomer right away
       this._nextSlideAt = this.gameTime_ms + SLIDE_INTERVAL_MS;
@@ -255,6 +366,17 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
         this.gameState = PartyPixGameState.Slideshow;
       }
     })();
+
+    // Persist to the chosen folder (best-effort, off the response path). Record
+    // the file name on the photo so it can be deleted later. If the photo was
+    // already removed while the write was in flight, delete the orphan now.
+    if (this.photoStore.hasFolder()) {
+      this.photoStore.savePhoto(photo.full, photo.authorName, photo.createdAt).then((fileName) => {
+        if (!fileName) return;
+        action(() => (photo.fileName = fileName))();
+        if (photo.removed) void this.photoStore.forget(fileName);
+      });
+    }
 
     this.telemetryLogger.logEvent("Presenter", "PhotoUploaded");
     this.invokeEvent(PartyPixGameEvent.PhotoUploaded, player);
@@ -326,6 +448,7 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
   };
 
   removePhoto = (photo: PartyPixPhoto) => {
+    photo.removed = true; // a still-in-flight disk write will clean up after itself
     action(() => {
       const idx = this.photos.indexOf(photo);
       if (idx >= 0) {
@@ -339,6 +462,11 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
       this._nextSlideAt = this.gameTime_ms + SLIDE_INTERVAL_MS;
       if (this.photos.length === 0) this.gameState = PresenterGameState.Gathering;
     })();
+    // Remove from disk too (deletes only our own files; pre-existing images are
+    // hidden, never destroyed — see PhotoStore.forget / photoStoreLogic).
+    if (photo.fileName && this.photoStore.hasFolder()) {
+      void this.photoStore.forget(photo.fileName);
+    }
     this.invokeEvent(PartyPixGameEvent.PhotoDeleted, photo);
     this.pushSlide();
     this.saveCheckpoint();

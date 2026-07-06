@@ -187,6 +187,55 @@
 .joinHint b {
   color: var(--lime);
 }
+.folderCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 40px;
+}
+.folderButton {
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 26px;
+  color: #08080d;
+  background: var(--cyan);
+  border: none;
+  border-radius: 999px;
+  padding: 14px 30px;
+  cursor: pointer;
+  box-shadow: 0 0 30px -10px var(--cyan);
+}
+.folderButton:hover {
+  filter: brightness(1.08);
+}
+.folderCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
+  color: var(--dim);
+  cursor: pointer;
+}
+.folderCheck input {
+  width: 28px;
+  height: 28px;
+  accent-color: var(--cyan);
+  cursor: pointer;
+}
+.folderConnected {
+  font-size: 24px;
+  color: var(--dim);
+}
+.folderConnected b {
+  color: var(--lime);
+}
+.folderNote {
+  font-size: 22px;
+  color: var(--faint);
+}
+
 .playerStrip {
   display: flex;
   flex-direction: column;
@@ -265,6 +314,21 @@
   z-index: 2;
   font-size: 30px;
   color: var(--text);
+}
+.reconnectChip {
+  position: absolute;
+  top: 44px;
+  left: 30px;
+  z-index: 3;
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 20px;
+  color: #08080d;
+  background: var(--yellow);
+  border: none;
+  border-radius: 999px;
+  padding: 8px 18px;
+  cursor: pointer;
 }
 
 /* Bottom photo card */

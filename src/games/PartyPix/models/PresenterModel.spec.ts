@@ -1,8 +1,13 @@
 import { runInAction } from "mobx";
-import { ISessionHelper } from "libs";
+import { ISessionHelper, instantiateGame, getPresenterTypeHelper } from "libs";
 import { MockTelemetryLogger } from "libs/telemetry/MockTelemetryLogger";
 import { PresenterGameState } from "libs";
-import { PartyPixPresenterModel, PartyPixGameState, PartyPixPlayer } from "./PresenterModel";
+import {
+  PartyPixPresenterModel,
+  PartyPixGameState,
+  PartyPixPlayer,
+  getPartyPixPresenterTypeHelper,
+} from "./PresenterModel";
 import { START_CREDITS } from "./GameSettings";
 
 // -------------------------------------------------------------------
@@ -205,6 +210,45 @@ describe("PartyPixPresenterModel — moderation", () => {
     model.handleVote("A", { photoId: photo.id, kind: "delete" });
     expect(model.photos.length).toBe(0);
     expect(model.gameState).toBe(PresenterGameState.Gathering);
+  });
+});
+
+describe("PartyPixPresenterModel — checkpoint serialization", () => {
+  // Regression guard for the bug where the non-serializable `photoStore` field
+  // made the deep serializer throw, silently killing ALL checkpoints (player
+  // credits/totalUp would no longer survive a refresh). Build the serializer the
+  // production way (instantiateGame wraps the type helper and attaches it).
+  it("round-trips through the real serializer, preserving players and skipping photos", () => {
+    const sent: SentMessage[] = [];
+    const session = makeFakeSession(sent);
+    const logger = new MockTelemetryLogger("test");
+    const storage = { set: () => {}, get: () => null, remove: () => {}, clear: () => {} } as any;
+
+    const typeHelper = getPresenterTypeHelper(
+      getPartyPixPresenterTypeHelper(session, { logger, storage } as any),
+    );
+    const model = instantiateGame(typeHelper, logger, storage) as unknown as PartyPixPresenterModel;
+
+    runInAction(() => {
+      const p = model.createFreshPlayerEntry("A", "A");
+      p.credits = 7;
+      p.totalUp = 4;
+      model.players.push(p);
+    });
+    model.handleUpload("A", PHOTO); // credit 7 -> 6, adds a photo (not a folder run)
+
+    const serializer = model.serializer!;
+    let json = "";
+    // The Finding-1 regression: this used to throw on the `photoStore` field.
+    expect(() => {
+      json = serializer.stringify(model);
+    }).not.toThrow();
+
+    const back = serializer.parse<PartyPixPresenterModel>(json);
+    expect(back.players.length).toBe(1);
+    expect(back.players[0].credits).toBe(6); // player state survives a checkpoint
+    expect(back.players[0].totalUp).toBe(4);
+    expect(back.photos.length).toBe(0); // photos are intentionally never serialized
   });
 });
 
