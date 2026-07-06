@@ -1,0 +1,380 @@
+/* ================================================================
+   PartyPix — presenter (the party TV). Neon Arcade on dark.
+   Virtual canvas 1920x1080. The photo is the star; chrome is thin.
+   ================================================================ */
+
+.gamepresenter {
+  --bg: #08080d;
+  --raised: #0d0d14;
+  --surface: rgba(255, 255, 255, 0.055);
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #ffffff;
+  --dim: rgba(255, 255, 255, 0.55);
+  --faint: rgba(255, 255, 255, 0.33);
+  --cyan: #22e0ff;
+  --magenta: #ff3ea5;
+  --lime: #b6ff3a;
+  --yellow: #ffd21a;
+  --display: "Bungee", system-ui, sans-serif;
+  --ui: "Space Grotesk", system-ui, sans-serif;
+  --mono: "Space Mono", ui-monospace, monospace;
+
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ui);
+  font-size: 26px;
+}
+.gamepresenter *,
+.gamepresenter *::before,
+.gamepresenter *::after {
+  box-sizing: border-box;
+}
+
+.glowCyan,
+.glowMagenta {
+  position: absolute;
+  width: 720px;
+  height: 720px;
+  border-radius: 50%;
+  filter: blur(160px);
+  opacity: 0.18;
+  pointer-events: none;
+  z-index: 0;
+}
+.glowCyan {
+  top: -260px;
+  left: -200px;
+  background: var(--cyan);
+}
+.glowMagenta {
+  bottom: -280px;
+  right: -220px;
+  background: var(--magenta);
+}
+
+/* Host chrome (quit / pause / room / version) */
+.frame {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 28px;
+}
+.frameSpacer {
+  flex: 1;
+}
+.hostButton {
+  font-family: var(--ui);
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 9px 20px;
+  cursor: pointer;
+}
+.hostButton:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+.frameRoom {
+  font-family: var(--mono);
+  font-size: 18px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.frameRoom b {
+  color: var(--cyan);
+  font-size: 22px;
+  letter-spacing: 0.12em;
+}
+.frameVersion {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--faint);
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  height: calc(100% - 78px);
+}
+
+/* ---- Wordmark ---- */
+.wordmark {
+  font-family: var(--display);
+  letter-spacing: 1px;
+}
+.wordmark .pix {
+  color: var(--magenta);
+}
+
+/* ================================================================
+   Gathering / Join screen
+   ================================================================ */
+.join {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 34px;
+  padding: 20px 60px 60px;
+}
+.joinWordmark {
+  font-size: 132px;
+  color: var(--cyan);
+  text-shadow: 0 0 60px rgba(34, 224, 255, 0.45);
+  line-height: 1;
+}
+.joinTagline {
+  font-size: 30px;
+  color: var(--dim);
+  margin-top: -14px;
+}
+.joinCard {
+  display: flex;
+  align-items: center;
+  gap: 60px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 40px 64px;
+}
+.joinCol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.joinLabel {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 22px;
+  color: var(--faint);
+}
+.joinUrl {
+  font-family: var(--ui);
+  font-weight: 600;
+  font-size: 48px;
+  color: var(--text);
+}
+.joinCode {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 128px;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  color: var(--cyan);
+  text-shadow: 0 0 40px rgba(34, 224, 255, 0.4);
+}
+.joinDivider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+}
+.joinHint {
+  font-size: 26px;
+  color: var(--dim);
+}
+.joinHint b {
+  color: var(--lime);
+}
+.playerStrip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.playerCount {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 22px;
+  color: var(--faint);
+}
+.playerChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  max-width: 1400px;
+}
+.chip {
+  font-family: var(--ui);
+  font-weight: 600;
+  font-size: 24px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 22px;
+}
+
+/* ================================================================
+   Slideshow
+   ================================================================ */
+.show {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 40px;
+}
+.stagePhoto {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  box-shadow: 0 0 80px -20px rgba(34, 224, 255, 0.35);
+}
+.showTopRight {
+  position: absolute;
+  top: 6px;
+  right: 30px;
+  z-index: 2;
+  font-family: var(--mono);
+  font-size: 20px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.showTopRight b {
+  color: var(--cyan);
+  letter-spacing: 0.12em;
+}
+.showWordmark {
+  position: absolute;
+  top: 2px;
+  left: 30px;
+  z-index: 2;
+  font-size: 30px;
+  color: var(--text);
+}
+
+/* Bottom photo card */
+.photoBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 20px 44px 26px;
+}
+.author {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 34px;
+  font-weight: 600;
+}
+.authorDot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 16px var(--cyan);
+}
+.barSpacer {
+  flex: 1;
+}
+.tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 44px;
+}
+.tallyUp {
+  color: var(--lime);
+}
+.tallyDown {
+  color: var(--magenta);
+}
+.tallyIcon {
+  font-size: 40px;
+}
+.photoCounter {
+  font-family: var(--mono);
+  font-size: 26px;
+  color: var(--faint);
+  letter-spacing: 0.08em;
+}
+
+/* New-photo banner + credit toast */
+.banner {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 30px;
+  color: #08080d;
+  background: var(--lime);
+  border-radius: 999px;
+  padding: 12px 30px;
+  box-shadow: 0 0 40px -8px var(--lime);
+}
+.toast {
+  position: absolute;
+  bottom: 130px;
+  right: 44px;
+  z-index: 4;
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 28px;
+  color: var(--lime);
+  background: var(--raised);
+  border: 1px solid rgba(182, 255, 58, 0.4);
+  border-radius: 16px;
+  padding: 14px 24px;
+}
+
+.emptyShow {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  color: var(--dim);
+  font-size: 34px;
+}
+
+/* Paused / generic */
+.centerMsg {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+.centerMsg h2 {
+  font-size: 44px;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gamepresenter * {
+    transition: none !important;
+  }
+}

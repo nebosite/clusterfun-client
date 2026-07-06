@@ -52,6 +52,12 @@ export interface GamePresentation {
 // Hand-authored presentation for the games we ship; anything else falls
 // back to derived defaults so the catalog can grow without edits here.
 const KNOWN: Record<string, Partial<GamePresentation>> = {
+  PartyPix: {
+    category: "Party",
+    blurb: "Snap guests around the party, upload your best, and vote them onto the big screen.",
+    players: "1–50",
+    playTime: "∞",
+  },
   Lexible: {
     category: "Word",
     blurb: "Claim letters and build words across a shared board to outscore the room.",
