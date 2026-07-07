@@ -9,6 +9,7 @@ import { UIProperties, UINormalizer } from "libs";
 import Logger from "js-logger";
 import { GameDescriptor } from "games/lists/GameDescriptor";
 import { PartyBurstLogo } from "./PartyBurstLogo";
+import { ScaleToWidth } from "./ScaleToWidth";
 import {
   CATEGORIES,
   TILE_PALETTE,
@@ -495,9 +496,13 @@ export class LobbyComponent extends React.Component<LobbyComponentProps> {
     }
 
     return displayMode === LobbyMode.Presenter ? (
-      <UINormalizer uiProperties={uiProperties} virtualWidth={1920} virtualHeight={1080}>
+      <ScaleToWidth
+        virtualWidth={1920}
+        containerWidth={uiProperties.containerWidth}
+        containerHeight={uiProperties.containerHeight}
+      >
         <PresenterComponent games={games} />
-      </UINormalizer>
+      </ScaleToWidth>
     ) : (
       <UINormalizer uiProperties={uiProperties} virtualWidth={1080} virtualHeight={1920}>
         <GameClientComponent />
