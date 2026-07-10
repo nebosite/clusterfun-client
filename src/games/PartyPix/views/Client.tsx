@@ -15,7 +15,11 @@ import { fileToUploadPair } from "./imageUtil";
 import {
   MAX_IMAGE_EDGE,
   THUMB_IMAGE_EDGE,
-  JPEG_QUALITY,
+  TARGET_IMAGE_BYTES,
+  JPEG_QUALITY_START,
+  JPEG_QUALITY_MIN,
+  JPEG_QUALITY_STEP,
+  THUMB_JPEG_QUALITY,
   UPLOAD_COST,
 } from "../models/GameSettings";
 
@@ -66,7 +70,15 @@ export default class Client extends React.Component<
     if (!file) return;
     this.setState({ busy: true });
     try {
-      const pair = await fileToUploadPair(file, MAX_IMAGE_EDGE, THUMB_IMAGE_EDGE, JPEG_QUALITY);
+      const pair = await fileToUploadPair(file, {
+        fullEdge: MAX_IMAGE_EDGE,
+        thumbEdge: THUMB_IMAGE_EDGE,
+        targetBytes: TARGET_IMAGE_BYTES,
+        startQuality: JPEG_QUALITY_START,
+        minQuality: JPEG_QUALITY_MIN,
+        qualityStep: JPEG_QUALITY_STEP,
+        thumbQuality: THUMB_JPEG_QUALITY,
+      });
       this.setState({ review: pair, busy: false });
     } catch (err) {
       this.setState({ busy: false });
@@ -121,13 +133,6 @@ export default class Client extends React.Component<
 
     return (
       <>
-        <div className={styles.credits}>
-          🎞️ {appModel.credits} {appModel.credits === 1 ? "CREDIT" : "CREDITS"}
-        </div>
-        <div className={styles.earnHint}>
-          Earn a credit for every 3 upvotes · next in {appModel.untilNextCredit}
-        </div>
-
         {canAfford ? (
           <>
             <button className={styles.takePhoto} onClick={this.openPicker} disabled={busy}>
@@ -140,8 +145,11 @@ export default class Client extends React.Component<
           <div className={styles.outOfCredits}>
             OUT OF CREDITS
             <div className={styles.sub}>
-              Earn one when your photos get {appModel.untilNextCredit} more upvote
-              {appModel.untilNextCredit === 1 ? "" : "s"}.
+              {appModel.untilNextCredit > 0
+                ? `Earn one when your photos get ${appModel.untilNextCredit} more upvote${
+                    appModel.untilNextCredit === 1 ? "" : "s"
+                  }.`
+                : "You've earned all your credit rewards."}
             </div>
           </div>
         )}
@@ -231,6 +239,19 @@ export default class Client extends React.Component<
     if (!appModel) return null;
     return (
       <>
+        {/* Credits stay visible on every tab, including while voting. */}
+        <div className={styles.creditStrip}>
+          <span className={styles.creditCount}>
+            🎞️ {appModel.credits} {appModel.credits === 1 ? "credit" : "credits"}
+          </span>
+          <span className={styles.creditNext}>
+            {appModel.untilNextCredit > 0
+              ? `next credit in ${appModel.untilNextCredit} upvote${
+                  appModel.untilNextCredit === 1 ? "" : "s"
+                }`
+              : "all credit rewards earned"}
+          </span>
+        </div>
         <div className={styles.tabs}>
           <button
             className={classNames(styles.tab, {

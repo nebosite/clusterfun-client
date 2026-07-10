@@ -16,13 +16,18 @@ turn-based. Everyone uploads and votes whenever they like; join at any moment.
 ## Economy (concrete)
 
 - Start credits: **3**. Upload cost: **1**. Can't upload at 0.
-- Earn: **every 3 upvotes your photos receive (cumulative)** grants **+1 credit**. Track lifetime
-  `totalUp`; grant a credit each time it crosses a new multiple of 3.
+- Earn: a bonus credit as your cumulative upvotes (`totalUp`) cross **2, 5, and 20** upvotes (three
+  bonus credits total; none after 20).
+- Credits (and "next credit in N upvotes") are shown **on every phone tab**, including while voting.
 - Downvotes: tally + weighting only. They **do not** reduce credits or `totalUp`.
-- Flags/delete-requests: when a photo's flag count reaches **max(3, ceil(players × 0.4))**, it is
-  auto-removed. Removal never penalizes the author's earned credits.
+- Flags: a **single flag pulls a photo out of rotation** into the presenter's flagged holding area
+  (remembered, not deleted). The host reviews flagged photos (with who flagged each) and either
+  **OK**s it (returns to rotation; now needs **3** flags to be pulled again) or **Bans** it
+  (permanently removed; its content hash blocks re-uploading the same image). Removal never
+  penalizes the author's earned credits.
 - Anti-abuse: one up/down per player per photo (mutually exclusive, changeable); **can't vote your
-  own photo**; one flag per player; credit **soft cap 9**.
+  own photo**; one flag per player; each voter advances an author toward a credit at most once;
+  credit **soft cap 9**.
 
 ## State machine
 

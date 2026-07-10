@@ -11,7 +11,7 @@ import {
 } from "libs";
 import { action, makeObservable, observable } from "mobx";
 import { PartyPixGameState } from "./PresenterModel";
-import { START_CREDITS, UPVOTES_PER_CREDIT } from "./GameSettings";
+import { START_CREDITS, CREDIT_UPVOTE_MILESTONES } from "./GameSettings";
 import {
   PartyPixOnboardEndpoint,
   PartyPixUploadEndpoint,
@@ -76,7 +76,7 @@ export const getPartyPixClientTypeHelper = (
 export class PartyPixClientModel extends ClusterfunClientModel {
   @observable credits = START_CREDITS;
   @observable totalUp = 0;
-  @observable untilNextCredit = UPVOTES_PER_CREDIT;
+  @observable untilNextCredit = CREDIT_UPVOTE_MILESTONES[0]; // overwritten by onboard/pushes
   @observable currentSlide: PartyPixSlideInfo | null = null;
   @observable viewMode: ClientViewMode = "capture";
 

@@ -437,6 +437,170 @@
   font-weight: 700;
 }
 
+/* ---- Host controls (thumbnails / flagged) ---- */
+.showControls {
+  position: absolute;
+  top: 48px;
+  right: 30px;
+  z-index: 3;
+  display: flex;
+  gap: 12px;
+}
+.controlButton {
+  font-family: var(--ui);
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+.controlButton:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.controlButtonAlert {
+  color: #08080d;
+  background: var(--yellow);
+  border-color: var(--yellow);
+}
+
+/* ---- Overlays (flagged review + thumbnail grid) ---- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: rgba(8, 8, 13, 0.96);
+  display: flex;
+  flex-direction: column;
+  padding: 32px 44px 44px;
+}
+.overlayHeader {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+.overlayTitle {
+  font-family: var(--display);
+  font-size: 40px;
+  color: var(--cyan);
+}
+.overlayClose {
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 12px 28px;
+  cursor: pointer;
+}
+.overlayEmpty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  color: var(--dim);
+}
+
+/* Flagged review cards */
+.flaggedGrid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  align-content: start;
+}
+.flaggedCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+}
+.flaggedImg {
+  width: 100%;
+  height: 300px;
+  object-fit: contain;
+  background: #000;
+  border-radius: 10px;
+}
+.flaggedAuthor {
+  font-size: 24px;
+  font-weight: 600;
+}
+.flaggedBy {
+  font-size: 20px;
+  color: var(--yellow);
+}
+.flaggedActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+.okButton,
+.banButton {
+  flex: 1;
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 20px;
+  border-radius: 10px;
+  padding: 14px 10px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.okButton {
+  color: #08080d;
+  background: var(--lime);
+}
+.banButton {
+  background: transparent;
+  border-color: var(--magenta);
+  color: var(--magenta);
+}
+.banButton:hover {
+  background: rgba(255, 62, 165, 0.12);
+}
+
+/* Thumbnail grid */
+.thumbGrid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  align-content: start;
+}
+.thumbCell {
+  padding: 0;
+  border: 3px solid transparent;
+  border-radius: 12px;
+  background: #000;
+  cursor: pointer;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+}
+.thumbCurrent {
+  border-color: var(--cyan);
+  box-shadow: 0 0 24px -6px var(--cyan);
+}
+.thumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gamepresenter * {
     transition: none !important;

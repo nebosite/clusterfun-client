@@ -1,6 +1,7 @@
 // App Navigation handled here
 import React from "react";
 import { observer, inject } from "mobx-react";
+import classNames from "classnames";
 import styles from "./Presenter.module.css";
 import {
   MediaHelper,
@@ -124,14 +125,14 @@ class JoinPage extends React.Component<{ appModel?: PartyPixPresenterModel }> {
 @observer
 class SlideshowPage extends React.Component<
   { appModel?: PartyPixPresenterModel; media: MediaHelper },
-  { banner: string | null; toast: string | null }
+  { banner: string | null; toast: string | null; mode: "show" | "flagged" | "thumbs" }
 > {
   private _bannerTimer: any;
   private _toastTimer: any;
 
   constructor(props: { appModel?: PartyPixPresenterModel; media: MediaHelper }) {
     super(props);
-    this.state = { banner: null, toast: null };
+    this.state = { banner: null, toast: null, mode: "show" };
 
     const { appModel } = props;
     appModel?.subscribe(
@@ -168,6 +169,80 @@ class SlideshowPage extends React.Component<
     this._toastTimer = setTimeout(() => this.setState({ toast: null }), 2600);
   }
 
+  // Flagged review: each flagged photo, who flagged it, and Ban / OK actions.
+  private renderFlaggedOverlay(appModel: PartyPixPresenterModel) {
+    return (
+      <div className={styles.overlay}>
+        <div className={styles.overlayHeader}>
+          <span className={styles.overlayTitle}>Flagged photos</span>
+          <button className={styles.overlayClose} onClick={() => this.setState({ mode: "show" })}>
+            Close ✕
+          </button>
+        </div>
+        {appModel.flaggedPhotos.length === 0 ? (
+          <div className={styles.overlayEmpty}>No flagged photos right now. 🎉</div>
+        ) : (
+          <div className={styles.flaggedGrid}>
+            {appModel.flaggedPhotos.map((p) => {
+              const flaggers = Array.from(p.flaggerNames.values());
+              return (
+                <div className={styles.flaggedCard} key={p.id}>
+                  <img className={styles.flaggedImg} src={p.full} alt="flagged" />
+                  <div className={styles.flaggedAuthor}>📸 {p.authorName || "from the folder"}</div>
+                  <div className={styles.flaggedBy}>
+                    Flagged by {flaggers.length ? flaggers.join(", ") : `${p.deleteCount} guest(s)`}
+                  </div>
+                  <div className={styles.flaggedActions}>
+                    <button className={styles.okButton} onClick={() => appModel.moderateOk(p)}>
+                      OK · needs 3 flags
+                    </button>
+                    <button className={styles.banButton} onClick={() => appModel.moderateBan(p)}>
+                      Ban permanently
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Thumbnail grid: tap a photo to resume the slideshow from there.
+  private renderThumbsOverlay(appModel: PartyPixPresenterModel) {
+    return (
+      <div className={styles.overlay}>
+        <div className={styles.overlayHeader}>
+          <span className={styles.overlayTitle}>All photos · tap to jump</span>
+          <button className={styles.overlayClose} onClick={() => this.setState({ mode: "show" })}>
+            Close ✕
+          </button>
+        </div>
+        {appModel.photos.length === 0 ? (
+          <div className={styles.overlayEmpty}>No photos in the show yet.</div>
+        ) : (
+          <div className={styles.thumbGrid}>
+            {appModel.photos.map((p, i) => (
+              <button
+                key={p.id}
+                className={classNames(styles.thumbCell, {
+                  [styles.thumbCurrent]: p === appModel.currentPhoto,
+                })}
+                onClick={() => {
+                  appModel.jumpToPhoto(p);
+                  this.setState({ mode: "show" });
+                }}
+              >
+                <img className={styles.thumbImg} src={p.thumb || p.full} alt={`photo ${i + 1}`} />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   render() {
     const { appModel } = this.props;
     if (!appModel) return <div>NO APP MODEL</div>;
@@ -184,6 +259,27 @@ class SlideshowPage extends React.Component<
             ⚠ Reconnect photo folder to keep saving
           </button>
         ) : null}
+
+        {/* Host controls */}
+        <div className={styles.showControls}>
+          <button
+            className={styles.controlButton}
+            onClick={() => this.setState({ mode: "thumbs" })}
+          >
+            ▦ Thumbnails
+          </button>
+          <button
+            className={classNames(styles.controlButton, {
+              [styles.controlButtonAlert]: appModel.flaggedPhotos.length > 0,
+            })}
+            onClick={() => this.setState({ mode: "flagged" })}
+          >
+            ⚑ Flagged: {appModel.flaggedPhotos.length}
+          </button>
+        </div>
+
+        {this.state.mode === "flagged" ? this.renderFlaggedOverlay(appModel) : null}
+        {this.state.mode === "thumbs" ? this.renderThumbsOverlay(appModel) : null}
 
         {this.state.banner ? <div className={styles.banner}>{this.state.banner}</div> : null}
         {this.state.toast ? <div className={styles.toast}>🎉 {this.state.toast}</div> : null}

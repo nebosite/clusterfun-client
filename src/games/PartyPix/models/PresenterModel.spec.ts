@@ -108,27 +108,25 @@ describe("PartyPixPresenterModel — upload", () => {
 });
 
 describe("PartyPixPresenterModel — voting + credits", () => {
-  it("awards the author a credit after three distinct upvotes", () => {
+  it("awards the author a credit at the first upvote milestone (2 upvotes)", () => {
     const { model } = makeModel();
     const author = addPlayer(model, "A", "Alice");
     addPlayer(model, "B", "Bob");
     addPlayer(model, "C", "Carol");
-    addPlayer(model, "D", "Dave");
 
     model.handleUpload("A", PHOTO);
     expect(author.credits).toBe(2); // 3 start - 1 upload
     const photo = model.photos[0];
 
     model.handleVote("B", { photoId: photo.id, kind: "up" });
+    expect(author.totalUp).toBe(1);
+    expect(author.credits).toBe(2); // milestone 2 not reached yet
+    expect(photo.up).toBe(1);
+
     model.handleVote("C", { photoId: photo.id, kind: "up" });
     expect(author.totalUp).toBe(2);
-    expect(author.credits).toBe(2); // no boundary crossed yet
     expect(photo.up).toBe(2);
-
-    model.handleVote("D", { photoId: photo.id, kind: "up" });
-    expect(author.totalUp).toBe(3);
-    expect(photo.up).toBe(3);
-    expect(author.credits).toBe(3); // 2 + 1 earned credit
+    expect(author.credits).toBe(3); // crossed milestone 2 -> +1 credit
   });
 
   it("blocks credit farming by a single toggling voter", () => {
@@ -180,36 +178,77 @@ describe("PartyPixPresenterModel — voting + credits", () => {
   });
 });
 
-describe("PartyPixPresenterModel — moderation", () => {
-  it("auto-removes a photo once the flag threshold is reached and returns to Gathering when empty", () => {
+describe("PartyPixPresenterModel — flagging + moderation", () => {
+  it("pulls a photo out of rotation on the first flag and remembers it", () => {
     const { model } = makeModel();
     addPlayer(model, "A", "Alice");
     addPlayer(model, "B", "Bob");
-    addPlayer(model, "C", "Carol");
-    addPlayer(model, "D", "Dave"); // 4 players -> threshold max(3, ceil(1.6)) = 3
-
     model.handleUpload("A", PHOTO);
     const photo = model.photos[0];
 
     model.handleVote("B", { photoId: photo.id, kind: "delete" });
-    model.handleVote("C", { photoId: photo.id, kind: "delete" });
-    expect(model.photos.length).toBe(1); // 2 flags < 3
 
-    model.handleVote("D", { photoId: photo.id, kind: "delete" });
-    expect(model.photos.length).toBe(0); // 3rd flag crosses the threshold
-    expect(model.gameState).toBe(PresenterGameState.Gathering);
+    expect(model.photos.length).toBe(0); // out of rotation
+    expect(model.flaggedPhotos.length).toBe(1); // remembered
+    expect(model.flaggedPhotos[0]).toBe(photo);
+    expect(model.gameState).toBe(PresenterGameState.Gathering); // no active photos left
+    expect(Array.from(photo.flaggerNames.values())).toContain("Bob");
   });
 
-  it("lets the author pull their own photo immediately (one flag)", () => {
+  it("OK returns a flagged photo to rotation, then needs 3 flags to pull again", () => {
     const { model } = makeModel();
     addPlayer(model, "A", "Alice");
     addPlayer(model, "B", "Bob");
+    addPlayer(model, "C", "Carol");
+    addPlayer(model, "D", "Dave");
     model.handleUpload("A", PHOTO);
     const photo = model.photos[0];
 
-    model.handleVote("A", { photoId: photo.id, kind: "delete" });
+    model.handleVote("B", { photoId: photo.id, kind: "delete" }); // 1 flag -> flagged
+    expect(model.flaggedPhotos.length).toBe(1);
+
+    model.moderateOk(photo);
+    expect(model.photos.length).toBe(1); // back in rotation
+    expect(model.flaggedPhotos.length).toBe(0);
+    expect(photo.approved).toBe(true);
+
+    // Already has Bob's flag (1); now needs 3.
+    model.handleVote("C", { photoId: photo.id, kind: "delete" }); // 2 total
+    expect(model.photos.length).toBe(1); // still in rotation (< 3)
+    model.handleVote("D", { photoId: photo.id, kind: "delete" }); // 3 total -> pulled
     expect(model.photos.length).toBe(0);
-    expect(model.gameState).toBe(PresenterGameState.Gathering);
+    expect(model.flaggedPhotos.length).toBe(1);
+  });
+
+  it("Ban removes a photo and blocks re-uploading the same image", () => {
+    const { model } = makeModel();
+    const author = addPlayer(model, "A", "Alice");
+    addPlayer(model, "B", "Bob");
+    model.handleUpload("A", PHOTO); // credits 3 -> 2
+    const photo = model.photos[0];
+
+    model.handleVote("B", { photoId: photo.id, kind: "delete" }); // -> flagged
+    model.moderateBan(photo);
+    expect(model.photos.length).toBe(0);
+    expect(model.flaggedPhotos.length).toBe(0);
+
+    // Re-uploading the exact same image is rejected and costs no credit.
+    const res = model.handleUpload("A", PHOTO);
+    expect(res.success).toBe(false);
+    expect(author.credits).toBe(2); // unchanged
+    expect(model.photos.length).toBe(0);
+  });
+
+  it("jumpToPhoto resumes the slideshow from the chosen photo", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    model.handleUpload("A", { full: "F1", thumb: "T1" });
+    model.handleUpload("A", { full: "F2", thumb: "T2" });
+    model.handleUpload("A", { full: "F3", thumb: "T3" }); // newest is shown
+    const first = model.photos[0];
+
+    model.jumpToPhoto(first);
+    expect(model.currentPhoto).toBe(first);
   });
 });
 
@@ -250,6 +289,38 @@ describe("PartyPixPresenterModel — checkpoint serialization", () => {
     expect(back.players[0].totalUp).toBe(4);
     expect(back.photos.length).toBe(0); // photos are intentionally never serialized
   });
+
+  // Guards the new skip-list entries: `flaggedPhotos` holds unregistered
+  // PartyPixPhoto objects and `bannedHashes` is a Set — if either were left in
+  // the serialized graph the deep serializer would throw (flaggedPhotos) and
+  // silently kill every checkpoint again. Exercise a model that actually has
+  // both populated.
+  it("does not choke when flaggedPhotos + bannedHashes are populated", () => {
+    const sent: SentMessage[] = [];
+    const session = makeFakeSession(sent);
+    const logger = new MockTelemetryLogger("test");
+    const storage = { set: () => {}, get: () => null, remove: () => {}, clear: () => {} } as any;
+
+    const typeHelper = getPresenterTypeHelper(
+      getPartyPixPresenterTypeHelper(session, { logger, storage } as any),
+    );
+    const model = instantiateGame(typeHelper, logger, storage) as unknown as PartyPixPresenterModel;
+
+    runInAction(() => {
+      model.players.push(model.createFreshPlayerEntry("Alice", "A"));
+      model.players.push(model.createFreshPlayerEntry("Bob", "B"));
+    });
+    model.handleUpload("A", { full: "F1", thumb: "T1" });
+    model.handleUpload("A", { full: "F2", thumb: "T2" });
+    const held = model.photos[0];
+    const toBan = model.photos[model.photos.length - 1];
+    model.handleVote("B", { photoId: held.id, kind: "delete" }); // -> flaggedPhotos
+    model.handleVote("B", { photoId: toBan.id, kind: "delete" });
+    model.moderateBan(toBan); // -> bannedHashes
+
+    expect(model.flaggedPhotos.length).toBeGreaterThan(0);
+    expect(() => model.serializer!.stringify(model)).not.toThrow();
+  });
 });
 
 describe("PartyPixPresenterModel — onboarding", () => {
@@ -274,5 +345,112 @@ describe("PartyPixPresenterModel — onboarding", () => {
     model.handleUpload("A", PHOTO);
     const info = model.handleOnboard("A");
     expect(info.slide?.youAuthored).toBe(true);
+  });
+});
+
+// -------------------------------------------------------------------
+// Slideshow index integrity as photos are pulled / OK'd / banned / jumped.
+// spliceFromActive is the one place currentIndex can desync from what is on
+// screen, so these pin down each removal position.
+// -------------------------------------------------------------------
+describe("PartyPixPresenterModel — moderation index safety", () => {
+  // Three photos by Alice; Bob is a non-author flagger. Returns [p1, p2, p3].
+  function threeUp(model: PartyPixPresenterModel) {
+    addPlayer(model, "A", "Alice");
+    addPlayer(model, "B", "Bob");
+    model.handleUpload("A", { full: "F1", thumb: "T1" });
+    model.handleUpload("A", { full: "F2", thumb: "T2" });
+    model.handleUpload("A", { full: "F3", thumb: "T3" });
+    return model.photos.slice();
+  }
+
+  it("pulling an EARLIER (non-current) photo keeps the on-screen photo", () => {
+    const { model } = makeModel();
+    const [p1, p2] = threeUp(model);
+    model.jumpToPhoto(p2); // show the middle photo
+    expect(model.currentPhoto).toBe(p2);
+
+    model.handleVote("B", { photoId: p1.id, kind: "delete" }); // pull the earlier one
+    expect(model.photos.length).toBe(2);
+    expect(model.currentPhoto).toBe(p2); // still the same photo on screen
+    expect(model.flaggedPhotos).toContain(p1);
+  });
+
+  it("pulling the CURRENT photo advances to the next", () => {
+    const { model } = makeModel();
+    const [, p2, p3] = threeUp(model);
+    model.jumpToPhoto(p2);
+
+    model.handleVote("B", { photoId: p2.id, kind: "delete" }); // pull the current one
+    expect(model.photos.length).toBe(2);
+    expect(model.currentPhoto).toBe(p3); // advanced to what shifted into its slot
+  });
+
+  it("pulling the LAST active photo returns to Gathering", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    addPlayer(model, "B", "Bob");
+    model.handleUpload("A", PHOTO);
+    const photo = model.photos[0];
+
+    model.handleVote("B", { photoId: photo.id, kind: "delete" });
+    expect(model.photos.length).toBe(0);
+    expect(model.gameState).toBe(PresenterGameState.Gathering);
+    expect(model.currentPhoto).toBeNull();
+  });
+
+  it("jumpToPhoto ignores a flagged (pulled) photo — it is not in active rotation", () => {
+    const { model } = makeModel();
+    const [p1, p2] = threeUp(model);
+    model.handleVote("B", { photoId: p1.id, kind: "delete" }); // p1 -> flagged
+    model.jumpToPhoto(p2);
+    expect(model.currentPhoto).toBe(p2);
+
+    model.jumpToPhoto(p1); // p1 is only in flaggedPhotos now
+    expect(model.currentPhoto).toBe(p2); // unchanged, no jump to a flagged photo
+    expect(model.photos).not.toContain(p1);
+  });
+
+  it("banning a flagged photo does not disturb the active rotation or currentIndex", () => {
+    const { model } = makeModel();
+    const [p1, p2] = threeUp(model);
+    model.jumpToPhoto(p2);
+    model.handleVote("B", { photoId: p1.id, kind: "delete" }); // p1 -> flagged
+    expect(model.currentPhoto).toBe(p2);
+
+    model.moderateBan(p1); // p1 lives in flaggedPhotos, not active
+    expect(model.photos.length).toBe(2);
+    expect(model.currentPhoto).toBe(p2); // active rotation untouched
+    expect(model.flaggedPhotos.length).toBe(0);
+  });
+
+  it("moderateOk flips Gathering back to Slideshow when the OK'd photo is the only one", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    addPlayer(model, "B", "Bob");
+    model.handleUpload("A", PHOTO);
+    const photo = model.photos[0];
+    model.handleVote("B", { photoId: photo.id, kind: "delete" }); // -> Gathering
+    expect(model.gameState).toBe(PresenterGameState.Gathering);
+
+    model.moderateOk(photo);
+    expect(model.gameState).toBe(PartyPixGameState.Slideshow);
+    expect(model.currentPhoto).toBe(photo);
+    expect(photo.approved).toBe(true);
+  });
+
+  it("a ban blocks only the banned image; a different image still uploads", () => {
+    const { model } = makeModel();
+    const author = addPlayer(model, "A", "Alice");
+    addPlayer(model, "B", "Bob");
+    model.handleUpload("A", PHOTO); // credits 3 -> 2
+    const photo = model.photos[0];
+    model.handleVote("B", { photoId: photo.id, kind: "delete" });
+    model.moderateBan(photo);
+
+    const res = model.handleUpload("A", { full: "DIFFERENT", thumb: "T" });
+    expect(res.success).toBe(true);
+    expect(author.credits).toBe(1); // 2 -> 1, a fresh image is fine
+    expect(model.photos.length).toBe(1);
   });
 });

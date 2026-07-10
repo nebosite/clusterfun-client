@@ -26,8 +26,9 @@ import {
   clampIndex,
   creditsForUpvoteCount,
   grantCredits,
+  imageHash,
   nextSlideIndex,
-  shouldAutoDelete,
+  shouldPullFromRotation,
   upvotesUntilNextCredit,
 } from "./partyPixLogic";
 import { PhotoStore } from "./PhotoStore";
@@ -63,6 +64,14 @@ export class PartyPixPhoto {
   managed = true;
   removed = false;
 
+  // Content fingerprint used to block re-uploading a banned photo.
+  hash: string;
+  // Once the presenter "OK"s a flagged photo it returns to rotation but then
+  // needs FLAG_THRESHOLD_APPROVED flags to be pulled again.
+  @observable approved = false;
+  // Names of everyone who flagged this photo (id -> name), for the review UI.
+  flaggerNames = new Map<string, string>();
+
   upVoters = new Set<string>();
   downVoters = new Set<string>();
   deleteVoters = new Set<string>();
@@ -86,6 +95,7 @@ export class PartyPixPhoto {
     this.full = full;
     this.thumb = thumb;
     this.createdAt = createdAt;
+    this.hash = imageHash(full);
     makeObservable(this);
   }
 
@@ -152,6 +162,8 @@ export const getPartyPixPresenterTypeHelper = (
         // registered in getTypeName/constructType above.
         const skip = [
           "photos",
+          "flaggedPhotos",
+          "bannedHashes",
           "photoStore",
           "folderStatus",
           "folderName",
@@ -175,6 +187,13 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
   @observable photos = observable<PartyPixPhoto>([]);
   @observable currentIndex = 0;
   private _nextSlideAt = 0;
+
+  // Photos a flag has pulled out of rotation but that are kept for the host to
+  // review (see the "Flagged" review UI). Not serialized (base64 blobs).
+  @observable flaggedPhotos = observable<PartyPixPhoto>([]);
+  // Content hashes of permanently-banned photos, to block re-uploads. Session-
+  // scoped (not persisted): a banned photo's file is deleted so it won't reload.
+  private bannedHashes = new Set<string>();
 
   // On-disk photo folder (optional; File System Access API). Kept out of
   // serialization — the folder handle is remembered separately in IndexedDB by
@@ -265,6 +284,7 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
     const loaded = await this.photoStore.listPhotos();
     action(() => {
       this.photos.clear();
+      this.flaggedPhotos.clear(); // flag/approve state is session-only
       for (const lp of loaded) {
         const photo = new PartyPixPhoto(
           `disk-${lp.fileName}`,
@@ -346,6 +366,9 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
     }
     if (!canUpload(player.credits)) {
       return { success: false, credits: player.credits, error: "You're out of credits." };
+    }
+    if (this.bannedHashes.has(imageHash(message.full))) {
+      return { success: false, credits: player.credits, error: "The host removed that photo." };
     }
 
     const photo = new PartyPixPhoto(
@@ -431,45 +454,90 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
     return { ok: true, up: photo.up, down: photo.down };
   };
 
+  // A flag pulls a photo out of rotation into the flagged holding area (1 flag
+  // by default, or FLAG_THRESHOLD_APPROVED once the host has "OK"d it). The photo
+  // is remembered for the host to review — not deleted.
   handleDeleteRequest = (sender: string, photo: PartyPixPhoto) => {
-    let remove = false;
+    let pull = false;
     action(() => {
       const res = applyDeleteRequest(photo, sender);
-      if (res.added) photo.syncCounts();
-      if (sender === photo.authorId) {
-        remove = true; // the author can always pull their own photo
-      } else if (shouldAutoDelete(photo.deleteVoters.size, this.players.length)) {
-        remove = true;
+      if (res.added) {
+        photo.syncCounts();
+        const flagger = this.players.find((p) => p.playerId === sender);
+        if (flagger) photo.flaggerNames.set(sender, flagger.name);
       }
+      if (shouldPullFromRotation(photo.deleteVoters.size, photo.approved)) pull = true;
     })();
 
-    if (remove) this.removePhoto(photo);
+    if (pull) this.pullToFlagged(photo);
     else this.saveCheckpoint();
   };
 
-  removePhoto = (photo: PartyPixPhoto) => {
+  // Remove a photo from the active rotation, fixing up the slide index. Must be
+  // called from inside an action.
+  private spliceFromActive(photo: PartyPixPhoto) {
+    const idx = this.photos.indexOf(photo);
+    if (idx < 0) return;
+    this.photos.splice(idx, 1);
+    // Keep pointing at the same on-screen photo when an EARLIER one leaves;
+    // removing the current one lands the index on what is now the next photo.
+    if (idx < this.currentIndex) this.currentIndex -= 1;
+    this.currentIndex = clampIndex(this.currentIndex, this.photos.length);
+    this._nextSlideAt = this.gameTime_ms + SLIDE_INTERVAL_MS;
+    if (this.photos.length === 0) this.gameState = PresenterGameState.Gathering;
+  }
+
+  pullToFlagged = (photo: PartyPixPhoto) => {
+    action(() => {
+      this.spliceFromActive(photo);
+      if (!this.flaggedPhotos.includes(photo)) this.flaggedPhotos.push(photo);
+    })();
+    this.invokeEvent(PartyPixGameEvent.PhotoDeleted, photo);
+    this.pushSlide();
+    this.saveCheckpoint();
+  };
+
+  // Host moderation: "OK" a flagged photo — it returns to rotation and now needs
+  // FLAG_THRESHOLD_APPROVED flags to be pulled again.
+  moderateOk = (photo: PartyPixPhoto) => {
+    action(() => {
+      photo.approved = true;
+      this.flaggedPhotos.remove(photo);
+      if (!this.photos.includes(photo)) this.photos.push(photo);
+      if (this.gameState === PresenterGameState.Gathering && this.photos.length > 0) {
+        this.gameState = PartyPixGameState.Slideshow;
+      }
+    })();
+    this.pushSlide();
+    this.saveCheckpoint();
+  };
+
+  // Host moderation: permanently ban a photo — removed everywhere, its file
+  // deleted, and its content hash blocked so it can't be re-uploaded.
+  moderateBan = (photo: PartyPixPhoto) => {
     photo.removed = true; // a still-in-flight disk write will clean up after itself
     action(() => {
-      const idx = this.photos.indexOf(photo);
-      if (idx >= 0) {
-        this.photos.splice(idx, 1);
-        // Keep pointing at the same on-screen photo when an EARLIER one is
-        // removed; removing the current one leaves the index on what is now the
-        // next photo (i.e. advances).
-        if (idx < this.currentIndex) this.currentIndex -= 1;
-      }
-      this.currentIndex = clampIndex(this.currentIndex, this.photos.length);
-      this._nextSlideAt = this.gameTime_ms + SLIDE_INTERVAL_MS;
-      if (this.photos.length === 0) this.gameState = PresenterGameState.Gathering;
+      this.bannedHashes.add(photo.hash);
+      this.flaggedPhotos.remove(photo);
+      this.spliceFromActive(photo);
     })();
-    // Remove from disk too (deletes only our own files; pre-existing images are
-    // hidden, never destroyed — see PhotoStore.forget / photoStoreLogic).
     if (photo.fileName && this.photoStore.hasFolder()) {
       void this.photoStore.forget(photo.fileName);
     }
     this.invokeEvent(PartyPixGameEvent.PhotoDeleted, photo);
     this.pushSlide();
     this.saveCheckpoint();
+  };
+
+  // Jump the slideshow to a specific active photo and resume from there.
+  jumpToPhoto = (photo: PartyPixPhoto) => {
+    const idx = this.photos.indexOf(photo);
+    if (idx < 0) return;
+    action(() => {
+      this.currentIndex = idx;
+      this._nextSlideAt = this.gameTime_ms + SLIDE_INTERVAL_MS;
+    })();
+    this.pushSlide();
   };
 
   // -------------------------------------------------------------------

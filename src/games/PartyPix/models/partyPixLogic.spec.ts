@@ -3,11 +3,12 @@ import {
   canUpload,
   applyVote,
   applyDeleteRequest,
-  deleteThreshold,
-  shouldAutoDelete,
+  flagThreshold,
+  shouldPullFromRotation,
   creditsForUpvoteCount,
   grantCredits,
   upvotesUntilNextCredit,
+  imageHash,
   nextSlideIndex,
   clampIndex,
   VoteSets,
@@ -15,10 +16,10 @@ import {
 import {
   START_CREDITS,
   UPLOAD_COST,
-  UPVOTES_PER_CREDIT,
+  CREDIT_UPVOTE_MILESTONES,
   CREDIT_CAP,
-  BASE_DELETE_THRESHOLD,
-  DELETE_PLAYER_FRACTION,
+  FLAG_THRESHOLD_DEFAULT,
+  FLAG_THRESHOLD_APPROVED,
 } from "./GameSettings";
 
 // -------------------------------------------------------------------
@@ -34,10 +35,10 @@ describe("GameSettings constants", () => {
   it("holds the documented economy/moderation values", () => {
     expect(START_CREDITS).toBe(3);
     expect(UPLOAD_COST).toBe(1);
-    expect(UPVOTES_PER_CREDIT).toBe(3);
+    expect(CREDIT_UPVOTE_MILESTONES).toEqual([2, 5, 20]);
     expect(CREDIT_CAP).toBe(9);
-    expect(BASE_DELETE_THRESHOLD).toBe(3);
-    expect(DELETE_PLAYER_FRACTION).toBeCloseTo(0.4);
+    expect(FLAG_THRESHOLD_DEFAULT).toBe(1);
+    expect(FLAG_THRESHOLD_APPROVED).toBe(3);
   });
 });
 
@@ -165,58 +166,50 @@ describe("applyDeleteRequest", () => {
   });
 });
 
-describe("deleteThreshold", () => {
-  // max(BASE=3, ceil(players * 0.4))
-  it("floors at BASE_DELETE_THRESHOLD for small crowds", () => {
-    expect(deleteThreshold(0)).toBe(3);
-    expect(deleteThreshold(1)).toBe(3);
-    expect(deleteThreshold(2)).toBe(3);
-    expect(deleteThreshold(5)).toBe(3); // ceil(2.0)=2 -> floored to 3
-    expect(deleteThreshold(7)).toBe(3); // ceil(2.8)=3
-  });
-  it("scales with the crowd once the fraction exceeds the base", () => {
-    expect(deleteThreshold(8)).toBe(4); // ceil(3.2)=4
-    expect(deleteThreshold(10)).toBe(4); // ceil(4.0)=4
-    expect(deleteThreshold(20)).toBe(8); // ceil(8.0)=8
-    expect(deleteThreshold(50)).toBe(20); // ceil(20)=20
+describe("flagThreshold", () => {
+  it("is 1 by default and 3 once approved", () => {
+    expect(flagThreshold(false)).toBe(1);
+    expect(flagThreshold(true)).toBe(3);
   });
 });
 
-describe("shouldAutoDelete", () => {
-  it("removes only once flags reach the threshold", () => {
-    expect(shouldAutoDelete(2, 1)).toBe(false); // threshold 3
-    expect(shouldAutoDelete(3, 1)).toBe(true);
-    expect(shouldAutoDelete(4, 1)).toBe(true);
+describe("shouldPullFromRotation", () => {
+  it("pulls a normal photo on the first flag", () => {
+    expect(shouldPullFromRotation(0, false)).toBe(false);
+    expect(shouldPullFromRotation(1, false)).toBe(true);
+    expect(shouldPullFromRotation(2, false)).toBe(true);
   });
-  it("uses the scaled threshold for a big crowd", () => {
-    expect(shouldAutoDelete(7, 20)).toBe(false); // threshold 8
-    expect(shouldAutoDelete(8, 20)).toBe(true);
+  it("pulls an approved photo only at 3 flags", () => {
+    expect(shouldPullFromRotation(1, true)).toBe(false);
+    expect(shouldPullFromRotation(2, true)).toBe(false);
+    expect(shouldPullFromRotation(3, true)).toBe(true);
+    expect(shouldPullFromRotation(4, true)).toBe(true);
   });
 });
 
 describe("creditsForUpvoteCount", () => {
-  it("grants nothing until a multiple of 3 is crossed", () => {
+  // Milestones [2, 5, 20]: a bonus credit as cumulative upvotes cross each.
+  it("grants nothing before the first milestone", () => {
     expect(creditsForUpvoteCount(0, 1)).toBe(0);
-    expect(creditsForUpvoteCount(0, 2)).toBe(0);
-    expect(creditsForUpvoteCount(1, 2)).toBe(0);
+    expect(creditsForUpvoteCount(1, 1)).toBe(0);
   });
-  it("grants exactly one credit as each multiple of 3 is crossed", () => {
-    expect(creditsForUpvoteCount(2, 3)).toBe(1); // crosses 3
-    expect(creditsForUpvoteCount(5, 6)).toBe(1); // crosses 6
-    expect(creditsForUpvoteCount(8, 9)).toBe(1); // crosses 9
+  it("grants exactly one credit as each milestone is crossed", () => {
+    expect(creditsForUpvoteCount(1, 2)).toBe(1); // crosses 2
+    expect(creditsForUpvoteCount(4, 5)).toBe(1); // crosses 5
+    expect(creditsForUpvoteCount(19, 20)).toBe(1); // crosses 20
   });
-  it("grants multiple credits when several boundaries are crossed at once", () => {
-    expect(creditsForUpvoteCount(0, 3)).toBe(1);
-    expect(creditsForUpvoteCount(0, 6)).toBe(2);
-    expect(creditsForUpvoteCount(0, 9)).toBe(3);
-    expect(creditsForUpvoteCount(1, 7)).toBe(2); // 3 and 6 crossed
+  it("grants nothing between or after milestones", () => {
+    expect(creditsForUpvoteCount(2, 4)).toBe(0); // between 2 and 5
+    expect(creditsForUpvoteCount(5, 19)).toBe(0); // between 5 and 20
+    expect(creditsForUpvoteCount(20, 100)).toBe(0); // past the last milestone
+  });
+  it("grants multiple credits when several milestones are crossed at once", () => {
+    expect(creditsForUpvoteCount(0, 5)).toBe(2); // 2 and 5
+    expect(creditsForUpvoteCount(0, 20)).toBe(3); // 2, 5, 20
+    expect(creditsForUpvoteCount(3, 20)).toBe(2); // 5 and 20
   });
   it("never returns a negative credit (count is monotonic)", () => {
-    expect(creditsForUpvoteCount(6, 3)).toBe(0);
-    expect(creditsForUpvoteCount(9, 0)).toBe(0);
-  });
-  it("returns 0 for an unchanged count", () => {
-    expect(creditsForUpvoteCount(3, 3)).toBe(0);
+    expect(creditsForUpvoteCount(20, 5)).toBe(0);
   });
 });
 
@@ -234,15 +227,31 @@ describe("grantCredits", () => {
 });
 
 describe("upvotesUntilNextCredit", () => {
-  // "3 more" right after a boundary; counts down to 1 just before the next.
-  it("returns the countdown for totalUp 0..6", () => {
-    expect(upvotesUntilNextCredit(0)).toBe(3);
-    expect(upvotesUntilNextCredit(1)).toBe(2);
-    expect(upvotesUntilNextCredit(2)).toBe(1);
-    expect(upvotesUntilNextCredit(3)).toBe(3);
-    expect(upvotesUntilNextCredit(4)).toBe(2);
-    expect(upvotesUntilNextCredit(5)).toBe(1);
-    expect(upvotesUntilNextCredit(6)).toBe(3);
+  // Distance to the next milestone in [2, 5, 20]; 0 once all are reached.
+  it("counts down toward the next milestone", () => {
+    expect(upvotesUntilNextCredit(0)).toBe(2); // next is 2
+    expect(upvotesUntilNextCredit(1)).toBe(1);
+    expect(upvotesUntilNextCredit(2)).toBe(3); // next is 5
+    expect(upvotesUntilNextCredit(4)).toBe(1);
+    expect(upvotesUntilNextCredit(5)).toBe(15); // next is 20
+    expect(upvotesUntilNextCredit(19)).toBe(1);
+  });
+  it("returns 0 once every milestone is reached", () => {
+    expect(upvotesUntilNextCredit(20)).toBe(0);
+    expect(upvotesUntilNextCredit(50)).toBe(0);
+  });
+});
+
+describe("imageHash", () => {
+  it("is stable for identical content", () => {
+    expect(imageHash("data:image/jpeg;base64,AAAA")).toBe(imageHash("data:image/jpeg;base64,AAAA"));
+  });
+  it("differs for different content", () => {
+    expect(imageHash("aaaa")).not.toBe(imageHash("aaab"));
+    expect(imageHash("aa")).not.toBe(imageHash("aaaa")); // length is folded in
+  });
+  it("handles the empty string", () => {
+    expect(typeof imageHash("")).toBe("string");
   });
 });
 

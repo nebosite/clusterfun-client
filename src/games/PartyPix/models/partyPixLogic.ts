@@ -8,10 +8,10 @@
 // -------------------------------------------------------------------
 import {
   UPLOAD_COST,
-  UPVOTES_PER_CREDIT,
+  CREDIT_UPVOTE_MILESTONES,
   CREDIT_CAP,
-  BASE_DELETE_THRESHOLD,
-  DELETE_PLAYER_FRACTION,
+  FLAG_THRESHOLD_DEFAULT,
+  FLAG_THRESHOLD_APPROVED,
 } from "./GameSettings";
 
 export type VoteKind = "up" | "down";
@@ -97,22 +97,21 @@ export function applyDeleteRequest(
   return { ok: true, added: true };
 }
 
-// How many flags auto-remove a photo, scaled up with the crowd size.
-export function deleteThreshold(playerCount: number): number {
-  return Math.max(BASE_DELETE_THRESHOLD, Math.ceil(playerCount * DELETE_PLAYER_FRACTION));
+// How many flags pull a photo out of rotation: 1 by default, or 3 once the
+// presenter has "OK"d it.
+export function flagThreshold(approved: boolean): number {
+  return approved ? FLAG_THRESHOLD_APPROVED : FLAG_THRESHOLD_DEFAULT;
 }
 
-export function shouldAutoDelete(deleteCount: number, playerCount: number): boolean {
-  return deleteCount >= deleteThreshold(playerCount);
+export function shouldPullFromRotation(flagCount: number, approved: boolean): boolean {
+  return flagCount >= flagThreshold(approved);
 }
 
-// How many whole credits are earned when a player's lifetime upvote count
-// moves from `prevTotalUp` to `newTotalUp` (each multiple of UPVOTES_PER_CREDIT
-// crossed = +1). Always >= 0 since totalUp only ever increases.
+// How many bonus credits are earned when a player's lifetime upvote count moves
+// from `prevTotalUp` to `newTotalUp` — one for each CREDIT_UPVOTE_MILESTONES
+// value crossed. Always >= 0 since totalUp only ever increases.
 export function creditsForUpvoteCount(prevTotalUp: number, newTotalUp: number): number {
-  const before = Math.floor(prevTotalUp / UPVOTES_PER_CREDIT);
-  const after = Math.floor(newTotalUp / UPVOTES_PER_CREDIT);
-  return Math.max(0, after - before);
+  return CREDIT_UPVOTE_MILESTONES.filter((m) => m > prevTotalUp && m <= newTotalUp).length;
 }
 
 // Add earned credits without exceeding the soft cap.
@@ -120,11 +119,22 @@ export function grantCredits(currentCredits: number, earned: number): number {
   return Math.min(CREDIT_CAP, currentCredits + earned);
 }
 
-// Upvotes still needed before the next earned credit (for the phone's
-// "next credit in N upvotes" hint).
+// Upvotes still needed before the next credit milestone (for the phone's
+// "next credit in N upvotes" hint). Returns 0 once every milestone is reached.
 export function upvotesUntilNextCredit(totalUp: number): number {
-  const remainder = totalUp % UPVOTES_PER_CREDIT;
-  return UPVOTES_PER_CREDIT - remainder;
+  const next = CREDIT_UPVOTE_MILESTONES.find((m) => m > totalUp);
+  return next === undefined ? 0 : next - totalUp;
+}
+
+// A cheap, stable content fingerprint (djb2 + length) used to block re-uploading
+// a photo the presenter permanently removed. Not cryptographic — just enough to
+// recognize the exact same bytes coming back.
+export function imageHash(data: string): string {
+  let h = 5381;
+  for (let i = 0; i < data.length; i++) {
+    h = (Math.imul(h, 33) + data.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36) + "-" + data.length.toString(36);
 }
 
 // Index of the next slide in a rotating slideshow. Returns 0 for an empty set.

@@ -113,21 +113,29 @@
   gap: 26px;
 }
 
-/* ---- Capture ---- */
-.credits {
-  text-align: center;
+/* ---- Persistent credits (visible on every tab) ---- */
+.creditStrip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 20px 32px 0;
+}
+.creditCount {
   font-family: var(--mono);
   font-weight: 700;
-  font-size: 56px;
+  font-size: 44px;
   color: var(--cyan);
   letter-spacing: 0.04em;
 }
-.earnHint {
-  text-align: center;
-  font-size: 26px;
+.creditNext {
+  font-size: 24px;
   color: var(--dim);
-  margin-top: -14px;
 }
+
+/* ---- Capture ---- */
 .takePhoto {
   width: 100%;
   min-height: 320px;

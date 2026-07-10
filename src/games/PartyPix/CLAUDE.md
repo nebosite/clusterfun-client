@@ -34,9 +34,12 @@ slide index math) to these functions, so the rules are unit-tested without the f
 RetroSpectro's `groupNaming.ts`. When changing a rule, change it there and update its spec.
 
 **Photo transport = downscaled base64 over the relay.** The server stores nothing. On upload the
-phone produces a **full** JPEG (long edge ≤ 1200, q≈0.7) for the slideshow and a small **thumb**
-(≤ 256) for phones, and sends both via `PartyPixUploadEndpoint`. The full image never leaves the
-presenter; only the thumb is pushed to phones (`PartyPixSlideInfo.thumb`) for the "now showing"
+phone produces a **full** JPEG (long edge ≤ `MAX_IMAGE_EDGE`, default 1600) for the slideshow and a
+small **thumb** (≤ 256) for phones, and sends both via `PartyPixUploadEndpoint`. The full image
+keeps its resolution and **trades JPEG quality to hit a byte budget** (`imageUtil
+.scaleImageToJpegUnderSize`): quality starts at `JPEG_QUALITY_START` and steps down toward
+`TARGET_IMAGE_BYTES` (~100 KB), never below `JPEG_QUALITY_MIN` (0.30). The full image never leaves
+the presenter; only the thumb is pushed to phones (`PartyPixSlideInfo.thumb`) for the "now showing"
 strip. Keeps per-message and per-client traffic modest.
 
 **Photos are never serialized to the checkpoint.** `saveCheckpoint()` persists to localStorage;
@@ -77,13 +80,26 @@ filled per recipient) and `CreditsPush` (a player's credit standing moved — br
 reads its own; there is no single-player send in the base class). The presenter is authoritative;
 clients update optimistically and reconcile on the echo/push.
 
-**Credits.** `totalUp` is monotonic lifetime upvotes; a credit is granted each time it crosses a
-multiple of `UPVOTES_PER_CREDIT` (3), capped at `CREDIT_CAP` (9). Retracting or switching a vote
-never reduces `totalUp` (stay positive). You can't vote your own photo; one up/down and one flag per
-player per photo; re-tapping a direction toggles it off. **Anti-farming:** each voter can move a
-photo's author toward a credit **at most once** — `applyVote` tracks a per-photo `creditedVoters`
-set and only the first upvote from a given voter returns `countsForCredit`, so an accomplice can't
-mint credits by toggling one upvote. So `totalUp` counts _distinct_ approvers, i.e. breadth.
+**Credits.** `totalUp` is monotonic lifetime upvotes; a bonus credit is granted as it crosses each
+`CREDIT_UPVOTE_MILESTONES` value — **2, 5, then 20** upvotes (three bonus credits total; none after
+20), capped at `CREDIT_CAP` (9). Retracting or switching a vote never reduces `totalUp` (stay
+positive). You can't vote your own photo; one up/down and one flag per player per photo; re-tapping a
+direction toggles it off. **Anti-farming:** each voter can move a photo's author toward a credit
+**at most once** — `applyVote` tracks a per-photo `creditedVoters` set and only the first upvote from
+a given voter returns `countsForCredit`, so an accomplice can't mint credits by toggling one upvote.
+So `totalUp` counts _distinct_ approvers, i.e. breadth. The phone shows credits (and "next credit in
+N upvotes") **persistently on every tab**, including while voting.
+
+**Flagging & moderation.** A flag pulls a photo **out of rotation on the first flag** (or the
+`FLAG_THRESHOLD_APPROVED`th once the host has OK'd it) into `flaggedPhotos` — a holding list kept for
+review, not deleted. The presenter's **"Flagged: N"** control opens a review of each held photo with
+the names of everyone who flagged it, and two actions: **OK** (`moderateOk` — returns it to rotation
+and marks it `approved`, so it now needs 3 flags to be pulled again) and **Ban** (`moderateBan` —
+removes it everywhere, deletes its file, and adds its content hash to `bannedHashes`). `handleUpload`
+rejects any upload whose `imageHash(full)` is banned, so a banned photo can't be re-uploaded. The
+presenter's **Thumbnails** control shows every active photo; tapping one calls `jumpToPhoto` to
+resume the slideshow from it. `flaggedPhotos`/`bannedHashes` are excluded from serialization
+alongside `photos`.
 
 **MobX.** Photo vote membership is plain `Set`s (for enforcement, consumed by the pure `applyVote`)
 with mirrored `@observable` counts (`up`/`down`/`deleteCount`) updated via `syncCounts()` so the
@@ -106,6 +122,14 @@ presenter's live tally re-renders. All model mutations run inside `action(() => 
 
 ## Known limitations (tracked, non-blocking for the MVP)
 
+- **Moderation state is session-only.** `flaggedPhotos`, `approved`, and `bannedHashes` are not
+  persisted. With a disk folder connected, a **flagged photo can reappear in rotation after a
+  presenter refresh**: `pullToFlagged` doesn't hide its file, so `loadPhotosFromDisk` reloads it into
+  the active show (un-flagged, and the review queue is empty). A **Ban** _is_ durable (its file is
+  deleted). Mitigation for now: review flagged photos before refreshing. A fix would hide the pulled
+  file in the sidecar (and persist/rebuild the flagged queue). Banned-hash blocking is also
+  session-scoped — but a banned file is deleted, so it won't reload; only an exact-byte re-upload
+  after a full restart could get back in.
 - **Sybil / identity-churn farming.** `creditedVoters` keys on `playerId`. Rejoin-by-name restores a
   player's persisted `totalUp`/credits but assigns a **new** `playerId`, which isn't in an old
   photo's `creditedVoters` — so someone who deliberately disconnects/rejoins under the same name

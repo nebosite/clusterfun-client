@@ -11,7 +11,7 @@
 // pure photoStoreLogic module; this file only does the actual I/O + thumbnails.
 // -------------------------------------------------------------------
 import { scaleImageToJpeg } from "../views/imageUtil";
-import { THUMB_IMAGE_EDGE, JPEG_QUALITY } from "./GameSettings";
+import { THUMB_IMAGE_EDGE, THUMB_JPEG_QUALITY } from "./GameSettings";
 import {
   INDEX_FILE_NAME,
   PhotoIndex,
@@ -210,7 +210,7 @@ export class PhotoStore {
 
   private async makeThumb(fullDataUrl: string): Promise<string> {
     const img = await loadImage(fullDataUrl);
-    return scaleImageToJpeg(img, THUMB_IMAGE_EDGE, JPEG_QUALITY);
+    return scaleImageToJpeg(img, THUMB_IMAGE_EDGE, THUMB_JPEG_QUALITY);
   }
 
   private openDb(): Promise<IDBDatabase> {
@@ -224,22 +224,32 @@ export class PhotoStore {
 
   private async idbGet(): Promise<{ handle: any; includeExisting: boolean } | null> {
     const db = await this.openDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB_STORE, "readonly");
-      const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
-      req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror = () => reject(req.error);
-    });
+    try {
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, "readonly");
+        const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror = () => reject(req.error);
+      });
+    } finally {
+      // Close promptly so a "clear all" deleteDatabase isn't blocked by a
+      // lingering connection.
+      db.close();
+    }
   }
 
   private async idbSet(handle: any, includeExisting: boolean): Promise<void> {
     const db = await this.openDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB_STORE, "readwrite");
-      tx.objectStore(IDB_STORE).put({ handle, includeExisting }, IDB_KEY);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, "readwrite");
+        tx.objectStore(IDB_STORE).put({ handle, includeExisting }, IDB_KEY);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } finally {
+      db.close();
+    }
   }
 }
 
