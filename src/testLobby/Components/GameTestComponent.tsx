@@ -10,6 +10,45 @@ import { action, makeAutoObservable } from "mobx";
 const HD_RATIO = 1080 / 1920;
 
 // -------------------------------------------------------------------
+// Clear ALL persisted state and reload, so the tester starts fresh.
+// Game checkpoints live in sessionStorage, but PartyPix also remembers its
+// chosen photo folder handle in IndexedDB — without clearing that it would
+// silently reconnect and reload the previous game's photos on the next run.
+// (Disk files in the user's own folder are left alone — not ours to delete.)
+// -------------------------------------------------------------------
+async function clearAllIndexedDb(): Promise<void> {
+  const idb = window.indexedDB;
+  if (!idb) return;
+  const deleteDb = (name: string) =>
+    new Promise<void>((resolve) => {
+      const req = idb.deleteDatabase(name);
+      req.onsuccess = req.onerror = req.onblocked = () => resolve();
+    });
+  const anyIdb = idb as any;
+  if (typeof anyIdb.databases === "function") {
+    try {
+      const dbs: Array<{ name?: string }> = await anyIdb.databases();
+      await Promise.all(dbs.map((d) => (d.name ? deleteDb(d.name) : Promise.resolve())));
+      return;
+    } catch {
+      /* fall through to known names */
+    }
+  }
+  await deleteDb("partypix"); // fallback for browsers without indexedDB.databases()
+}
+
+async function clearAllMemoryAndReload(): Promise<void> {
+  try {
+    sessionStorage.clear();
+    localStorage.clear();
+    await clearAllIndexedDb();
+  } catch {
+    /* best-effort; reload regardless */
+  }
+  window.location.reload();
+}
+
+// -------------------------------------------------------------------
 // ClientComponent
 // -------------------------------------------------------------------
 @observer
@@ -172,10 +211,7 @@ export class GameTestComponent extends React.Component<GameTestComponentProps> {
           <button
             className={styles.utilityButton}
             style={{ marginLeft: "20px" }}
-            onClick={() => {
-              sessionStorage.clear();
-              window.location.reload();
-            }}
+            onClick={() => void clearAllMemoryAndReload()}
           >
             Clear ALL Memory
           </button>
