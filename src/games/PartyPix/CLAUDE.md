@@ -65,6 +65,12 @@ checkpoint:
   → the join screen shows **Choose a folder** + an "include existing photos?" checkbox
   (`showDirectoryPicker`, also gesture). So a mid-session refresh never re-asks; a new session is one
   click and never re-picks the folder.
+- **Folder preview:** after `chooseFolder` picks a folder it does NOT start the show — it sets
+  `folderPreviewOpen` and loads `folderPreview` (thumbnails of up to 24 image files on disk, via
+  `PhotoStore.listImageThumbs`, with the total count). The join card shows those thumbnails, a
+  re-toggleable "include these" checkbox (`setIncludeExisting` re-persists), and a **Start slideshow**
+  button (`startFromFolder` → `loadPhotosFromDisk`). `reconnectFolder`/`restore` skip the preview and
+  resume directly. `folderPreview*` are excluded from serialization.
 - On upload, `handleUpload` writes the full JPEG to the folder off the response path and records the
   file name on the `PartyPixPhoto`. On load, `loadPhotosFromDisk` rebuilds `photos` from the folder
   (uploaded files keep their author from the index; pre-existing images appear only if "include

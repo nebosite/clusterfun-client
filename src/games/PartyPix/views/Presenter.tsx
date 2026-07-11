@@ -32,6 +32,48 @@ const Wordmark: React.FC<{ className?: string }> = ({ className }) => (
 @observer
 class JoinPage extends React.Component<{ appModel?: PartyPixPresenterModel }> {
   private renderFolder(appModel: PartyPixPresenterModel) {
+    // After picking a folder, preview the images on disk before starting.
+    if (appModel.folderPreviewOpen) {
+      const shown = appModel.folderPreview.length;
+      const extra = appModel.folderPreviewTotal - shown;
+      return (
+        <div className={styles.folderPreview}>
+          <div className={styles.folderPreviewHead}>
+            💾 <b>{appModel.folderName}</b> · {appModel.folderPreviewTotal}{" "}
+            {appModel.folderPreviewTotal === 1 ? "photo" : "photos"} on disk
+          </div>
+          {shown > 0 ? (
+            <div className={styles.folderPreviewGrid}>
+              {appModel.folderPreview.map((p) => (
+                <img
+                  key={p.fileName}
+                  className={styles.folderPreviewThumb}
+                  src={p.thumb}
+                  alt={p.fileName}
+                  title={p.fileName}
+                />
+              ))}
+              {extra > 0 ? <div className={styles.folderPreviewMore}>+{extra}</div> : null}
+            </div>
+          ) : (
+            <div className={styles.folderNote}>No photos in this folder yet.</div>
+          )}
+          <div className={styles.folderPreviewActions}>
+            <label className={styles.folderCheck}>
+              <input
+                type="checkbox"
+                checked={appModel.includeExistingChoice}
+                onChange={(e) => appModel.setIncludeExistingChoice(e.target.checked)}
+              />
+              Include these photos in the slideshow
+            </label>
+            <button className={styles.folderButton} onClick={() => appModel.startFromFolder()}>
+              Start slideshow
+            </button>
+          </div>
+        </div>
+      );
+    }
     switch (appModel.folderStatus) {
       case "connected":
         return (

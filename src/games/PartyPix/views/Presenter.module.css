@@ -228,6 +228,60 @@
   font-size: 24px;
   color: var(--dim);
 }
+
+/* Folder preview (images found on disk, before starting) */
+.folderPreview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 22px 26px;
+  max-width: 1400px;
+}
+.folderPreviewHead {
+  font-size: 24px;
+  color: var(--dim);
+}
+.folderPreviewHead b {
+  color: var(--cyan);
+}
+.folderPreviewGrid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.folderPreviewThumb {
+  width: 112px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #000;
+}
+.folderPreviewMore {
+  width: 112px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-family: var(--mono);
+  font-size: 26px;
+  color: var(--dim);
+}
+.folderPreviewActions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
 .folderConnected b {
   color: var(--lime);
 }

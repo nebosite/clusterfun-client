@@ -168,6 +168,9 @@ export const getPartyPixPresenterTypeHelper = (
           "folderStatus",
           "folderName",
           "includeExistingChoice",
+          "folderPreviewOpen",
+          "folderPreview",
+          "folderPreviewTotal",
         ];
         if (skip.indexOf(propertyName) !== -1) return false;
       }
@@ -202,6 +205,10 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
   @observable folderStatus: "unsupported" | "none" | "needsReconnect" | "connected" = "none";
   @observable folderName = "";
   @observable includeExistingChoice = true;
+  // Preview of image files found in a just-picked folder (before starting).
+  @observable folderPreviewOpen = false;
+  @observable folderPreview: { fileName: string; thumb: string; managed: boolean }[] = [];
+  @observable folderPreviewTotal = 0;
 
   constructor(sessionHelper: ISessionHelper, logger: ITelemetryLogger, storage: IStorage) {
     super("PartyPix", sessionHelper, logger, storage);
@@ -249,14 +256,34 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
     action(() => {
       this.includeExistingChoice = value;
     })();
+    // Persist for the eventual load (no-op until a folder is picked).
+    void this.photoStore.setIncludeExisting(value);
   }
 
+  // Pick a folder, then PREVIEW the image files on disk (thumbnails + count)
+  // without starting the show — the host sees what's there, adjusts the include
+  // choice, and presses Start (startFromFolder). reconnect/restore skip the
+  // preview and resume directly.
   chooseFolder = async () => {
     const ok = await this.photoStore.pickFolder(this.includeExistingChoice);
     if (!ok) return;
     action(() => {
       this.folderStatus = "connected";
       this.folderName = this.photoStore.folderName;
+      this.folderPreviewOpen = true;
+      this.folderPreview = [];
+      this.folderPreviewTotal = 0;
+    })();
+    const { items, total } = await this.photoStore.listImageThumbs(24);
+    action(() => {
+      this.folderPreview = items;
+      this.folderPreviewTotal = total;
+    })();
+  };
+
+  startFromFolder = async () => {
+    action(() => {
+      this.folderPreviewOpen = false;
     })();
     await this.loadPhotosFromDisk();
   };

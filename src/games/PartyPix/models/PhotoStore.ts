@@ -19,6 +19,7 @@ import {
   normalizeIndex,
   indexAddPhoto,
   indexForget,
+  isImageName,
   selectVisible,
   photoFileName,
 } from "./photoStoreLogic";
@@ -104,6 +105,47 @@ export class PhotoStore {
       // User cancelled the picker, or it failed.
       return false;
     }
+  }
+
+  // Change the include-existing choice after picking (persists it).
+  async setIncludeExisting(value: boolean): Promise<void> {
+    this._includeExisting = value;
+    if (this._dir) await this.idbSet(this._dir, value);
+  }
+
+  // A lightweight preview of every image file in the folder (thumbnails only),
+  // regardless of the include/hidden rules — so the host can see what's on disk
+  // before starting. Returns up to `limit` thumbs plus the total image count.
+  async listImageThumbs(
+    limit: number,
+  ): Promise<{ items: { fileName: string; thumb: string; managed: boolean }[]; total: number }> {
+    if (!this._dir) return { items: [], total: 0 };
+    const index = await this.readIndex();
+    const managed = new Set(Object.keys(index.photos));
+
+    const names: string[] = [];
+    try {
+      for await (const [name, handle] of this._dir.entries()) {
+        if (handle.kind !== "file" || name === INDEX_FILE_NAME || !isImageName(name)) continue;
+        names.push(name);
+      }
+    } catch {
+      return { items: [], total: 0 };
+    }
+    names.sort();
+
+    const items: { fileName: string; thumb: string; managed: boolean }[] = [];
+    for (const name of names.slice(0, limit)) {
+      try {
+        const fh = await this._dir.getFileHandle(name);
+        const file = await fh.getFile();
+        const thumb = await this.makeThumb(await blobToDataUrl(file));
+        items.push({ fileName: name, thumb, managed: managed.has(name) });
+      } catch {
+        /* skip a file we can't read/decode */
+      }
+    }
+    return { items, total: names.length };
   }
 
   // -------------------------------------------------------------------
