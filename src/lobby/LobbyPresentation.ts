@@ -40,6 +40,11 @@ export const AVATAR_TONES = ["#d4d6dd", "#9296a6", "#f2f3f6"];
 // The category chips shown on the presenter. "All" is the default filter.
 export const CATEGORIES = ["All", "Trivia", "Drawing", "Party", "Word", "Bluff", "Music"];
 
+// The animated thumbnail shown on each game tile (see GameThumbnail). A small
+// set of themed loops; games map to the one that best evokes them, and anything
+// unmapped falls back to "bars" so the catalog can grow without edits here.
+export type ThumbKind = "photos" | "letters" | "sort" | "bars";
+
 export interface GamePresentation {
   monogram: string;
   accent: string;
@@ -47,6 +52,7 @@ export interface GamePresentation {
   blurb: string;
   players: string;
   playTime: string;
+  thumbKind: ThumbKind;
 }
 
 // Hand-authored presentation for the games we ship; anything else falls
@@ -57,30 +63,35 @@ const KNOWN: Record<string, Partial<GamePresentation>> = {
     blurb: "Snap guests around the party, upload your best, and vote them onto the big screen.",
     players: "1–50",
     playTime: "∞",
+    thumbKind: "photos",
   },
   Lexible: {
     category: "Word",
     blurb: "Claim letters and build words across a shared board to outscore the room.",
     players: "2–8",
     playTime: "15m",
+    thumbKind: "letters",
   },
   RetroSpectro: {
     category: "Party",
     blurb: "Toss out hot takes, then sort the room's reactions into agree and disagree.",
     players: "3–10",
     playTime: "20m",
+    thumbKind: "sort",
   },
   Stressato: {
     category: "Party",
     blurb: "A load-test playground for hammering the relay with lots of players.",
     players: "1–99",
     playTime: "5m",
+    thumbKind: "bars",
   },
   Testato: {
     category: "Party",
     blurb: "The bare-bones template game used as the starting point for new games.",
     players: "1–8",
     playTime: "5m",
+    thumbKind: "bars",
   },
 };
 
@@ -105,5 +116,6 @@ export function presentationFor(game: GameDescriptor, index: number): GamePresen
     blurb: known.blurb ?? "Grab your phone and jump in — everyone plays on the big screen.",
     players: known.players ?? "2–8",
     playTime: known.playTime ?? "15m",
+    thumbKind: known.thumbKind ?? "bars",
   };
 }

@@ -1,0 +1,205 @@
+/* ================================================================
+   GameThumbnail — small animated tile shown on each lobby game card
+   (and, larger, on the featured spotlight). Pure CSS/SVG, no assets.
+   The accent color is passed in as the --accent custom property; the
+   parent sets the box size. Four themed loops keyed by ThumbKind.
+   ================================================================ */
+
+.thumb {
+  position: relative;
+  flex: 0 0 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(150deg, var(--accent) 0%, transparent 78%);
+  /* The gradient above is tinted down by a dark scrim below so the accent
+     reads as a faint wash rather than a solid block. */
+}
+.thumb::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 8, 13, 0.72);
+  z-index: 0;
+}
+.svg {
+  position: relative;
+  z-index: 1;
+  width: 74%;
+  height: 74%;
+  overflow: visible;
+}
+
+/* ---- bars: bouncing equalizer ---- */
+.bar {
+  fill: var(--accent);
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: barPulse 1s ease-in-out infinite;
+}
+.bar:nth-child(1) {
+  animation-delay: 0s;
+}
+.bar:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.bar:nth-child(3) {
+  animation-delay: 0.32s;
+}
+.bar:nth-child(4) {
+  animation-delay: 0.48s;
+}
+@keyframes barPulse {
+  0%,
+  100% {
+    transform: scaleY(0.32);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+/* ---- letters: tiles that pop in sequence (spelling) ---- */
+.letter {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: letterPop 1.9s ease-in-out infinite;
+}
+.letter:nth-child(1) {
+  animation-delay: 0s;
+}
+.letter:nth-child(2) {
+  animation-delay: 0.22s;
+}
+.letter:nth-child(3) {
+  animation-delay: 0.44s;
+}
+.letterTile {
+  fill: var(--accent);
+}
+.letterChar {
+  fill: #08080d;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  text-anchor: middle;
+}
+@keyframes letterPop {
+  0%,
+  62%,
+  100% {
+    transform: scale(0.62);
+    opacity: 0.32;
+  }
+  18%,
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ---- sort: dots split left / right and back ---- */
+.dot {
+  transform-box: fill-box;
+}
+.left {
+  fill: var(--accent);
+  animation: sortLeft 2s ease-in-out infinite;
+}
+.right {
+  fill: #ffffff;
+  opacity: 0.82;
+  animation: sortRight 2s ease-in-out infinite;
+}
+.dot:nth-of-type(2) {
+  animation-delay: 0.12s;
+}
+.dot:nth-of-type(3) {
+  animation-delay: 0.24s;
+}
+.dot:nth-of-type(5) {
+  animation-delay: 0.12s;
+}
+.dot:nth-of-type(6) {
+  animation-delay: 0.24s;
+}
+@keyframes sortLeft {
+  0%,
+  100% {
+    transform: translateX(7px);
+  }
+  50% {
+    transform: translateX(-11px);
+  }
+}
+@keyframes sortRight {
+  0%,
+  100% {
+    transform: translateX(-7px);
+  }
+  50% {
+    transform: translateX(11px);
+  }
+}
+
+/* ---- photos: fanned frames that sway, with a blinking flash ---- */
+.photos {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: photoSway 3s ease-in-out infinite;
+}
+.frame {
+  fill: var(--accent);
+}
+.frame:nth-child(1) {
+  opacity: 0.4;
+}
+.frame:nth-child(2) {
+  opacity: 0.66;
+}
+.frame:nth-child(3) {
+  opacity: 0.95;
+}
+.flash {
+  fill: #ffffff;
+  animation: photoFlash 2.4s ease-in-out infinite;
+}
+@keyframes photoSway {
+  0%,
+  100% {
+    transform: rotate(-5deg);
+  }
+  50% {
+    transform: rotate(5deg);
+  }
+}
+@keyframes photoFlash {
+  0%,
+  82%,
+  100% {
+    opacity: 0;
+  }
+  89% {
+    opacity: 1;
+  }
+}
+
+/* Respect reduced motion — hold every loop at a settled frame. */
+@media (prefers-reduced-motion: reduce) {
+  .bar,
+  .letter,
+  .left,
+  .right,
+  .photos,
+  .flash {
+    animation: none;
+  }
+  .bar {
+    transform: scaleY(0.7);
+  }
+  .flash {
+    opacity: 0;
+  }
+}

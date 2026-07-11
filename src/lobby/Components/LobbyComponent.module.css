@@ -202,18 +202,9 @@
   background:
     linear-gradient(120deg, rgba(34, 224, 255, 0.12), rgba(255, 62, 165, 0.12)), var(--bg-raised);
 }
-.spotlightTile {
-  flex: 0 0 auto;
-  width: 172px;
-  height: 172px;
-  border-radius: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--display);
-  font-size: calc(62px * var(--fs));
-  color: #08080d;
-}
+/* Featured spotlight art and each game card's art are now rendered by the
+   animated <GameThumbnail> (self-sizing), so the old letter-monogram tiles
+   (.spotlightTile / .monogram) are gone. */
 .spotlightBody {
   display: flex;
   flex-direction: column;
@@ -310,10 +301,17 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Two tiles wide; the list grows downward and the whole page scrolls
+     (see ScaleToWidth). minmax(0, 1fr) lets the tracks shrink to the
+     container instead of blowing out to a card's content and overflowing
+     off the right edge. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   align-content: start;
   list-style: none;
+}
+.gameGrid > li {
+  min-width: 0;
 }
 .gameCard {
   display: flex;
@@ -331,19 +329,6 @@
 .gameCard:hover {
   transform: translateY(-3px);
   background: var(--surface-hover);
-}
-.monogram {
-  flex: 0 0 auto;
-  width: 68px;
-  height: 68px;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--ui);
-  font-weight: 700;
-  font-size: calc(26px * var(--fs));
-  color: #08080d;
 }
 .cardBody {
   display: flex;

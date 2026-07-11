@@ -10,6 +10,7 @@ import Logger from "js-logger";
 import { GameDescriptor } from "games/lists/GameDescriptor";
 import { PartyBurstLogo } from "./PartyBurstLogo";
 import { ScaleToWidth } from "./ScaleToWidth";
+import { GameThumbnail } from "./GameThumbnail";
 import {
   CATEGORIES,
   TILE_PALETTE,
@@ -75,6 +76,12 @@ class PresenterComponent extends React.Component<
         ? visible
         : visible.filter(({ pres }) => pres.category === activeCategory);
 
+    // Only show category chips that actually have a game behind them (plus the
+    // "All" default); hide the empties so we don't advertise sections we don't
+    // have games for yet. If nothing but "All" is left, drop the row entirely.
+    const presentCategories = new Set(visible.map(({ pres }) => pres.category));
+    const shownCategories = CATEGORIES.filter((cat) => cat === "All" || presentCategories.has(cat));
+
     return (
       <div className={classNames(styles.root, styles.presenter)}>
         <div className={styles.glowCyan} />
@@ -95,14 +102,11 @@ class PresenterComponent extends React.Component<
         {/* Featured spotlight */}
         {featured && (
           <div className={styles.spotlight}>
-            <div
-              className={styles.spotlightTile}
-              style={{
-                background: `linear-gradient(145deg, ${featured.pres.accent}, ${featured.pres.accent}99)`,
-              }}
-            >
-              {featured.pres.monogram}
-            </div>
+            <GameThumbnail
+              kind={featured.pres.thumbKind}
+              accent={featured.pres.accent}
+              size={172}
+            />
             <div className={styles.spotlightBody}>
               <span className={styles.spotlightKicker}>★ Featured tonight</span>
               <span className={styles.spotlightName}>
@@ -123,20 +127,22 @@ class PresenterComponent extends React.Component<
           </div>
         )}
 
-        {/* Category tabs */}
-        <div className={styles.tabRow}>
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              className={classNames(styles.tab, {
-                [styles.tabActive]: cat === activeCategory,
-              })}
-              onClick={() => this.setState({ activeCategory: cat })}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+        {/* Category tabs (only those with games behind them) */}
+        {shownCategories.length > 1 && (
+          <div className={styles.tabRow}>
+            {shownCategories.map((cat) => (
+              <button
+                key={cat}
+                className={classNames(styles.tab, {
+                  [styles.tabActive]: cat === activeCategory,
+                })}
+                onClick={() => this.setState({ activeCategory: cat })}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Game grid */}
         <ul className={styles.gameGrid}>
@@ -148,15 +154,7 @@ class PresenterComponent extends React.Component<
                 role="button"
                 aria-label={`Start ${game.displayName ?? game.name}`}
               >
-                <div
-                  className={styles.monogram}
-                  style={{
-                    background: pres.accent,
-                    boxShadow: `0 0 22px -6px ${pres.accent}`,
-                  }}
-                >
-                  {pres.monogram}
-                </div>
+                <GameThumbnail kind={pres.thumbKind} accent={pres.accent} size={68} />
                 <div className={styles.cardBody}>
                   <span className={styles.cardName}>{game.displayName ?? game.name}</span>
                   <span className={styles.cardCategory} style={{ color: pres.accent }}>
