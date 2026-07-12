@@ -7,6 +7,8 @@ import LexibleAssets from "../assets/Assets";
 import { LexibleVersion } from "../models/GameSettings";
 import { LetterBlockModel } from "../models/LetterBlockModel";
 import LetterBlock from "./LetterBlock";
+import { InstructionDemo } from "./InstructionDemo";
+import { teamColor } from "./cozyTheme";
 import {
   LexiblePresenterModel,
   MapSize,
@@ -184,11 +186,9 @@ class InstructionsPage extends React.Component<{ appModel?: LexiblePresenterMode
                 1. Claim tiles by spelling a word with adjacent letters. Tiles you claim will get a
                 point value equal to the length of the word.
               </p>
-              <img
-                src={LexibleAssets.images.instructions1}
-                alt="instructions"
-                style={{ width: "280px", height: "280px" }}
-              />
+              <div style={{ marginTop: "20px" }}>
+                <InstructionDemo step={1} size={72} />
+              </div>
             </div>
           );
         case 1:
@@ -198,11 +198,9 @@ class InstructionsPage extends React.Component<{ appModel?: LexiblePresenterMode
                 2. You can claim the other team's tiles, but make sure your word is long enough! If
                 the word is not longer than a tile's score, it will not be claimed.
               </p>
-              <img
-                src={LexibleAssets.images.instructions2}
-                alt="instructions"
-                style={{ width: "480px", height: "280px", marginLeft: "30px" }}
-              />
+              <div style={{ marginTop: "20px" }}>
+                <InstructionDemo step={2} size={74} />
+              </div>
             </div>
           );
         case 2:
@@ -212,11 +210,9 @@ class InstructionsPage extends React.Component<{ appModel?: LexiblePresenterMode
                 3. TO WIN: Build a bridge of tiles that connect your team's side to the other side
                 of the grid.{" "}
               </p>
-              <img
-                src={LexibleAssets.images.instructions3}
-                alt="instructions"
-                style={{ width: "800px", marginLeft: "100px" }}
-              />
+              <div style={{ marginTop: "20px" }}>
+                <InstructionDemo step={3} size={82} />
+              </div>
             </div>
           );
         default:
@@ -355,7 +351,7 @@ class PlayingPage extends React.Component<{
       <Row className={styles.letterRow}>
         {row.map((b) => (
           <LetterBlock
-            size={1350 / this.props.appModel!.theGrid.width}
+            size={1150 / this.props.appModel!.theGrid.width}
             key={b.__blockid}
             onClick={handleClick}
             context={b}
@@ -541,7 +537,9 @@ export default class Presenter extends React.Component<{
     const renderTeam = (teamName: string) => {
       return (
         <div>
-          <div className={styles.teamTitle}>TEAM {teamName}</div>
+          <div className={styles.teamTitle} style={{ color: teamColor(teamName) }}>
+            TEAM {teamName}
+          </div>
           {this.props
             .appModel!.players.filter((p) => p.teamName === teamName)
             .map((p) => (
@@ -589,11 +587,11 @@ export default class Presenter extends React.Component<{
 
         <div style={{ margin: "15px" }}>
           <Row className={styles.presenterRow}>
-            <div className={styles.teamColumn} style={{ background: "yellow" }}>
+            <div className={styles.teamColumn} style={{ borderTop: `6px solid ${teamColor("A")}` }}>
               {renderTeam("A")}
             </div>
             <div className={styles.playColumn}>{this.renderPlayArea()}</div>
-            <div className={styles.teamColumn} style={{ background: "purple" }}>
+            <div className={styles.teamColumn} style={{ borderTop: `6px solid ${teamColor("B")}` }}>
               {renderTeam("B")}
             </div>
           </Row>

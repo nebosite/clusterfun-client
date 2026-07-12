@@ -182,7 +182,11 @@ export class Touchable extends React.Component<TouchableProps> {
       if (tracker) {
         const location = toPixels(ev);
         const { delta, momentum } = tracker.addPosition(location);
-        if (tracker.travelDistance > 5) {
+        // Only treat this as a drag once the finger has really moved. The old
+        // 5px threshold (in virtual-surface units, ~2-3 real px on a phone)
+        // misread the tiny jitter of a quick tap as a pan, which cancelled the
+        // tap. 12 keeps panning responsive while letting sloppy taps register.
+        if (tracker.travelDistance > 12) {
           if (!tracker.hasTag("drag")) {
             tracker.addTag("drag");
             if (this.props.onDragStart) this.props.onDragStart({ touchId, location });

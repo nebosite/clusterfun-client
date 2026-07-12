@@ -1,22 +1,50 @@
+@import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800;900&display=swap");
+
+/* Cozy tokens — mirror of cozyTheme.ts (keep in sync if you retheme). */
 .gamepresenter {
+  --bg: #f1e9db;
+  --board: #e7dcc8;
+  --panel: #fbf6ec;
+  --tile: #fffdf7;
+  --ink: #4a4038;
+  --sub: #9a8c79;
+  --team-a: #e56b45;
+  --team-b: #2e9e92;
+
   width: 100%;
   height: 100%;
-  background-color: rgb(219, 214, 183);
+  background-color: var(--bg);
+  color: var(--ink);
   background-size: 100%;
   background-repeat: no-repeat;
   overflow: hidden;
   font-size: 40px;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Nunito", sans-serif;
+  font-weight: 700;
 }
 
 .gamepresenter .gameTitle {
+  font-family: "Fredoka", sans-serif;
   font-size: 150%;
-  font-weight: 600;
+  font-weight: 700;
 }
 
+/* Buttons: rounded pills, Fredoka. Teal is the primary action; neutral
+   actions use a faint ink wash. */
 .gamepresenter button {
+  font-family: "Fredoka", sans-serif;
+  font-weight: 600;
   font-size: 120%;
-  padding: 5px;
+  padding: 12px 26px;
+  color: #ffffff;
+  background: var(--team-b);
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+.gamepresenter button:hover {
+  filter: brightness(1.05);
 }
 
 .gamepresenter .instructionFrame {
@@ -51,7 +79,9 @@
   width: 60px;
   height: 60px;
   border-radius: 20px;
-  background: #dd9999;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--sub);
+  box-shadow: none;
 }
 
 .gamepresenter .debugtext {
@@ -85,22 +115,38 @@
   padding: 20px;
 }
 
-.gamepresenter .roomCode {
-  font-size: 80%;
-  position: absolute;
-  left: 20px;
-  bottom: 20px;
-  width: 200px;
-  text-align: center;
-}
-
+.gamepresenter .roomCode,
 .gamepresenter .currentRound {
   font-size: 80%;
   position: absolute;
-  right: 20px;
   bottom: 20px;
-  width: 200px;
+  width: 220px;
   text-align: center;
+  background: var(--panel);
+  border-radius: 18px;
+  padding: 12px 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+.gamepresenter .roomCode {
+  left: 20px;
+}
+.gamepresenter .currentRound {
+  right: 20px;
+}
+/* small uppercase label over a large Fredoka value */
+.gamepresenter .roomCode > div:first-child,
+.gamepresenter .currentRound > div:first-child {
+  font-family: "Nunito", sans-serif;
+  font-weight: 800;
+  font-size: 45%;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--sub);
+}
+.gamepresenter .roomCode > div:last-child,
+.gamepresenter .currentRound > div:last-child {
+  font-family: "Fredoka", sans-serif;
+  color: var(--ink);
 }
 
 .gamepresenter .version {
@@ -136,10 +182,12 @@
 }
 
 .gamepresenter .instructionArea .joinBlock {
-  border: 1px solid black;
+  border: none;
   margin: 20px;
-  padding: 20px;
-  background: #ffffff40;
+  padding: 24px 28px;
+  background: var(--panel);
+  border-radius: 22px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
   font-size: 120%;
 }
 
@@ -153,15 +201,21 @@
 }
 
 .gamepresenter .teamColumn {
-  width: 250px;
+  width: 355px;
+  box-sizing: border-box; /* keep padding inside the width so the play column keeps its size */
   margin-top: 80px;
   margin-bottom: 100px;
   height: 80%;
   font-size: 110%;
   overflow: hidden;
+  background: var(--panel);
+  border-radius: 22px;
+  /* border-top accent color is set inline per team */
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  padding: 10px;
 }
 .gamepresenter .playColumn {
-  width: 1390px;
+  width: 1180px;
   height: 980px;
   font-size: 80%;
   overflow: hidden;
@@ -176,23 +230,27 @@
 
 .gamepresenter .teamTitle {
   text-align: center;
-  font-weight: 800;
+  font-family: "Fredoka", sans-serif;
+  font-weight: 700;
   margin: 20px;
-  border: 1px solid black;
+  /* color is set inline per team */
 }
 
 .gamepresenter .teamPlayerName {
   text-align: center;
   margin: 10px;
+  font-size: 80%; /* shrink player names 20% to fit more of them */
 }
 
 .gamepresenter .overlay {
   position: absolute;
-  background: #ffffffd0;
+  background: rgba(251, 246, 236, 0.94);
+  border-radius: 26px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  padding: 20px;
+  padding: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -200,6 +258,9 @@
 }
 
 .gamepresenter .endOfRoundText {
+  font-family: "Fredoka", sans-serif;
+  font-weight: 700;
+  color: var(--ink);
   text-align: center;
   margin: 50px;
 }
@@ -215,20 +276,27 @@
 }
 
 .gamepresenter .settingsBox {
-  border: 1px solid black;
+  border: none;
+  background: var(--panel);
+  border-radius: 20px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
   position: absolute;
   padding: 20px;
   bottom: 30px;
 }
 
 .gamepresenter .settingsButton {
-  border: 1px solid black;
-  padding: 5px;
-  font-weight: 800;
-  background: limegreen;
-  border-radius: 10px;
+  display: inline-block;
+  border: none;
+  padding: 10px 22px;
+  font-family: "Fredoka", sans-serif;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
   user-select: none;
-}
-.gamepresenter .settingsButton :hover {
   cursor: pointer;
+}
+.gamepresenter .settingsButton:hover {
+  background: rgba(0, 0, 0, 0.09);
 }

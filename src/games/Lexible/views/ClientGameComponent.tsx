@@ -140,6 +140,7 @@ export default class LexibleClientGameComponent extends React.Component<ClientGa
             sliderId={this.sliderId}
             width={950}
             height={950}
+            overscroll={0.5}
             startLocation={this.st.sliderLocation}
             contentWidth={appModel.theGrid.width * SLIDER_BLOCK_SIZE}
             contentHeight={appModel.theGrid.height * SLIDER_BLOCK_SIZE}
@@ -152,7 +153,9 @@ export default class LexibleClientGameComponent extends React.Component<ClientGa
         </div>
         {this.renderSelectedLetters()}
         {appModel.letterChain.length > 2 ? (
-          <button onClick={onWordSubmitClick}>Submit Word</button>
+          <button className={styles.submitButton} onClick={onWordSubmitClick}>
+            Submit Word
+          </button>
         ) : null}
         <div style={{ margin: "20px" }}>
           {appModel.letterChain.length === 0 ? (

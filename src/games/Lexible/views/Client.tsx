@@ -15,7 +15,8 @@ import {
   Row,
 } from "libs";
 import LexibleClientGameComponent from "./ClientGameComponent";
-import LexibleAssets from "../assets/Assets";
+import { InstructionDemo } from "./InstructionDemo";
+import { COZY, teamColor } from "./cozyTheme";
 
 interface InstructionsComponentProps {
   appModel?: LexibleClientModel;
@@ -42,7 +43,13 @@ class InstructionsComponent extends React.Component<InstructionsComponentProps> 
       <div>
         <div className={styles.wait_text}>Waiting for the host to start...</div>
         <Row>
-          <div>You are on Team {appModel.myTeam}</div>
+          <div className={styles.teamPill}>
+            <span
+              className={styles.teamDot}
+              style={{ background: teamColor(appModel.myTeam ?? "") }}
+            />
+            Team {appModel.myTeam}
+          </div>
           <button onClick={switchTeam} style={{ fontSize: "80%", marginLeft: "50px" }}>
             Switch Team
           </button>
@@ -55,32 +62,20 @@ class InstructionsComponent extends React.Component<InstructionsComponentProps> 
             1. Claim tiles by spelling a word with adjacent letters. Tiles you claim will get a
             point value equal to the length of the word.
           </p>
-          <img
-            src={LexibleAssets.images.instructions1}
-            alt="instructions"
-            style={{ width: "280px", height: "280px" }}
-          />
+          <InstructionDemo step={1} size={64} />
         </div>
         <div className={styles.instructionsRow}>
           <p>
             2. You can claim the other team's tiles, but make sure your word is long enough! If the
             word is not longer than a tile's score, it will not be claimed.
           </p>
-          <img
-            src={LexibleAssets.images.instructions2}
-            alt="instructions"
-            style={{ width: "480px", height: "280px", marginLeft: "30px" }}
-          />
+          <InstructionDemo step={2} size={64} />
         </div>
         <p>
           3. TO WIN: Build a bridge of tiles that connect your team's side to the other side of the
           grid.{" "}
         </p>
-        <img
-          src={LexibleAssets.images.instructions3}
-          alt="instructions"
-          style={{ width: "800px", marginLeft: "100px" }}
-        />
+        <InstructionDemo step={3} size={70} />
       </div>
     );
   }
@@ -164,7 +159,15 @@ export default class Client extends React.Component<{
       case GeneralClientGameState.JoinError:
         return (
           <React.Fragment>
-            <p style={{ background: "red", color: "yellow", fontSize: "150%" }}>
+            <p
+              style={{
+                background: "#F6D8CE",
+                color: "#8A2E10",
+                fontSize: "150%",
+                borderRadius: "16px",
+                padding: "16px 22px",
+              }}
+            >
               Could not join the game because: {this.props.appModel?.joinError}
             </p>
           </React.Fragment>
@@ -186,20 +189,24 @@ export default class Client extends React.Component<{
       this.uiState.mouseScale = 0.5 / scale;
     };
 
-    let background = "lightgray";
-    if (appModel.myTeam === "A") background = "#FFFF40";
-    if (appModel.myTeam === "B") background = "#AA40AA";
+    // Keep the page cream so the tiles read well; the team color is used only
+    // as a slim accent (the top bar's top border + the team pill dot).
+    const pageBackground = COZY.bg;
+    const teamAccent = teamColor(appModel.myTeam ?? "");
 
     return (
-      <div style={{ background }}>
+      <div style={{ background: pageBackground }}>
         <UINormalizer
           uiProperties={this.props.uiProperties}
           virtualHeight={1920}
           virtualWidth={1080}
           onScaleCalc={reportScale}
         >
-          <div className={styles.gameclient} style={{ background }}>
-            <div className={classNames(styles.divRow, styles.topbar)}>
+          <div className={styles.gameclient} style={{ background: pageBackground }}>
+            <div
+              className={classNames(styles.divRow, styles.topbar)}
+              style={{ borderTop: `8px solid ${teamAccent}` }}
+            >
               <span className={classNames(styles.gametitle)}>Lexible</span>
               <span>{appModel.playerName}</span>
               <button className={classNames(styles.quitbutton)} onClick={() => appModel.quitApp()}>

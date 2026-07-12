@@ -2,6 +2,7 @@ import { observer } from "mobx-react";
 import React from "react";
 import { LetterBlockModel } from "../models/LetterBlockModel";
 import styles from "./LetterBlock.module.css";
+import { COZY, teamColor } from "./cozyTheme";
 
 export interface LetterBlockProps {
   context: LetterBlockModel;
@@ -19,62 +20,85 @@ export default class LetterBlock extends React.Component<LetterBlockProps> {
   render() {
     const { context } = this.props;
     const size = this.props.size ?? 40;
-    const blockSize = `${size}px`;
-    let fontSize = `${size * 0.7}px`;
-    const borderSize = `${size * 0.05}px`;
+    const claimed = context.score > 0;
+    const selected = context.selected;
 
-    const handleClick = () => {
+    // Fire on pointerup, not click: on touch, the synthetic click lags and gets
+    // dropped during rapid tapping. Pointerup registers each tap immediately;
+    // taps that land at the end of a pan are still filtered by the caller's
+    // drag guard (see ClientGameComponent.canClick).
+    const handleSelect = () => {
       this.props.onClick(this.props.context);
     };
 
-    const ownershipColor = context.team === "A" ? "yellow" : "purple";
-    const blockStyle: any = {
-      width: blockSize,
-      height: blockSize,
-      background: context.score > 0 ? ownershipColor : "#00000000",
+    // The outer block is just the spacing gutter around the tile; the tile
+    // surface itself lives on the inner div.
+    const blockStyle: React.CSSProperties = {
+      width: `${size}px`,
+      height: `${size}px`,
       padding: `${size * 0.1}px`,
+      background: "transparent",
     };
 
-    const failHex = Math.floor((1 - context.failFade) * 255)
-      .toString(16)
-      .padStart(2, "0");
-    let background =
-      context.failFade > 0
-        ? `#FF${failHex}${failHex}`
-        : context.selected
-          ? "cyan"
-          : context.score > 0
-            ? "#00000080"
-            : "#eee";
+    // Cozy tile surface + soft bevel, by state (see the reskin spec).
+    let background: string;
+    let letterColor: string;
+    let boxShadow: string;
+    let stateStyle: React.CSSProperties = {};
 
-    const innerStyle: any = {
-      borderRadius: `${size * 0.2}px`,
-      borderTop: `#ccc ${borderSize} solid`,
-      borderRight: `#444 ${borderSize} solid`,
-      borderBottom: `#333 ${borderSize} solid`,
-      borderLeft: `#aaa ${borderSize} solid`,
-      background,
-    };
-
-    if (context.letter.length > 1) {
-      fontSize = `${size * 0.6}px`;
+    if (context.failFade > 0) {
+      // Keep the existing "rejected word" red flash, fading back to a tile.
+      const failHex = Math.floor((1 - context.failFade) * 255)
+        .toString(16)
+        .padStart(2, "0");
+      background = `#FF${failHex}${failHex}`;
+      letterColor = COZY.ink;
+      boxShadow = "inset 0 -4px 0 rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.08)";
+    } else if (selected) {
+      // Currently part of the word being spelled — unmistakably gold, and
+      // reads distinctly on top of both team colors (never a team color).
+      background = COZY.select;
+      letterColor = COZY.selectInk;
+      boxShadow =
+        "0 0 0 6px rgba(255,255,255,0.95), 0 0 0 12px #F4B740, 0 8px 16px rgba(0,0,0,0.22)";
+      stateStyle = { transform: "scale(1.04)", zIndex: 5 };
+    } else if (claimed) {
+      background = teamColor(context.team);
+      letterColor = "rgba(255,255,255,0.97)";
+      boxShadow = "inset 0 -5px 0 rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.12)";
+    } else {
+      background = COZY.tile;
+      letterColor = COZY.ink;
+      boxShadow = "inset 0 -4px 0 rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.08)";
     }
-    const letterStyle: any = {
-      fontSize: fontSize,
-      color: !context.selected && context.score > 0 ? "#ffffff80" : "#333",
+
+    const innerStyle: React.CSSProperties = {
+      borderRadius: `${size * 0.18}px`,
+      background,
+      boxShadow,
+      ...stateStyle,
+    };
+
+    let fontSize = size * 0.7;
+    if (context.letter.length > 1) fontSize = size * 0.6;
+    const letterStyle: React.CSSProperties = {
+      fontSize: `${fontSize}px`,
+      color: letterColor,
+      fontFamily: "'Fredoka', sans-serif",
+      fontWeight: 700,
+      textTransform: "uppercase",
     };
 
     let badgeUI: JSX.Element | null = null;
-    if (context.score > 0 && this.props.showBadge) {
-      const dimension = size * 0.9;
-      const badgeSize = `${dimension * 0.4}px`;
-      const badgeFontSize = `${dimension * 0.35}px`;
-      const badgeBorderRadius = `${dimension * 0.2}px`;
-      const badgeStyle: any = {
-        width: badgeSize,
-        height: badgeSize,
-        fontSize: badgeFontSize,
-        borderRadius: badgeBorderRadius,
+    if (claimed && this.props.showBadge) {
+      const badgeDim = size * 0.46;
+      const badgeStyle: React.CSSProperties = {
+        minWidth: `${badgeDim}px`,
+        height: `${badgeDim}px`,
+        padding: `0 ${size * 0.08}px`,
+        fontSize: `${size * 0.32}px`,
+        fontFamily: "'Nunito', sans-serif",
+        fontWeight: 800,
       };
       badgeUI = (
         <div className={styles.badge} style={badgeStyle}>
@@ -83,17 +107,17 @@ export default class LetterBlock extends React.Component<LetterBlockProps> {
       );
     }
 
-    let innerstyle = styles.letterBlockInner;
-    if (context.onPath) innerstyle += " " + styles.highlight;
+    let innerClassName = styles.letterBlockInner;
+    if (context.onPath) innerClassName += " " + styles.highlight;
 
     return (
       <div className={styles.letterBlock} style={blockStyle} key={context.__blockid}>
-        <div className={innerstyle} style={innerStyle} onClick={handleClick}>
+        <div className={innerClassName} style={innerStyle} onPointerUp={handleSelect}>
           <div className={styles.letterBlockText} style={letterStyle}>
             {context.letter}
           </div>
+          {badgeUI}
         </div>
-        {badgeUI}
       </div>
     );
   }

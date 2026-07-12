@@ -9,7 +9,6 @@ import {
   TouchableDragEvent,
   TouchableDragEndEvent,
 } from "./Touchable";
-import Logger from "js-logger";
 
 export interface SliderDriftEventParameters {
   momentum: { x: number; y: number };
@@ -24,6 +23,11 @@ export interface SliderProps {
   height: number;
   contentWidth: number;
   contentHeight: number;
+  // How far (as a fraction of the viewport) a content edge may be scrolled
+  // toward the center before it stops. 0.4 (default) keeps ~40% of the content
+  // onscreen at the extremes; 0.5 lets a content corner reach the exact center
+  // of the scroll area.
+  overscroll?: number;
   dragStartDistance?: number;
   startLocation?: Vector2;
   onDrift?: (ev: SliderDriftEventParameters) => void;
@@ -77,10 +81,11 @@ export class Slider extends React.Component<SliderProps> {
   render() {
     const fixOffset = () => {
       const { width, height, contentWidth, contentHeight } = this.props;
-      const rightBound = width * 0.4;
-      const bottomBound = height * 0.4;
-      const leftBound = -contentWidth + width * 0.6;
-      const topBound = -contentHeight + height * 0.6;
+      const f = this.props.overscroll ?? 0.4;
+      const rightBound = width * f;
+      const bottomBound = height * f;
+      const leftBound = -contentWidth + width * (1 - f);
+      const topBound = -contentHeight + height * (1 - f);
 
       if (this.st.offsetX < leftBound) this.st.offsetX = leftBound;
       if (this.st.offsetY < topBound) this.st.offsetY = topBound;
