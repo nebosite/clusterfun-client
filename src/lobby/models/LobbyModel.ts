@@ -66,6 +66,17 @@ export class LobbyModel {
     this.saveState();
   }
 
+  @observable _avatarId: number = 0;
+  get avatarId(): number {
+    return this._avatarId;
+  }
+  set avatarId(value: number) {
+    action(() => {
+      this._avatarId = value;
+      this.saveState();
+    })();
+  }
+
   playerId: string = "";
   @observable _roomId: string = "";
   get roomId(): string {
@@ -146,6 +157,7 @@ export class LobbyModel {
 
     let tempCount = this._instanceCount + 1;
     this._playerName = sessionStorage.getItem("clusterfun_playername") ?? "";
+    this._avatarId = parseInt(sessionStorage.getItem("clusterfun_avatarid") ?? "0") || 0;
     this.playerId = "";
     this._roomId = sessionStorage.getItem("clusterfun_roomid") ?? "";
     this.lobbyState = LobbyState.Fresh;
@@ -174,6 +186,7 @@ export class LobbyModel {
       uiProperties,
       gameProperties: this.gameProperties,
       playerName: this.playerName,
+      avatarId: this.avatarId,
       messageThing: this._messageThingFactory(this.gameProperties!),
       logger: this.getGameLogger(),
       storage: this._storage,
@@ -264,6 +277,7 @@ export class LobbyModel {
   saveState() {
     const state = {
       _playerName: this._playerName,
+      _avatarId: this._avatarId,
       playerId: this.playerId,
       _roomId: this._roomId,
       gameProperties: this.gameProperties,
@@ -295,6 +309,7 @@ export class LobbyModel {
   // -------------------------------------------------------------------
   public async joinGame() {
     sessionStorage.setItem("clusterfun_playername", this.playerName);
+    sessionStorage.setItem("clusterfun_avatarid", this.avatarId.toString());
     sessionStorage.setItem("clusterfun_roomid", this.roomId);
     // Note: this does not establish a web socket
     this._serverCall<GameInstanceProperties>("/api/joingame", {

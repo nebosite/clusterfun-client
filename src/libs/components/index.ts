@@ -4,6 +4,7 @@ export * from "./DevOnly";
 export * from "./DevUIComponent";
 export * from "./ErrorBoundary";
 export * from "./LabelBox";
+export * from "./PlayerAvatar";
 export * from "./Row";
 export * from "./Slider";
 export * from "./Touchable";

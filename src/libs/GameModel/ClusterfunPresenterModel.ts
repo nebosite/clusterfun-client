@@ -28,6 +28,9 @@ export enum PresenterGameEvent {
 export class ClusterFunPlayer {
   playerId: string = "";
   @observable name: string = "";
+  // The avatar mark the player picked in the lobby (see PlayerAvatar).
+  // Games should show this next to the player's name during play.
+  @observable avatarId: number = 0;
 }
 
 // -------------------------------------------------------------------
@@ -149,7 +152,7 @@ export abstract class ClusterfunPresenterModel<
   // -------------------------------------------------------------------
   handleJoinMessage = async (
     sender: string,
-    message: { playerName: string },
+    message: { playerName: string; avatarId?: number },
   ): Promise<{ isRejoin: boolean; didJoin: boolean; joinError?: string }> => {
     Logger.info(`Join message from ${sender}`);
 
@@ -181,6 +184,7 @@ export abstract class ClusterfunPresenterModel<
     if (returningPlayer) {
       Logger.info(`Returning player: ${returningPlayer.name}`);
       returningPlayer.playerId = sender;
+      if (message.avatarId !== undefined) returningPlayer.avatarId = message.avatarId;
       const index = this._exitedPlayers.indexOf(returningPlayer);
       this._exitedPlayers.splice(index, 1);
       this.players.push(returningPlayer);
@@ -203,6 +207,7 @@ export abstract class ClusterfunPresenterModel<
           return { didJoin: false, isRejoin: false, joinError: `That name is taken` };
         } else {
           const entry = this.createFreshPlayerEntry(message.playerName, sender);
+          entry.avatarId = message.avatarId ?? 0;
           this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve");
           action(() => {
             this.players.push(entry);

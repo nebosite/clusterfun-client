@@ -54,3 +54,20 @@
 .gamepresenter .gameCanvas {
   background-color: gray;
 }
+
+.gamepresenter .winnerBanner {
+  font-size: 150%;
+  font-weight: 700;
+  padding: 20px 0;
+}
+
+.gamepresenter .scoreStrip {
+  display: flex;
+  flex-wrap: nowrap;
+  margin-left: 60px;
+}
+
+.gamepresenter .scoreItem {
+  margin-right: 40px;
+  white-space: nowrap;
+}

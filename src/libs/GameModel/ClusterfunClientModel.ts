@@ -53,6 +53,9 @@ export abstract class ClusterfunClientModel extends BaseGameModel {
   }
   @observable joinError: string | null = null;
   @observable roundNumber: number = 0;
+  // The avatar mark this player picked in the lobby (see PlayerAvatar).
+  // Set by the framework before reconstitute() so it rides the Join message.
+  @observable avatarId: number = 0;
   gameTerminated = false;
   private _stateIsInvalid = true;
 
@@ -90,11 +93,13 @@ export abstract class ClusterfunClientModel extends BaseGameModel {
     });
 
     this.gameState = GeneralClientGameState.WaitingToStart;
-    this.session.requestPresenter(JoinEndpoint, { playerName: this._playerName }).then((ack) => {
-      this.handleJoinAck(ack);
-      this._stateIsInvalid = true;
-      this.requestGameStateFromPresenter().then(() => (this._stateIsInvalid = false));
-    });
+    this.session
+      .requestPresenter(JoinEndpoint, { playerName: this._playerName, avatarId: this.avatarId })
+      .then((ack) => {
+        this.handleJoinAck(ack);
+        this._stateIsInvalid = true;
+        this.requestGameStateFromPresenter().then(() => (this._stateIsInvalid = false));
+      });
     this.keepAlive();
   }
   abstract requestGameStateFromPresenter(): Promise<void>;

@@ -1,11 +1,13 @@
-// App Navigation handled here
+// The shared-screen view.  One page component per presenter game state, chosen by
+// renderSubScreen().  All of these are observers over the presenter model - they
+// render state; they never own it.
 import React from "react";
 import { observer, inject } from "mobx-react";
 import styles from "./Presenter.module.css";
 import classNames from "classnames";
-import { observable } from "mobx";
-import TestatoAssets from "../assets/Assets";
-import { TestatoVersion } from "../models/GameSettings";
+import { makeObservable, observable } from "mobx";
+import TemplateAssets from "../assets/Assets";
+import { TemplateVersion } from "../models/GameSettings";
 import {
   BaseAnimationController,
   MediaHelper,
@@ -15,16 +17,17 @@ import {
   GeneralGameState,
   DevUI,
   UINormalizer,
+  PlayerAvatar,
 } from "libs";
 import {
-  TestatoPresenterModel,
-  TestatoGameState,
-  TestatoGameEvent,
+  TemplatePresenterModel,
+  TemplateGameState,
+  TemplateGameEvent,
 } from "../models/PresenterModel";
 
 @inject("appModel")
 @observer
-class GatheringPlayersPage extends React.Component<{ appModel?: TestatoPresenterModel }> {
+class GatheringPlayersPage extends React.Component<{ appModel?: TemplatePresenterModel }> {
   // -------------------------------------------------------------------
   // render
   // -------------------------------------------------------------------
@@ -35,7 +38,7 @@ class GatheringPlayersPage extends React.Component<{ appModel?: TestatoPresenter
     return (
       <div>
         <h3>Welcome to {appModel.name}</h3>
-        <p>This is an example app for clusterfun.</p>
+        <p>This is the ClusterFun template game.</p>
         <p>
           To Join: go to http://{window.location.host} and enter this room code: {appModel.roomId}
         </p>
@@ -45,7 +48,7 @@ class GatheringPlayersPage extends React.Component<{ appModel?: TestatoPresenter
             <div className={styles.divRow}>
               {appModel.players.map((player) => (
                 <div className={styles.nameBox} key={player.playerId}>
-                  {player.name}
+                  <PlayerAvatar avatarId={player.avatarId} size={48} /> {player.name}
                 </div>
               ))}
             </div>
@@ -56,8 +59,7 @@ class GatheringPlayersPage extends React.Component<{ appModel?: TestatoPresenter
           <div>{`Waiting for at least ${appModel.minPlayers} players to join ...`}</div>
         ) : (
           <button className={styles.presenterButton} onClick={() => appModel.startGame()}>
-            {" "}
-            Click here to start!{" "}
+            Click here to start!
           </button>
         )}
       </div>
@@ -67,7 +69,7 @@ class GatheringPlayersPage extends React.Component<{ appModel?: TestatoPresenter
 
 @inject("appModel")
 @observer
-class PausedGamePage extends React.Component<{ appModel?: TestatoPresenterModel }> {
+class PausedGamePage extends React.Component<{ appModel?: TemplatePresenterModel }> {
   // -------------------------------------------------------------------
   // resumeGame
   // -------------------------------------------------------------------
@@ -83,11 +85,13 @@ class PausedGamePage extends React.Component<{ appModel?: TestatoPresenterModel 
     if (!appModel) return <div>NO APP MODEL</div>;
     return (
       <div>
-        <p>Testato is paused</p>
+        <p>{appModel.name} is paused</p>
         <p>Current players in the room:</p>
         <ul>
           {appModel.players.map((player) => (
-            <li key={player.playerId}>{player.name}</li>
+            <li key={player.playerId}>
+              <PlayerAvatar avatarId={player.avatarId} size={32} /> {player.name}
+            </li>
           ))}
         </ul>
         <button
@@ -102,6 +106,8 @@ class PausedGamePage extends React.Component<{ appModel?: TestatoPresenterModel 
   }
 }
 
+// An example of a scripted, multi-step animation (round intro).  Each step runs
+// after its delay; slide() drives smooth per-frame motion.
 class PlayStartAnimationController extends BaseAnimationController {
   @observable announceText = " ";
   @observable textLocation: string | null = null;
@@ -109,6 +115,9 @@ class PlayStartAnimationController extends BaseAnimationController {
 
   constructor(onFinish: () => void) {
     super(onFinish);
+    // Activate the @observable decorators - without this the observer
+    // components never see announceText/showStatus change.
+    makeObservable(this);
 
     const textAnimation = (fraction: number) => {
       const x = 0.01 + 0.01 * Math.sin(fraction * 20);
@@ -147,7 +156,7 @@ class PlayStartAnimationController extends BaseAnimationController {
 @inject("appModel")
 @observer
 class PlayingPage extends React.Component<{
-  appModel?: TestatoPresenterModel;
+  appModel?: TemplatePresenterModel;
   media: MediaHelper;
 }> {
   private _playStartAnimation: PlayStartAnimationController;
@@ -155,15 +164,12 @@ class PlayingPage extends React.Component<{
   // -------------------------------------------------------------------
   // ctor
   // -------------------------------------------------------------------
-  constructor(props: Readonly<{ appModel?: TestatoPresenterModel; media: MediaHelper }>) {
+  constructor(props: Readonly<{ appModel?: TemplatePresenterModel; media: MediaHelper }>) {
     super(props);
     this._playStartAnimation = new PlayStartAnimationController(() => {});
     props.appModel!.registerAnimation(this._playStartAnimation);
 
     props.appModel!.onTick.subscribe("animate", (e) => this.animateFrame(e));
-    props.appModel!.subscribe("ColorChange", "presenterColorChange", () => {
-      props.media.playSound(TestatoAssets.sounds.ding);
-    });
   }
 
   // -------------------------------------------------------------------
@@ -184,7 +190,7 @@ class PlayingPage extends React.Component<{
       const px = p.x * h;
       const py = p.y * h * 0.9 + h * 0.05;
       context.font = "50px serif";
-      let label = p.name;
+      let label = `${p.name} (${p.totalScore})`;
       if (p.message !== "") label += ` says '${p.message}'`;
       context.fillStyle = "#777777";
       context.fillText(label, px + 4, py + 4);
@@ -202,8 +208,17 @@ class PlayingPage extends React.Component<{
     return (
       <div>
         {this._playStartAnimation.showStatus ? (
-          <div>
-            Playing round {appModel.currentRound}. Seconds left: {appModel.secondsLeftInStage}
+          <div className={styles.divRow}>
+            <div>
+              Playing round {appModel.currentRound}. Seconds left: {appModel.secondsLeftInStage}
+            </div>
+            <div className={styles.scoreStrip}>
+              {appModel.players.map((p) => (
+                <span className={styles.scoreItem} key={p.playerId}>
+                  <PlayerAvatar avatarId={p.avatarId} size={36} /> {p.name}: {p.totalScore}
+                </span>
+              ))}
+            </div>
           </div>
         ) : (
           <div style={{ paddingLeft: this._playStartAnimation.textLocation ?? "0px" }}>
@@ -225,7 +240,7 @@ class PlayingPage extends React.Component<{
 
 @inject("appModel")
 @observer
-class EndOfRoundPage extends React.Component<{ appModel?: TestatoPresenterModel }> {
+class EndOfRoundPage extends React.Component<{ appModel?: TemplatePresenterModel }> {
   // -------------------------------------------------------------------
   // render
   // -------------------------------------------------------------------
@@ -233,11 +248,20 @@ class EndOfRoundPage extends React.Component<{ appModel?: TestatoPresenterModel 
     const { appModel } = this.props;
     if (!appModel) return <div>NO APP MODEL</div>;
 
+    const winners = appModel.winners;
     return (
       <div>
         <div>End of round {appModel.currentRound}</div>
-        {appModel.currentRound >= appModel.totalRounds ? (
+        {appModel.gameState === GeneralGameState.GameOver ? (
           <div>
+            <div className={styles.winnerBanner}>
+              {winners.map((w) => (
+                <PlayerAvatar avatarId={w.avatarId} size={64} key={w.playerId} />
+              ))}{" "}
+              {winners.length === 1
+                ? `🏆 ${winners[0].name} wins with ${winners[0].totalScore} points!`
+                : `🏆 It's a tie: ${winners.map((w) => w.name).join(" & ")}`}
+            </div>
             <div>The game is over...</div>
             <button onClick={() => appModel.startGame()}>Play again, same players</button>
           </div>
@@ -255,7 +279,7 @@ class EndOfRoundPage extends React.Component<{ appModel?: TestatoPresenterModel 
 @inject("appModel")
 @observer
 export default class Presenter extends React.Component<{
-  appModel?: TestatoPresenterModel;
+  appModel?: TemplatePresenterModel;
   uiProperties: UIProperties;
 }> {
   media: MediaHelper;
@@ -263,24 +287,25 @@ export default class Presenter extends React.Component<{
   // -------------------------------------------------------------------
   // ctor
   // -------------------------------------------------------------------
-  constructor(props: Readonly<{ appModel?: TestatoPresenterModel; uiProperties: UIProperties }>) {
+  constructor(props: Readonly<{ appModel?: TemplatePresenterModel; uiProperties: UIProperties }>) {
     super(props);
 
     const { appModel } = this.props;
 
     // Set up sound effects
     this.media = new MediaHelper();
-    for (let soundName in TestatoAssets.sounds) {
-      this.media.loadSound((TestatoAssets.sounds as any)[soundName]);
+    for (let soundName in TemplateAssets.sounds) {
+      this.media.loadSound((TemplateAssets.sounds as any)[soundName]);
     }
 
     const sfxVolume = 1.0;
 
+    // Play a countdown alert when a round is nearly out of time
     let timeAlertLoaded = false;
     appModel?.onTick.subscribe("Timer Watcher", () => {
       if (appModel!.secondsLeftInStage > 10) timeAlertLoaded = true;
       if (
-        appModel!.gameState === TestatoGameState.Playing &&
+        appModel!.gameState === TemplateGameState.Playing &&
         timeAlertLoaded &&
         appModel!.secondsLeftInStage <= 10
       ) {
@@ -288,11 +313,23 @@ export default class Presenter extends React.Component<{
         this.media.repeatSound("ding.wav", 5, 100);
       }
     });
+
+    // Game events -> sounds.  Subscribe to model events here so audio
+    // stays in the view layer, out of the game logic.
     appModel?.subscribe(PresenterGameEvent.PlayerJoined, "play joined sound", () =>
-      this.media.playSound(TestatoAssets.sounds.hello, { volume: sfxVolume * 0.2 }),
+      this.media.playSound(TemplateAssets.sounds.hello, { volume: sfxVolume * 0.2 }),
     );
-    appModel?.subscribe(TestatoGameEvent.ResponseReceived, "play response received sound", () =>
-      this.media.playSound(TestatoAssets.sounds.response, { volume: sfxVolume }),
+    appModel?.subscribe(TemplateGameEvent.ResponseReceived, "play response received sound", () =>
+      this.media.playSound(TemplateAssets.sounds.response, { volume: sfxVolume }),
+    );
+    appModel?.subscribe(TemplateGameEvent.ColorChanged, "play color changed sound", () =>
+      this.media.playSound(TemplateAssets.sounds.ding, { volume: sfxVolume * 0.5 }),
+    );
+    appModel?.subscribe(TemplateGameEvent.ScoreChanged, "play score sound", () =>
+      this.media.playSound(TemplateAssets.sounds.score, { volume: sfxVolume * 0.6 }),
+    );
+    appModel?.subscribe(TemplateGameEvent.WinnerAnnounced, "play winner sound", () =>
+      this.media.playSound(TemplateAssets.sounds.winner, { volume: sfxVolume }),
     );
   }
 
@@ -308,9 +345,9 @@ export default class Presenter extends React.Component<{
     switch (appModel.gameState) {
       case PresenterGameState.Gathering:
         return <GatheringPlayersPage />;
-      case TestatoGameState.Playing:
+      case TemplateGameState.Playing:
         return <PlayingPage media={this.media} />;
-      case TestatoGameState.EndOfRound:
+      case TemplateGameState.EndOfRound:
       case GeneralGameState.GameOver:
         return <EndOfRoundPage />;
       case GeneralGameState.Paused:
@@ -345,7 +382,7 @@ export default class Presenter extends React.Component<{
         </button>
         <div className={classNames(styles.roomCode)}>Room Code: {appModel.roomId}</div>
         <DevUI context={appModel} children={<div></div>} />
-        <div style={{ marginLeft: "50px" }}>v{TestatoVersion}</div>
+        <div style={{ marginLeft: "50px" }}>v{TemplateVersion}</div>
       </div>
     );
   }

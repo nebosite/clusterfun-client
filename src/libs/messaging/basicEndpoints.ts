@@ -4,7 +4,7 @@ import MessageEndpoint from "./MessageEndpoint";
  * Endpoint for joining a game from the client
  */
 export const JoinEndpoint: MessageEndpoint<
-  { playerName: string },
+  { playerName: string; avatarId?: number },
   { isRejoin: boolean; didJoin: boolean; joinError?: string }
 > = {
   route: "/basic/handshake/join",

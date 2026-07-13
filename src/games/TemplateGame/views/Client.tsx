@@ -1,7 +1,9 @@
-// App Navigation handled here
+// The player's phone view.  One sub-screen per client game state, chosen by
+// renderSubScreen().  Keep this thin - it captures input and shows feedback;
+// the presenter owns the real game.
 import React from "react";
 import { observer, inject } from "mobx-react";
-import { TestatoClientModel, TestatoClientState } from "../models/ClientModel";
+import { TemplateClientModel, TemplateClientState } from "../models/ClientModel";
 import styles from "./Client.module.css";
 import classNames from "classnames";
 import {
@@ -12,6 +14,7 @@ import {
   GeneralClientGameState,
   UINormalizer,
   ErrorBoundary,
+  PlayerAvatar,
 } from "libs";
 import Logger from "js-logger";
 
@@ -20,7 +23,7 @@ import Logger from "js-logger";
 // -------------------------------------------------------------------
 @inject("appModel")
 @observer
-class GameScreen extends React.Component<{ appModel?: TestatoClientModel }> {
+class GameScreen extends React.Component<{ appModel?: TemplateClientModel }> {
   canvasDomId: string;
   w = 100;
   h = 100;
@@ -29,7 +32,7 @@ class GameScreen extends React.Component<{ appModel?: TestatoClientModel }> {
   // -------------------------------------------------------------------
   // ctor
   // -------------------------------------------------------------------
-  constructor(props: { appModel?: TestatoClientModel }) {
+  constructor(props: { appModel?: TemplateClientModel }) {
     super(props);
 
     props.appModel!.onTick.subscribe("animate", (e) => this.animateFrame(e));
@@ -44,7 +47,7 @@ class GameScreen extends React.Component<{ appModel?: TestatoClientModel }> {
   }
 
   // -------------------------------------------------------------------
-  // When the component mounts, learn about the canvas size and location
+  // When the component updates, learn about the canvas size and location
   // -------------------------------------------------------------------
   componentDidUpdate() {
     const canvas = document.getElementById(this.canvasDomId) as HTMLCanvasElement;
@@ -58,7 +61,7 @@ class GameScreen extends React.Component<{ appModel?: TestatoClientModel }> {
   // -------------------------------------------------------------------
   animateFrame = (elapsed_ms: number) => {
     const { appModel } = this.props;
-    if (appModel?.gameState !== TestatoClientState.Playing) return;
+    if (appModel?.gameState !== TemplateClientState.Playing) return;
     if (!this.canvasContext) return;
 
     // Clear canvas
@@ -91,10 +94,12 @@ class GameScreen extends React.Component<{ appModel?: TestatoClientModel }> {
 
     return (
       <div>
-        <h4>{appModel!.playerName}</h4>
+        <h4>
+          <PlayerAvatar avatarId={appModel.avatarId} size={50} /> {appModel.playerName}
+        </h4>
 
         <div>
-          Tap the screen to set dot position
+          Tap the screen to set dot position (each tap scores a point!)
           <div className={styles.gameCanvasFrame}>
             <ClusterCanvas
               canvasId={this.canvasDomId}
@@ -124,7 +129,7 @@ class GameScreen extends React.Component<{ appModel?: TestatoClientModel }> {
 @inject("appModel")
 @observer
 export default class Client extends React.Component<{
-  appModel?: TestatoClientModel;
+  appModel?: TemplateClientModel;
   uiProperties: UIProperties;
 }> {
   lastState: string = GeneralGameState.Unknown;
@@ -169,10 +174,10 @@ export default class Client extends React.Component<{
             </div>
           </React.Fragment>
         );
-      case TestatoClientState.Playing:
+      case TemplateClientState.Playing:
         this.alertUser();
         return <GameScreen />;
-      case TestatoClientState.EndOfRound:
+      case TemplateClientState.EndOfRound:
         this.alertUser();
         return <div>Round is over... </div>;
       case GeneralGameState.GameOver:
@@ -210,8 +215,10 @@ export default class Client extends React.Component<{
         >
           <div className={styles.gameclient}>
             <div className={classNames(styles.divRow, styles.topbar)}>
-              <span className={classNames(styles.gametitle)}>Testato</span>
-              <span>{appModel?.playerName}</span>
+              <span className={classNames(styles.gametitle)}>Template</span>
+              <span>
+                <PlayerAvatar avatarId={appModel?.avatarId ?? 0} size={40} /> {appModel?.playerName}
+              </span>
               <button className={classNames(styles.quitbutton)} onClick={() => appModel?.quitApp()}>
                 X
               </button>

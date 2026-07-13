@@ -1,5 +1,6 @@
 import {
   BaseGameModel,
+  ClusterfunClientModel,
   ISessionHelper,
   ITypeHelper,
   SessionHelper,
@@ -22,6 +23,7 @@ import Logger from "js-logger";
 // -------------------------------------------------------------------
 export interface ClusterFunGameProps {
   playerName?: string;
+  avatarId?: number;
   gameProperties: GameInstanceProperties;
   uiProperties: UIProperties;
   messageThing: IMessageThing;
@@ -89,6 +91,10 @@ export class ClusterfunGameComponent extends React.Component<ClusterFunGameProps
         this.props.logger,
         this.props.storage,
       );
+      // Stamp the lobby-chosen avatar before reconstitute() sends the Join message
+      if (this.props.avatarId !== undefined) {
+        (this.appModel as ClusterfunClientModel).avatarId = this.props.avatarId;
+      }
     }
 
     document.title = `${gameProperties.gameName} / ClusterFun.tv`;

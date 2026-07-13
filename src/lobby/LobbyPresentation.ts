@@ -34,9 +34,6 @@ export const TILE_PALETTE = [
   "#12b8ff",
 ];
 
-// Grayscale swatch tones for the neutral avatar shapes.
-export const AVATAR_TONES = ["#d4d6dd", "#9296a6", "#f2f3f6"];
-
 // The category chips shown on the presenter. "All" is the default filter.
 export const CATEGORIES = ["All", "Trivia", "Drawing", "Party", "Word", "Bluff", "Music"];
 
@@ -86,7 +83,7 @@ const KNOWN: Record<string, Partial<GamePresentation>> = {
     playTime: "5m",
     thumbKind: "bars",
   },
-  Testato: {
+  Template: {
     category: "Party",
     blurb: "The bare-bones template game used as the starting point for new games.",
     players: "1–8",

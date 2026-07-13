@@ -1,5 +1,5 @@
 import StressatoAssets from "games/stressgame/assets/Assets";
-import TestatoAssets from "games/TestGame/assets/Assets";
+import TemplateAssets from "games/TemplateGame/assets/Assets";
 import { GameDescriptor } from "./GameDescriptor";
 import releaseGames from "./gamesListRelease";
 
@@ -12,11 +12,11 @@ const debugOnlyGames: GameDescriptor[] = [
     importThunk: () => import("../stressgame/views/GameComponent"),
   },
   {
-    name: "Testato",
-    displayName: "Test Game",
+    name: "Template",
+    displayName: "Template Game",
     tags: ["debug"],
-    logoName: TestatoAssets.images.logo,
-    importThunk: () => import("../TestGame/views/GameComponent"),
+    logoName: TemplateAssets.images.logo,
+    importThunk: () => import("../TemplateGame/views/GameComponent"),
   },
 ];
 

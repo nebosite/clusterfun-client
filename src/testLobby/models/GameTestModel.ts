@@ -357,7 +357,10 @@ export class GameTestModel {
     for (let i = 0; i < numberOfClients; i++) {
       const clientName = names[Math.floor(Math.random() * names.length)];
       const newLobby = new LobbyModel(this.makeLobbyDependencies(i, clientName), "client" + i);
-      if (!newLobby.gameProperties) newLobby.playerName = clientName;
+      if (!newLobby.gameProperties) {
+        newLobby.playerName = clientName;
+        newLobby.avatarId = i % 8;
+      }
       this.clientModels.push(newLobby);
     }
   }

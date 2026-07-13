@@ -5,19 +5,13 @@ import { LobbyMode, LobbyModel } from "../models/LobbyModel";
 import classNames from "classnames";
 import { GLOBALS } from "../../Globals";
 import styles from "./LobbyComponent.module.css";
-import { UIProperties, UINormalizer } from "libs";
+import { PlayerAvatar, UIProperties, UINormalizer } from "libs";
 import Logger from "js-logger";
 import { GameDescriptor } from "games/lists/GameDescriptor";
 import { PartyBurstLogo } from "./PartyBurstLogo";
 import { ScaleToWidth } from "./ScaleToWidth";
 import { GameThumbnail } from "./GameThumbnail";
-import {
-  CATEGORIES,
-  TILE_PALETTE,
-  AVATAR_TONES,
-  presentationFor,
-  GamePresentation,
-} from "../LobbyPresentation";
+import { CATEGORIES, TILE_PALETTE, presentationFor, GamePresentation } from "../LobbyPresentation";
 
 interface DecoratedGame {
   game: GameDescriptor;
@@ -203,83 +197,15 @@ class PresenterComponent extends React.Component<
 @observer
 class GameClientComponent extends React.Component<
   { lobbyModel?: LobbyModel },
-  { selectedAvatar: number; selectedColor: number; nameRemembered: boolean; popped: boolean[] }
+  { selectedColor: number; nameRemembered: boolean; popped: boolean[] }
 > {
   constructor(props: { lobbyModel?: LobbyModel }) {
     super(props);
     this.state = {
-      selectedAvatar: 0,
       selectedColor: 1,
       nameRemembered: !!props.lobbyModel?.playerName?.trim(),
       popped: new Array(12).fill(false),
     };
-  }
-
-  // 8 neutral, abstract avatar marks. The player's chosen *color* provides
-  // the pop, not the shape, so these stay grayscale.
-  private renderAvatar(i: number) {
-    const tone = AVATAR_TONES[i % AVATAR_TONES.length];
-    const cut = "#12121a";
-    switch (i) {
-      case 0:
-        return (
-          <svg viewBox="0 0 40 40">
-            <circle cx="20" cy="20" r="16" fill={tone} />
-            <circle cx="20" cy="20" r="6" fill={cut} />
-          </svg>
-        );
-      case 1:
-        return (
-          <svg viewBox="0 0 40 40">
-            <rect x="5" y="5" width="30" height="30" rx="8" fill={tone} />
-            <circle cx="20" cy="20" r="7" fill={cut} />
-          </svg>
-        );
-      case 2:
-        return (
-          <svg viewBox="0 0 40 40">
-            <polygon points="20,4 36,34 4,34" fill={tone} />
-            <circle cx="20" cy="25" r="5" fill={cut} />
-          </svg>
-        );
-      case 3:
-        return (
-          <svg viewBox="0 0 40 40">
-            <polygon points="20,3 37,20 20,37 3,20" fill={tone} />
-            <rect x="14" y="14" width="12" height="12" fill={cut} />
-          </svg>
-        );
-      case 4:
-        return (
-          <svg viewBox="0 0 40 40">
-            <circle cx="20" cy="20" r="16" fill={tone} />
-            <circle cx="20" cy="20" r="9" fill={cut} />
-          </svg>
-        );
-      case 5:
-        return (
-          <svg viewBox="0 0 40 40">
-            <rect x="6" y="8" width="28" height="10" rx="5" fill={tone} />
-            <rect x="6" y="22" width="28" height="10" rx="5" fill={tone} />
-          </svg>
-        );
-      case 6:
-        return (
-          <svg viewBox="0 0 40 40">
-            <circle cx="13" cy="13" r="8" fill={tone} />
-            <circle cx="27" cy="13" r="8" fill={tone} />
-            <circle cx="13" cy="27" r="8" fill={tone} />
-            <circle cx="27" cy="27" r="8" fill={tone} />
-          </svg>
-        );
-      default:
-        return (
-          <svg viewBox="0 0 40 40">
-            <polygon points="20,4 34,12 34,28 20,36 6,28 6,12" fill={tone} />
-            <circle cx="20" cy="20" r="6" fill={cut} />
-          </svg>
-        );
-    }
   }
 
   render() {
@@ -348,12 +274,12 @@ class GameClientComponent extends React.Component<
                 <button
                   key={i}
                   className={classNames(styles.avatarButton, {
-                    [styles.avatarSelected]: this.state.selectedAvatar === i,
+                    [styles.avatarSelected]: lobbyModel.avatarId === i,
                   })}
-                  onClick={() => this.setState({ selectedAvatar: i })}
+                  onClick={() => (lobbyModel.avatarId = i)}
                   aria-label={`Avatar ${i + 1}`}
                 >
-                  {this.renderAvatar(i)}
+                  <PlayerAvatar avatarId={i} />
                 </button>
               ))}
             </div>

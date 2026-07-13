@@ -2,7 +2,7 @@
 
 A ClusterFun game (presenter + client on one shared module). Read [DESIGN.md](DESIGN.md) first for
 the product flow, economy, and visual spec; this file is how the code implements it. Built from the
-`TestGame` template.
+`TestGame` template (since renamed to `TemplateGame`).
 
 ## The loop
 

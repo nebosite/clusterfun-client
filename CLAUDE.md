@@ -34,7 +34,9 @@ src/
   Globals.ts             App-wide constants (title, mobile detection).
   games/
     lists/               The game REGISTRY (see below).
-    TestGame/            The template game ("Testato"). Copy this to start a new game.
+    TemplateGame/        The template game ("Template"). Copy this to start a new game.
+                         See its README.md (manual steps + how to prompt Claude) and
+                         CLAUDE.md (design-interview workflow for building a new game).
     Lexible/             A real word game.
     RetroSpectro/        A retrospective/sorting game.
     stressgame/          "Stressato" — load/stress test game.
@@ -59,12 +61,12 @@ src/
 
 Most things are re-exported from `libs/index.ts`, so games import from `"libs"`.
 
-## Anatomy of a game (using TestGame / "Testato")
+## Anatomy of a game (using TemplateGame / "Template")
 
 A game is a folder under `src/games/<Name>/`:
 
 ```
-TestGame/
+TemplateGame/
   index.ts                     Re-exports views. (Registry entry points at views/GameComponent.)
   views/
     GameComponent.tsx          Extends ClusterfunGameComponent; init(lazyPresenter, lazyClient, presenterTypeHelper, clientTypeHelper)
@@ -72,14 +74,16 @@ TestGame/
     Client.tsx                 React view for a player's device (observes the client model)
     index.ts
   models/
-    PresenterModel.ts          TestatoPresenterModel extends ClusterfunPresenterModel<TestatoPlayer>; game states; message handlers; type helper
-    ClientModel.ts             TestatoClientModel extends ClusterfunClientModel; input actions; type helper
-    testatoEndpoints.ts        MessageEndpoint definitions (the typed API between client & presenter)
+    PresenterModel.ts          TemplatePresenterModel extends ClusterfunPresenterModel<TemplatePlayer>; game states; message handlers; type helper
+    ClientModel.ts             TemplateClientModel extends ClusterfunClientModel; input actions; type helper
+    templateEndpoints.ts       MessageEndpoint definitions (the typed API between client & presenter)
+    templateLogic.ts           PURE, framework-free game rules (+ templateLogic.spec.ts unit tests)
     GameSettings.ts            Constants (e.g. PLAYTIME_MS)
   assets/
     Assets.ts                  Asset manifest (logo image, sounds)
     images/, sounds/
-  README.md
+  README.md                    How to start a new game from the template (by hand or with Claude)
+  CLAUDE.md                    Claude workflow: interview the user, then scaffold + implement
 ```
 
 ### How a game boots
@@ -95,7 +99,7 @@ building fresh via the type helper — calls `reconstitute()`, and renders the m
 - Shared/base states live in enums: `GeneralGameState` (Unknown, Instructions, Playing,
   Paused, GameOver, Destroyed), `PresenterGameState` (Gathering), `GeneralClientGameState`
   (WaitingToStart, JoinError, Paused).
-- Each game adds its own states (e.g. `TestatoGameState.Playing / EndOfRound`) and sets
+- Each game adds its own states (e.g. `TemplateGameState.Playing / EndOfRound`) and sets
   `gameState` on the model. Setting `gameState` fires an event and logs; setting it to
   `Unknown` throws.
 - The presenter drives time via `BaseGameModel`'s ticker (default 33ms). `ClusterfunPresenterModel`
@@ -104,12 +108,12 @@ building fresh via the type helper — calls `reconstitute()`, and renders the m
   `prepareFreshRound`, `prepareFreshGame`.
 - **Turn-based vs arcade** is just how a game uses the tick and endpoints: turn-based games
   transition on discrete player actions/timeouts; arcade games run continuous per-frame logic
-  (see the client's `gameThink(elapsed_ms)` in TestGame, which animates every frame).
+  (see the client's `gameThink(elapsed_ms)` in TemplateGame, which animates every frame).
 
 ### Messaging between presenter and client
 
 Communication is via typed **`MessageEndpoint<REQUEST, RESPONSE>`** objects (a `route`
-string plus optional retry hints), defined per game (e.g. `testatoEndpoints.ts`) plus shared
+string plus optional retry hints), defined per game (e.g. `templateEndpoints.ts`) plus shared
 ones in `libs/messaging/basicEndpoints.ts` (Join, Quit, Ping, GameOver, InvalidateState,
 Pause/Resume/Terminate).
 
@@ -123,6 +127,10 @@ Pause/Resume/Terminate).
   each client calls `requestGameStateFromPresenter()` to re-sync (handles missed messages).
 - Clients send a `PingEndpoint` keepalive every 10s; the presenter manages join/rejoin
   (`handleJoinMessage`), including rejoin-by-name after a device reboot.
+- The Join message carries the player's lobby-chosen **avatar** (`avatarId`), which lands on
+  `ClusterFunPlayer.avatarId`. Games should render it with the shared `PlayerAvatar`
+  component (from `libs`) wherever players appear — join lists, scoreboards, winner screens,
+  and the phone's own header (client models expose `avatarId` too).
 
 ### Save / restore (this is a headline feature)
 
@@ -132,7 +140,7 @@ the game's `ITypeHelper`. On load, `instantiateGame` restores it unless the stat
 useful when editing code mid-game. Call `saveCheckpoint()` after meaningful state changes
 (the models already do so in their handlers).
 
-Each game provides a **type helper** (`getTestato...TypeHelper`) that tells the serializer how
+Each game provides a **type helper** (`getTemplate...TypeHelper`) that tells the serializer how
 to name/construct its classes and which properties to skip or specially rehydrate (e.g.
 wrapping arrays back into MobX `observable`). The base class helpers
 (`getPresenterTypeHelper`/`getClientTypeHelper`) wrap the game's helper to add framework
@@ -143,7 +151,7 @@ types like `ClusterFunPlayer`.
 - `GameDescriptor.ts` — the shape: `name`, `displayName?`, `tags`, `logoName`, `importThunk`
   (returns the lazy game component).
 - `gamesListRelease.ts` — games shipped in production.
-- `gamesListDebug.ts` — release games **plus** debug-only games (Testato, Stressato).
+- `gamesListDebug.ts` — release games **plus** debug-only games (Template, Stressato).
 - `GameChooser.tsx` picks debug vs release list based on `REACT_APP_SHOW_DEBUG_GAMES`, and
   lazy-loads a game's component by name.
 
@@ -177,14 +185,21 @@ client `LobbyModels`** on a single page, wired to a **virtual server**:
 
 ## Creating a new game
 
-1. Copy `src/games/TestGame` to `src/games/<YourGame>`.
-2. Rename all `Testato`/`testato` identifiers to your game.
-3. Define your endpoints, presenter model (states, `handleTick`, round logic, message
-   handlers), client model (input actions, `requestGameStateFromPresenter`), and the two
-   views. Keep the type helpers in sync with any new serializable classes.
+**Follow `src/games/TemplateGame/README.md`** (manual steps and Claude-prompting guide) and,
+when building with Claude, `src/games/TemplateGame/CLAUDE.md` (interview the user about the
+design first, then scaffold). Short version:
+
+1. Copy `src/games/TemplateGame` to `src/games/<YourGame>` (drop the copied CLAUDE.md).
+2. Rename all `Template`/`template` identifiers to your game — including the serializer
+   type-name strings in both type helpers.
+3. Define your endpoints, pure rules module (+ spec), presenter model (states, `handleTick`,
+   round logic, message handlers), client model (input actions,
+   `requestGameStateFromPresenter`), and the two views. Keep the type helpers in sync with
+   any new serializable classes, and show `PlayerAvatar` wherever players appear.
 4. Add assets under `assets/` and reference them via `Assets.ts`.
-5. Register the game in `src/games/lists/gamesListRelease.ts` (and it will inherit into the
-   debug list). For it to show in production, also add it to the server's `game_manifest`.
+5. Register the game in `src/games/lists/gamesListDebug.ts` while developing; move it to
+   `gamesListRelease.ts` to ship. For it to show in production, also add it to the server's
+   `game_manifest`.
 
 ## Build & run
 
