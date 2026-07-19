@@ -14,8 +14,9 @@ See [DESIGN.md](DESIGN.md) for the full spec.
 3. On your phone: **Move** to pan/zoom, **Draw** to outline a zone, then **Claim zone**.
 4. Your outline appears on the big screen in your color. Pick **Take a picture** (live
    camera) or **Upload a picture** (choose an existing photo).
-5. Camera path: the zone shows your live camera, clipped to the shape. **Snap**, then **Use it**.
-6. Your photo lands on the canvas and the zone frees up — go draw another one.
+5. Camera path: the zone shows your live camera, clipped to the shape. **Snap** a frame.
+6. Frame it — drag to pan, pinch/➕➖ to zoom, twist/↺↻ to tilt — then **Use it**.
+7. Your photo lands on the canvas and the zone frees up — go draw another one.
 
 ## Development notes
 

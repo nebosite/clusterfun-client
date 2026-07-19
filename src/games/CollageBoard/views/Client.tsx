@@ -20,9 +20,14 @@ import {
 import Logger from "js-logger";
 import {
   ZonePoint,
+  ImageTransform,
   polygonBounds,
   polygonToCssClipPath,
   patchOutputSize,
+  coverScale,
+  initialImageTransform,
+  panTransform,
+  pinchTransform,
 } from "../models/collageBoardLogic";
 import {
   PATCH_MAX_EDGE,
@@ -32,13 +37,7 @@ import {
   JPEG_QUALITY_STEP,
   MAX_VIEW_ZOOM,
 } from "../models/GameSettings";
-import {
-  startCamera,
-  stopCamera,
-  captureCover,
-  canvasToJpegUnderSize,
-  loadImageFromFile,
-} from "./cameraCapture";
+import { startCamera, stopCamera, canvasToJpegUnderSize, loadImageFromFile } from "./cameraCapture";
 
 // Board canvas resolution inside the 1080-wide virtual phone screen
 const BOARD_W = 1000;
@@ -341,27 +340,45 @@ class CameraScreen extends React.Component<
   { appModel?: CollageBoardClientModel },
   {
     capturePath: "choose" | "camera";
-    captured: string | null;
+    // A shot has been taken/picked and is being framed (pan/zoom/tilt).
+    editing: boolean;
     cameraFailed: boolean;
     committing: boolean;
   }
 > {
   videoDomId: string;
+  editorDomId: string;
   private _stream: MediaStream | null = null;
+
+  // The frozen shot being framed, plus the pan/zoom/tilt transform that maps
+  // it into the zone's bounding-box output canvas.
+  private _source: CanvasImageSource | null = null;
+  private _srcW = 0;
+  private _srcH = 0;
+  private _outW = 0;
+  private _outH = 0;
+  private _transform: ImageTransform = { scale: 1, rotation: 0, cx: 0, cy: 0 };
+  private _minScale = 0.1;
+  private _maxScale = 10;
+
+  // Live pointer positions on the editor canvas (output-space pixels).
+  private _editPointers = new Map<number, { x: number; y: number }>();
+  private _lastPinchDist = 0;
+  private _lastPinchAngle = 0;
 
   constructor(props: { appModel?: CollageBoardClientModel }) {
     super(props);
     // Start on the chooser: the player picks camera vs upload, so we don't
     // pop a camera-permission prompt on someone who only wants to upload.
-    this.state = { capturePath: "choose", captured: null, cameraFailed: false, committing: false };
+    this.state = { capturePath: "choose", editing: false, cameraFailed: false, committing: false };
     this.videoDomId = "CollageCamera" + this.props.appModel!.playerId;
+    this.editorDomId = "CollageEditor" + this.props.appModel!.playerId;
   }
 
   componentDidUpdate() {
-    // Re-bind the stream whenever the <video> (re)mounts (camera pick, retake).
-    if (this.state.capturePath === "camera" && !this.state.captured && !this.state.cameraFailed) {
-      this.attachStream();
-    }
+    // Redraw the framing editor / re-bind the live stream when they (re)mount.
+    if (this.state.editing) this.drawEditor();
+    else if (this.state.capturePath === "camera" && !this.state.cameraFailed) this.attachStream();
   }
 
   componentWillUnmount() {
@@ -389,22 +406,17 @@ class CameraScreen extends React.Component<
     if (video && video.srcObject !== this._stream) video.srcObject = this._stream;
   }
 
-  // ---- capture paths ------------------------------------------------------
+  // ---- take/pick a shot, then move into the framing editor ----------------
   private snap = () => {
     const zone = this.props.appModel?.claimedZone;
     const video = document.getElementById(this.videoDomId) as HTMLVideoElement | null;
     if (!zone || !video || video.videoWidth === 0) return;
-    const bounds = polygonBounds(zone.points);
-    const out = patchOutputSize(bounds, 1920, 1080, PATCH_MAX_EDGE);
-    const canvas = captureCover(video, video.videoWidth, video.videoHeight, out.width, out.height);
-    const jpeg = canvasToJpegUnderSize(
-      canvas,
-      PATCH_TARGET_BYTES,
-      JPEG_QUALITY_START,
-      JPEG_QUALITY_MIN,
-      JPEG_QUALITY_STEP,
-    );
-    this.setState({ captured: jpeg });
+    // Freeze the current video frame into an offscreen canvas so we can frame it.
+    const frame = document.createElement("canvas");
+    frame.width = video.videoWidth;
+    frame.height = video.videoHeight;
+    frame.getContext("2d")?.drawImage(video, 0, 0);
+    this.beginEditing(frame, video.videoWidth, video.videoHeight, zone);
   };
 
   private handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -414,28 +426,159 @@ class CameraScreen extends React.Component<
     if (!zone || !file) return;
     try {
       const img = await loadImageFromFile(file);
-      const bounds = polygonBounds(zone.points);
-      const out = patchOutputSize(bounds, 1920, 1080, PATCH_MAX_EDGE);
-      const canvas = captureCover(img, img.naturalWidth, img.naturalHeight, out.width, out.height);
-      const jpeg = canvasToJpegUnderSize(
-        canvas,
-        PATCH_TARGET_BYTES,
-        JPEG_QUALITY_START,
-        JPEG_QUALITY_MIN,
-        JPEG_QUALITY_STEP,
-      );
-      this.setState({ captured: jpeg });
+      this.beginEditing(img, img.naturalWidth, img.naturalHeight, zone);
     } catch (err) {
       Logger.warn(`Could not read the picked file: ${err}`);
     }
   };
 
+  private beginEditing(
+    source: CanvasImageSource,
+    srcW: number,
+    srcH: number,
+    zone: { points: ZonePoint[] },
+  ) {
+    const out = patchOutputSize(polygonBounds(zone.points), 1920, 1080, PATCH_MAX_EDGE);
+    this._source = source;
+    this._srcW = srcW;
+    this._srcH = srcH;
+    this._outW = out.width;
+    this._outH = out.height;
+    const base = coverScale(srcW, srcH, out.width, out.height);
+    this._minScale = base * 0.25;
+    this._maxScale = base * 8;
+    this._transform = initialImageTransform(srcW, srcH, out.width, out.height);
+    this._editPointers.clear();
+    this.setState({ editing: true });
+  }
+
+  private retake = () => {
+    this._source = null;
+    this._editPointers.clear();
+    this.setState({ editing: false });
+  };
+
+  // ---- framing: pan / zoom / tilt the shot inside the zone ----------------
+  private drawEditor() {
+    const canvas = document.getElementById(this.editorDomId) as HTMLCanvasElement | null;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx || !this._source) return;
+    if (canvas.width !== this._outW) canvas.width = this._outW;
+    if (canvas.height !== this._outH) canvas.height = this._outH;
+    const t = this._transform;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, this._outW, this._outH);
+    ctx.translate(t.cx, t.cy);
+    ctx.rotate(t.rotation);
+    ctx.scale(t.scale, t.scale);
+    ctx.drawImage(this._source, -this._srcW / 2, -this._srcH / 2, this._srcW, this._srcH);
+  }
+
+  private editorPoint(e: { clientX: number; clientY: number }) {
+    const canvas = document.getElementById(this.editorDomId) as HTMLCanvasElement;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * this._outW,
+      y: ((e.clientY - rect.top) / rect.height) * this._outH,
+    };
+  }
+
+  private handleEditPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    try {
+      (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
+    } catch {
+      // Best-effort: synthetic/stale pointerIds throw NotFoundError
+    }
+    this._editPointers.set(e.pointerId, this.editorPoint(e));
+    if (this._editPointers.size === 2) {
+      this._lastPinchDist = this.pinchDistance();
+      this._lastPinchAngle = this.pinchAngle();
+    }
+  };
+
+  private handleEditPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!this._editPointers.has(e.pointerId)) return;
+    const prev = this._editPointers.get(e.pointerId)!;
+    const p = this.editorPoint(e);
+    this._editPointers.set(e.pointerId, p);
+
+    if (this._editPointers.size >= 2) {
+      const dist = this.pinchDistance();
+      const angle = this.pinchAngle();
+      const mid = this.pinchMidpoint();
+      const factor = this._lastPinchDist > 0.001 ? dist / this._lastPinchDist : 1;
+      // Shortest angular delta so a wrap past ±180° doesn't spin the image.
+      let dRot = angle - this._lastPinchAngle;
+      dRot = Math.atan2(Math.sin(dRot), Math.cos(dRot));
+      this._transform = pinchTransform(
+        this._transform,
+        mid.x,
+        mid.y,
+        factor,
+        dRot,
+        this._minScale,
+        this._maxScale,
+      );
+      this._lastPinchDist = dist;
+      this._lastPinchAngle = angle;
+    } else {
+      this._transform = panTransform(this._transform, p.x - prev.x, p.y - prev.y);
+    }
+    this.drawEditor();
+  };
+
+  private handleEditPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    this._editPointers.delete(e.pointerId);
+    if (this._editPointers.size < 2) {
+      this._lastPinchDist = 0;
+      this._lastPinchAngle = 0;
+    }
+  };
+
+  private pinchPair() {
+    return Array.from(this._editPointers.values());
+  }
+  private pinchDistance() {
+    const [a, b] = this.pinchPair();
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+  private pinchAngle() {
+    const [a, b] = this.pinchPair();
+    return Math.atan2(b.y - a.y, b.x - a.x);
+  }
+  private pinchMidpoint() {
+    const [a, b] = this.pinchPair();
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  }
+
+  // Button controls (desktop / fine adjust): zoom & tilt about the center.
+  private adjust(scaleFactor: number, deltaRotation: number) {
+    this._transform = pinchTransform(
+      this._transform,
+      this._outW / 2,
+      this._outH / 2,
+      scaleFactor,
+      deltaRotation,
+      this._minScale,
+      this._maxScale,
+    );
+    this.drawEditor();
+  }
+
   private commit = async () => {
-    const { captured } = this.state;
-    if (!captured) return;
+    const canvas = document.getElementById(this.editorDomId) as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const jpeg = canvasToJpegUnderSize(
+      canvas,
+      PATCH_TARGET_BYTES,
+      JPEG_QUALITY_START,
+      JPEG_QUALITY_MIN,
+      JPEG_QUALITY_STEP,
+    );
     this.setState({ committing: true });
-    const res = await this.props.appModel!.commitPhoto(captured);
-    if (!res.ok) this.setState({ committing: false, captured: null });
+    const res = await this.props.appModel!.commitPhoto(jpeg);
+    if (!res.ok) this.setState({ committing: false });
     // On success the model flips back to navigate and this screen unmounts
   };
 
@@ -443,7 +586,7 @@ class CameraScreen extends React.Component<
     const { appModel } = this.props;
     const zone = appModel?.claimedZone;
     if (!appModel || !zone) return <div>No zone selected</div>;
-    const { capturePath, captured, cameraFailed, committing } = this.state;
+    const { capturePath, editing, cameraFailed, committing } = this.state;
 
     // Fit the zone's bounding box (16:9 board units -> physical aspect)
     // into the available virtual space
@@ -467,8 +610,8 @@ class CameraScreen extends React.Component<
       .join(" ");
 
     const liveCamera = capturePath === "camera" && !cameraFailed;
-    const hint = captured
-      ? "Like it?"
+    const hint = editing
+      ? "Drag to pan · pinch to zoom · twist to tilt"
       : liveCamera
         ? "Line up your shot inside your zone"
         : cameraFailed
@@ -479,12 +622,15 @@ class CameraScreen extends React.Component<
       <div>
         <div className={styles.hintText}>{hint}</div>
         <div className={styles.cameraFrame} style={{ width: `${frameW}px`, height: `${frameH}px` }}>
-          {captured ? (
-            <img
+          {editing ? (
+            <canvas
+              id={this.editorDomId}
               className={styles.cameraFill}
-              style={{ clipPath }}
-              src={captured}
-              alt="Your shot"
+              style={{ clipPath, touchAction: "none" }}
+              onPointerDown={this.handleEditPointerDown}
+              onPointerMove={this.handleEditPointerMove}
+              onPointerUp={this.handleEditPointerUp}
+              onPointerCancel={this.handleEditPointerUp}
             />
           ) : liveCamera ? (
             <video
@@ -511,10 +657,27 @@ class CameraScreen extends React.Component<
           </svg>
         </div>
 
+        {editing ? (
+          <div className={styles.toolRow}>
+            <button className={styles.toolButton} onClick={() => this.adjust(1, -Math.PI / 12)}>
+              ↺
+            </button>
+            <button className={styles.toolButton} onClick={() => this.adjust(1 / 1.25, 0)}>
+              ➖
+            </button>
+            <button className={styles.toolButton} onClick={() => this.adjust(1.25, 0)}>
+              ➕
+            </button>
+            <button className={styles.toolButton} onClick={() => this.adjust(1, Math.PI / 12)}>
+              ↻
+            </button>
+          </div>
+        ) : null}
+
         {appModel.claimError ? <div className={styles.errorText}>{appModel.claimError}</div> : null}
 
         <div className={styles.confirmRow}>
-          {captured ? (
+          {editing ? (
             <React.Fragment>
               <button className={styles.primaryButton} disabled={committing} onClick={this.commit}>
                 {committing ? "Sending..." : "✅ Use it"}
@@ -522,7 +685,7 @@ class CameraScreen extends React.Component<
               <button
                 className={styles.secondaryButton}
                 disabled={committing}
-                onClick={() => this.setState({ captured: null })}
+                onClick={this.retake}
               >
                 🔄 Retake
               </button>

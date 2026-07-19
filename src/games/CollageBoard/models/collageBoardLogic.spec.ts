@@ -11,7 +11,32 @@ import {
   polygonToCssClipPath,
   coverSourceRect,
   patchOutputSize,
+  ImageTransform,
+  coverScale,
+  initialImageTransform,
+  panTransform,
+  pinchTransform,
 } from "./collageBoardLogic";
+
+// Forward-map a source-centered point through a transform, for asserting
+// the pan/zoom/tilt invariants without a canvas.
+const mapPoint = (t: ImageTransform, sx: number, sy: number) => {
+  const cos = Math.cos(t.rotation);
+  const sin = Math.sin(t.rotation);
+  return {
+    x: t.cx + t.scale * (sx * cos - sy * sin),
+    y: t.cy + t.scale * (sx * sin + sy * cos),
+  };
+};
+
+// Inverse-map an output point back to source-centered coords.
+const unmapPoint = (t: ImageTransform, ox: number, oy: number) => {
+  const cos = Math.cos(-t.rotation);
+  const sin = Math.sin(-t.rotation);
+  const vx = (ox - t.cx) / t.scale;
+  const vy = (oy - t.cy) / t.scale;
+  return { x: vx * cos - vy * sin, y: vx * sin + vy * cos };
+};
 
 const square = (): ZonePoint[] => [
   { x: 0.2, y: 0.2 },
@@ -217,5 +242,62 @@ describe("patchOutputSize", () => {
     const size = patchOutputSize({ x: 0, y: 0, width: 0.0001, height: 0.0001 }, 1920, 1080, 1280);
     expect(size.width).toBeGreaterThanOrEqual(1);
     expect(size.height).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("coverScale", () => {
+  it("uses the larger ratio so the image covers the output", () => {
+    // Wide source into a square output: height is the tight edge (200/100).
+    expect(coverScale(400, 100, 100, 100)).toBe(1);
+    expect(coverScale(100, 100, 200, 100)).toBe(2);
+  });
+
+  it("falls back to 1 on degenerate sizes", () => {
+    expect(coverScale(0, 100, 100, 100)).toBe(1);
+    expect(coverScale(100, 100, 0, 100)).toBe(1);
+  });
+});
+
+describe("initialImageTransform", () => {
+  it("centers the image, cover-scaled, with no tilt", () => {
+    const t = initialImageTransform(100, 100, 200, 100);
+    expect(t).toEqual({ scale: 2, rotation: 0, cx: 100, cy: 50 });
+  });
+});
+
+describe("panTransform", () => {
+  it("shifts the center and leaves scale/rotation alone", () => {
+    const t = { scale: 3, rotation: 0.5, cx: 10, cy: 20 };
+    expect(panTransform(t, 5, -8)).toEqual({ scale: 3, rotation: 0.5, cx: 15, cy: 12 });
+  });
+});
+
+describe("pinchTransform", () => {
+  const base: ImageTransform = { scale: 2, rotation: 0, cx: 100, cy: 100 };
+
+  it("zooms and tilts by the requested amounts", () => {
+    const t = pinchTransform(base, 100, 100, 1.5, 0.3, 0.1, 100);
+    expect(t.scale).toBeCloseTo(3, 10);
+    expect(t.rotation).toBeCloseTo(0.3, 10);
+  });
+
+  it("holds the source point under the pivot fixed", () => {
+    const pivot = { x: 160, y: 40 };
+    const srcBefore = unmapPoint(base, pivot.x, pivot.y);
+    const t = pinchTransform(base, pivot.x, pivot.y, 1.7, -0.4, 0.1, 100);
+    const after = mapPoint(t, srcBefore.x, srcBefore.y);
+    expect(after.x).toBeCloseTo(pivot.x, 8);
+    expect(after.y).toBeCloseTo(pivot.y, 8);
+  });
+
+  it("clamps scale but still holds the pivot fixed at the limit", () => {
+    const pivot = { x: 130, y: 70 };
+    const srcBefore = unmapPoint(base, pivot.x, pivot.y);
+    // Ask for 10x from scale 2 -> would be 20, clamp caps at 5.
+    const t = pinchTransform(base, pivot.x, pivot.y, 10, 0, 0.1, 5);
+    expect(t.scale).toBe(5);
+    const after = mapPoint(t, srcBefore.x, srcBefore.y);
+    expect(after.x).toBeCloseTo(pivot.x, 8);
+    expect(after.y).toBeCloseTo(pivot.y, 8);
   });
 });

@@ -84,10 +84,13 @@ how many photos exist — patch images themselves never fan out to phones.
   live camera) or **Upload a picture** (file pick, no `capture` so it browses existing
   photos). **Take a picture** turns the claimed shape into a live camera viewport —
   `getUserMedia` video cover-fills the zone's bounding box, CSS-clipped to the polygon,
-  outlined in the player's color — and **Snap** freezes a frame. Either path lands on the
-  same confirm (**Use it / Retake / Cancel**); Use it commits. If the camera is unavailable
-  (desktop dev, denied permission), the Take path falls back to a native-camera file pick
-  (`capture="environment"`). Cancel releases the zone.
+  outlined in the player's color — and **Snap** freezes a frame. Either path then opens a
+  **framing editor**: the shot is drawn into the zone's bbox canvas and the player pans
+  (drag), zooms (pinch or ➕/➖) and tilts (twist or ↺/↻) it — a pan/zoom/tilt transform,
+  cover-fit by default — before **Use it** encodes the framed canvas and commits (**Retake /
+  Cancel** back out). If the camera is unavailable (desktop dev, denied permission), the Take
+  path falls back to a native-camera file pick (`capture="environment"`) into the same
+  editor. Cancel releases the zone.
 
 ## MVP cut-lines (deferred)
 

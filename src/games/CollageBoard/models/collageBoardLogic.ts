@@ -254,3 +254,74 @@ export function patchOutputSize(
   }
   return { width: w, height: h };
 }
+
+// -------------------------------------------------------------------
+// Image adjust transform (pan / zoom / tilt inside the zone)
+//
+// Maps a source image, centered on its own middle, into the output patch:
+//   out = R(rotation) * scale * srcCentered + (cx, cy)
+// where scale is source-pixels -> output-pixels, rotation is in radians,
+// and (cx, cy) is where the image's center lands in the output canvas.
+// The view drives a <canvas> with translate(cx,cy)/rotate/scale; keeping
+// the gesture math here (pure) so it can be unit-tested without the DOM.
+// -------------------------------------------------------------------
+export interface ImageTransform {
+  scale: number;
+  rotation: number;
+  cx: number;
+  cy: number;
+}
+
+// coverScale - source-pixel -> output-pixel scale that makes the image
+// cover the output (object-fit: cover), the sensible starting zoom.
+export function coverScale(srcW: number, srcH: number, outW: number, outH: number): number {
+  if (srcW <= 0 || srcH <= 0 || outW <= 0 || outH <= 0) return 1;
+  return Math.max(outW / srcW, outH / srcH);
+}
+
+// initialImageTransform - cover-fit, centered, no tilt.
+export function initialImageTransform(
+  srcW: number,
+  srcH: number,
+  outW: number,
+  outH: number,
+): ImageTransform {
+  return { scale: coverScale(srcW, srcH, outW, outH), rotation: 0, cx: outW / 2, cy: outH / 2 };
+}
+
+// panTransform - shift the image by an output-space delta.
+export function panTransform(t: ImageTransform, dx: number, dy: number): ImageTransform {
+  return { ...t, cx: t.cx + dx, cy: t.cy + dy };
+}
+
+// pinchTransform - zoom by scaleFactor and tilt by deltaRotation about a
+// pivot (output-space), holding the source point under the pivot fixed.
+// scale is clamped to [minScale, maxScale]; the effective zoom is derived
+// from the clamp so the pivot stays put even at the limits.
+//
+// Derivation: to keep map(srcUnderPivot) == pivot, the new center is
+//   c' = pivot - (newScale/oldScale) * R(deltaRotation) * (pivot - c)
+export function pinchTransform(
+  t: ImageTransform,
+  pivotX: number,
+  pivotY: number,
+  scaleFactor: number,
+  deltaRotation: number,
+  minScale: number,
+  maxScale: number,
+): ImageTransform {
+  const clamped = Math.min(maxScale, Math.max(minScale, t.scale * scaleFactor));
+  const eff = t.scale === 0 ? 1 : clamped / t.scale;
+  const cos = Math.cos(deltaRotation);
+  const sin = Math.sin(deltaRotation);
+  const vx = pivotX - t.cx;
+  const vy = pivotY - t.cy;
+  const rvx = vx * cos - vy * sin;
+  const rvy = vx * sin + vy * cos;
+  return {
+    scale: clamped,
+    rotation: t.rotation + deltaRotation,
+    cx: pivotX - eff * rvx,
+    cy: pivotY - eff * rvy,
+  };
+}
