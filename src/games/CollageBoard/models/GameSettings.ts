@@ -1,0 +1,50 @@
+// Game-wide tuning constants.  Keep every magic number here so a game designer can
+// re-balance the game without hunting through logic files.
+export const CollageBoardVersion = "0.1.0";
+
+// The shared canvas is a 16:9 surface addressed in normalized 0..1 x 0..1 coordinates.
+export const CANVAS_ASPECT = 16 / 9;
+
+// Zone outlines (all in normalized board units)
+export const MIN_ZONE_POINTS = 3;
+export const MAX_ZONE_POINTS = 48;
+export const MIN_ZONE_AREA = 0.0005; // 0.05% of the board
+export const SIMPLIFY_EPSILON = 0.003;
+export const ZONE_LIFETIME_MS = 120_000; // abandoned claims expire after 2 minutes
+
+// Committed patch images (JPEG of the zone's bounding box)
+export const PATCH_MAX_EDGE = 1280;
+export const PATCH_TARGET_BYTES = 120_000;
+export const JPEG_QUALITY_START = 0.85;
+export const JPEG_QUALITY_MIN = 0.3;
+export const JPEG_QUALITY_STEP = 0.1;
+// Reject grossly oversized commit payloads outright (base64 chars, ~600 KB decoded)
+export const MAX_COMMIT_IMAGE_CHARS = 900_000;
+// Soft cap on stored patches; oldest (long since painted over) fall off first
+export const MAX_PATCHES = 400;
+
+// The downscaled composite pushed to phones for navigation
+export const PREVIEW_WIDTH = 960;
+export const PREVIEW_HEIGHT = 540;
+export const PREVIEW_QUALITY = 0.55;
+export const PREVIEW_PUSH_MIN_INTERVAL_MS = 1500;
+
+// Max zoom on the phone's board view
+export const MAX_VIEW_ZOOM = 8;
+
+// Identity colors, assigned least-used-first on join.  maxPlayers equals the
+// palette size so every player in a room gets a unique color.
+export const PLAYER_COLORS = [
+  "#FF5252", // red
+  "#FFB300", // amber
+  "#FFEE33", // yellow
+  "#66DD44", // green
+  "#22CCBB", // teal
+  "#33AAFF", // sky
+  "#7766FF", // violet
+  "#CC66FF", // purple
+  "#FF66CC", // pink
+  "#FF8844", // orange
+  "#99EE99", // mint
+  "#FFFFFF", // white
+];
