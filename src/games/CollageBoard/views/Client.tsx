@@ -339,34 +339,54 @@ class NavigateScreen extends React.Component<
 @observer
 class CameraScreen extends React.Component<
   { appModel?: CollageBoardClientModel },
-  { captured: string | null; cameraFailed: boolean; committing: boolean }
+  {
+    capturePath: "choose" | "camera";
+    captured: string | null;
+    cameraFailed: boolean;
+    committing: boolean;
+  }
 > {
   videoDomId: string;
   private _stream: MediaStream | null = null;
 
   constructor(props: { appModel?: CollageBoardClientModel }) {
     super(props);
-    this.state = { captured: null, cameraFailed: false, committing: false };
+    // Start on the chooser: the player picks camera vs upload, so we don't
+    // pop a camera-permission prompt on someone who only wants to upload.
+    this.state = { capturePath: "choose", captured: null, cameraFailed: false, committing: false };
     this.videoDomId = "CollageCamera" + this.props.appModel!.playerId;
   }
 
-  componentDidMount() {
-    startCamera()
-      .then((stream) => {
-        this._stream = stream;
-        const video = document.getElementById(this.videoDomId) as HTMLVideoElement | null;
-        if (video) video.srcObject = stream;
-        else stopCamera(stream);
-      })
-      .catch((err) => {
-        Logger.info(`Camera unavailable, falling back to file capture: ${err}`);
-        this.setState({ cameraFailed: true });
-      });
+  componentDidUpdate() {
+    // Re-bind the stream whenever the <video> (re)mounts (camera pick, retake).
+    if (this.state.capturePath === "camera" && !this.state.captured && !this.state.cameraFailed) {
+      this.attachStream();
+    }
   }
 
   componentWillUnmount() {
     stopCamera(this._stream);
     this._stream = null;
+  }
+
+  // ---- camera path: open the live rear camera into the zone viewport ------
+  private chooseCamera = () => {
+    this.setState({ capturePath: "camera" });
+    startCamera()
+      .then((stream) => {
+        this._stream = stream;
+        this.attachStream();
+      })
+      .catch((err) => {
+        Logger.info(`Camera unavailable, falling back to file capture: ${err}`);
+        this.setState({ cameraFailed: true });
+      });
+  };
+
+  private attachStream() {
+    if (!this._stream) return;
+    const video = document.getElementById(this.videoDomId) as HTMLVideoElement | null;
+    if (video && video.srcObject !== this._stream) video.srcObject = this._stream;
   }
 
   // ---- capture paths ------------------------------------------------------
@@ -423,7 +443,7 @@ class CameraScreen extends React.Component<
     const { appModel } = this.props;
     const zone = appModel?.claimedZone;
     if (!appModel || !zone) return <div>No zone selected</div>;
-    const { captured, cameraFailed, committing } = this.state;
+    const { capturePath, captured, cameraFailed, committing } = this.state;
 
     // Fit the zone's bounding box (16:9 board units -> physical aspect)
     // into the available virtual space
@@ -446,11 +466,18 @@ class CameraScreen extends React.Component<
       })
       .join(" ");
 
+    const liveCamera = capturePath === "camera" && !cameraFailed;
+    const hint = captured
+      ? "Like it?"
+      : liveCamera
+        ? "Line up your shot inside your zone"
+        : cameraFailed
+          ? "No camera here - take one with your device"
+          : "Take a picture or upload one for your zone";
+
     return (
       <div>
-        <div className={styles.hintText}>
-          {captured ? "Like it?" : "Line up your shot inside your zone"}
-        </div>
+        <div className={styles.hintText}>{hint}</div>
         <div className={styles.cameraFrame} style={{ width: `${frameW}px`, height: `${frameH}px` }}>
           {captured ? (
             <img
@@ -459,20 +486,7 @@ class CameraScreen extends React.Component<
               src={captured}
               alt="Your shot"
             />
-          ) : cameraFailed ? (
-            <div className={styles.cameraFallback} style={{ clipPath }}>
-              <label className={styles.primaryButton}>
-                📷 Take / pick a photo
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  style={{ display: "none" }}
-                  onChange={this.handleFilePicked}
-                />
-              </label>
-            </div>
-          ) : (
+          ) : liveCamera ? (
             <video
               id={this.videoDomId}
               className={styles.cameraFill}
@@ -481,6 +495,10 @@ class CameraScreen extends React.Component<
               playsInline
               muted
             />
+          ) : (
+            <div className={styles.cameraFallback} style={{ clipPath }}>
+              <span className={styles.fallbackIcon}>🖼️</span>
+            </div>
           )}
           <svg className={styles.zoneOutline} viewBox="0 0 100 100" preserveAspectRatio="none">
             <polygon
@@ -509,10 +527,36 @@ class CameraScreen extends React.Component<
                 🔄 Retake
               </button>
             </React.Fragment>
-          ) : cameraFailed ? null : (
+          ) : liveCamera ? (
             <button className={styles.primaryButton} onClick={this.snap}>
               📸 Snap
             </button>
+          ) : cameraFailed ? (
+            <label className={styles.primaryButton}>
+              📷 Take a picture
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: "none" }}
+                onChange={this.handleFilePicked}
+              />
+            </label>
+          ) : (
+            <React.Fragment>
+              <button className={styles.primaryButton} onClick={this.chooseCamera}>
+                📷 Take a picture
+              </button>
+              <label className={styles.secondaryButton}>
+                🖼️ Upload a picture
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={this.handleFilePicked}
+                />
+              </label>
+            </React.Fragment>
           )}
           <button
             className={styles.secondaryButton}

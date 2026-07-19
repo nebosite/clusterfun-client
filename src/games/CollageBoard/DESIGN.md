@@ -80,11 +80,14 @@ how many photos exist — patch images themselves never fan out to phones.
 - `navigate`: the board preview with active-zone outlines. Tools: **Move** (drag pans,
   pinch/buttons zoom) and **Draw** (drag draws an outline; lifting closes it → Claim /
   Clear). Claim errors surface inline.
-- `camera`: the claimed shape becomes a live camera viewport — `getUserMedia` video
-  cover-fills the zone's bounding box, CSS-clipped to the polygon, outlined in the player's
-  color. **Snap** freezes a frame for confirm (**Use it / Retake / Cancel**); Use it
-  commits. If the camera is unavailable (desktop dev, denied permission), a file-pick
-  fallback (`capture="environment"`) feeds the same confirm flow. Cancel releases the zone.
+- `camera`: after claiming, the phone offers two buttons — **Take a picture** (opens the
+  live camera) or **Upload a picture** (file pick, no `capture` so it browses existing
+  photos). **Take a picture** turns the claimed shape into a live camera viewport —
+  `getUserMedia` video cover-fills the zone's bounding box, CSS-clipped to the polygon,
+  outlined in the player's color — and **Snap** freezes a frame. Either path lands on the
+  same confirm (**Use it / Retake / Cancel**); Use it commits. If the camera is unavailable
+  (desktop dev, denied permission), the Take path falls back to a native-camera file pick
+  (`capture="environment"`). Cancel releases the zone.
 
 ## MVP cut-lines (deferred)
 

@@ -12,15 +12,17 @@ See [DESIGN.md](DESIGN.md) for the full spec.
 1. The host opens CollageBoard on the shared screen and players join with the room code.
 2. Host taps **Start collaging** (one player is enough).
 3. On your phone: **Move** to pan/zoom, **Draw** to outline a zone, then **Claim zone**.
-4. Your outline appears on the big screen in your color while you line up the shot.
-5. The zone shows your live camera, clipped to the shape. **Snap**, then **Use it**.
+4. Your outline appears on the big screen in your color. Pick **Take a picture** (live
+   camera) or **Upload a picture** (choose an existing photo).
+5. Camera path: the zone shows your live camera, clipped to the shape. **Snap**, then **Use it**.
 6. Your photo lands on the canvas and the zone frees up — go draw another one.
 
 ## Development notes
 
 - Registered in the debug game list (`gamesListDebug.ts`); dev-only until added to the
   release list + server manifest.
-- Test Lobby: on a desktop without a camera the camera screen falls back to a file picker,
-  so the whole loop is testable without a phone.
+- Test Lobby: **Upload a picture** works everywhere (file picker, no camera needed), so the
+  whole loop is testable on a desktop without a camera. If you pick **Take a picture** with no
+  camera present it falls back to a native-camera file pick.
 - The collage itself is not checkpointed (images are too big for localStorage); a
   presenter refresh keeps the room but starts a blank canvas.
