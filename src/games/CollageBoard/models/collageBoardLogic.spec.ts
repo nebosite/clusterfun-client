@@ -9,6 +9,7 @@ import {
   pickPlayerColor,
   expiredZoneIds,
   polygonToCssClipPath,
+  contextBounds,
   coverSourceRect,
   patchOutputSize,
   ImageTransform,
@@ -208,6 +209,49 @@ describe("polygonToCssClipPath", () => {
     const points = square();
     const clip = polygonToCssClipPath(points, polygonBounds(points));
     expect(clip).toBe("polygon(0.00% 0.00%, 100.00% 0.00%, 100.00% 100.00%, 0.00% 100.00%)");
+  });
+});
+
+describe("contextBounds", () => {
+  const ASPECT = 16 / 9;
+
+  it("pads a mid-board zone symmetrically and stays within [0,1]", () => {
+    const bounds = { x: 0.4, y: 0.4, width: 0.2, height: 0.2 };
+    const ctx = contextBounds(bounds, ASPECT, 0.6, 0.05);
+    // Centered the same as the zone
+    expect(ctx.x + ctx.width / 2).toBeCloseTo(bounds.x + bounds.width / 2, 6);
+    expect(ctx.y + ctx.height / 2).toBeCloseTo(bounds.y + bounds.height / 2, 6);
+    expect(ctx.width).toBeGreaterThan(bounds.width);
+    expect(ctx.height).toBeGreaterThan(bounds.height);
+    expect(ctx.x).toBeGreaterThanOrEqual(0);
+    expect(ctx.y).toBeGreaterThanOrEqual(0);
+    expect(ctx.x + ctx.width).toBeLessThanOrEqual(1);
+    expect(ctx.y + ctx.height).toBeLessThanOrEqual(1);
+  });
+
+  it("floors tiny zones at minMargin instead of a near-zero pad", () => {
+    const bounds = { x: 0.5, y: 0.5, width: 0.01, height: 0.01 };
+    const ctx = contextBounds(bounds, ASPECT, 0.6, 0.05);
+    // minMargin (0.05) dominates factor*size (~0.01*0.6), in both axes
+    expect(ctx.height).toBeCloseTo(bounds.height + 0.05 * 2, 6);
+    expect(ctx.width).toBeCloseTo(bounds.width + (0.05 / ASPECT) * 2, 6);
+  });
+
+  it("slides rather than shrinks near a board edge", () => {
+    const bounds = { x: 0, y: 0, width: 0.1, height: 0.1 };
+    const ctx = contextBounds(bounds, ASPECT, 0.6, 0.05);
+    expect(ctx.x).toBe(0);
+    expect(ctx.y).toBe(0);
+    // Still gets its full margin width/height, just pushed inward
+    expect(ctx.x + ctx.width).toBeLessThanOrEqual(1);
+    expect(ctx.y + ctx.height).toBeLessThanOrEqual(1);
+    expect(ctx.width).toBeGreaterThan(bounds.width);
+  });
+
+  it("clamps to the whole board for a zone that already covers it", () => {
+    const bounds = { x: 0, y: 0, width: 1, height: 1 };
+    const ctx = contextBounds(bounds, ASPECT, 0.6, 0.05);
+    expect(ctx).toEqual({ x: 0, y: 0, width: 1, height: 1 });
   });
 });
 

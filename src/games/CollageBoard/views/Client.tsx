@@ -28,6 +28,7 @@ import {
   initialImageTransform,
   panTransform,
   pinchTransform,
+  contextBounds,
 } from "../models/collageBoardLogic";
 import {
   PATCH_MAX_EDGE,
@@ -36,6 +37,11 @@ import {
   JPEG_QUALITY_MIN,
   JPEG_QUALITY_STEP,
   MAX_VIEW_ZOOM,
+  CANVAS_ASPECT,
+  CONTEXT_MARGIN_FACTOR,
+  CONTEXT_MIN_MARGIN,
+  PREVIEW_WIDTH,
+  PREVIEW_HEIGHT,
 } from "../models/GameSettings";
 import { startCamera, stopCamera, canvasToJpegUnderSize, loadImageFromFile } from "./cameraCapture";
 
@@ -588,10 +594,12 @@ class CameraScreen extends React.Component<
     if (!appModel || !zone) return <div>No zone selected</div>;
     const { capturePath, editing, cameraFailed, committing } = this.state;
 
-    // Fit the zone's bounding box (16:9 board units -> physical aspect)
-    // into the available virtual space
+    // Fit a padded "context" box around the zone (16:9 board units ->
+    // physical aspect) into the available virtual space, so the frame shows
+    // some of the surrounding collage rather than just the bare outline.
     const bounds = polygonBounds(zone.points);
-    const physicalAspect = (bounds.width * 16) / Math.max(0.0001, bounds.height * 9);
+    const padded = contextBounds(bounds, CANVAS_ASPECT, CONTEXT_MARGIN_FACTOR, CONTEXT_MIN_MARGIN);
+    const physicalAspect = (padded.width * CANVAS_ASPECT) / Math.max(0.0001, padded.height);
     const maxW = 980;
     const maxH = 1000;
     let frameW = maxW;
@@ -600,14 +608,38 @@ class CameraScreen extends React.Component<
       frameH = maxH;
       frameW = frameH * physicalAspect;
     }
+
+    // Where the zone's own bounding box sits inside the padded frame - the
+    // live camera/edit surface is positioned to just that sub-rect so it
+    // lines up with the backdrop underneath it.
+    const zoneRectStyle = {
+      left: `${((bounds.x - padded.x) / (padded.width || 1)) * 100}%`,
+      top: `${((bounds.y - padded.y) / (padded.height || 1)) * 100}%`,
+      width: `${(bounds.width / (padded.width || 1)) * 100}%`,
+      height: `${(bounds.height / (padded.height || 1)) * 100}%`,
+    };
+
     const clipPath = polygonToCssClipPath(zone.points, bounds);
     const svgPoints = zone.points
       .map((p) => {
-        const px = ((p.x - bounds.x) / (bounds.width || 1)) * 100;
-        const py = ((p.y - bounds.y) / (bounds.height || 1)) * 100;
+        const px = ((p.x - padded.x) / (padded.width || 1)) * 100;
+        const py = ((p.y - padded.y) / (padded.height || 1)) * 100;
         return `${px},${py}`;
       })
       .join(" ");
+
+    // Backdrop: the surrounding collage, cropped to the padded box and
+    // scaled to exactly fill the frame (uniform scale - the preview image
+    // shares the board's 16:9 shape, so no skew).
+    const backdropScale = frameW / (padded.width * PREVIEW_WIDTH);
+    const backdropStyle = appModel.preview
+      ? {
+          left: `${-padded.x * PREVIEW_WIDTH * backdropScale}px`,
+          top: `${-padded.y * PREVIEW_HEIGHT * backdropScale}px`,
+          width: `${PREVIEW_WIDTH * backdropScale}px`,
+          height: `${PREVIEW_HEIGHT * backdropScale}px`,
+        }
+      : null;
 
     const liveCamera = capturePath === "camera" && !cameraFailed;
     const hint = editing
@@ -622,11 +654,19 @@ class CameraScreen extends React.Component<
       <div>
         <div className={styles.hintText}>{hint}</div>
         <div className={styles.cameraFrame} style={{ width: `${frameW}px`, height: `${frameH}px` }}>
+          {backdropStyle ? (
+            <img
+              src={appModel.preview!}
+              alt=""
+              className={styles.contextBackdrop}
+              style={backdropStyle}
+            />
+          ) : null}
           {editing ? (
             <canvas
               id={this.editorDomId}
               className={styles.cameraFill}
-              style={{ clipPath, touchAction: "none" }}
+              style={{ ...zoneRectStyle, clipPath, touchAction: "none" }}
               onPointerDown={this.handleEditPointerDown}
               onPointerMove={this.handleEditPointerMove}
               onPointerUp={this.handleEditPointerUp}
@@ -636,13 +676,13 @@ class CameraScreen extends React.Component<
             <video
               id={this.videoDomId}
               className={styles.cameraFill}
-              style={{ clipPath, objectFit: "cover" }}
+              style={{ ...zoneRectStyle, clipPath, objectFit: "cover" }}
               autoPlay
               playsInline
               muted
             />
           ) : (
-            <div className={styles.cameraFallback} style={{ clipPath }}>
+            <div className={styles.cameraFallback} style={{ ...zoneRectStyle, clipPath }}>
               <span className={styles.fallbackIcon}>🖼️</span>
             </div>
           )}

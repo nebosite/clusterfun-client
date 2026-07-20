@@ -189,6 +189,38 @@ export function expiredZoneIds(
 }
 
 // -------------------------------------------------------------------
+// contextBounds - pad a zone's bounding box out into a larger "context"
+// box so the camera/edit view can show some of the surrounding collage,
+// not just the tight zone outline.  The margin is sized off the zone's
+// own (physical) footprint - big zones get a big margin, tiny zones get
+// at least minMargin - and expressed in normalized board units, where
+// boardAspect (e.g. 16/9) converts an x-margin to a y-margin so the pad
+// looks even in physical space despite x and y not sharing a scale.
+// Clamped to stay on the board, sliding rather than shrinking near an edge.
+// -------------------------------------------------------------------
+export function contextBounds(
+  bounds: ZoneBounds,
+  boardAspect: number,
+  marginFactor: number,
+  minMargin: number,
+): ZoneBounds {
+  // Common "physical" unit where 1 == the board's height.
+  const physicalW = bounds.width * boardAspect;
+  const physicalH = bounds.height;
+  const margin = Math.max(minMargin, Math.max(physicalW, physicalH) * marginFactor);
+  const marginX = margin / boardAspect;
+  const marginY = margin;
+
+  const width = Math.min(1, bounds.width + marginX * 2);
+  const height = Math.min(1, bounds.height + marginY * 2);
+  let x = bounds.x - (width - bounds.width) / 2;
+  let y = bounds.y - (height - bounds.height) / 2;
+  x = Math.min(Math.max(0, x), 1 - width);
+  y = Math.min(Math.max(0, y), 1 - height);
+  return { x, y, width, height };
+}
+
+// -------------------------------------------------------------------
 // polygonToCssClipPath - a CSS clip-path polygon() string with vertices
 // expressed as percentages of the zone's bounding box.  Used to clip the
 // live camera video (and the frozen confirm frame) to the outline.

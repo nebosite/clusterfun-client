@@ -32,6 +32,14 @@ export const PREVIEW_PUSH_MIN_INTERVAL_MS = 1500;
 // Max zoom on the phone's board view
 export const MAX_VIEW_ZOOM = 8;
 
+// Camera/edit screen "context" framing: pad the zone's bounding box out so
+// the view also shows some of the surrounding collage, to line a new shot
+// up against what's already there. Margin is boardAspect*height-fraction
+// units (see contextBounds); factor is relative to the zone's own size,
+// minMargin is a floor so tiny zones still get real context.
+export const CONTEXT_MARGIN_FACTOR = 0.6;
+export const CONTEXT_MIN_MARGIN = 0.05;
+
 // Identity colors, assigned least-used-first on join.  maxPlayers equals the
 // palette size so every player in a room gets a unique color.
 export const PLAYER_COLORS = [
