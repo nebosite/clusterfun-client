@@ -1,0 +1,261 @@
+@import url("https://fonts.googleapis.com/css2?family=Raleway:wght@500;700;800&display=swap");
+
+.gameclient {
+  width: 100%;
+  height: 100%;
+  color: #f3efe7;
+  font-family: "Raleway", "Segoe UI", sans-serif;
+  background: linear-gradient(180deg, #17120d 0%, #0a0908 100%);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Header ---- */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 26px 30px;
+  border-bottom: 1px solid rgba(255, 214, 140, 0.14);
+}
+.wordmark {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #f7e7c4;
+}
+.off {
+  color: #ffb24a;
+}
+.headerName {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 28px;
+  font-weight: 700;
+}
+.quit {
+  font-size: 30px;
+  background: none;
+  border: none;
+  color: #f3efe7;
+  cursor: pointer;
+}
+
+/* ---- Waiting / judge / watching ---- */
+.judgeWait {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 60px 40px;
+  text-align: center;
+  font-size: 40px;
+  font-weight: 700;
+}
+.bigEmoji {
+  font-size: 130px;
+  line-height: 1;
+}
+.sub {
+  font-size: 28px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+/* ---- Capture ---- */
+.capture {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 34px 40px 50px;
+  text-align: center;
+}
+.captureLabel {
+  font-size: 36px;
+  font-weight: 800;
+  color: #ffcf87;
+}
+.prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.promptText {
+  font-size: 40px;
+  font-style: italic;
+  color: #fff3dc;
+}
+.promptEmoji {
+  font-size: 150px;
+  line-height: 1;
+}
+.promptCaption {
+  font-size: 30px;
+  opacity: 0.85;
+}
+.promptImg {
+  max-width: 60%;
+  border-radius: 16px;
+}
+.cameraWrap {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  aspect-ratio: 3 / 4;
+  border-radius: 22px;
+  overflow: hidden;
+  background: #000;
+  border: 3px solid rgba(255, 214, 140, 0.35);
+}
+.camera {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* mirror like a selfie */
+}
+.cameraFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  opacity: 0.7;
+  padding: 20px;
+}
+.captureCountdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 220px;
+  font-weight: 900;
+  color: rgba(255, 178, 74, 0.9);
+  text-shadow: 0 0 40px rgba(0, 0, 0, 0.7);
+}
+.fileButton {
+  font-size: 30px;
+  font-weight: 700;
+  padding: 18px 40px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 214, 140, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f3efe7;
+  cursor: pointer;
+}
+.fileButton:disabled {
+  opacity: 0.4;
+}
+.hiddenInput {
+  display: none;
+}
+.captureHint {
+  font-size: 26px;
+  opacity: 0.7;
+}
+
+/* ---- Voting ---- */
+.vote {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 30px 34px 50px;
+}
+.voteHead {
+  font-size: 36px;
+  font-weight: 800;
+  color: #ffcf87;
+  text-align: center;
+}
+.voteCard {
+  padding: 22px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 214, 140, 0.14);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.voteEntries {
+  display: flex;
+  gap: 18px;
+  width: 100%;
+  justify-content: center;
+}
+.voteEntry {
+  position: relative;
+  flex: 1;
+  max-width: 320px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 4px solid transparent;
+  background: rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+.voteEntry.chosen {
+  border-color: #ffcf5a;
+  box-shadow: 0 0 30px rgba(255, 207, 90, 0.45);
+}
+.voteThumb {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.voteNoPhoto {
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 26px;
+  opacity: 0.6;
+}
+.chosenTag {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffcf5a;
+  color: #241a0c;
+  font-weight: 800;
+  font-size: 24px;
+  padding: 4px 16px;
+  border-radius: 999px;
+}
+
+/* ---- Mini standings (watching) ---- */
+.miniStand {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 560px;
+}
+.miniRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 26px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.miniName {
+  flex: 1;
+  text-align: left;
+  font-weight: 700;
+}

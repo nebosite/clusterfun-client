@@ -55,6 +55,13 @@ export interface GamePresentation {
 // Hand-authored presentation for the games we ship; anything else falls
 // back to derived defaults so the catalog can grow without edits here.
 const KNOWN: Record<string, Partial<GamePresentation>> = {
+  FaceOff: {
+    category: "Party",
+    blurb: "Mimic a secret face on 3-2-1, then vote head-to-head on who nailed it best.",
+    players: "4–12",
+    playTime: "15m",
+    thumbKind: "photos",
+  },
   CollageBoard: {
     category: "Party",
     blurb: "Outline a spot on a shared canvas, then fill it with your camera - collage together.",
