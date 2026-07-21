@@ -55,6 +55,13 @@ export interface GamePresentation {
 // Hand-authored presentation for the games we ship; anything else falls
 // back to derived defaults so the catalog can grow without edits here.
 const KNOWN: Record<string, Partial<GamePresentation>> = {
+  CollageBoard: {
+    category: "Party",
+    blurb: "Outline a spot on a shared canvas, then fill it with your camera - collage together.",
+    players: "1–12",
+    playTime: "∞",
+    thumbKind: "photos",
+  },
   PartyPix: {
     category: "Party",
     blurb: "Snap guests around the party, upload your best, and vote them onto the big screen.",

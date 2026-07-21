@@ -1,9 +1,17 @@
 import StressatoAssets from "games/stressgame/assets/Assets";
 import TemplateAssets from "games/TemplateGame/assets/Assets";
+import CollageBoardAssets from "games/CollageBoard/assets/Assets";
 import { GameDescriptor } from "./GameDescriptor";
 import releaseGames from "./gamesListRelease";
 
 const debugOnlyGames: GameDescriptor[] = [
+  {
+    name: "CollageBoard",
+    displayName: "Collage Board",
+    tags: ["debug"],
+    logoName: CollageBoardAssets.images.logo,
+    importThunk: () => import("../CollageBoard/views/GameComponent"),
+  },
   {
     name: "Stressato",
     displayName: "Stress Game",
