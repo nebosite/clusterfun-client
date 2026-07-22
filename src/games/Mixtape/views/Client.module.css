@@ -1,0 +1,245 @@
+/* Mixtape — phone client theme (1080x1920 portrait). */
+.gameclient {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  color: #f3effa;
+  font-family:
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  background:
+    radial-gradient(700px 500px at 20% 0%, rgba(255, 62, 165, 0.25), transparent 60%), #0d0b14;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 26px 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.gametitle {
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, #ff3ea5, #ffd21a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.me {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  font-size: 32px;
+}
+.quitbutton {
+  font-size: 34px;
+  font-weight: 800;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #211a33;
+  color: #fff;
+}
+
+.body {
+  padding: 40px 40px 60px;
+  height: 1720px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.prompt {
+  font-size: 54px;
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 0 0 24px;
+}
+.hint {
+  font-size: 34px;
+  color: #b9c2d4;
+  margin: 0 0 28px;
+}
+.wait_text {
+  font-size: 44px;
+  text-align: center;
+  margin-top: 200px;
+  color: #cbd3e1;
+}
+.watch {
+  font-size: 60px;
+  text-align: center;
+  margin-top: 120px;
+  font-weight: 800;
+}
+.providerTag {
+  font-size: 26px;
+  color: #6b7488;
+  margin-bottom: 20px;
+}
+
+/* Search */
+.searchRow {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.searchInput {
+  flex: 1;
+  font-size: 40px;
+  padding: 22px 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #171326;
+  color: #fff;
+}
+.btn {
+  font-size: 38px;
+  padding: 20px 30px;
+  border-radius: 16px;
+  border: none;
+  font-weight: 700;
+  background: #2c2344;
+  color: #fff;
+}
+.btnGo {
+  color: #0d0b14;
+  background: linear-gradient(90deg, #b6ff3a, #22e0ff);
+}
+.btn:disabled {
+  opacity: 0.4;
+}
+.btnFull {
+  width: 100%;
+  margin-top: 24px;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.result {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: #171326;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.result.picked {
+  border-color: rgba(34, 224, 255, 0.7);
+}
+.rthumb {
+  width: 96px;
+  height: 96px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex: none;
+  background: linear-gradient(135deg, #2a1f45, #123);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+}
+.rinfo {
+  min-width: 0;
+}
+.rtitle {
+  font-size: 36px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rartist {
+  font-size: 30px;
+  color: #22e0ff;
+}
+
+/* Cue / start-time */
+.cueCard {
+  background: #171326;
+  border: 1px solid rgba(34, 224, 255, 0.35);
+  border-radius: 20px;
+  padding: 30px;
+  margin-bottom: 24px;
+}
+.cueLabel {
+  font-size: 30px;
+  color: #9aa4b8;
+  margin-bottom: 10px;
+}
+.range {
+  width: 100%;
+  height: 50px;
+}
+.startVal {
+  font-size: 40px;
+  font-weight: 800;
+  color: #ffd21a;
+  font-variant-numeric: tabular-nums;
+}
+.submittedCard {
+  background: #171326;
+  border: 1px solid rgba(182, 255, 58, 0.5);
+  border-radius: 20px;
+  padding: 30px;
+  margin-bottom: 24px;
+}
+.submittedCard .rtitle {
+  white-space: normal;
+}
+
+/* Voting */
+.voteList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.voteItem {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 20px;
+  border-radius: 16px;
+  background: #171326;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+}
+.voteItem.own {
+  opacity: 0.5;
+}
+.voteItem.ranked {
+  border-color: #ff3ea5;
+}
+.rankBadge {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  font-weight: 800;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: #9aa4b8;
+}
+.rankBadge.on {
+  background: linear-gradient(135deg, #ff3ea5, #ffd21a);
+  color: #0d0b14;
+  border-color: transparent;
+}
+.ownTag {
+  font-size: 26px;
+  color: #6b7488;
+}

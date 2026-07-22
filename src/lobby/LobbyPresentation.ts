@@ -55,6 +55,13 @@ export interface GamePresentation {
 // Hand-authored presentation for the games we ship; anything else falls
 // back to derived defaults so the catalog can grow without edits here.
 const KNOWN: Record<string, Partial<GamePresentation>> = {
+  Mixtape: {
+    category: "Music",
+    blurb: "Match the perfect song to the scenario, then rank the room's picks to crown a winner.",
+    players: "3–8",
+    playTime: "20m",
+    thumbKind: "bars",
+  },
   FaceOff: {
     category: "Party",
     blurb: "Mimic a secret face on 3-2-1, then vote head-to-head on who nailed it best.",
