@@ -1,0 +1,364 @@
+.gamepresenter {
+  width: 100%;
+  height: 100%;
+  color: #f3efe7;
+  font-family: "Raleway", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 214, 140, 0.18), transparent 42%),
+    linear-gradient(180deg, #14100c 0%, #0a0908 100%);
+}
+
+/* ---- Frame / chrome ---- */
+.frame {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 22px 34px;
+  border-bottom: 1px solid rgba(255, 214, 140, 0.14);
+}
+.wordmark {
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #f7e7c4;
+}
+.off {
+  color: #ffb24a;
+}
+.frameButton {
+  font-size: 22px;
+  padding: 8px 22px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 214, 140, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f3efe7;
+  cursor: pointer;
+}
+.frameButton:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.roomCode {
+  margin-left: auto;
+  font-size: 30px;
+  font-weight: 700;
+  color: #ffcf87;
+  letter-spacing: 2px;
+}
+.version {
+  font-size: 16px;
+  opacity: 0.5;
+}
+.stage {
+  padding: 40px 60px;
+}
+
+/* ---- Shared text ---- */
+.title {
+  font-size: 58px;
+  font-weight: 800;
+  margin: 0 0 18px;
+  color: #fff3dc;
+}
+.captureHead {
+  font-size: 34px;
+  font-weight: 700;
+  color: #ffcf87;
+  margin-bottom: 18px;
+}
+
+/* ---- Gathering ---- */
+.gathering {
+  text-align: center;
+}
+.joinLine {
+  font-size: 30px;
+  margin-bottom: 30px;
+}
+.host {
+  color: #ffcf87;
+  font-weight: 700;
+}
+.room {
+  color: #ffb24a;
+  font-weight: 800;
+  letter-spacing: 3px;
+}
+.roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+  margin: 20px 0 34px;
+}
+.rosterItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 20px;
+  min-width: 140px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 214, 140, 0.14);
+}
+.rosterName {
+  font-size: 24px;
+  font-weight: 700;
+}
+.roleTag {
+  font-size: 18px;
+  opacity: 0.8;
+}
+.warn {
+  color: #ff8a6a;
+  font-size: 26px;
+  margin: 16px 0;
+}
+.bigButton {
+  font-size: 34px;
+  font-weight: 800;
+  padding: 20px 54px;
+  border-radius: 18px;
+  border: none;
+  background: linear-gradient(180deg, #ffcf87, #ffab3d);
+  color: #241a0c;
+  cursor: pointer;
+  box-shadow: 0 10px 40px rgba(255, 171, 61, 0.35);
+}
+.waiting {
+  font-size: 28px;
+  opacity: 0.8;
+}
+
+/* ---- Capturing ---- */
+.capture {
+  text-align: center;
+}
+.poseLine {
+  font-size: 72px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: #fff3dc;
+  margin: 10px 0;
+}
+.countdown {
+  font-size: 240px;
+  font-weight: 900;
+  line-height: 1;
+  color: #ffb24a;
+  text-shadow: 0 0 60px rgba(255, 171, 61, 0.6);
+}
+.snapNow {
+  font-size: 96px;
+  font-weight: 900;
+  color: #ff6a6a;
+}
+.captureHint {
+  font-size: 26px;
+  opacity: 0.75;
+  margin: 14px 0 26px;
+}
+.contestantStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+}
+.contestantChip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 214, 140, 0.14);
+  font-size: 22px;
+}
+.chipDone {
+  background: rgba(120, 220, 140, 0.14);
+  border-color: rgba(120, 220, 140, 0.4);
+}
+
+/* ---- Prompts ---- */
+.prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.promptText {
+  font-size: 30px;
+  font-style: italic;
+  color: #fff3dc;
+  max-width: 520px;
+}
+.promptBig.promptText {
+  font-size: 46px;
+  max-width: 900px;
+}
+.promptEmoji {
+  font-size: 120px;
+  line-height: 1;
+}
+.promptBig .promptEmoji {
+  font-size: 220px;
+}
+.promptCaption {
+  font-size: 24px;
+  opacity: 0.85;
+}
+.promptImg {
+  max-width: 320px;
+  max-height: 320px;
+  border-radius: 14px;
+}
+.promptBig .promptImg {
+  max-width: 520px;
+  max-height: 520px;
+}
+
+/* ---- Voting grid ---- */
+.voting {
+  text-align: center;
+}
+.timer {
+  font-size: 44px;
+  font-weight: 800;
+  color: #ffb24a;
+  margin-bottom: 20px;
+}
+.matchGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 26px;
+}
+.matchCard {
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 214, 140, 0.14);
+}
+.matchEntries,
+.matchCard .matchEntries {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 16px;
+}
+.revealEntries {
+  display: flex;
+  gap: 40px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* ---- Entry photo ---- */
+.entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border-radius: 14px;
+  padding: 8px;
+  border: 3px solid transparent;
+}
+.reveal .entry,
+.entryWinner {
+  transition: transform 0.2s ease;
+}
+.entryWinner {
+  border-color: #ffcf5a;
+  box-shadow: 0 0 46px rgba(255, 207, 90, 0.5);
+  transform: scale(1.05);
+}
+.entryImg {
+  width: 260px;
+  height: 260px;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #000;
+}
+.revealEntries .entryImg {
+  width: 380px;
+  height: 380px;
+}
+.entryNoPhoto {
+  width: 260px;
+  height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 24px;
+  opacity: 0.6;
+}
+.entryFooter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+}
+.entryVotes {
+  color: #9fe6b0;
+  font-weight: 700;
+}
+.crown {
+  font-size: 28px;
+}
+.entryPts {
+  color: #ffcf87;
+  font-weight: 800;
+}
+
+/* ---- Scoreboard ---- */
+.scoreboard {
+  text-align: center;
+}
+.standList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 780px;
+  margin: 0 auto;
+}
+.standRow {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 24px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 30px;
+}
+.rank {
+  font-size: 32px;
+  font-weight: 800;
+  color: #ffb24a;
+  width: 44px;
+}
+.standName {
+  flex: 1;
+  text-align: left;
+  font-weight: 700;
+}
+.standScore {
+  font-weight: 800;
+  color: #ffcf87;
+}
+.winnerBanner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  font-size: 56px;
+  font-weight: 800;
+  color: #fff3dc;
+  margin-bottom: 30px;
+}
+.winnerBanner > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
