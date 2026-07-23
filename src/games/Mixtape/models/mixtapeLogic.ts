@@ -62,6 +62,11 @@ export interface Ballot {
 // One elimination round, recorded so the presenter can animate the tally suspensefully.
 export interface IRVStep {
   counts: Record<string, number>; // first-choice count per still-standing song (before this step's elimination)
+  // Who is backing each still-standing song at this step, in stable ballot order.  The
+  // presenter renders one bar-slice per voterId (labelled with the player's name) and
+  // animates a slice moving between bars when its song is eliminated.  Keyed the same as
+  // `counts` (support[id].length === counts[id]).
+  support: Record<string, string[]>;
   activeBallots: number; // ballots not yet exhausted
   exhausted: number; // ballots with no remaining choice
   eliminated: string[]; // song(s) removed at the END of this step ([] on the final/winning step)
@@ -72,24 +77,31 @@ export interface IRVOutcome {
   winners: string[]; // the winning videoId(s); [] if no ballots were cast
 }
 
-// Count first-choice support for the still-standing songs, given the eliminated set.
+// Count first-choice support for the still-standing songs, given the eliminated set.  Also
+// records which voters back each song (in ballot order) so the presenter can slice + animate.
 function tally(
   songIds: string[],
   ballots: Ballot[],
   eliminated: Set<string>,
   songSet: Set<string>,
-): { counts: Record<string, number>; active: number } {
+): { counts: Record<string, number>; support: Record<string, string[]>; active: number } {
   const counts: Record<string, number> = {};
-  for (const id of songIds) if (!eliminated.has(id)) counts[id] = 0;
+  const support: Record<string, string[]> = {};
+  for (const id of songIds)
+    if (!eliminated.has(id)) {
+      counts[id] = 0;
+      support[id] = [];
+    }
   let active = 0;
   for (const b of ballots) {
     const top = b.ranking.find((id) => songSet.has(id) && !eliminated.has(id));
     if (top !== undefined) {
       counts[top]++;
+      support[top].push(b.voterId);
       active++;
     }
   }
-  return { counts, active };
+  return { counts, support, active };
 }
 
 // Run instant-runoff.  `submissionOrder` (earliest-submitted first) makes every tie-break
@@ -116,11 +128,11 @@ export function runInstantRunoff(
   // Guard against pathological input (a stuck loop can never outlast the song count).
   for (let guard = 0; guard <= songIds.length + 1; guard++) {
     const remaining = songIds.filter((id) => !eliminated.has(id));
-    const { counts, active } = tally(songIds, ballots, eliminated, songSet);
+    const { counts, support, active } = tally(songIds, ballots, eliminated, songSet);
     const exhausted = ballots.length - active;
 
     if (remaining.length === 0 || active === 0) {
-      steps.push({ counts, activeBallots: active, exhausted, eliminated: [] });
+      steps.push({ counts, support, activeBallots: active, exhausted, eliminated: [] });
       return { steps, winners: [] };
     }
 
@@ -138,7 +150,7 @@ export function runInstantRunoff(
         }
         return best;
       }, remaining[0]);
-      steps.push({ counts, activeBallots: active, exhausted, eliminated: [] });
+      steps.push({ counts, support, activeBallots: active, exhausted, eliminated: [] });
       return { steps, winners: [winner] };
     }
 
@@ -153,7 +165,7 @@ export function runInstantRunoff(
     }
     const loser = losers[0];
     eliminated.add(loser);
-    steps.push({ counts, activeBallots: active, exhausted, eliminated: [loser] });
+    steps.push({ counts, support, activeBallots: active, exhausted, eliminated: [loser] });
   }
 
   return { steps, winners: [] };

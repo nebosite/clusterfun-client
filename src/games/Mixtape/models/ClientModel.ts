@@ -100,6 +100,9 @@ export class MixtapeClientModel extends ClusterfunClientModel {
   @observable presentCount = 0;
   @observable submittedCount = 0;
   @observable votedCount = 0;
+  // True once this player has submitted a ballot this round.  Drives the "Change your vote?"
+  // affordance: the submit button fades out and, when tapped, re-opens editing for a re-submit.
+  @observable voteSubmitted = false;
 
   // Transient search/cue UI state (never serialized - see the type helper).
   provider: MusicProvider = getMusicProvider();
@@ -157,6 +160,8 @@ export class MixtapeClientModel extends ClusterfunClientModel {
         this.gameState = MixtapeClientState.Selecting;
         break;
       case MixtapeGameState.Voting:
+        // A ballot already on the presenter (e.g. after a refresh) shows as "submitted".
+        action(() => (this.voteSubmitted = (r.myBallot ?? []).length > 0))();
         this.gameState = MixtapeClientState.Voting;
         break;
       case MixtapeGameState.PromptReveal:
@@ -254,6 +259,7 @@ export class MixtapeClientModel extends ClusterfunClientModel {
 
   toggleRank(videoId: string) {
     if (videoId === this.myOwnVideoId) return;
+    if (this.voteSubmitted) return; // locked until the player chooses to change their vote
     const current = this.myBallot.slice();
     const i = current.indexOf(videoId);
     if (i >= 0) {
@@ -264,13 +270,21 @@ export class MixtapeClientModel extends ClusterfunClientModel {
     action(() => (this.myBallot = current))();
   }
 
+  // Re-open the ballot after submitting so the player can adjust and re-submit.
+  undoVote() {
+    action(() => (this.voteSubmitted = false))();
+  }
+
   async submitBallot(): Promise<boolean> {
     const validIds = this.votingSongs.map((s) => s.videoId);
     const ranking = sanitizeRanking(this.myBallot, validIds, this.myOwnVideoId, MAX_BALLOT);
     if (ranking.length < 1) return false;
     const res = await this.session.requestPresenter(MixtapeSubmitBallotEndpoint, { ranking });
     if (res.accepted && res.ranking) {
-      action(() => (this.myBallot = res.ranking as string[]))();
+      action(() => {
+        this.myBallot = res.ranking as string[];
+        this.voteSubmitted = true;
+      })();
       this.saveCheckpoint();
     }
     return res.accepted;

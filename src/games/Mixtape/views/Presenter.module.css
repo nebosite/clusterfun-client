@@ -15,6 +15,44 @@
   width: 1920px;
   height: 1080px;
   overflow: hidden;
+  position: relative;
+}
+
+/* Lightly-animated background glow to keep the energy up between beats.  Two big colored
+   blobs drift + breathe slowly behind everything; disabled under reduced-motion. */
+.energy {
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(600px 600px at 25% 30%, rgba(255, 62, 165, 0.16), transparent 60%),
+    radial-gradient(680px 680px at 78% 68%, rgba(34, 224, 255, 0.14), transparent 62%),
+    radial-gradient(520px 520px at 60% 15%, rgba(182, 255, 58, 0.1), transparent 60%);
+  animation: energyDrift 24s ease-in-out infinite alternate;
+}
+@keyframes energyDrift {
+  0% {
+    transform: translate(0, 0) scale(1);
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    transform: translate(3%, -2%) scale(1.08);
+  }
+  100% {
+    transform: translate(-3%, 2%) scale(1.04);
+    filter: hue-rotate(24deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .energy {
+    animation: none;
+  }
+}
+.frame,
+.stage {
+  position: relative;
+  z-index: 1;
 }
 
 .frame {
@@ -244,8 +282,8 @@
   opacity: 0;
   transform: translateY(14px);
   transition:
-    opacity 0.9s ease,
-    transform 0.9s ease;
+    opacity 1s ease,
+    transform 1s ease;
 }
 .meta.show {
   opacity: 1;
@@ -318,53 +356,86 @@
   color: #22e0ff;
 }
 
-/* Tally bars */
-.tallyWrap {
-  margin-top: 24px;
+/* Tally — sliced bars.  Each lane is one song; each voter is a chip (slice) labelled with the
+   player's name.  Chips are absolutely positioned siblings keyed by voterId, so when a song is
+   eliminated a chip SLIDES to the bar of the voter's next choice instead of remounting. */
+.tallyStage {
+  position: relative;
+  margin-top: 20px;
 }
-.tallyRow {
+.tallyLane {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 90px;
   display: flex;
   align-items: center;
-  gap: 18px;
-  margin: 14px 0;
+  border-radius: 14px;
+  background: rgba(23, 19, 38, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   transition:
     opacity 0.5s ease,
-    filter 0.5s ease;
+    filter 0.5s ease,
+    box-shadow 0.5s ease;
 }
-.tallyRow.eliminated {
-  opacity: 0.35;
+.tallyLane.eliminated {
+  opacity: 0.32;
   filter: grayscale(0.7);
 }
-.tallyRow.winner {
-  transform: scale(1.02);
+.tallyLane.winner {
+  box-shadow:
+    0 0 0 2px rgba(255, 210, 26, 0.7) inset,
+    0 8px 30px rgba(255, 62, 165, 0.25);
 }
-.barTrack {
-  flex: 1;
-  height: 46px;
-  background: #171326;
-  border-radius: 10px;
+.laneLabel {
+  flex: none;
+  padding: 0 22px;
   overflow: hidden;
 }
-.barFill {
-  height: 100%;
+.laneBar {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  right: 70px;
   border-radius: 10px;
-  background: linear-gradient(90deg, #22e0ff, #b6ff3a);
-  transition: width 0.7s ease;
+  background: rgba(255, 255, 255, 0.04);
 }
-.tallyRow.winner .barFill {
-  background: linear-gradient(90deg, #ff3ea5, #ffd21a);
-}
-.barCount {
-  font-size: 30px;
+.laneCount {
+  position: absolute;
+  right: 22px;
+  font-size: 34px;
   font-weight: 800;
-  width: 56px;
-  text-align: center;
+  color: #ffd21a;
   font-variant-numeric: tabular-nums;
+}
+.voteChip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff3ea5, #22e0ff);
+  color: #0d0b14;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition:
+    transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.5s ease;
+  overflow: hidden;
+}
+.chipName {
+  font-size: 24px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .submitterReveal {
   font-size: 22px;
   color: #ffd21a;
-  margin-left: 8px;
+  margin-top: 4px;
 }
 
 /* Scoreboard */

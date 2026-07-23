@@ -14,8 +14,9 @@ import {
   PlayerAvatar,
 } from "libs";
 import { MixtapeClientModel, MixtapeClientState } from "../models/ClientModel";
-import { MAX_BALLOT } from "../models/GameSettings";
-import { Track } from "../models/musicProvider";
+import { MAX_BALLOT, CLIENT_PREVIEW_MS } from "../models/GameSettings";
+import { Track, isRealVideoId } from "../models/musicProvider";
+import { YouTubePlayer } from "./YouTubePlayer";
 
 const fmt = (sec: number) => {
   const s = Math.max(0, Math.floor(sec));
@@ -31,6 +32,8 @@ class SelectingScreen extends React.Component<
   { appModel?: MixtapeClientModel },
   { query: string }
 > {
+  private preview = React.createRef<YouTubePlayer>();
+
   constructor(props: { appModel?: MixtapeClientModel }) {
     super(props);
     this.state = { query: "" };
@@ -40,6 +43,25 @@ class SelectingScreen extends React.Component<
     if (this.props.appModel!.searchResults.length === 0) this.props.appModel!.doSearch("");
   }
   private search = () => this.props.appModel!.doSearch(this.state.query);
+
+  // Scrubbing the start time plays a short preview from that offset so the player can hear
+  // exactly where their snippet begins (real YouTube tracks only; mock catalog is silent).
+  private onScrub = (v: number) => {
+    const m = this.props.appModel!;
+    m.setStartSec(v);
+    const sel = m.selectedTrack;
+    if (sel && isRealVideoId(sel.videoId)) {
+      this.preview.current?.playPreview(m.pendingStartSec, CLIENT_PREVIEW_MS);
+    }
+  };
+  private lockIn = () => {
+    this.preview.current?.stop(); // stop the preview when the choice is locked in
+    this.props.appModel!.submitSelected();
+  };
+  private back = () => {
+    this.preview.current?.stop();
+    this.props.appModel!.clearSelection();
+  };
 
   render() {
     const m = this.props.appModel!;
@@ -78,18 +100,29 @@ class SelectingScreen extends React.Component<
               min={0}
               max={maxStart}
               value={Math.min(m.pendingStartSec, maxStart)}
-              onChange={(e) => m.setStartSec(Number(e.target.value))}
+              onChange={(e) => this.onScrub(Number(e.target.value))}
             />
+            <div className={styles.cueHint}>
+              {isRealVideoId(sel.videoId)
+                ? "Drag to preview 5s from your start point."
+                : "Preview available for real songs in production."}
+            </div>
+            {isRealVideoId(sel.videoId) && (
+              <YouTubePlayer
+                key={sel.videoId}
+                ref={this.preview}
+                videoId={sel.videoId}
+                startSec={m.pendingStartSec}
+                hidden
+              />
+            )}
             <button
               className={`${styles.btn} ${styles.btnGo} ${styles.btnFull}`}
-              onClick={() => m.submitSelected()}
+              onClick={this.lockIn}
             >
               Lock in this song
             </button>
-            <button
-              className={`${styles.btn} ${styles.btnFull}`}
-              onClick={() => m.clearSelection()}
-            >
+            <button className={`${styles.btn} ${styles.btnFull}`} onClick={this.back}>
               ← Back to results
             </button>
           </div>
@@ -146,9 +179,11 @@ class VotingScreen extends React.Component<{ appModel?: MixtapeClientModel }> {
       <div>
         <div className={styles.prompt}>Rank your favorites</div>
         <div className={styles.hint}>
-          Tap up to {MAX_BALLOT} in order — {m.myBallot.length}/{MAX_BALLOT} picked.
+          {m.voteSubmitted
+            ? "Vote submitted! Tap below if you want to change it."
+            : `Tap up to ${MAX_BALLOT} in order — ${m.myBallot.length}/${MAX_BALLOT} picked.`}
         </div>
-        <div className={styles.voteList}>
+        <div className={m.voteSubmitted ? `${styles.voteList} ${styles.locked}` : styles.voteList}>
           {m.votingSongs.map((s) => {
             const own = s.videoId === m.myOwnVideoId;
             const rank = m.rankOf(s.videoId);
@@ -173,13 +208,22 @@ class VotingScreen extends React.Component<{ appModel?: MixtapeClientModel }> {
             );
           })}
         </div>
-        <button
-          className={`${styles.btn} ${styles.btnGo} ${styles.btnFull}`}
-          disabled={m.myBallot.length < 1}
-          onClick={() => m.submitBallot()}
-        >
-          Submit ranking
-        </button>
+        {m.voteSubmitted ? (
+          <button
+            className={`${styles.btn} ${styles.btnFull} ${styles.btnSubmitted}`}
+            onClick={() => m.undoVote()}
+          >
+            Change your vote?
+          </button>
+        ) : (
+          <button
+            className={`${styles.btn} ${styles.btnGo} ${styles.btnFull}`}
+            disabled={m.myBallot.length < 1}
+            onClick={() => m.submitBallot()}
+          >
+            Submit ranking
+          </button>
+        )}
       </div>
     );
   }

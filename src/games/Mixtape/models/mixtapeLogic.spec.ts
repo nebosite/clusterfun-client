@@ -96,6 +96,22 @@ describe("runInstantRunoff", () => {
     expect(flipped.winners).toEqual(["b"]);
   });
 
+  it("records which voters back each song and transfers them on elimination", () => {
+    // a=2 (1,2), b=2 (3,4), c=1 (5 -> a).  c is eliminated, voter 5 transfers to a -> a wins.
+    const ballots = [b("1", "a"), b("2", "a"), b("3", "b"), b("4", "b"), b("5", "c", "a")];
+    const out = runInstantRunoff(["a", "b", "c"], ballots, order);
+    expect(out.steps[0].support).toEqual({ a: ["1", "2"], b: ["3", "4"], c: ["5"] });
+    const last = out.steps[out.steps.length - 1];
+    expect(last.support.a).toEqual(["1", "2", "5"]); // voter 5 moved from c to a
+    expect(last.support.c).toBeUndefined(); // c no longer standing
+    // support tracks counts exactly at every step
+    for (const step of out.steps) {
+      for (const id of Object.keys(step.counts)) {
+        expect(step.support[id].length).toBe(step.counts[id]);
+      }
+    }
+  });
+
   it("is stable when replayed (deterministic steps)", () => {
     const ballots = [b("1", "a", "c"), b("2", "b", "c"), b("3", "c", "a"), b("4", "d", "b")];
     const first = runInstantRunoff(["a", "b", "c", "d"], ballots, order);
