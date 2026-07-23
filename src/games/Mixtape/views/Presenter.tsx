@@ -287,6 +287,10 @@ class PlaybackPage extends React.Component<
         </div>
 
         <div className={styles.jukeSide}>
+          <div className={styles.playbackPrompt}>
+            <div className={styles.playbackPromptKicker}>The moment</div>
+            <div className={styles.playbackPromptText}>{m.prompt}</div>
+          </div>
           <div className={styles.trackCounter}>
             Track {m.currentSongIndex + 1} of {total}
           </div>
