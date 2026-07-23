@@ -35,12 +35,13 @@ depends on the network:
 
 - `MusicProvider.search(query): Promise<Track[]>` where
   `Track = { videoId, title, artist, thumbnailUrl, durationSec }`.
-  - **`YouTubeProvider`** — `fetch` to YouTube Data API v3 `search.list` (key from
-    `secrets.ts` / `REACT_APP_YT_API_KEY`). Client-side; **no relay traffic for search**, no
-    server changes. Key is bundle-exposed — acceptable for a friends-at-a-party LAN game.
+  - **`RelayMusicProvider`** — `fetch` to the relay server's `/api/youtube_search` proxy
+    (same origin). The server owns the YouTube Data API key and caches `search.list` results
+    across all rooms, so the key is never in the client bundle and each term burns quota at
+    most once. The server maps snippets → `Track[]`; the client renders them directly.
   - **`MockMusicProvider`** — filters a small in-memory catalog (~30 fake tracks) by query
-    substring. Used when `REACT_APP_DEVMODE === "development"` **or** no API key is present, so
-    the whole loop runs in the Test Lobby.
+    substring. Used when `REACT_APP_DEVMODE === "development"` (the dev Test Lobby, which has
+    no relay server), so the whole loop runs offline.
   - Provider is chosen once at model init; `Track` is identical from both.
 - `TrackPlayer` (presenter only) — `load(videoId, startSec)`, `play()`, `stop()`, tick callback.
   - **`YouTubeIFramePlayer`** — wraps the YouTube IFrame Player API (`YT.Player`), audible.

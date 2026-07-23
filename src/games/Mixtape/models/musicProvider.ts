@@ -1,13 +1,14 @@
 // ==========================================================================================
 // Music search provider abstraction.
 //
-// The phone searches for songs directly against a provider — this never crosses the relay.
 // Two implementations behind one interface so the game is verifiable headlessly and never
 // hard-depends on the network:
-//   - YouTubeProvider: YouTube Data API v3 search.list (key from REACT_APP_YT_API_KEY /
-//     src/secrets.ts).  Used in production.
+//   - RelayMusicProvider: asks the relay server's /api/youtube_search proxy (same origin).
+//     The server holds the YouTube Data API key and caches results across all rooms, so the
+//     key is never shipped to the browser and one search term costs quota at most once.
+//     Used in production.
 //   - MockMusicProvider: a small in-memory catalog filtered by substring.  Used in the dev
-//     Test Lobby or whenever no API key is present, so the whole loop runs offline.
+//     Test Lobby, where there is no relay server, so the whole loop runs offline.
 //
 // A `Track` is identical from either provider.  Only real YouTube video ids ever produce
 // audio; mock ids ("mock-..") render a silent placeholder tile on the same 30s timeline
@@ -98,67 +99,30 @@ export class MockMusicProvider implements MusicProvider {
 }
 
 // ------------------------------------------------------------------------------------------
-// YouTube Data API v3 provider (production).
+// Relay proxy provider (production).  The phone never talks to googleapis directly: it asks
+// the relay server, which holds the API key and caches search.list results across all rooms.
+// Same-origin in production (the relay serves this bundle); CRA's dev proxy forwards it to
+// :8080 under `npm run startlocal`.  The server returns a ready-made Track[].
 // ------------------------------------------------------------------------------------------
-export class YouTubeProvider implements MusicProvider {
+export class RelayMusicProvider implements MusicProvider {
   readonly kind = "youtube" as const;
-  constructor(private apiKey: string) {}
 
   async search(query: string): Promise<Track[]> {
     const q = (query ?? "").trim().slice(0, MAX_QUERY_LEN);
     if (!q) return [];
-    const params = new URLSearchParams({
-      part: "snippet",
-      type: "video",
-      videoCategoryId: "10", // Music
-      maxResults: String(MAX_SEARCH_RESULTS),
-      q,
-      key: this.apiKey,
-    });
-    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params.toString()}`);
+    const res = await fetch(`/api/youtube_search?q=${encodeURIComponent(q)}`);
     if (!res.ok) {
-      throw new Error(`YouTube search failed (${res.status})`);
+      throw new Error(`Music search failed (${res.status})`);
     }
     const data = await res.json();
-    const items = Array.isArray(data.items) ? data.items : [];
-    return items
-      .filter((it: any) => it?.id?.videoId)
-      .map((it: any) => {
-        const sn = it.snippet ?? {};
-        const thumb = sn.thumbnails?.medium ?? sn.thumbnails?.default ?? {};
-        return {
-          videoId: it.id.videoId as string,
-          title: decodeEntities(sn.title ?? "Unknown title"),
-          artist: decodeEntities(sn.channelTitle ?? "Unknown"),
-          thumbnailUrl: thumb.url ?? "",
-          durationSec: 0, // search.list does not include durations
-        } as Track;
-      });
+    return Array.isArray(data) ? (data as Track[]) : [];
   }
 }
 
-// YouTube snippet strings arrive HTML-entity encoded (&amp; &#39; ...).
-function decodeEntities(s: string): string {
-  return s
-    .replace(/&amp;/g, "&")
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
-}
-
 // ------------------------------------------------------------------------------------------
-// Provider selection.  Mock in dev / when no key is configured; real YouTube otherwise.
-// The key is read from the CRA env (REACT_APP_YT_API_KEY); secrets.ts can re-export it there.
+// Provider selection.  The dev Test Lobby has no relay server, so it uses the offline mock
+// catalog; production goes through the relay proxy (no client-side key involved).
 // ------------------------------------------------------------------------------------------
-export function getYouTubeApiKey(): string {
-  try {
-    return (process.env.REACT_APP_YT_API_KEY ?? "").trim();
-  } catch {
-    return "";
-  }
-}
-
 export function getMusicProvider(): MusicProvider {
   const isDev = (() => {
     try {
@@ -167,7 +131,6 @@ export function getMusicProvider(): MusicProvider {
       return false;
     }
   })();
-  const key = getYouTubeApiKey();
-  if (isDev || !key) return new MockMusicProvider();
-  return new YouTubeProvider(key);
+  if (isDev) return new MockMusicProvider();
+  return new RelayMusicProvider();
 }

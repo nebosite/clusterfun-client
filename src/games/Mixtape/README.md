@@ -16,8 +16,10 @@ A music-matching party game for ClusterFun. See [DESIGN.md](DESIGN.md) for the f
 5. First player to the host's target score wins. The end screen lists every prompt's songs as
    shareable YouTube links.
 
-3–8 players. YouTube search uses the YouTube Data API (key in `src/secrets.ts` /
-`REACT_APP_YT_API_KEY`); in the dev Test Lobby (or with no key) a built-in **mock catalog**
-powers search so the whole loop runs offline. Real audio plays only when a real YouTube video
-id is cued — the presenter embeds the YouTube IFrame player; mock tracks show a silent
-placeholder tile on the same 30s timeline.
+3–8 players. YouTube search goes through the relay server's `/api/youtube_search` proxy, which
+holds the YouTube Data API key server-side (`YOUTUBE_API_KEY`) and caches results across all
+rooms — so the key never ships in the client bundle and a search term costs quota at most once.
+In the dev Test Lobby (no relay server) a built-in **mock catalog** powers search so the whole
+loop runs offline. Real audio plays only when a real YouTube video id is cued — the presenter
+embeds the YouTube IFrame player; mock tracks show a silent placeholder tile on the same 30s
+timeline.
