@@ -1,0 +1,521 @@
+/* Mixtape — "Late-Night Jukebox" presenter theme (1920x1080). */
+.gamepresenter {
+  font-family:
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  color: #f3effa;
+  background:
+    radial-gradient(1200px 700px at 15% -10%, rgba(255, 62, 165, 0.18), transparent 60%),
+    radial-gradient(1100px 700px at 90% 10%, rgba(34, 224, 255, 0.16), transparent 55%), #0d0b14;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Lightly-animated background glow to keep the energy up between beats.  Two big colored
+   blobs drift + breathe slowly behind everything; disabled under reduced-motion. */
+.energy {
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(600px 600px at 25% 30%, rgba(255, 62, 165, 0.16), transparent 60%),
+    radial-gradient(680px 680px at 78% 68%, rgba(34, 224, 255, 0.14), transparent 62%),
+    radial-gradient(520px 520px at 60% 15%, rgba(182, 255, 58, 0.1), transparent 60%);
+  animation: energyDrift 24s ease-in-out infinite alternate;
+}
+@keyframes energyDrift {
+  0% {
+    transform: translate(0, 0) scale(1);
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    transform: translate(3%, -2%) scale(1.08);
+  }
+  100% {
+    transform: translate(-3%, 2%) scale(1.04);
+    filter: hue-rotate(24deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .energy {
+    animation: none;
+  }
+}
+.frame,
+.stage {
+  position: relative;
+  z-index: 1;
+}
+
+.frame {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 18px 34px;
+  background: rgba(10, 8, 18, 0.55);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.wordmark {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, #ff3ea5, #ffd21a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.spacer {
+  flex: 1;
+}
+.roomCode {
+  font-size: 22px;
+  color: #cbd3e1;
+}
+.roomCode b {
+  color: #22e0ff;
+  letter-spacing: 3px;
+}
+.button {
+  font-size: 20px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #211a33;
+  color: #f3effa;
+  cursor: pointer;
+}
+.button:hover {
+  background: #2c2344;
+}
+.button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.stage {
+  padding: 30px 60px;
+  height: 940px;
+  box-sizing: border-box;
+}
+
+.cta {
+  font-size: 30px;
+  font-weight: 700;
+  padding: 18px 40px;
+  border-radius: 16px;
+  border: none;
+  color: #0d0b14;
+  background: linear-gradient(90deg, #b6ff3a, #22e0ff);
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(34, 224, 255, 0.25);
+}
+.cta:hover {
+  filter: brightness(1.08);
+}
+.cta.hot {
+  background: linear-gradient(90deg, #ff3ea5, #ffd21a);
+  box-shadow: 0 10px 30px rgba(255, 62, 165, 0.3);
+}
+.cta:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.title {
+  font-size: 40px;
+  font-weight: 800;
+  margin: 0 0 10px;
+}
+.sub {
+  font-size: 24px;
+  color: #b9c2d4;
+  margin: 0 0 24px;
+}
+
+/* Roster of joined players */
+.roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 20px 0;
+}
+.nameBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #171326;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 10px 16px;
+  font-size: 24px;
+}
+.nameBox.done {
+  border-color: rgba(182, 255, 58, 0.6);
+  box-shadow: 0 0 0 1px rgba(182, 255, 58, 0.25) inset;
+}
+.check {
+  color: #b6ff3a;
+  font-weight: 800;
+}
+.waitingDot {
+  color: #6b7488;
+}
+
+/* Prompt hero */
+.promptHero {
+  margin: 40px 0;
+  padding: 48px;
+  border-radius: 26px;
+  background: linear-gradient(160deg, #1c1630, #120d20);
+  border: 1px solid rgba(255, 62, 165, 0.25);
+  text-align: center;
+}
+.promptKicker {
+  font-size: 22px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: #ff3ea5;
+  margin-bottom: 18px;
+}
+.promptText {
+  font-size: 62px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+/* Target-score stepper */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 26px;
+  margin: 18px 0;
+}
+.stepBtn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #211a33;
+  color: #fff;
+  font-size: 28px;
+  cursor: pointer;
+}
+.stepVal {
+  font-size: 40px;
+  font-weight: 800;
+  color: #ffd21a;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* Jukebox / playback */
+.juke {
+  display: flex;
+  gap: 40px;
+  align-items: stretch;
+  height: 100%;
+}
+.tile {
+  position: relative;
+  width: 760px;
+  height: 760px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #100c1c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  flex: none;
+}
+.tile iframe,
+.tile img {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: cover;
+  display: block;
+}
+.mystery {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background: radial-gradient(circle at 50% 40%, #2a1f45, #0f0b1c);
+  transition: opacity 0.8s ease;
+}
+.mystery.hide {
+  opacity: 0;
+  pointer-events: none;
+}
+.mysteryMark {
+  font-size: 200px;
+}
+.mysteryText {
+  font-size: 30px;
+  color: #c9b8f0;
+  letter-spacing: 2px;
+}
+.jukeSide {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 22px;
+}
+.playbackPrompt {
+  padding: 20px 24px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #1c1630, #120d20);
+  border: 1px solid rgba(255, 62, 165, 0.25);
+}
+.playbackPromptKicker {
+  font-size: 16px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: #ff3ea5;
+  margin-bottom: 8px;
+}
+.playbackPromptText {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.trackCounter {
+  font-size: 26px;
+  color: #9aa4b8;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+.meta {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 1s ease,
+    transform 1s ease;
+}
+.meta.show {
+  opacity: 1;
+  transform: none;
+}
+.metaTitle {
+  font-size: 58px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.metaArtist {
+  font-size: 34px;
+  color: #22e0ff;
+  margin-top: 10px;
+}
+.secretTag {
+  font-size: 24px;
+  color: #6b7488;
+  margin-top: 24px;
+}
+.countdown {
+  font-size: 30px;
+  color: #ffd21a;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Voting list (no submitters shown) */
+.songGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-top: 20px;
+}
+.songRow {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: #171326;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px 20px;
+}
+.songNum {
+  font-size: 34px;
+  font-weight: 800;
+  color: #ff3ea5;
+  width: 44px;
+  text-align: center;
+}
+.songThumb {
+  width: 84px;
+  height: 84px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: linear-gradient(135deg, #2a1f45, #123);
+  flex: none;
+}
+.songInfo {
+  min-width: 0;
+}
+.songTitle {
+  font-size: 28px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.songArtist {
+  font-size: 22px;
+  color: #22e0ff;
+}
+
+/* Tally — sliced bars.  Each lane is one song; each voter is a chip (slice) labelled with the
+   player's name.  Chips are absolutely positioned siblings keyed by voterId, so when a song is
+   eliminated a chip SLIDES to the bar of the voter's next choice instead of remounting. */
+.tallyStage {
+  position: relative;
+  margin-top: 20px;
+}
+.tallyLane {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  border-radius: 14px;
+  background: rgba(23, 19, 38, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition:
+    opacity 0.5s ease,
+    filter 0.5s ease,
+    box-shadow 0.5s ease;
+}
+.tallyLane.eliminated {
+  opacity: 0.32;
+  filter: grayscale(0.7);
+}
+.tallyLane.winner {
+  box-shadow:
+    0 0 0 2px rgba(255, 210, 26, 0.7) inset,
+    0 8px 30px rgba(255, 62, 165, 0.25);
+}
+.laneLabel {
+  flex: none;
+  padding: 0 22px;
+  overflow: hidden;
+}
+.laneBar {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  right: 70px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.laneCount {
+  position: absolute;
+  right: 22px;
+  font-size: 34px;
+  font-weight: 800;
+  color: #ffd21a;
+  font-variant-numeric: tabular-nums;
+}
+.voteChip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff3ea5, #22e0ff);
+  color: #0d0b14;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition:
+    transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.5s ease;
+  overflow: hidden;
+}
+.chipName {
+  font-size: 24px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.submitterReveal {
+  font-size: 22px;
+  color: #ffd21a;
+  margin-top: 4px;
+}
+
+/* Scoreboard */
+.scoreList {
+  margin-top: 20px;
+}
+.scoreItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 32px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  margin: 10px 0;
+  background: #171326;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.scoreItem.lead {
+  border-color: rgba(255, 210, 26, 0.6);
+}
+.scoreVal {
+  margin-left: auto;
+  font-size: 40px;
+  font-weight: 800;
+  color: #ffd21a;
+}
+.winnerBanner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 42px;
+  font-weight: 800;
+  margin: 20px 0;
+}
+
+/* GameOver links */
+.linkRound {
+  background: #171326;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 18px 24px;
+  margin: 14px 0;
+}
+.linkPrompt {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.linkSong {
+  font-size: 22px;
+  color: #cbd3e1;
+  margin: 6px 0;
+}
+.linkSong a {
+  color: #22e0ff;
+}
+.linkWin {
+  color: #ffd21a;
+  font-weight: 700;
+}
+.overScroll {
+  height: 820px;
+  overflow-y: auto;
+  padding-right: 10px;
+}

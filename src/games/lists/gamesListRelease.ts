@@ -2,8 +2,16 @@ import LexibleAssets from "games/Lexible/assets/Assets";
 import { GameDescriptor } from "./GameDescriptor";
 import RetroSpectroAssets from "games/RetroSpectro/assets/Assets";
 import PartyPixAssets from "games/PartyPix/assets/Assets";
+import MixtapeAssets from "games/Mixtape/assets/Assets";
 
 const releaseGames: GameDescriptor[] = [
+  {
+    name: "Mixtape",
+    displayName: "Mixtape",
+    tags: [],
+    logoName: MixtapeAssets.images.logo,
+    importThunk: () => import("../Mixtape/views/GameComponent"),
+  },
   {
     name: "PartyPix",
     displayName: "PartyPix",
