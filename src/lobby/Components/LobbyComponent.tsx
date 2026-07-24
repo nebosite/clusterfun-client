@@ -5,11 +5,10 @@ import { LobbyMode, LobbyModel } from "../models/LobbyModel";
 import classNames from "classnames";
 import { GLOBALS } from "../../Globals";
 import styles from "./LobbyComponent.module.css";
-import { PlayerAvatar, UIProperties, UINormalizer } from "libs";
+import { PlayerAvatar, UIProperties, ScaleToWidth } from "libs";
 import Logger from "js-logger";
 import { GameDescriptor } from "games/lists/GameDescriptor";
 import { PartyBurstLogo } from "./PartyBurstLogo";
-import { ScaleToWidth } from "./ScaleToWidth";
 import { GameThumbnail } from "./GameThumbnail";
 import { CATEGORIES, TILE_PALETTE, presentationFor, GamePresentation } from "../LobbyPresentation";
 
@@ -223,9 +222,6 @@ class GameClientComponent extends React.Component<
 
     return (
       <div className={classNames(styles.root, styles.client)}>
-        <div className={styles.glowCyan} />
-        <div className={styles.glowMagenta} />
-
         {lobbyModel.lobbyErrorMessage ? (
           <div className={styles.errorMessage}>{lobbyModel.lobbyErrorMessage}</div>
         ) : null}
@@ -428,9 +424,23 @@ export class LobbyComponent extends React.Component<LobbyComponentProps> {
         <PresenterComponent games={games} />
       </ScaleToWidth>
     ) : (
-      <UINormalizer uiProperties={uiProperties} virtualWidth={1080} virtualHeight={1920}>
-        <GameClientComponent />
-      </UINormalizer>
+      // Client: scale-to-fill-width (horizontal proportions preserved), height
+      // flows and scrolls if taller than the screen. Bokeh glows live on the
+      // backdrop stage BEHIND the (transparent) scroll so they fill the space
+      // below the content instead of being clipped inside the content box.
+      <div className={styles.clientStage}>
+        <div className={styles.glowCyan} />
+        <div className={styles.glowMagenta} />
+        <ScaleToWidth
+          virtualWidth={1080}
+          containerWidth={uiProperties.containerWidth}
+          containerHeight={uiProperties.containerHeight}
+          className={styles.clientScroll}
+          hoverScrollbar
+        >
+          <GameClientComponent />
+        </ScaleToWidth>
+      </div>
     );
   }
 }

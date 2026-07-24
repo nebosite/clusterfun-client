@@ -8,7 +8,7 @@ import {
   UIProperties,
   GeneralGameState,
   GeneralClientGameState,
-  UINormalizer,
+  ScaleToWidth,
   ErrorBoundary,
   PlayerAvatar,
 } from "libs";
@@ -356,7 +356,14 @@ export default class Client extends React.Component<{
   render() {
     const { appModel } = this.props;
     return (
-      <UINormalizer uiProperties={this.props.uiProperties} virtualHeight={1920} virtualWidth={1080}>
+      <ScaleToWidth
+        virtualWidth={1080}
+        virtualHeight={1920}
+        containerWidth={this.props.uiProperties.containerWidth}
+        containerHeight={this.props.uiProperties.containerHeight}
+        hoverScrollbar
+        fillHeight
+      >
         <div className={styles.gameclient}>
           <div className={styles.header}>
             <Wordmark />
@@ -369,7 +376,7 @@ export default class Client extends React.Component<{
           </div>
           <ErrorBoundary>{this.renderSubScreen()}</ErrorBoundary>
         </div>
-      </UINormalizer>
+      </ScaleToWidth>
     );
   }
 }
