@@ -1,0 +1,58 @@
+/* Full-viewport scroll container for ScaleToWidth. The whole page scrolls here
+   instead of an inner box. Background is transparent so whatever backstop sits
+   behind it shows through (the body/#root #08080d, or a decorative stage) — this
+   avoids cross-module background fights when callers layer their own backdrop. */
+.scaleScroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: transparent;
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(34, 224, 255, 0.35) transparent;
+}
+.scaleScroll::-webkit-scrollbar {
+  width: 14px;
+}
+.scaleScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scaleScroll::-webkit-scrollbar-thumb {
+  background: rgba(34, 224, 255, 0.22);
+  border-radius: 8px;
+  border: 4px solid transparent;
+  background-clip: padding-box;
+}
+.scaleScroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 224, 255, 0.45);
+  background-clip: padding-box;
+}
+
+/* Hover-reveal variant (clients): the scrollbar is invisible until the pointer
+   is over the scroll area, then it fades in. The gutter is only reserved when
+   there is actually overflow, so short content shows no bar and there is no
+   reflow on hover (only the thumb color changes). Touch devices have no hover,
+   so the bar stays hidden while native touch scrolling still works. Defined
+   AFTER .scaleScroll so it wins the shared rules on the merged element. */
+.hoverScroll {
+  scrollbar-color: transparent transparent; /* Firefox: hidden */
+  transition: scrollbar-color 0.25s ease;
+}
+.hoverScroll:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent; /* Firefox: reveal */
+}
+.hoverScroll::-webkit-scrollbar {
+  width: 10px;
+}
+.hoverScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.hoverScroll::-webkit-scrollbar-thumb {
+  background: transparent; /* hidden until hover */
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.25s ease;
+}
+.hoverScroll:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.32);
+  background-clip: padding-box;
+}

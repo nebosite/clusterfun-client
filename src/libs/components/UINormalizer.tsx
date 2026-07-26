@@ -4,6 +4,11 @@ import { UIProperties } from "../types/UIProperties";
 
 interface UINormalizerProps {
   className?: string;
+  // Class applied to the full-viewport outer container that sits OUTSIDE the
+  // scaled virtual canvas. Use it to paint the letterbox margin (the space left
+  // over by the fit-both scale) with the screen's own background so the bars
+  // read as an intentional backdrop instead of the page's white default.
+  backdropClassName?: string;
   style?: { [k: string]: any };
   uiProperties: UIProperties;
   virtualWidth: number;
@@ -63,12 +68,12 @@ export class UINormalizer extends React.Component<UINormalizerProps> {
   // -------------------------------------------------------------------
   render() {
     const { containerWidth, containerHeight } = this.props.uiProperties;
-    const { virtualWidth, virtualHeight, style, className } = this.props;
+    const { virtualWidth, virtualHeight, style, className, backdropClassName } = this.props;
 
     return (
       <div
         id={this.props.id}
-        className={className}
+        className={[className, backdropClassName].filter(Boolean).join(" ") || undefined}
         style={{
           width: `${containerWidth}px`,
           height: `${containerHeight}px`,

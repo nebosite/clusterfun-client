@@ -7,7 +7,7 @@ import {
   UIProperties,
   GeneralGameState,
   GeneralClientGameState,
-  UINormalizer,
+  ScaleToWidth,
   ErrorBoundary,
 } from "libs";
 import { PartyPixClientModel, PartyPixClientState } from "../models/ClientModel";
@@ -308,7 +308,14 @@ export default class Client extends React.Component<
     const { appModel } = this.props;
     const { toast } = this.state;
     return (
-      <UINormalizer uiProperties={this.props.uiProperties} virtualHeight={1920} virtualWidth={1080}>
+      <ScaleToWidth
+        virtualWidth={1080}
+        virtualHeight={1920}
+        containerWidth={this.props.uiProperties.containerWidth}
+        containerHeight={this.props.uiProperties.containerHeight}
+        hoverScrollbar
+        fillHeight
+      >
         <div className={styles.gameclient}>
           <div className={styles.header}>
             <Wordmark />
@@ -324,7 +331,7 @@ export default class Client extends React.Component<
             </div>
           ) : null}
         </div>
-      </UINormalizer>
+      </ScaleToWidth>
     );
   }
 }

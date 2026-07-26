@@ -6,7 +6,7 @@ import {
   RetroSpectroClientModel,
   RetroSpectroClientState,
 } from "../../models/ClientModel";
-import { UIProperties, UINormalizer, GeneralGameState, GeneralClientGameState } from "libs";
+import { UIProperties, ScaleToWidth, GeneralGameState, GeneralClientGameState } from "libs";
 import styles from "./Client.module.css";
 import { ErrorBoundary } from "libs/components/ErrorBoundary";
 import { SafeBrowser } from "libs/Browser/SafeBrowser";
@@ -159,10 +159,13 @@ export default class Client extends React.Component<{
 
     return (
       <div>
-        <UINormalizer
-          uiProperties={this.props.uiProperties}
-          virtualHeight={1920}
+        <ScaleToWidth
           virtualWidth={1080}
+          virtualHeight={1920}
+          containerWidth={this.props.uiProperties.containerWidth}
+          containerHeight={this.props.uiProperties.containerHeight}
+          hoverScrollbar
+          fillHeight
         >
           <div className={styles.gameclient}>
             <div className={styles.topbar}>
@@ -176,7 +179,7 @@ export default class Client extends React.Component<{
               <ErrorBoundary>{this.renderSubScreen()}</ErrorBoundary>
             </div>
           </div>
-        </UINormalizer>
+        </ScaleToWidth>
       </div>
     );
   }
