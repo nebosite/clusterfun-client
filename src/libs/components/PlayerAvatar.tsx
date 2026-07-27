@@ -42,7 +42,9 @@ export const AVATAR_COUNT = SHEET_COLS * SHEET_ROWS;
 //
 //   <PlayerAvatar avatarId={player.avatarId} colorIndex={player.avatarColor} size={48} />
 //
-// `tone` overrides the chip color outright (e.g. a team color).
+// The sprite is used as a MASK, so the icon itself is painted in the
+// player's color - no chip, no background.  `tone` overrides that color
+// outright (e.g. a team color).
 // -------------------------------------------------------------------
 export function PlayerAvatar(props: {
   avatarId: number;
@@ -57,34 +59,28 @@ export function PlayerAvatar(props: {
   const col = safeId % SHEET_COLS;
   const row = Math.floor(safeId / SHEET_COLS);
   // Percentage positioning handles the sheet's non-integer cell width
-  const inset = Math.max(1, Math.round(size * 0.12));
+  const maskSize = `${SHEET_COLS * 100}% ${SHEET_ROWS * 100}%`;
+  const maskPosition = `${(col / (SHEET_COLS - 1)) * 100}% ${(row / (SHEET_ROWS - 1)) * 100}%`;
 
   return (
     <span
       style={{
         display: "inline-block",
-        position: "relative",
         width: size,
         height: size,
-        borderRadius: "50%",
         backgroundColor: color,
+        // -webkit- prefixes matter here: iOS Safari is a primary target
+        WebkitMaskImage: `url(${avatarSheet})`,
+        maskImage: `url(${avatarSheet})`,
+        WebkitMaskSize: maskSize,
+        maskSize: maskSize,
+        WebkitMaskPosition: maskPosition,
+        maskPosition: maskPosition,
+        WebkitMaskRepeat: "no-repeat",
+        maskRepeat: "no-repeat",
         verticalAlign: "middle",
         flexShrink: 0,
       }}
-    >
-      <span
-        style={{
-          position: "absolute",
-          top: inset,
-          left: inset,
-          right: inset,
-          bottom: inset,
-          backgroundImage: `url(${avatarSheet})`,
-          backgroundSize: `${SHEET_COLS * 100}% ${SHEET_ROWS * 100}%`,
-          backgroundPosition: `${(col / (SHEET_COLS - 1)) * 100}% ${(row / (SHEET_ROWS - 1)) * 100}%`,
-          backgroundRepeat: "no-repeat",
-        }}
-      />
-    </span>
+    />
   );
 }
