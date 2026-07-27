@@ -39,12 +39,12 @@ export class BoardGrid extends React.Component<BoardGridProps> {
     // Chunky beveled brick: lit top/left edge, shaded bottom/right edge, a
     // soft inner glow, and a dark seam so blocks read individually.  Bevel
     // thickness scales with the cell so presenter minis look the same.
-    const bevel = Math.max(2, Math.round(cellPx * 0.17));
+    const bevel = Math.max(1, Math.round(cellPx * 0.085));
     const inner = Math.max(1, Math.round(cellPx * 0.06));
     const blockShadow = [
-      `inset ${bevel}px ${bevel}px 0 rgba(255, 255, 255, 0.45)`,
-      `inset -${bevel}px -${bevel}px 0 rgba(0, 0, 0, 0.45)`,
-      `inset 0 0 ${bevel * 2}px rgba(255, 255, 255, 0.25)`,
+      `inset ${bevel}px ${bevel}px 0 rgba(255, 255, 255, 0.22)`,
+      `inset -${bevel}px -${bevel}px 0 rgba(0, 0, 0, 0.22)`,
+      `inset 0 0 ${bevel * 2}px rgba(255, 255, 255, 0.12)`,
       `0 0 0 ${inner}px rgba(0, 0, 0, 0.55)`,
     ].join(", ");
 

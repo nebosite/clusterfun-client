@@ -273,7 +273,7 @@ class GameClientComponent extends React.Component<
                   onClick={() => (lobbyModel.avatarId = i)}
                   aria-label={`Avatar ${i + 1}`}
                 >
-                  <PlayerAvatar avatarId={i} colorIndex={lobbyModel.avatarColor} />
+                  <PlayerAvatar avatarId={i} colorIndex={lobbyModel.avatarColor} size={88} />
                 </button>
               ))}
             </DragScroller>

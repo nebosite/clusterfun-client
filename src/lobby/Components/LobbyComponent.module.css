@@ -516,13 +516,17 @@
 .avatarGrid {
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(2, auto);
-  grid-auto-columns: 62px;
-  gap: 10px;
+  grid-template-rows: repeat(1, auto);
+  grid-auto-columns: 124px;
+  gap: 12px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  padding-bottom: 6px;
-  scrollbar-width: thin;
+  /* drag-to-scroll (see DragScroller) - no visible scrollbar */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.avatarGrid::-webkit-scrollbar {
+  display: none;
 }
 .avatarButton {
   aspect-ratio: 1 / 1;
@@ -537,10 +541,6 @@
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease;
-}
-.avatarButton svg {
-  width: 62%;
-  height: 62%;
 }
 .avatarSelected {
   box-shadow:
@@ -572,8 +572,9 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 9px;
-  /* 40% smaller than the full-width original */
+  /* 40% smaller than the full-width original, centered in the card */
   max-width: 60%;
+  margin: 0 auto;
 }
 .codeCell {
   aspect-ratio: 3 / 4;
