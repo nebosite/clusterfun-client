@@ -13,15 +13,15 @@ import {
 import Logger from "js-logger";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
 import {
-  MixtapeOnboardClientEndpoint,
-  MixtapeOnboardResponse,
-  MixtapeSubmitSongEndpoint,
-  MixtapeSubmitSongRequest,
-  MixtapeSubmitSongResponse,
-  MixtapeSubmitBallotEndpoint,
-  MixtapeSubmitBallotRequest,
-  MixtapeSubmitBallotResponse,
-} from "./mixtapeEndpoints";
+  PassTheAuxOnboardClientEndpoint,
+  PassTheAuxOnboardResponse,
+  PassTheAuxSubmitSongEndpoint,
+  PassTheAuxSubmitSongRequest,
+  PassTheAuxSubmitSongResponse,
+  PassTheAuxSubmitBallotEndpoint,
+  PassTheAuxSubmitBallotRequest,
+  PassTheAuxSubmitBallotResponse,
+} from "./passTheAuxEndpoints";
 import {
   clampStartSec,
   sanitizeRanking,
@@ -31,8 +31,8 @@ import {
   shuffled,
   IRVOutcome,
   Ballot,
-} from "./mixtapeLogic";
-import { MIXTAPE_PROMPTS } from "./prompts";
+} from "./passTheAuxLogic";
+import { PASS_THE_AUX_PROMPTS } from "./prompts";
 import {
   DEFAULT_TARGET_SCORE,
   MIN_TARGET_SCORE,
@@ -59,7 +59,7 @@ export interface RoundSong extends PlayerSubmission {
 }
 
 // One finished round, kept for the GameOver "links" screen.
-export interface MixtapeRoundLink {
+export interface PassTheAuxRoundLink {
   prompt: string;
   songs: { videoId: string; title: string; artist: string; submitterName: string }[];
   winnerVideoId: string;
@@ -68,7 +68,7 @@ export interface MixtapeRoundLink {
 // The presenter's record for one player.  @observable fields drive the presenter UI.
 // ClusterFunPlayer does NOT call makeObservable, so this subclass MUST (else these fields
 // are inert in MobX 6 and the presenter shows stale scores/submitted-status).
-export class MixtapePlayer extends ClusterFunPlayer {
+export class PassTheAuxPlayer extends ClusterFunPlayer {
   @observable score = 0;
   @observable submission: PlayerSubmission | null = null;
   @observable ballot: string[] = []; // ordered videoIds, this round
@@ -83,7 +83,7 @@ export class MixtapePlayer extends ClusterFunPlayer {
 // The per-round presenter phases.  (Gathering / Paused / GameOver come
 // from the framework enums.)
 // -------------------------------------------------------------------
-export enum MixtapeGameState {
+export enum PassTheAuxGameState {
   PromptReveal = "PromptReveal",
   Selecting = "Selecting",
   Playback = "Playback",
@@ -93,7 +93,7 @@ export enum MixtapeGameState {
 }
 
 // In-process notifications the views subscribe to (mostly to trigger sounds).
-export enum MixtapeGameEvent {
+export enum PassTheAuxGameEvent {
   SongSubmitted = "SongSubmitted",
   BallotReceived = "BallotReceived",
   PlaybackStarted = "PlaybackStarted",
@@ -105,32 +105,32 @@ export enum MixtapeGameEvent {
 }
 
 // -------------------------------------------------------------------
-// Type helper for save/restore.  MixtapePlayer is the only custom class
+// Type helper for save/restore.  PassTheAuxPlayer is the only custom class
 // (submissions / round records are plain objects).  Nothing here is large
 // (thumbnails are URLs, not base64), so everything is serialized; roundSongs
 // is re-wrapped as a MobX observable array on the way back in.
 // -------------------------------------------------------------------
-export const getMixtapePresenterTypeHelper = (
+export const getPassTheAuxPresenterTypeHelper = (
   sessionHelper: ISessionHelper,
   gameProps: ClusterFunGameProps,
 ): ITypeHelper => {
   return {
-    rootTypeName: "MixtapePresenterModel",
+    rootTypeName: "PassTheAuxPresenterModel",
     getTypeName(o) {
       switch (o.constructor) {
-        case MixtapePresenterModel:
-          return "MixtapePresenterModel";
-        case MixtapePlayer:
-          return "MixtapePlayer";
+        case PassTheAuxPresenterModel:
+          return "PassTheAuxPresenterModel";
+        case PassTheAuxPlayer:
+          return "PassTheAuxPlayer";
       }
       return undefined;
     },
     constructType(typeName: string): any {
       switch (typeName) {
-        case "MixtapePresenterModel":
-          return new MixtapePresenterModel(sessionHelper, gameProps.logger, gameProps.storage);
-        case "MixtapePlayer":
-          return new MixtapePlayer();
+        case "PassTheAuxPresenterModel":
+          return new PassTheAuxPresenterModel(sessionHelper, gameProps.logger, gameProps.storage);
+        case "PassTheAuxPlayer":
+          return new PassTheAuxPlayer();
       }
       return null;
     },
@@ -138,7 +138,7 @@ export const getMixtapePresenterTypeHelper = (
       return true;
     },
     reconstitute(typeName: string, propertyName: string, rehydratedObject: any) {
-      if (typeName === "MixtapePresenterModel" && propertyName === "roundSongs") {
+      if (typeName === "PassTheAuxPresenterModel" && propertyName === "roundSongs") {
         return observable<RoundSong>((rehydratedObject as RoundSong[]) ?? []);
       }
       return rehydratedObject;
@@ -150,7 +150,7 @@ export const getMixtapePresenterTypeHelper = (
 // Presenter — the single source of truth.  Owns the prompt deck, the
 // round's songs, the jukebox timeline, the IRV tally, and the scores.
 // -------------------------------------------------------------------
-export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlayer> {
+export class PassTheAuxPresenterModel extends ClusterfunPresenterModel<PassTheAuxPlayer> {
   @observable targetScore = DEFAULT_TARGET_SCORE;
   @observable prompt = "";
   @observable currentSongIndex = -1;
@@ -160,7 +160,7 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
   // Plain data (not decorator-observable): the shuffled prompt deck and the finished-round
   // history for the GameOver links screen.  Read on state transitions, so plain is fine.
   promptDeck: string[] = [];
-  roundHistory: MixtapeRoundLink[] = [];
+  roundHistory: PassTheAuxRoundLink[] = [];
   tallyOutcome: IRVOutcome | null = null;
 
   // The round's songs in playback == voting order (observable so the jukebox re-renders).
@@ -169,7 +169,7 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
   // -------------------------------------------------------------------
   // Derived views over the state.
   // -------------------------------------------------------------------
-  get winners(): MixtapePlayer[] {
+  get winners(): PassTheAuxPlayer[] {
     return findWinnersByScore(this.players.slice());
   }
   get currentSong(): RoundSong | null {
@@ -201,17 +201,17 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
   // ctor
   // -------------------------------------------------------------------
   constructor(sessionHelper: ISessionHelper, logger: ITelemetryLogger, storage: IStorage) {
-    super("Mixtape", sessionHelper, logger, storage);
-    Logger.info(`Constructing MixtapePresenterModel ${this.gameState}`);
+    super("PassTheAux", sessionHelper, logger, storage);
+    Logger.info(`Constructing PassTheAuxPresenterModel ${this.gameState}`);
 
     this.allowedJoinStates = [
       PresenterGameState.Gathering,
-      MixtapeGameState.PromptReveal,
-      MixtapeGameState.Selecting,
-      MixtapeGameState.Playback,
-      MixtapeGameState.Voting,
-      MixtapeGameState.Tally,
-      MixtapeGameState.Scoreboard,
+      PassTheAuxGameState.PromptReveal,
+      PassTheAuxGameState.Selecting,
+      PassTheAuxGameState.Playback,
+      PassTheAuxGameState.Voting,
+      PassTheAuxGameState.Tally,
+      PassTheAuxGameState.Scoreboard,
     ];
     this.minPlayers = 3;
     this.maxPlayers = 8;
@@ -226,13 +226,13 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
   // -------------------------------------------------------------------
   reconstitute() {
     super.reconstitute();
-    this.listenToEndpoint(MixtapeOnboardClientEndpoint, this.handleOnboard);
-    this.listenToEndpoint(MixtapeSubmitSongEndpoint, this.handleSubmitSong);
-    this.listenToEndpoint(MixtapeSubmitBallotEndpoint, this.handleSubmitBallot);
+    this.listenToEndpoint(PassTheAuxOnboardClientEndpoint, this.handleOnboard);
+    this.listenToEndpoint(PassTheAuxSubmitSongEndpoint, this.handleSubmitSong);
+    this.listenToEndpoint(PassTheAuxSubmitBallotEndpoint, this.handleSubmitBallot);
   }
 
-  createFreshPlayerEntry(name: string, id: string): MixtapePlayer {
-    const p = new MixtapePlayer();
+  createFreshPlayerEntry(name: string, id: string): PassTheAuxPlayer {
+    const p = new PassTheAuxPlayer();
     p.playerId = id;
     p.name = name;
     return p;
@@ -258,7 +258,7 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
     this.currentRound = 0;
     action(() => {
       this.prompt = "";
-      this.promptDeck = shuffled(MIXTAPE_PROMPTS);
+      this.promptDeck = shuffled(PASS_THE_AUX_PROMPTS);
       this.roundHistory = [];
       this.clearRoundState();
       this.players.forEach((p) => (p.score = 0));
@@ -284,9 +284,9 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
   startNextRound = () => {
     this.prepareFreshRound();
     this.currentRound++;
-    if (this.promptDeck.length === 0) this.promptDeck = shuffled(MIXTAPE_PROMPTS);
+    if (this.promptDeck.length === 0) this.promptDeck = shuffled(PASS_THE_AUX_PROMPTS);
     action(() => (this.prompt = this.promptDeck.shift() ?? "Play a song you love"))();
-    this.gameState = MixtapeGameState.PromptReveal;
+    this.gameState = PassTheAuxGameState.PromptReveal;
     this.timeOfStageEnd = Number.MAX_SAFE_INTEGER; // host-paced
     this.sendToEveryone(InvalidateStateEndpoint, () => ({}));
     this.saveCheckpoint();
@@ -296,15 +296,15 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
   //  Host-driven phase transitions
   // -------------------------------------------------------------------
   beginSelecting = () => {
-    if (this.gameState !== MixtapeGameState.PromptReveal) return;
-    this.gameState = MixtapeGameState.Selecting;
+    if (this.gameState !== PassTheAuxGameState.PromptReveal) return;
+    this.gameState = PassTheAuxGameState.Selecting;
     this.timeOfStageEnd = Number.MAX_SAFE_INTEGER;
     this.sendToEveryone(InvalidateStateEndpoint, () => ({}));
     this.saveCheckpoint();
   };
 
   beginPlayback = () => {
-    if (this.gameState !== MixtapeGameState.Selecting) return;
+    if (this.gameState !== PassTheAuxGameState.Selecting) return;
     const subs: RoundSong[] = this.players
       .filter((p) => p.submission)
       .map((p) => ({ ...(p.submission as PlayerSubmission), submitterId: p.playerId }));
@@ -319,16 +319,16 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
       this.roundSongs.replace(shuffled(subs));
       this.currentSongIndex = 0;
     })();
-    this.gameState = MixtapeGameState.Playback;
+    this.gameState = PassTheAuxGameState.Playback;
     this.timeOfStageEnd = this.gameTime_ms + SONG_PLAY_MS;
-    this.invokeEvent(MixtapeGameEvent.PlaybackStarted, this.currentSong);
+    this.invokeEvent(PassTheAuxGameEvent.PlaybackStarted, this.currentSong);
     this.sendToEveryone(InvalidateStateEndpoint, () => ({}));
     this.saveCheckpoint();
   };
 
   // Advance to the next song (auto at 30s, or via the host Skip button).
   advanceSong = () => {
-    if (this.gameState !== MixtapeGameState.Playback) return;
+    if (this.gameState !== PassTheAuxGameState.Playback) return;
     const next = this.currentSongIndex + 1;
     if (next >= this.roundSongs.length) {
       this.beginVoting();
@@ -336,19 +336,19 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
     }
     action(() => (this.currentSongIndex = next))();
     this.timeOfStageEnd = this.gameTime_ms + SONG_PLAY_MS;
-    this.invokeEvent(MixtapeGameEvent.SongAdvanced, this.currentSong);
+    this.invokeEvent(PassTheAuxGameEvent.SongAdvanced, this.currentSong);
     this.saveCheckpoint();
   };
 
   beginVoting = () => {
-    this.gameState = MixtapeGameState.Voting;
+    this.gameState = PassTheAuxGameState.Voting;
     this.timeOfStageEnd = Number.MAX_SAFE_INTEGER;
     this.sendToEveryone(InvalidateStateEndpoint, () => ({}));
     this.saveCheckpoint();
   };
 
   beginTally = () => {
-    if (this.gameState !== MixtapeGameState.Voting) return;
+    if (this.gameState !== PassTheAuxGameState.Voting) return;
     const songIds = this.roundSongs.map((s) => s.videoId);
     const ballots: Ballot[] = this.players
       .filter((p) => p.ballot.length > 0)
@@ -360,9 +360,9 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
       this.tallyOutcome = outcome;
       this.winnerVideoId = outcome.winners[0] ?? null;
     })();
-    this.gameState = MixtapeGameState.Tally;
+    this.gameState = PassTheAuxGameState.Tally;
     this.timeOfStageEnd = this.gameTime_ms + outcome.steps.length * TALLY_STEP_MS + TALLY_TAIL_MS;
-    this.invokeEvent(MixtapeGameEvent.TallyStarted, outcome);
+    this.invokeEvent(PassTheAuxGameEvent.TallyStarted, outcome);
     this.sendToEveryone(InvalidateStateEndpoint, () => ({}));
     this.saveCheckpoint();
   };
@@ -377,8 +377,8 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
           : undefined;
         if (winner) {
           winner.score++;
-          this.invokeEvent(MixtapeGameEvent.RoundWinner, winner);
-          this.invokeEvent(MixtapeGameEvent.ScoreChanged, winner);
+          this.invokeEvent(PassTheAuxGameEvent.RoundWinner, winner);
+          this.invokeEvent(PassTheAuxGameEvent.ScoreChanged, winner);
         }
         this.roundHistory.push({
           prompt: this.prompt,
@@ -392,7 +392,7 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
         });
       })();
     }
-    this.gameState = MixtapeGameState.Scoreboard;
+    this.gameState = PassTheAuxGameState.Scoreboard;
     this.timeOfStageEnd = Number.MAX_SAFE_INTEGER;
     this.sendToEveryone(InvalidateStateEndpoint, () => ({}));
     this.saveCheckpoint();
@@ -400,7 +400,7 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
 
   finishGame = () => {
     this.gameState = GeneralGameState.GameOver;
-    this.invokeEvent(MixtapeGameEvent.WinnerAnnounced, this.winners);
+    this.invokeEvent(PassTheAuxGameEvent.WinnerAnnounced, this.winners);
     this.requestEveryone(GameOverEndpoint, () => ({}));
     this.saveCheckpoint();
   };
@@ -410,13 +410,13 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
   // -------------------------------------------------------------------
   handleTick() {
     switch (this.gameState) {
-      case MixtapeGameState.Playback:
+      case PassTheAuxGameState.Playback:
         if (this.isStageOver) this.advanceSong();
         break;
-      case MixtapeGameState.Voting:
+      case PassTheAuxGameState.Voting:
         if (this.allVoted) this.beginTally();
         break;
-      case MixtapeGameState.Tally:
+      case PassTheAuxGameState.Tally:
         if (this.isStageOver) this.beginScoreboard();
         break;
     }
@@ -425,13 +425,13 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
   // -------------------------------------------------------------------
   //  handleOnboard - full state for a (re)joining / refreshed client
   // -------------------------------------------------------------------
-  handleOnboard = (sender: string, message: unknown): MixtapeOnboardResponse => {
+  handleOnboard = (sender: string, message: unknown): PassTheAuxOnboardResponse => {
     this.telemetryLogger.logEvent("Presenter", "Onboard Client");
     const me = this.players.find((p) => p.playerId === sender);
     const reveal =
-      this.gameState === MixtapeGameState.Voting ||
-      this.gameState === MixtapeGameState.Tally ||
-      this.gameState === MixtapeGameState.Scoreboard ||
+      this.gameState === PassTheAuxGameState.Voting ||
+      this.gameState === PassTheAuxGameState.Tally ||
+      this.gameState === PassTheAuxGameState.Scoreboard ||
       this.gameState === GeneralGameState.GameOver;
 
     return {
@@ -467,11 +467,11 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
   // -------------------------------------------------------------------
   handleSubmitSong = (
     sender: string,
-    message: MixtapeSubmitSongRequest,
-  ): MixtapeSubmitSongResponse => {
+    message: PassTheAuxSubmitSongRequest,
+  ): PassTheAuxSubmitSongResponse => {
     const me = this.players.find((p) => p.playerId === sender);
     if (!me) return { accepted: false, reason: "You are not in this game" };
-    if (this.gameState !== MixtapeGameState.Selecting) {
+    if (this.gameState !== PassTheAuxGameState.Selecting) {
       return { accepted: false, reason: "Not accepting songs right now" };
     }
     if (!message.videoId || !message.title) {
@@ -488,7 +488,7 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
         startSec,
       };
     })();
-    this.invokeEvent(MixtapeGameEvent.SongSubmitted, me);
+    this.invokeEvent(PassTheAuxGameEvent.SongSubmitted, me);
     this.saveCheckpoint();
     return { accepted: true, startSec };
   };
@@ -498,11 +498,11 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
   // -------------------------------------------------------------------
   handleSubmitBallot = (
     sender: string,
-    message: MixtapeSubmitBallotRequest,
-  ): MixtapeSubmitBallotResponse => {
+    message: PassTheAuxSubmitBallotRequest,
+  ): PassTheAuxSubmitBallotResponse => {
     const me = this.players.find((p) => p.playerId === sender);
     if (!me) return { accepted: false, reason: "You are not in this game" };
-    if (this.gameState !== MixtapeGameState.Voting) {
+    if (this.gameState !== PassTheAuxGameState.Voting) {
       return { accepted: false, reason: "Voting is closed" };
     }
     const validIds = this.roundSongs.map((s) => s.videoId);
@@ -511,7 +511,7 @@ export class MixtapePresenterModel extends ClusterfunPresenterModel<MixtapePlaye
       return { accepted: false, reason: "Rank at least one song" };
     }
     action(() => (me.ballot = ranking))();
-    this.invokeEvent(MixtapeGameEvent.BallotReceived, me);
+    this.invokeEvent(PassTheAuxGameEvent.BallotReceived, me);
     this.saveCheckpoint();
     return { accepted: true, ranking };
   };

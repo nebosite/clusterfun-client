@@ -6,9 +6,9 @@ import {
   hasReachedTarget,
   shuffled,
   Ballot,
-} from "./mixtapeLogic";
+} from "./passTheAuxLogic";
 
-// Unit tests for the pure game rules.  Every rule in mixtapeLogic.ts has coverage here -
+// Unit tests for the pure game rules.  Every rule in passTheAuxLogic.ts has coverage here -
 // this suite runs in the deploy pipeline, so a broken rule blocks a bad deploy instead of
 // surfacing as a broken game mid-party.  The IRV tally is the highest-value target.
 

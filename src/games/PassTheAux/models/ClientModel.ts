@@ -10,17 +10,17 @@ import {
   GeneralGameState,
   ITypeHelper,
 } from "libs";
-import { MixtapeGameState } from "./PresenterModel";
+import { PassTheAuxGameState } from "./PresenterModel";
 import {
-  MixtapeOnboardClientEndpoint,
-  MixtapeSubmitSongEndpoint,
-  MixtapeSubmitBallotEndpoint,
-  MixtapeScoreInfo,
-  MixtapeVoteSong,
-  MixtapeSubmissionInfo,
-} from "./mixtapeEndpoints";
+  PassTheAuxOnboardClientEndpoint,
+  PassTheAuxSubmitSongEndpoint,
+  PassTheAuxSubmitBallotEndpoint,
+  PassTheAuxScoreInfo,
+  PassTheAuxVoteSong,
+  PassTheAuxSubmissionInfo,
+} from "./passTheAuxEndpoints";
 import { getMusicProvider, MusicProvider, Track } from "./musicProvider";
-import { clampStartSec, sanitizeRanking } from "./mixtapeLogic";
+import { clampStartSec, sanitizeRanking } from "./passTheAuxLogic";
 import { MAX_BALLOT } from "./GameSettings";
 
 // -------------------------------------------------------------------
@@ -30,23 +30,23 @@ import { MAX_BALLOT } from "./GameSettings";
 // recreates the provider, and shouldStringify=false leaves it untouched
 // on restore, so a refreshed phone keeps a working provider.
 // -------------------------------------------------------------------
-export const getMixtapeClientTypeHelper = (
+export const getPassTheAuxClientTypeHelper = (
   sessionHelper: ISessionHelper,
   gameProps: ClusterFunGameProps,
 ): ITypeHelper => {
   return {
-    rootTypeName: "MixtapeClientModel",
+    rootTypeName: "PassTheAuxClientModel",
     getTypeName(o: object) {
       switch (o.constructor) {
-        case MixtapeClientModel:
-          return "MixtapeClientModel";
+        case PassTheAuxClientModel:
+          return "PassTheAuxClientModel";
       }
       return undefined;
     },
     constructType(typeName: string): any {
       switch (typeName) {
-        case "MixtapeClientModel":
-          return new MixtapeClientModel(
+        case "PassTheAuxClientModel":
+          return new PassTheAuxClientModel(
             sessionHelper,
             gameProps.playerName || "Player",
             gameProps.logger,
@@ -56,7 +56,7 @@ export const getMixtapeClientTypeHelper = (
       return null;
     },
     shouldStringify(typeName: string, propertyName: string, object: any): boolean {
-      if (object instanceof MixtapeClientModel) {
+      if (object instanceof PassTheAuxClientModel) {
         const doNotSerializeMe = [
           "provider",
           "searchResults",
@@ -77,7 +77,7 @@ export const getMixtapeClientTypeHelper = (
 
 // Client-side states.  Selecting / Voting have real input UI; everything else the phone
 // just watches the big screen (Watching).
-export enum MixtapeClientState {
+export enum PassTheAuxClientState {
   Selecting = "Selecting",
   Voting = "Voting",
   Watching = "Watching",
@@ -88,13 +88,13 @@ export enum MixtapeClientState {
 // the MusicProvider, never the relay), cues one up, and ranks the
 // round's songs.  The presenter owns every authoritative decision.
 // -------------------------------------------------------------------
-export class MixtapeClientModel extends ClusterfunClientModel {
+export class PassTheAuxClientModel extends ClusterfunClientModel {
   // Authoritative state, rebuilt from each onboard response.
   @observable prompt = "";
   @observable targetScore = 0;
-  @observable scores: MixtapeScoreInfo[] = [];
-  @observable mySubmission: MixtapeSubmissionInfo | null = null;
-  @observable votingSongs: MixtapeVoteSong[] = [];
+  @observable scores: PassTheAuxScoreInfo[] = [];
+  @observable mySubmission: PassTheAuxSubmissionInfo | null = null;
+  @observable votingSongs: PassTheAuxVoteSong[] = [];
   @observable myOwnVideoId: string | null = null;
   @observable myBallot: string[] = [];
   @observable presentCount = 0;
@@ -125,7 +125,7 @@ export class MixtapeClientModel extends ClusterfunClientModel {
     logger: ITelemetryLogger,
     storage: IStorage,
   ) {
-    super("MixtapeClient", sessionHelper, playerName, logger, storage);
+    super("PassTheAuxClient", sessionHelper, playerName, logger, storage);
     // Each subclass with its own @observable fields must call makeObservable, or those
     // fields are inert in MobX 6 (the view never re-renders on an isolated change like
     // selecting a track).  The base classes only annotate their own fields.
@@ -141,7 +141,7 @@ export class MixtapeClientModel extends ClusterfunClientModel {
   //  rebuilds phone state from the onboard response (pushes can be missed).
   // -------------------------------------------------------------------
   async requestGameStateFromPresenter(): Promise<void> {
-    const r = await this.session.requestPresenter(MixtapeOnboardClientEndpoint, {});
+    const r = await this.session.requestPresenter(PassTheAuxOnboardClientEndpoint, {});
     action(() => {
       this.prompt = r.prompt;
       this.targetScore = r.targetScore;
@@ -156,19 +156,19 @@ export class MixtapeClientModel extends ClusterfunClientModel {
     })();
 
     switch (r.gameState) {
-      case MixtapeGameState.Selecting:
-        this.gameState = MixtapeClientState.Selecting;
+      case PassTheAuxGameState.Selecting:
+        this.gameState = PassTheAuxClientState.Selecting;
         break;
-      case MixtapeGameState.Voting:
+      case PassTheAuxGameState.Voting:
         // A ballot already on the presenter (e.g. after a refresh) shows as "submitted".
         action(() => (this.voteSubmitted = (r.myBallot ?? []).length > 0))();
-        this.gameState = MixtapeClientState.Voting;
+        this.gameState = PassTheAuxClientState.Voting;
         break;
-      case MixtapeGameState.PromptReveal:
-      case MixtapeGameState.Playback:
-      case MixtapeGameState.Tally:
-      case MixtapeGameState.Scoreboard:
-        this.gameState = MixtapeClientState.Watching;
+      case PassTheAuxGameState.PromptReveal:
+      case PassTheAuxGameState.Playback:
+      case PassTheAuxGameState.Tally:
+      case PassTheAuxGameState.Scoreboard:
+        this.gameState = PassTheAuxClientState.Watching;
         break;
       case GeneralGameState.GameOver:
         this.gameState = GeneralGameState.GameOver;
@@ -193,7 +193,7 @@ export class MixtapeClientModel extends ClusterfunClientModel {
       const results = await this.provider.search(query);
       action(() => this.searchResults.replace(results))();
     } catch (err) {
-      Logger.warn(`Mixtape search failed: ${err}`);
+      Logger.warn(`PassTheAux search failed: ${err}`);
       action(() => {
         this.searchError = "Search failed - try again";
         this.searchResults.clear();
@@ -222,7 +222,7 @@ export class MixtapeClientModel extends ClusterfunClientModel {
   async submitSelected(): Promise<boolean> {
     const t = this.selectedTrack;
     if (!t) return false;
-    const res = await this.session.requestPresenter(MixtapeSubmitSongEndpoint, {
+    const res = await this.session.requestPresenter(PassTheAuxSubmitSongEndpoint, {
       videoId: t.videoId,
       title: t.title,
       artist: t.artist,
@@ -279,7 +279,7 @@ export class MixtapeClientModel extends ClusterfunClientModel {
     const validIds = this.votingSongs.map((s) => s.videoId);
     const ranking = sanitizeRanking(this.myBallot, validIds, this.myOwnVideoId, MAX_BALLOT);
     if (ranking.length < 1) return false;
-    const res = await this.session.requestPresenter(MixtapeSubmitBallotEndpoint, { ranking });
+    const res = await this.session.requestPresenter(PassTheAuxSubmitBallotEndpoint, { ranking });
     if (res.accepted && res.ranking) {
       action(() => {
         this.myBallot = res.ranking as string[];

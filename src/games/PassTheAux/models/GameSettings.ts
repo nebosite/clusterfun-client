@@ -1,6 +1,6 @@
 // Game-wide tuning constants.  Keep every magic number here so a game designer can
-// re-balance Mixtape without hunting through logic files.
-export const MixtapeVersion = "0.1.0";
+// re-balance Pass the AUX without hunting through logic files.
+export const PassTheAuxVersion = "0.1.0";
 
 // Scoring / win condition
 export const DEFAULT_TARGET_SCORE = 5;

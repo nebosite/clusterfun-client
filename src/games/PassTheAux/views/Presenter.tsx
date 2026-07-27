@@ -14,9 +14,9 @@ import {
   UINormalizer,
   PlayerAvatar,
 } from "libs";
-import MixtapeAssets from "../assets/Assets";
+import PassTheAuxAssets from "../assets/Assets";
 import {
-  MixtapeVersion,
+  PassTheAuxVersion,
   METADATA_REVEAL_MS,
   METADATA_FADE_MS,
   AUDIO_FADE_MS,
@@ -26,10 +26,10 @@ import { isRealVideoId } from "../models/musicProvider";
 import { YouTubePlayer } from "./YouTubePlayer";
 import { BackgroundMusic } from "./BackgroundMusic";
 import {
-  MixtapePresenterModel,
-  MixtapeGameState,
-  MixtapeGameEvent,
-  MixtapePlayer,
+  PassTheAuxPresenterModel,
+  PassTheAuxGameState,
+  PassTheAuxGameEvent,
+  PassTheAuxPlayer,
 } from "../models/PresenterModel";
 
 const watchLink = (videoId: string, title: string, artist: string) =>
@@ -42,17 +42,17 @@ const watchLink = (videoId: string, title: string, artist: string) =>
 function musicForState(state: string): string | null {
   switch (state) {
     case PresenterGameState.Gathering:
-      return MixtapeAssets.music.lobby;
-    case MixtapeGameState.PromptReveal:
-    case MixtapeGameState.Selecting:
-      return MixtapeAssets.music.selection;
-    case MixtapeGameState.Voting:
-      return MixtapeAssets.music.voting;
-    case MixtapeGameState.Tally:
-    case MixtapeGameState.Scoreboard:
-      return MixtapeAssets.music.tally;
+      return PassTheAuxAssets.music.lobby;
+    case PassTheAuxGameState.PromptReveal:
+    case PassTheAuxGameState.Selecting:
+      return PassTheAuxAssets.music.selection;
+    case PassTheAuxGameState.Voting:
+      return PassTheAuxAssets.music.voting;
+    case PassTheAuxGameState.Tally:
+    case PassTheAuxGameState.Scoreboard:
+      return PassTheAuxAssets.music.tally;
     case GeneralGameState.GameOver:
-      return MixtapeAssets.music.endgame;
+      return PassTheAuxAssets.music.endgame;
     default:
       return null; // Playback (real song plays) / Paused
   }
@@ -63,7 +63,7 @@ function musicForState(state: string): string | null {
 // -------------------------------------------------------------------
 @inject("appModel")
 @observer
-class GatheringPage extends React.Component<{ appModel?: MixtapePresenterModel }> {
+class GatheringPage extends React.Component<{ appModel?: PassTheAuxPresenterModel }> {
   render() {
     const m = this.props.appModel!;
     return (
@@ -110,7 +110,7 @@ class GatheringPage extends React.Component<{ appModel?: MixtapePresenterModel }
 // -------------------------------------------------------------------
 @inject("appModel")
 @observer
-class PromptRevealPage extends React.Component<{ appModel?: MixtapePresenterModel }> {
+class PromptRevealPage extends React.Component<{ appModel?: PassTheAuxPresenterModel }> {
   render() {
     const m = this.props.appModel!;
     return (
@@ -132,7 +132,7 @@ class PromptRevealPage extends React.Component<{ appModel?: MixtapePresenterMode
 // -------------------------------------------------------------------
 @inject("appModel")
 @observer
-class SelectingPage extends React.Component<{ appModel?: MixtapePresenterModel }> {
+class SelectingPage extends React.Component<{ appModel?: PassTheAuxPresenterModel }> {
   render() {
     const m = this.props.appModel!;
     return (
@@ -177,7 +177,7 @@ class SelectingPage extends React.Component<{ appModel?: MixtapePresenterModel }
 @inject("appModel")
 @observer
 class PlaybackPage extends React.Component<
-  { appModel?: MixtapePresenterModel },
+  { appModel?: PassTheAuxPresenterModel },
   { displayIndex: number; revealed: boolean }
 > {
   private player = React.createRef<YouTubePlayer>();
@@ -187,7 +187,7 @@ class PlaybackPage extends React.Component<
   private swapTimer: ReturnType<typeof setTimeout> | null = null;
   private fadedOut = false;
 
-  constructor(props: { appModel?: MixtapePresenterModel }) {
+  constructor(props: { appModel?: PassTheAuxPresenterModel }) {
     super(props);
     this.state = { displayIndex: props.appModel?.currentSongIndex ?? 0, revealed: false };
   }
@@ -314,7 +314,7 @@ class PlaybackPage extends React.Component<
 // -------------------------------------------------------------------
 @inject("appModel")
 @observer
-class VotingPage extends React.Component<{ appModel?: MixtapePresenterModel }> {
+class VotingPage extends React.Component<{ appModel?: PassTheAuxPresenterModel }> {
   render() {
     const m = this.props.appModel!;
     return (
@@ -363,12 +363,12 @@ const CHIP_H = 72;
 @inject("appModel")
 @observer
 class TallyPage extends React.Component<
-  { appModel?: MixtapePresenterModel },
+  { appModel?: PassTheAuxPresenterModel },
   { stepIndex: number }
 > {
   private timer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(props: { appModel?: MixtapePresenterModel }) {
+  constructor(props: { appModel?: PassTheAuxPresenterModel }) {
     super(props);
     this.state = { stepIndex: 0 };
   }
@@ -480,7 +480,7 @@ class TallyPage extends React.Component<
 // -------------------------------------------------------------------
 @inject("appModel")
 @observer
-class ScoreboardPage extends React.Component<{ appModel?: MixtapePresenterModel }> {
+class ScoreboardPage extends React.Component<{ appModel?: PassTheAuxPresenterModel }> {
   render() {
     const m = this.props.appModel!;
     const sorted = m.players.slice().sort((a, b) => b.score - a.score);
@@ -528,14 +528,14 @@ class ScoreboardPage extends React.Component<{ appModel?: MixtapePresenterModel 
 // -------------------------------------------------------------------
 @inject("appModel")
 @observer
-class GameOverPage extends React.Component<{ appModel?: MixtapePresenterModel }> {
+class GameOverPage extends React.Component<{ appModel?: PassTheAuxPresenterModel }> {
   render() {
     const m = this.props.appModel!;
     const winners = m.winners;
     return (
       <div>
         <div className={styles.winnerBanner}>
-          {winners.map((w: MixtapePlayer) => (
+          {winners.map((w: PassTheAuxPlayer) => (
             <PlayerAvatar avatarId={w.avatarId} size={64} key={w.playerId} />
           ))}
           {winners.length === 1
@@ -582,7 +582,7 @@ class GameOverPage extends React.Component<{ appModel?: MixtapePresenterModel }>
 // -------------------------------------------------------------------
 @inject("appModel")
 @observer
-class PausedPage extends React.Component<{ appModel?: MixtapePresenterModel }> {
+class PausedPage extends React.Component<{ appModel?: PassTheAuxPresenterModel }> {
   render() {
     const m = this.props.appModel!;
     return (
@@ -606,7 +606,7 @@ class PausedPage extends React.Component<{ appModel?: MixtapePresenterModel }> {
 @inject("appModel")
 @observer
 export default class Presenter extends React.Component<{
-  appModel?: MixtapePresenterModel;
+  appModel?: PassTheAuxPresenterModel;
   uiProperties: UIProperties;
 }> {
   media: MediaHelper;
@@ -614,29 +614,31 @@ export default class Presenter extends React.Component<{
   private disposeMusicReaction: IReactionDisposer | null = null;
   private kickMusic = () => this.music.kick();
 
-  constructor(props: Readonly<{ appModel?: MixtapePresenterModel; uiProperties: UIProperties }>) {
+  constructor(
+    props: Readonly<{ appModel?: PassTheAuxPresenterModel; uiProperties: UIProperties }>,
+  ) {
     super(props);
     const { appModel } = this.props;
     this.media = new MediaHelper();
     this.music = new BackgroundMusic(0.5);
-    for (let soundName in MixtapeAssets.sounds) {
-      this.media.loadSound((MixtapeAssets.sounds as any)[soundName]);
+    for (let soundName in PassTheAuxAssets.sounds) {
+      this.media.loadSound((PassTheAuxAssets.sounds as any)[soundName]);
     }
     const vol = 1.0;
     appModel?.subscribe(PresenterGameEvent.PlayerJoined, "joined", () =>
-      this.media.playSound(MixtapeAssets.sounds.hello, { volume: vol * 0.2 }),
+      this.media.playSound(PassTheAuxAssets.sounds.hello, { volume: vol * 0.2 }),
     );
-    appModel?.subscribe(MixtapeGameEvent.SongSubmitted, "submitted", () =>
-      this.media.playSound(MixtapeAssets.sounds.ding, { volume: vol * 0.5 }),
+    appModel?.subscribe(PassTheAuxGameEvent.SongSubmitted, "submitted", () =>
+      this.media.playSound(PassTheAuxAssets.sounds.ding, { volume: vol * 0.5 }),
     );
-    appModel?.subscribe(MixtapeGameEvent.BallotReceived, "voted", () =>
-      this.media.playSound(MixtapeAssets.sounds.response, { volume: vol * 0.5 }),
+    appModel?.subscribe(PassTheAuxGameEvent.BallotReceived, "voted", () =>
+      this.media.playSound(PassTheAuxAssets.sounds.response, { volume: vol * 0.5 }),
     );
-    appModel?.subscribe(MixtapeGameEvent.RoundWinner, "roundwin", () =>
-      this.media.playSound(MixtapeAssets.sounds.score, { volume: vol * 0.7 }),
+    appModel?.subscribe(PassTheAuxGameEvent.RoundWinner, "roundwin", () =>
+      this.media.playSound(PassTheAuxAssets.sounds.score, { volume: vol * 0.7 }),
     );
-    appModel?.subscribe(MixtapeGameEvent.WinnerAnnounced, "gamewin", () =>
-      this.media.playSound(MixtapeAssets.sounds.winner, { volume: vol }),
+    appModel?.subscribe(PassTheAuxGameEvent.WinnerAnnounced, "gamewin", () =>
+      this.media.playSound(PassTheAuxAssets.sounds.winner, { volume: vol }),
     );
   }
 
@@ -664,17 +666,17 @@ export default class Presenter extends React.Component<{
     switch (m.gameState) {
       case PresenterGameState.Gathering:
         return <GatheringPage />;
-      case MixtapeGameState.PromptReveal:
+      case PassTheAuxGameState.PromptReveal:
         return <PromptRevealPage />;
-      case MixtapeGameState.Selecting:
+      case PassTheAuxGameState.Selecting:
         return <SelectingPage />;
-      case MixtapeGameState.Playback:
+      case PassTheAuxGameState.Playback:
         return <PlaybackPage />;
-      case MixtapeGameState.Voting:
+      case PassTheAuxGameState.Voting:
         return <VotingPage />;
-      case MixtapeGameState.Tally:
+      case PassTheAuxGameState.Tally:
         return <TallyPage />;
-      case MixtapeGameState.Scoreboard:
+      case PassTheAuxGameState.Scoreboard:
         return <ScoreboardPage />;
       case GeneralGameState.GameOver:
         return <GameOverPage />;
@@ -689,7 +691,7 @@ export default class Presenter extends React.Component<{
     const m = this.props.appModel!;
     return (
       <div className={styles.frame}>
-        <span className={styles.wordmark}>MIXTAPE</span>
+        <span className={styles.wordmark}>PASS THE AUX</span>
         <button className={styles.button} onClick={() => m.quitApp()}>
           Quit
         </button>
@@ -705,7 +707,7 @@ export default class Presenter extends React.Component<{
           Room <b>{m.roomId}</b>
         </span>
         <DevUI context={m} children={<div></div>} />
-        <span style={{ opacity: 0.4 }}>v{MixtapeVersion}</span>
+        <span style={{ opacity: 0.4 }}>v{PassTheAuxVersion}</span>
       </div>
     );
   }

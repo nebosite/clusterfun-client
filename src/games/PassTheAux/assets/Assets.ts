@@ -15,7 +15,7 @@ import bgVoting from "./sounds/bg/voting.ogg";
 import bgTally from "./sounds/bg/tally.ogg";
 import bgEndgame from "./sounds/bg/endgame.ogg";
 
-const MixtapeAssets = {
+const PassTheAuxAssets = {
   images: {
     logo,
   },
@@ -36,4 +36,4 @@ const MixtapeAssets = {
   },
 };
 
-export default MixtapeAssets;
+export default PassTheAuxAssets;

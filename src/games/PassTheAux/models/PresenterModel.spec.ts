@@ -3,10 +3,10 @@ import { ISessionHelper, instantiateGame, getPresenterTypeHelper } from "libs";
 import { MockTelemetryLogger } from "libs/telemetry/MockTelemetryLogger";
 import { PresenterGameState, GeneralGameState } from "libs";
 import {
-  MixtapePresenterModel,
-  MixtapePlayer,
-  MixtapeGameState,
-  getMixtapePresenterTypeHelper,
+  PassTheAuxPresenterModel,
+  PassTheAuxPlayer,
+  PassTheAuxGameState,
+  getPassTheAuxPresenterTypeHelper,
 } from "./PresenterModel";
 
 // -------------------------------------------------------------------
@@ -49,18 +49,18 @@ function makeModel() {
   const session = makeFakeSession(sent);
   const logger = new MockTelemetryLogger("test");
   const storage = { set: () => {}, get: () => null, remove: () => {}, clear: () => {} };
-  const model = new MixtapePresenterModel(session, logger, storage);
+  const model = new PassTheAuxPresenterModel(session, logger, storage);
   return { model, sent };
 }
 
-function addPlayer(model: MixtapePresenterModel, id: string, name: string): MixtapePlayer {
+function addPlayer(model: PassTheAuxPresenterModel, id: string, name: string): PassTheAuxPlayer {
   const p = model.createFreshPlayerEntry(name, id);
   p.playerId = id;
   runInAction(() => model.players.push(p));
   return p;
 }
 
-function submit(model: MixtapePresenterModel, id: string, videoId: string) {
+function submit(model: PassTheAuxPresenterModel, id: string, videoId: string) {
   return model.handleSubmitSong(id, {
     videoId,
     title: `Song ${videoId}`,
@@ -72,7 +72,7 @@ function submit(model: MixtapePresenterModel, id: string, videoId: string) {
 }
 
 // Add three players and take the game from Gathering to a fresh Selecting phase.
-function startToSelecting(model: MixtapePresenterModel) {
+function startToSelecting(model: PassTheAuxPresenterModel) {
   addPlayer(model, "A", "Alice");
   addPlayer(model, "B", "Bob");
   addPlayer(model, "C", "Carol");
@@ -80,7 +80,7 @@ function startToSelecting(model: MixtapePresenterModel) {
   model.beginSelecting(); // -> Selecting
 }
 
-describe("MixtapePresenterModel — setup", () => {
+describe("PassTheAuxPresenterModel — setup", () => {
   it("requires three players and starts in Gathering", () => {
     const { model } = makeModel();
     expect(model.gameState).toBe(PresenterGameState.Gathering);
@@ -93,7 +93,7 @@ describe("MixtapePresenterModel — setup", () => {
     addPlayer(model, "B", "Bob");
     addPlayer(model, "C", "Carol");
     model.beginGame();
-    expect(model.gameState).toBe(MixtapeGameState.PromptReveal);
+    expect(model.gameState).toBe(PassTheAuxGameState.PromptReveal);
     expect(model.prompt.length).toBeGreaterThan(0);
     expect(model.currentRound).toBe(1);
   });
@@ -107,7 +107,7 @@ describe("MixtapePresenterModel — setup", () => {
   });
 });
 
-describe("MixtapePresenterModel — submitting songs", () => {
+describe("PassTheAuxPresenterModel — submitting songs", () => {
   it("accepts a song only during Selecting and clamps the start offset", () => {
     const { model } = makeModel();
     startToSelecting(model);
@@ -147,7 +147,7 @@ describe("MixtapePresenterModel — submitting songs", () => {
   });
 });
 
-describe("MixtapePresenterModel — playback", () => {
+describe("PassTheAuxPresenterModel — playback", () => {
   it("snapshots submissions into the round and walks through them", () => {
     const { model } = makeModel();
     startToSelecting(model);
@@ -155,7 +155,7 @@ describe("MixtapePresenterModel — playback", () => {
     submit(model, "B", "vB");
     submit(model, "C", "vC");
     model.beginPlayback();
-    expect(model.gameState).toBe(MixtapeGameState.Playback);
+    expect(model.gameState).toBe(PassTheAuxGameState.Playback);
     expect(model.roundSongs.length).toBe(3);
     expect(model.currentSongIndex).toBe(0);
 
@@ -164,14 +164,14 @@ describe("MixtapePresenterModel — playback", () => {
     model.advanceSong();
     expect(model.currentSongIndex).toBe(2);
     model.advanceSong(); // past the last -> Voting
-    expect(model.gameState).toBe(MixtapeGameState.Voting);
+    expect(model.gameState).toBe(PassTheAuxGameState.Voting);
   });
 
   it("skips straight past playback when nobody submitted", () => {
     const { model } = makeModel();
     startToSelecting(model);
     model.beginPlayback();
-    expect(model.gameState).toBe(MixtapeGameState.Scoreboard);
+    expect(model.gameState).toBe(PassTheAuxGameState.Scoreboard);
     expect(model.roundSongs.length).toBe(0);
   });
 
@@ -187,9 +187,9 @@ describe("MixtapePresenterModel — playback", () => {
   });
 });
 
-describe("MixtapePresenterModel — voting + tally", () => {
+describe("PassTheAuxPresenterModel — voting + tally", () => {
   // Drive a full round; craft ballots so vA wins on a first-choice majority.
-  function toVoting(model: MixtapePresenterModel) {
+  function toVoting(model: PassTheAuxPresenterModel) {
     startToSelecting(model);
     submit(model, "A", "vA");
     submit(model, "B", "vB");
@@ -221,13 +221,13 @@ describe("MixtapePresenterModel — voting + tally", () => {
     model.handleSubmitBallot("B", { ranking: ["vA"] });
     model.handleSubmitBallot("C", { ranking: ["vA"] }); // vA: 2 of 3 -> majority
     model.handleTick(); // allVoted -> beginTally
-    expect(model.gameState).toBe(MixtapeGameState.Tally);
+    expect(model.gameState).toBe(PassTheAuxGameState.Tally);
     expect(model.winnerVideoId).toBe("vA");
 
     // advance the tally timer -> scoreboard scores Alice (submitter of vA)
     runInAction(() => (model.gameTime_ms = model.timeOfStageEnd + 1));
     model.handleTick();
-    expect(model.gameState).toBe(MixtapeGameState.Scoreboard);
+    expect(model.gameState).toBe(PassTheAuxGameState.Scoreboard);
     expect(model.players.find((p) => p.playerId === "A")!.score).toBe(1);
     expect(model.roundHistory.length).toBe(1);
     expect(model.roundHistory[0].winnerVideoId).toBe("vA");
@@ -245,7 +245,7 @@ describe("MixtapePresenterModel — voting + tally", () => {
   });
 });
 
-describe("MixtapePresenterModel — onboarding", () => {
+describe("PassTheAuxPresenterModel — onboarding", () => {
   it("hides songs until voting, then exposes them without submitters", () => {
     const { model } = makeModel();
     startToSelecting(model);
@@ -254,7 +254,7 @@ describe("MixtapePresenterModel — onboarding", () => {
     submit(model, "C", "vC");
 
     const during = model.handleOnboard("A", {});
-    expect(during.gameState).toBe(MixtapeGameState.Selecting);
+    expect(during.gameState).toBe(PassTheAuxGameState.Selecting);
     expect(during.votingSongs.length).toBe(0);
     expect(during.mySubmission!.videoId).toBe("vA");
 
@@ -275,7 +275,7 @@ describe("MixtapePresenterModel — onboarding", () => {
   });
 });
 
-describe("MixtapePresenterModel — checkpoint serialization", () => {
+describe("PassTheAuxPresenterModel — checkpoint serialization", () => {
   it("round-trips through the real serializer, preserving scores and songs", () => {
     const sent: SentMessage[] = [];
     const session = makeFakeSession(sent);
@@ -283,9 +283,13 @@ describe("MixtapePresenterModel — checkpoint serialization", () => {
     const storage = { set: () => {}, get: () => null, remove: () => {}, clear: () => {} } as any;
 
     const typeHelper = getPresenterTypeHelper(
-      getMixtapePresenterTypeHelper(session, { logger, storage } as any),
+      getPassTheAuxPresenterTypeHelper(session, { logger, storage } as any),
     );
-    const model = instantiateGame(typeHelper, logger, storage) as unknown as MixtapePresenterModel;
+    const model = instantiateGame(
+      typeHelper,
+      logger,
+      storage,
+    ) as unknown as PassTheAuxPresenterModel;
 
     runInAction(() => {
       ["A", "B", "C"].forEach((id) => {
@@ -309,7 +313,7 @@ describe("MixtapePresenterModel — checkpoint serialization", () => {
       json = serializer.stringify(model);
     }).not.toThrow();
 
-    const back = serializer.parse<MixtapePresenterModel>(json);
+    const back = serializer.parse<PassTheAuxPresenterModel>(json);
     expect(back.players.length).toBe(3);
     expect(back.players.map((p) => p.score).sort()).toEqual([0, 1, 2]);
     expect(back.roundSongs.length).toBe(3);

@@ -99,6 +99,6 @@ How to hype up a crowd of toddlers
 `;
 
 // One prompt per non-blank, non-comment line.
-export const MIXTAPE_PROMPTS: string[] = RAW_PROMPTS.split("\n")
+export const PASS_THE_AUX_PROMPTS: string[] = RAW_PROMPTS.split("\n")
   .map((line) => line.trim())
   .filter((line) => line.length > 0 && !line.startsWith("#"));
