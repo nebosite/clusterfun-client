@@ -1,9 +1,17 @@
 import StressatoAssets from "games/stressgame/assets/Assets";
 import TemplateAssets from "games/TemplateGame/assets/Assets";
+import OneOhOneAssets from "games/OneOhOne/assets/Assets";
 import { GameDescriptor } from "./GameDescriptor";
 import releaseGames from "./gamesListRelease";
 
 const debugOnlyGames: GameDescriptor[] = [
+  {
+    name: "OneOhOne",
+    displayName: "101",
+    tags: ["debug"],
+    logoName: OneOhOneAssets.images.logo,
+    importThunk: () => import("../OneOhOne/views/GameComponent"),
+  },
   {
     name: "Stressato",
     displayName: "Stress Game",

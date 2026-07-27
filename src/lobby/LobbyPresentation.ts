@@ -90,6 +90,13 @@ const KNOWN: Record<string, Partial<GamePresentation>> = {
     playTime: "5m",
     thumbKind: "bars",
   },
+  OneOhOne: {
+    category: "Party",
+    blurb: "Race to land exactly on 101 — unique picks surge ahead, collisions knock you back.",
+    players: "1–16",
+    playTime: "10m",
+    thumbKind: "bars",
+  },
 };
 
 // Two-letter monogram from the display name: initials of the first two

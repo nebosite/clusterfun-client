@@ -1,0 +1,214 @@
+/* Overall Formatting */
+.gameclient {
+  width: 100%;
+  height: 100%;
+  background-color: rgb(43, 65, 98);
+  color: #eeeeee;
+  overflow: hidden;
+  font-size: 55px;
+  font-family: sans-serif;
+}
+
+.gameclient button {
+  font-size: 100%;
+  padding: 15px;
+  margin: 5px;
+}
+
+.gameclient .divRow {
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+.gameclient .gametitle {
+  font-weight: 800;
+}
+
+.gameclient .topbar {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding-top: 15px;
+}
+
+.gameclient .quitbutton {
+  font-size: 40px;
+  font-weight: 800;
+  padding: 0;
+  width: 100px;
+  margin: 0;
+}
+
+.gameclient .wait_text {
+  font-size: 90%;
+}
+
+.gameclient .roundLabel {
+  font-size: 80%;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+/* ---- Piece cards ---- */
+
+.gameclient .pieceCard {
+  background: #1b2a42;
+  border: 2px solid #4d648a;
+  border-radius: 16px;
+  padding: 25px;
+  margin-bottom: 35px;
+}
+
+.gameclient .pieceHeader {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.gameclient .pieceName {
+  font-weight: 700;
+}
+
+.gameclient .piecePosition {
+  margin-left: auto;
+  font-weight: 700;
+  color: #ffd34e;
+}
+
+.gameclient .pieceStatus {
+  font-size: 65%;
+  margin: 15px 0;
+  min-height: 1.4em;
+}
+
+.gameclient .guessGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.gameclient .guessButton {
+  font-size: 90%;
+  padding: 20px 0;
+  margin: 0;
+}
+
+.gameclient .guessSelected {
+  outline: 8px solid #ffd34e;
+  font-weight: 800;
+}
+
+.gameclient .confirmButton {
+  width: 100%;
+  margin: 20px 0 0 0;
+  font-weight: 800;
+  background: #ffd34e;
+}
+
+.gameclient .confirmButton:disabled {
+  background: #666;
+}
+
+.gameclient .confirmDone {
+  background: #48e148;
+}
+
+.gameclient .instructions {
+  background: #1b2a42;
+  border: 2px solid #4d648a;
+  border-radius: 16px;
+  padding: 10px 30px;
+  font-size: 60%;
+  margin-top: 40px;
+}
+
+/* ---- Round results (everyone's moves) ---- */
+
+.gameclient .resultsList {
+  background: #1b2a42;
+  border: 2px solid #4d648a;
+  border-radius: 16px;
+  padding: 20px;
+  font-size: 55%;
+}
+
+.gameclient .resultsTitle {
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.gameclient .resultRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0;
+}
+
+.gameclient .resultMine {
+  background: rgba(255, 211, 78, 0.15);
+  border-radius: 8px;
+}
+
+.gameclient .resultName {
+  font-weight: 700;
+  min-width: 32%;
+}
+
+.gameclient .resultText {
+  flex: 1;
+}
+
+.gameclient .moveGood {
+  color: #7cf67c;
+}
+
+.gameclient .moveBad {
+  color: #ff9090;
+}
+
+/* ---- Win celebration ---- */
+
+.gameclient .celebration {
+  position: relative;
+  height: 700px;
+  overflow: hidden;
+  text-align: center;
+}
+
+.gameclient .celebrationTrophy {
+  font-size: 300px;
+  margin-top: 120px;
+  animation: trophyPulse 0.8s ease-in-out infinite alternate;
+}
+
+.gameclient .celebrationText {
+  font-size: 130px;
+  font-weight: 900;
+  color: #ffd34e;
+  animation: trophyPulse 0.8s ease-in-out infinite alternate-reverse;
+}
+
+.gameclient .confetti {
+  position: absolute;
+  top: -80px;
+  font-size: 80px;
+  animation: confettiFall 2.6s linear infinite;
+}
+
+@keyframes trophyPulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.15);
+  }
+}
+
+@keyframes confettiFall {
+  from {
+    transform: translateY(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(800px) rotate(360deg);
+  }
+}

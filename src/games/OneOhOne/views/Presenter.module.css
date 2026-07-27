@@ -1,0 +1,180 @@
+.gamepresenter {
+  width: 100%;
+  height: 100%;
+  background-color: rgb(43, 65, 98);
+  color: #eeeeee;
+  overflow: hidden;
+  font-size: 32px;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.gamepresenter button {
+  font-size: 100%;
+  padding: 5px 15px;
+}
+
+.gamepresenter .divRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.gamepresenter .nameBox {
+  padding: 10px 20px;
+}
+
+.gamepresenter .roomCode {
+  margin-right: 50px;
+}
+
+.gamepresenter .presenterButton {
+  font-size: 120%;
+  margin-top: 20px;
+}
+
+.gamepresenter .setupRow {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 18px;
+}
+
+.gamepresenter .setupButton {
+  min-width: 60px;
+}
+
+.gamepresenter .setupSelected {
+  outline: 5px solid #ffd34e;
+}
+
+.gamepresenter .roundHeader {
+  font-size: 110%;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.gamepresenter .rulesReminder {
+  font-size: 60%;
+  color: #b8c4d8;
+  margin-bottom: 14px;
+}
+
+.gamepresenter .instructions {
+  background: #1b2a42;
+  border: 1px solid #4d648a;
+  border-radius: 10px;
+  padding: 6px 20px;
+  font-size: 75%;
+  margin: 12px 0;
+}
+
+.gamepresenter .instructions ul {
+  margin: 8px 0;
+}
+
+/* ---- Race track ---- */
+
+.gamepresenter .trackArea {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gamepresenter .lane {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gamepresenter .laneLabel {
+  width: 320px;
+  font-size: 70%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gamepresenter .laneTrack {
+  position: relative;
+  flex: 1;
+  height: 42px;
+  background: #1b2a42;
+  border: 1px solid #4d648a;
+  border-radius: 6px;
+}
+
+.gamepresenter .dangerZone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(255, 80, 80, 0.25);
+}
+
+.gamepresenter .finishLine {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 4px;
+  background: #48e148;
+}
+
+.gamepresenter .pieceMarker {
+  position: absolute;
+  top: 5px;
+  transform: translateX(-50%);
+  transition: left 0.08s linear;
+}
+
+.gamepresenter .activeLane {
+  outline: 3px solid #ffd34e;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.gamepresenter .winnerLane {
+  outline: 4px solid #48e148;
+  outline-offset: 2px;
+  border-radius: 6px;
+  background: rgba(72, 225, 72, 0.15);
+  animation: winnerPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes winnerPulse {
+  from {
+    background: rgba(72, 225, 72, 0.1);
+  }
+  to {
+    background: rgba(72, 225, 72, 0.3);
+  }
+}
+
+.gamepresenter .laneInfo {
+  width: 500px;
+  font-size: 65%;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.gamepresenter .lanePosition {
+  font-weight: 700;
+  width: 55px;
+  text-align: right;
+}
+
+.gamepresenter .moveGood {
+  color: #7cf67c;
+}
+
+.gamepresenter .moveBad {
+  color: #ff9090;
+}
+
+.gamepresenter .winnerBanner {
+  font-size: 140%;
+  font-weight: 700;
+  padding: 10px 0 20px 0;
+}
