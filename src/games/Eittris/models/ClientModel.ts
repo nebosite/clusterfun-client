@@ -90,6 +90,11 @@ export class EittrisClientModel extends ClusterfunClientModel {
   // so a gesture can't carry over onto the next piece
   @observable pieceSeq = 0;
   @observable targetId: string | null = null;
+  // Specials on my settled blocks, my banked antidotes, and my shield timer
+  specials = observable<{ i: number; t: number }>([]);
+  @observable antidotes = 0;
+  @observable shieldMs = 0;
+  @observable forcedSpecial: number | null = null;
   @observable winnerName: string | null = null;
   @observable youWon = false;
 
@@ -201,6 +206,10 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.alive = snapshot.alive;
     this.intervalMs = snapshot.intervalMs;
     this.backgroundIndex = snapshot.backgroundIndex;
+    this.specials.replace(snapshot.specials ?? []);
+    this.antidotes = snapshot.antidotes ?? 0;
+    this.shieldMs = snapshot.shieldMs ?? 0;
+    this.forcedSpecial = snapshot.forcedSpecial ?? null;
     this.pieceSeq = snapshot.pieceSeq;
     this.targetId = snapshot.targetId;
   }
@@ -241,6 +250,22 @@ export class EittrisClientModel extends ClusterfunClientModel {
 
   rotate() {
     this.sendCommand({ command: "rotate" });
+  }
+
+  // Fire a banked antidote.  Uses the raw send so it works during the
+  // post-lock spawn gap (sendCommand requires a live piece).
+  useAntidote() {
+    if (this.antidotes <= 0) return;
+    this.session.sendMessageToPresenter(EittrisCommandEndpoint, { command: "useAntidote" });
+  }
+
+  // DEV ONLY: pin which special spawns (null = normal random play)
+  setForcedSpecial(specialType: number | null) {
+    action(() => (this.forcedSpecial = specialType))();
+    this.session.sendMessageToPresenter(EittrisCommandEndpoint, {
+      command: "setForcedSpecial",
+      specialType,
+    });
   }
 
   pickTarget(targetId: string) {

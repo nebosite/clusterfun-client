@@ -18,6 +18,16 @@ export const LINEAR_KNEE_MS = 500; // below this the decay goes linear
 export const LINEAR_DECAY_MS_PER_SEC = 3; // interval -= 3ms per elapsed second
 
 export const DROP_POINTS_PER_ROW = 10; // hard/soft dropped rows: +10 points per row
+
+// Specials: a settled block gets tagged every 8s, but only ever ONE at a
+// time - it stays put until the player clears its row, and nothing new
+// appears until then.  Half of all rolls are antidotes, you may bank 4, and
+// a fired antidote shields/cures for 10s.  Players start with one.
+export const SPECIAL_INTERVAL_MS = 8000;
+export const ANTIDOTE_CHANCE = 0.5;
+export const ANTIDOTE_MAX = 4;
+export const ANTIDOTE_DURATION_MS = 10000;
+export const ANTIDOTES_AT_START = 1;
 export const EMPTY_CELL = -1;
 
 // ------------------------------------------------------------------------------------------
@@ -225,27 +235,141 @@ export interface LockResult {
   grid: number[][];
   cleared: number;
   scoreGained: number;
+  clearedRows: number[]; // row indices in the PRE-clear grid (specials need these)
 }
 
 export function lockAndClear(grid: number[][], piece: EittrisPiece): LockResult {
-  const newGrid = grid.map((row) => row.slice());
+  const locked = grid.map((row) => row.slice());
   for (const c of pieceCells(piece)) {
     if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) {
-      newGrid[c.y][c.x] = piece.type;
+      locked[c.y][c.x] = piece.type;
     }
   }
 
-  let cleared = 0;
-  for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
-    if (newGrid[y].every((cell) => cell !== EMPTY_CELL)) {
-      newGrid.splice(y, 1);
-      newGrid.unshift(Array(BOARD_WIDTH).fill(EMPTY_CELL));
-      cleared++;
-      y++; // re-check the row that just shifted into this slot
+  // Find the full rows first, in original coordinates, then rebuild - that
+  // keeps clearedRows meaningful for shifting special markers.
+  const clearedRows: number[] = [];
+  for (let y = 0; y < BOARD_HEIGHT; y++) {
+    if (locked[y].every((cell) => cell !== EMPTY_CELL)) clearedRows.push(y);
+  }
+  const kept = locked.filter((_, y) => !clearedRows.includes(y));
+  const newGrid = [
+    ...Array.from({ length: clearedRows.length }, () => Array(BOARD_WIDTH).fill(EMPTY_CELL)),
+    ...kept,
+  ];
+
+  return {
+    grid: newGrid,
+    cleared: clearedRows.length,
+    scoreGained: scoreForClear(clearedRows.length),
+    clearedRows,
+  };
+}
+
+// ==========================================================================================
+// Specials (powerups) - the eitrix catalog.  Enum order matches the original C#
+// so the icon strip (assets/images/specials.png, 16 icons) indexes directly.
+// ==========================================================================================
+export enum SpecialType {
+  Speedup = 0,
+  Escalator = 1,
+  SlowDown = 2,
+  Jumble = 3,
+  Psycho = 4,
+  Antidote = 5,
+  TheWall = 6,
+  SeeShadows = 7,
+  Bridge = 8,
+  EvilPieces = 9,
+  CrazyIvan = 10,
+  Shackle = 11,
+  TowerOfEit = 12,
+  SwitchScreens = 13,
+  FreezeDried = 14,
+  Transparency = 15,
+}
+
+export const SPECIAL_NAMES: string[] = [
+  "Speedup",
+  "Escalator",
+  "SlowDown",
+  "Jumble",
+  "Psycho",
+  "Antidote",
+  "TheWall",
+  "SeeShadows",
+  "Bridge",
+  "EvilPieces",
+  "CrazyIvan",
+  "Shackle",
+  "TowerOfEit",
+  "SwitchScreens",
+  "FreezeDried",
+  "Transparency",
+];
+
+// Specials that actually DO something today.  Random rolls and the dev
+// selector only ever produce these; the rest land in later increments.
+export const IMPLEMENTED_SPECIALS: SpecialType[] = [SpecialType.Antidote];
+
+// A special sitting on one settled block.  It never decays: it waits there
+// until the player clears its row, and no other special appears while it
+// is still on the board.
+export interface SpecialMarker {
+  index: number; // cell index = y * BOARD_WIDTH + x
+  type: SpecialType;
+}
+
+// Every settled cell that could carry a marker
+export function occupiedCellIndices(grid: number[][]): number[] {
+  const out: number[] = [];
+  for (let y = 0; y < BOARD_HEIGHT; y++) {
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      if (grid[y][x] !== EMPTY_CELL) out.push(y * BOARD_WIDTH + x);
     }
   }
+  return out;
+}
 
-  return { grid: newGrid, cleared, scoreGained: scoreForClear(cleared) };
+// Pick a settled block to tag (never one that already carries a marker)
+export function pickSpecialCell(
+  grid: number[][],
+  markers: SpecialMarker[],
+  rand: () => number,
+): number | null {
+  const taken = new Set(markers.map((m) => m.index));
+  const free = occupiedCellIndices(grid).filter((i) => !taken.has(i));
+  if (free.length === 0) return null;
+  return free[Math.min(free.length - 1, Math.floor(rand() * free.length))];
+}
+
+// eitrix rolls an Antidote half the time, otherwise any special
+export function rollSpecialType(rand: () => number, antidoteChance: number): SpecialType {
+  if (rand() < antidoteChance) return SpecialType.Antidote;
+  const pool = IMPLEMENTED_SPECIALS;
+  return pool[Math.min(pool.length - 1, Math.floor(rand() * pool.length))];
+}
+
+// Clearing a row collects the specials sitting on it; markers above the
+// cleared rows ride down with their blocks.
+export function collectAndShiftMarkers(
+  markers: SpecialMarker[],
+  clearedRows: number[],
+): { collected: SpecialType[]; markers: SpecialMarker[] } {
+  if (clearedRows.length === 0) return { collected: [], markers };
+  const collected: SpecialType[] = [];
+  const survivors: SpecialMarker[] = [];
+  for (const marker of markers) {
+    const row = Math.floor(marker.index / BOARD_WIDTH);
+    const col = marker.index % BOARD_WIDTH;
+    if (clearedRows.includes(row)) {
+      collected.push(marker.type);
+      continue;
+    }
+    const shift = clearedRows.filter((r) => r > row).length;
+    survivors.push({ ...marker, index: (row + shift) * BOARD_WIDTH + col });
+  }
+  return { collected, markers: survivors };
 }
 
 // ------------------------------------------------------------------------------------------
@@ -313,6 +437,12 @@ export interface EittrisBoard {
   // (0 = not waiting).  While piece is null and this is counting down, the
   // board accepts no input at all.
   spawnDelayMs: number;
+  // Specials sitting on settled blocks, waiting to be cleared for
+  specials: SpecialMarker[];
+  specialTimerMs: number; // countdown to tagging the next block
+  antidotes: number; // stored antidote charges (max ANTIDOTE_MAX)
+  shieldMs: number; // remaining antidote shield/cure time (0 = inactive)
+  forcedSpecial: SpecialType | null; // dev selector: only ever spawn this
 }
 
 export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
@@ -332,6 +462,11 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     targetId: null,
     pieceSeq: 1,
     spawnDelayMs: 0,
+    specials: [],
+    specialTimerMs: SPECIAL_INTERVAL_MS,
+    antidotes: ANTIDOTES_AT_START,
+    shieldMs: 0,
+    forcedSpecial: null,
   };
 }
 

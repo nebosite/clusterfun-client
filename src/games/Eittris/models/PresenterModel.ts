@@ -45,6 +45,14 @@ import {
   spawnNextFromQueue,
   tryMove,
   tryRotateCW,
+  ANTIDOTE_CHANCE,
+  ANTIDOTE_DURATION_MS,
+  ANTIDOTE_MAX,
+  collectAndShiftMarkers,
+  pickSpecialCell,
+  rollSpecialType,
+  SPECIAL_INTERVAL_MS,
+  SpecialType,
 } from "./eittrisLogic";
 import { SPAWN_DELAY_MS, THUMBNAIL_INTERVAL_MS } from "./GameSettings";
 
@@ -65,6 +73,8 @@ export enum EittrisGameEvent {
   PieceLocked = "PieceLocked", // a piece settled by gravity or drag-release (Dot)
   PieceBumped = "PieceBumped", // a slam or hard-drop landing (Bump)
   RowsCleared = "RowsCleared", // args: playerId, rows cleared (picks ClearNLines)
+  SpecialCollected = "SpecialCollected", // args: playerId, SpecialType
+  AntidoteUsed = "AntidoteUsed", // args: playerId
   PlayerDied = "PlayerDied",
   WinnerAnnounced = "WinnerAnnounced",
 }
@@ -261,6 +271,8 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   private simulateBoard(board: EittrisBoard, dtMs: number) {
     if (!board.alive) return;
 
+    this.tickSpecials(board, dtMs);
+
     // The board is in the post-lock gap: nothing falls, and no command can
     // touch anything, until the next piece appears.
     if (!board.piece) {
@@ -291,6 +303,55 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   }
 
   // -------------------------------------------------------------------
+  // tickSpecials - age the markers, run down an antidote shield, and tag a
+  // fresh settled block every SPECIAL_INTERVAL_MS.  With a dev-forced type
+  // the tag appears as soon as there is a block to put it on.
+  // -------------------------------------------------------------------
+  private tickSpecials(board: EittrisBoard, dtMs: number) {
+    if (board.shieldMs > 0) {
+      board.shieldMs = Math.max(0, board.shieldMs - dtMs);
+      if (board.shieldMs === 0) this.dirtyPlayerIds.add(board.playerId);
+    }
+
+    // Only ever one special on the board: while it waits to be cleared,
+    // the timer holds and nothing new appears
+    if (board.specials.length > 0) return;
+
+    board.specialTimerMs -= dtMs;
+    if (board.specialTimerMs > 0) return;
+
+    const rand = () => this.randomDouble(1.0);
+    const index = pickSpecialCell(board.grid, board.specials, rand);
+    if (index === null) {
+      // Nothing settled to tag yet - try again next tick (a forced special
+      // should land the instant the player has a block)
+      board.specialTimerMs = board.forcedSpecial === null ? SPECIAL_INTERVAL_MS : 0;
+      return;
+    }
+    const type = board.forcedSpecial ?? rollSpecialType(rand, ANTIDOTE_CHANCE);
+    board.specials.push({ index, type });
+    board.specialTimerMs = SPECIAL_INTERVAL_MS;
+    this.dirtyPlayerIds.add(board.playerId);
+    this.saveCheckpoint();
+  }
+
+  // -------------------------------------------------------------------
+  // collectSpecial - a marked block was cleared: bank or apply its effect
+  // -------------------------------------------------------------------
+  private collectSpecial(board: EittrisBoard, type: SpecialType) {
+    switch (type) {
+      case SpecialType.Antidote:
+        board.antidotes = Math.min(ANTIDOTE_MAX, board.antidotes + 1);
+        break;
+      default:
+        // Later increments fire the offensive specials at board.targetId
+        Logger.info(`Collected unimplemented special: ${SpecialType[type]}`);
+        break;
+    }
+    this.invokeEvent(EittrisGameEvent.SpecialCollected, board.playerId, type);
+  }
+
+  // -------------------------------------------------------------------
   // lockCurrentPiece - lock + clear + score, then spawn the next piece.
   // A fresh spawn that immediately collides kills the board (and every
   // board targeting it re-aims at the next living player).
@@ -303,6 +364,12 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     board.grid = result.grid;
     board.score += result.scoreGained;
     board.rows += result.cleared;
+
+    // Cleared rows hand over any specials sitting on them; markers above
+    // ride down with their blocks
+    const harvest = collectAndShiftMarkers(board.specials, result.clearedRows);
+    board.specials = harvest.markers;
+    for (const type of harvest.collected) this.collectSpecial(board, type);
     this.invokeEvent(lockEvent, board.playerId);
     if (result.cleared > 0) {
       this.invokeEvent(EittrisGameEvent.RowsCleared, board.playerId, result.cleared);
@@ -380,6 +447,20 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // rule decisions delegate to the pure logic module.
   // -------------------------------------------------------------------
   // -------------------------------------------------------------------
+  // useAntidote - spend a charge: cures everything on this board and repels
+  // incoming attacks for ANTIDOTE_DURATION_MS (nothing to cure yet - the
+  // offensive specials arrive in later increments)
+  // -------------------------------------------------------------------
+  private useAntidote(board: EittrisBoard) {
+    if (board.antidotes <= 0) return;
+    board.antidotes--;
+    board.shieldMs = ANTIDOTE_DURATION_MS;
+    this.dirtyPlayerIds.add(board.playerId);
+    this.invokeEvent(EittrisGameEvent.AntidoteUsed, board.playerId);
+    this.saveCheckpoint();
+  }
+
+  // -------------------------------------------------------------------
   // applyPickTarget - aim this board at another living player.  Returns
   // whether anything changed.
   // -------------------------------------------------------------------
@@ -396,12 +477,26 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     const board = this.boards.find((b) => b.playerId === sender);
     if (!board || !board.alive) return;
 
-    // Targeting doesn't touch the falling piece, so it works even in the
+    // These don't touch the falling piece, so they work even in the
     // post-lock gap
     if (message.command === "pickTarget") {
       if (message.targetId !== undefined && this.applyPickTarget(board, message.targetId)) {
         this.dirtyPlayerIds.add(board.playerId);
       }
+      return;
+    }
+    if (message.command === "useAntidote") {
+      this.useAntidote(board);
+      return;
+    }
+    if (message.command === "setForcedSpecial") {
+      const wanted = message.specialType;
+      board.forcedSpecial =
+        wanted === undefined || wanted === null ? null : (wanted as SpecialType);
+      // A pinned special should show up right away, not on the next cycle
+      if (board.forcedSpecial !== null) board.specialTimerMs = 0;
+      this.dirtyPlayerIds.add(board.playerId);
+      this.saveCheckpoint();
       return;
     }
 
@@ -527,6 +622,10 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       backgroundIndex: board.backgroundIndex,
       targetId: board.targetId,
       pieceSeq: board.pieceSeq,
+      specials: board.specials.map((m) => ({ i: m.index, t: m.type })),
+      antidotes: board.antidotes,
+      shieldMs: Math.round(board.shieldMs),
+      forcedSpecial: board.forcedSpecial,
     };
   }
 

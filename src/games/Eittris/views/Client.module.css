@@ -210,3 +210,75 @@
     transform: scale(1.15);
   }
 }
+
+/* Marked blocks pulse so a special is easy to spot (see BoardGrid) */
+:global {
+  @keyframes eittrisSpecialPulse {
+    0% {
+      filter: brightness(1);
+    }
+    50% {
+      filter: brightness(1.9);
+    }
+    100% {
+      filter: brightness(1);
+    }
+  }
+}
+
+/* ---- Powerups ---- */
+
+.gameclient .powerRow {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 12px;
+}
+
+.gameclient .antidoteButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 45%;
+  font-weight: 800;
+  margin: 0;
+  padding: 10px 20px;
+  background: #2a3b57;
+  border: 3px solid #4d648a;
+  border-radius: 12px;
+}
+
+.gameclient .antidoteReady {
+  background: #1d6b3a;
+  border-color: #48e148;
+}
+
+.gameclient .antidoteButton:disabled {
+  opacity: 0.45;
+}
+
+.gameclient .specialIcon {
+  display: inline-block;
+  width: 44px;
+  height: 44px;
+  background-size: 1600% 100%;
+  background-repeat: no-repeat;
+  flex-shrink: 0;
+}
+
+.gameclient .shieldTag {
+  font-size: 40%;
+  font-weight: 800;
+  color: #48e148;
+}
+
+.gameclient .devLabel {
+  font-size: 35%;
+  color: #b8c4d8;
+  margin-right: 10px;
+}
+
+.gameclient .devSelect {
+  font-size: 35%;
+  padding: 6px;
+}

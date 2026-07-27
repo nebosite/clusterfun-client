@@ -35,6 +35,13 @@ import {
   START_INTERVAL_MS,
   tryMove,
   tryRotateCW,
+  ANTIDOTES_AT_START,
+  collectAndShiftMarkers,
+  IMPLEMENTED_SPECIALS,
+  occupiedCellIndices,
+  pickSpecialCell,
+  rollSpecialType,
+  SpecialType,
 } from "./eittrisLogic";
 
 // Sorted "x,y" strings for order-independent cell comparison
@@ -596,5 +603,79 @@ describe("eittrisLogic - grid encoding", () => {
 
   it("an empty grid is all dots", () => {
     expect(encodeGrid(emptyGrid())).toBe(".".repeat(BOARD_WIDTH * BOARD_HEIGHT));
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Specials (powerups)
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - special markers", () => {
+  const gridWithRow = (row: number) => {
+    const g = emptyGrid();
+    for (let x = 0; x < BOARD_WIDTH; x++) g[row][x] = 0;
+    return g;
+  };
+
+  it("only offers settled blocks as marker sites", () => {
+    const g = emptyGrid();
+    g[5][3] = 2;
+    expect(occupiedCellIndices(g)).toEqual([5 * BOARD_WIDTH + 3]);
+    expect(pickSpecialCell(g, [], () => 0)).toBe(5 * BOARD_WIDTH + 3);
+  });
+
+  it("never double-tags a block, and reports none when the grid is bare", () => {
+    const g = emptyGrid();
+    g[5][3] = 2;
+    const taken = [{ index: 5 * BOARD_WIDTH + 3, type: SpecialType.Antidote }];
+    expect(pickSpecialCell(g, taken, () => 0)).toBeNull();
+    expect(pickSpecialCell(emptyGrid(), [], () => 0)).toBeNull();
+  });
+
+  it("rolls an antidote at the configured rate", () => {
+    expect(rollSpecialType(() => 0.1, 0.5)).toBe(SpecialType.Antidote);
+    // above the threshold it draws from the implemented pool
+    expect(IMPLEMENTED_SPECIALS).toContain(rollSpecialType(() => 0.9, 0.5));
+  });
+
+  it("collects markers on cleared rows and rides the rest down", () => {
+    const markers = [
+      { index: 20 * BOARD_WIDTH + 4, type: SpecialType.Antidote }, // on the cleared row
+      { index: 18 * BOARD_WIDTH + 7, type: SpecialType.Antidote }, // above it
+    ];
+    const { collected, markers: left } = collectAndShiftMarkers(markers, [20]);
+    expect(collected).toEqual([SpecialType.Antidote]);
+    expect(left.length).toBe(1);
+    // shifted down one row, same column
+    expect(left[0].index).toBe(19 * BOARD_WIDTH + 7);
+  });
+
+  it("leaves markers alone when nothing cleared", () => {
+    const markers = [{ index: 42, type: SpecialType.Antidote }];
+    const out = collectAndShiftMarkers(markers, []);
+    expect(out.collected).toEqual([]);
+    expect(out.markers).toBe(markers);
+  });
+
+  it("reports which rows cleared so markers can be resolved", () => {
+    const g = emptyGrid();
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      if (x < 4 || x > 6) g[BOARD_HEIGHT - 1][x] = 1;
+    }
+    const result = lockAndClear(g, spawnPiece(0, 0)); // T fills 4..6 - wrong row though
+    expect(result.clearedRows).toEqual([]);
+
+    // now really fill the bottom row
+    const full = emptyGrid();
+    for (let x = 0; x < BOARD_WIDTH; x++) full[BOARD_HEIGHT - 1][x] = 1;
+    const cleared = lockAndClear(full, { type: 0, rot: 0, x: 5, y: 0 });
+    expect(cleared.clearedRows).toEqual([BOARD_HEIGHT - 1]);
+  });
+
+  it("starts a board with one antidote and no specials", () => {
+    const board = makeBoard("p1", () => 0.1);
+    expect(board.antidotes).toBe(ANTIDOTES_AT_START);
+    expect(board.specials).toEqual([]);
+    expect(board.shieldMs).toBe(0);
+    expect(board.forcedSpecial).toBeNull();
   });
 });

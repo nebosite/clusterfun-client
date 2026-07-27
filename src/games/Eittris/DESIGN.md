@@ -86,6 +86,30 @@ score/rows. Panels shrink to fit horizontally as the player count grows (eitrix 
 past 4 players; we scale to fit 16). Dead boards dim with a "topped out" marker. Winner
 banner at game end. Plain visuals; the design pass comes later.
 
+## Powerups (increment 2 — in progress)
+
+Ported from the original's `Specials.cs`. Icons come straight from the eitrix atlas
+(`BrickAndOverlay.png` cells 10–25 → `assets/images/specials.png`, a 16-icon strip in
+`SpecialType` order).
+
+- **Appearing:** every `SPECIAL_INTERVAL_MS` (8 s) one random settled block on your OWN
+  board is tagged. **Only one special is ever on a board at a time, and it never decays** —
+  it waits there until you clear its row, and nothing new appears until then. (The original
+  decayed tags after 12 s and allowed several; this is a deliberate house change.)
+- **Collecting:** clearing the marked block's row collects it. Markers above a cleared row
+  ride down with their blocks.
+- **Rolls:** 50% antidote (`ANTIDOTE_CHANCE`), otherwise a random implemented special.
+  `IMPLEMENTED_SPECIALS` gates what can appear, so unported specials never show up.
+- **Antidote** (implemented): banked as a charge (max 4, everyone starts with 1). Firing it
+  cures all afflictions/attacks and repels new ones for 10 s. The phone has a button showing
+  the flask icon and the count, plus a `SHIELDED` countdown while it's up.
+- **Dev selector:** in dev mode only (`DevOnly`), the phone shows a `Force special` dropdown.
+  Picking a type makes it the only one that spawns, and it appears immediately instead of
+  waiting out the interval. Default `(normal random)` = normal play.
+
+Still to port (see the catalog at the end of this file): the other 15 specials, victim
+delivery of offensive ones, and the attack/affliction/repel machinery the antidote cures.
+
 ## Targeting (increment 1.5 — groundwork for powerups)
 
 Each board has a `targetId`, initialized as a ring at game start (player _i_ targets

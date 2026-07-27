@@ -14,6 +14,7 @@ import {
 } from "../models/eittrisLogic";
 
 const FALLBACK_COLOR = "#101a2c"; // shown when no background image is supplied
+const SPECIAL_ICON_COUNT = 16; // icons in assets/images/specials.png
 
 interface BoardGridProps {
   grid: number[][];
@@ -21,6 +22,9 @@ interface BoardGridProps {
   cellPx: number;
   backgroundUrl?: string;
   dimmed?: boolean;
+  // Specials sitting on settled blocks: cell index + SpecialType
+  specials?: { i: number; t: number }[];
+  specialsUrl?: string; // the 16-icon strip
 }
 
 export class BoardGrid extends React.Component<BoardGridProps> {
@@ -48,12 +52,17 @@ export class BoardGrid extends React.Component<BoardGridProps> {
       `0 0 0 ${inner}px rgba(0, 0, 0, 0.55)`,
     ].join(", ");
 
+    // Marked blocks pulse (the original cycles rainbow) and wear their icon
+    const specialAt = new Map<number, number>();
+    for (const m of this.props.specials ?? []) specialAt.set(m.i, m.t);
+
     const cells: React.ReactNode[] = [];
     for (let y = 0; y < BOARD_HEIGHT; y++) {
       for (let x = 0; x < BOARD_WIDTH; x++) {
         const index = y * BOARD_WIDTH + x;
         const type = overlay.has(index) ? overlay.get(index)! : (grid[y]?.[x] ?? EMPTY_CELL);
         const filled = type !== EMPTY_CELL;
+        const special = specialAt.get(index);
         cells.push(
           <div
             key={index}
@@ -63,6 +72,20 @@ export class BoardGrid extends React.Component<BoardGridProps> {
               backgroundColor: filled ? PIECE_COLORS[type] : "transparent",
               boxShadow: filled ? blockShadow : undefined,
               borderRadius: filled ? Math.max(1, Math.round(cellPx * 0.1)) : undefined,
+              // The icon rides on top of the block it marks
+              backgroundImage:
+                special !== undefined && this.props.specialsUrl
+                  ? `url(${this.props.specialsUrl})`
+                  : undefined,
+              backgroundSize:
+                special !== undefined ? `${SPECIAL_ICON_COUNT * 100}% 100%` : undefined,
+              backgroundPosition:
+                special !== undefined
+                  ? `${(special / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`
+                  : undefined,
+              backgroundRepeat: "no-repeat",
+              animation:
+                special !== undefined ? "eittrisSpecialPulse 1s ease-in-out infinite" : undefined,
             }}
           />,
         );

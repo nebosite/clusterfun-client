@@ -15,15 +15,18 @@ import {
   UINormalizer,
   ErrorBoundary,
   PlayerAvatar,
+  DevOnly,
 } from "libs";
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
   decodeGrid,
   decodeThumbnail,
+  IMPLEMENTED_SPECIALS,
   PIECE_COLORS,
   pieceCells,
   spawnPiece,
+  SPECIAL_NAMES,
 } from "../models/eittrisLogic";
 import {
   DRAG_ACTIVATION_PX,
@@ -340,6 +343,46 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
             <PiecePreview type={type} key={i} />
           ))}
         </div>
+        <div className={styles.powerRow}>
+          <button
+            className={classNames(styles.antidoteButton, {
+              [styles.antidoteReady]: appModel.antidotes > 0,
+            })}
+            disabled={appModel.antidotes < 1}
+            onClick={() => appModel.useAntidote()}
+          >
+            <span
+              className={styles.specialIcon}
+              style={{
+                backgroundImage: `url(${EittrisAssets.images.specials})`,
+                backgroundPosition: `${(5 / 15) * 100}% 0%`,
+              }}
+            />
+            Antidote x{appModel.antidotes}
+          </button>
+          {appModel.shieldMs > 0 ? (
+            <span className={styles.shieldTag}>
+              SHIELDED {Math.ceil(appModel.shieldMs / 1000)}s
+            </span>
+          ) : null}
+        </div>
+        <DevOnly>
+          <span className={styles.devLabel}>Force special:</span>
+          <select
+            className={styles.devSelect}
+            value={appModel.forcedSpecial === null ? "" : String(appModel.forcedSpecial)}
+            onChange={(e) =>
+              appModel.setForcedSpecial(e.target.value === "" ? null : Number(e.target.value))
+            }
+          >
+            <option value="">(normal random)</option>
+            {IMPLEMENTED_SPECIALS.map((t) => (
+              <option value={String(t)} key={t}>
+                {SPECIAL_NAMES[t]}
+              </option>
+            ))}
+          </select>
+        </DevOnly>
         <div className={styles.boardRow}>
           <div
             ref={this.boardRef}
@@ -367,6 +410,8 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
               cellPx={CELL_PX}
               backgroundUrl={backgroundUrl}
               dimmed={dead}
+              specials={appModel.specials.slice()}
+              specialsUrl={EittrisAssets.images.specials}
             />
             {dead ? <div className={styles.toppedOut}>TOPPED OUT</div> : null}
           </div>

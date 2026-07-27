@@ -8,7 +8,15 @@ import {
   EittrisPlayer,
   getEittrisPresenterTypeHelper,
 } from "./PresenterModel";
-import { BOARD_HEIGHT, BOARD_WIDTH, EMPTY_CELL, START_INTERVAL_MS } from "./eittrisLogic";
+import {
+  ANTIDOTE_DURATION_MS,
+  BOARD_HEIGHT,
+  BOARD_WIDTH,
+  EMPTY_CELL,
+  SPECIAL_INTERVAL_MS,
+  SpecialType,
+  START_INTERVAL_MS,
+} from "./eittrisLogic";
 import { SPAWN_DELAY_MS } from "./GameSettings";
 
 // -------------------------------------------------------------------
@@ -501,5 +509,87 @@ describe("EittrisPresenterModel - checkpoint serialization", () => {
       back.gameTime_ms = 5000;
       back.handleTick();
     }).not.toThrow();
+  });
+});
+
+describe("EittrisPresenterModel - specials", () => {
+  // Put a settled block on A's board so there's something to tag
+  function seedBlock(model: EittrisPresenterModel) {
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    runInAction(() => {
+      board.grid[BOARD_HEIGHT - 1][0] = 1;
+    });
+    return board;
+  }
+
+  it("tags a settled block once the interval elapses", () => {
+    const { model } = startTwoPlayerGame();
+    const board = seedBlock(model);
+    expect(board.specials.length).toBe(0);
+
+    tickTo(model, SPECIAL_INTERVAL_MS + 50);
+    expect(board.specials.length).toBe(1);
+    expect(board.specials[0].index).toBe((BOARD_HEIGHT - 1) * BOARD_WIDTH);
+  });
+
+  it("keeps the special on the board forever and spawns no others until it is cleared", () => {
+    const { model } = startTwoPlayerGame();
+    const board = seedBlock(model);
+    tickTo(model, SPECIAL_INTERVAL_MS + 50);
+    const placed = board.specials[0];
+
+    // Many intervals later it is still there, and still alone
+    tickTo(model, SPECIAL_INTERVAL_MS * 6);
+    expect(board.specials.length).toBe(1);
+    expect(board.specials[0].index).toBe(placed.index);
+    expect(board.specials[0].type).toBe(placed.type);
+  });
+
+  it("a forced special appears immediately and is the only type that spawns", () => {
+    const { model } = startTwoPlayerGame();
+    const board = seedBlock(model);
+    model.handleCommand("A", {
+      command: "setForcedSpecial",
+      specialType: SpecialType.Antidote,
+    });
+    tickTo(model, 30); // no need to wait out the interval
+    expect(board.specials.length).toBe(1);
+    expect(board.specials[0].type).toBe(SpecialType.Antidote);
+  });
+
+  it("clearing the marked row banks the antidote and frees the slot", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    // Fill the bottom row except the T's landing spot, and mark one block
+    runInAction(() => {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        if (x < 4 || x > 6) board.grid[BOARD_HEIGHT - 1][x] = 1;
+      }
+      board.specials.push({ index: (BOARD_HEIGHT - 1) * BOARD_WIDTH, type: SpecialType.Antidote });
+    });
+    const antidotesBefore = board.antidotes;
+
+    model.handleCommand("A", { command: "hardDrop" }); // completes the row
+
+    expect(board.rows).toBe(1);
+    expect(board.antidotes).toBe(antidotesBefore + 1); // collected
+    expect(board.specials.length).toBe(0); // slot free again
+  });
+
+  it("useAntidote spends a charge and raises the shield", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    expect(board.antidotes).toBe(1); // everyone starts with one
+    model.handleCommand("A", { command: "useAntidote" });
+    expect(board.antidotes).toBe(0);
+    expect(board.shieldMs).toBe(ANTIDOTE_DURATION_MS);
+
+    // With none banked, a second press does nothing
+    model.handleCommand("A", { command: "useAntidote" });
+    expect(board.antidotes).toBe(0);
+
+    // The shield runs down on the clock
+    tickTo(model, 2000);
+    expect(board.shieldMs).toBeLessThan(ANTIDOTE_DURATION_MS);
   });
 });

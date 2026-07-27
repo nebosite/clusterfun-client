@@ -131,3 +131,18 @@
   font-weight: 700;
   padding: 10px 0 20px 0;
 }
+
+/* Marked blocks pulse so a special is easy to spot (see BoardGrid) */
+:global {
+  @keyframes eittrisSpecialPulse {
+    0% {
+      filter: brightness(1);
+    }
+    50% {
+      filter: brightness(1.9);
+    }
+    100% {
+      filter: brightness(1);
+    }
+  }
+}

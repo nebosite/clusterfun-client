@@ -22,6 +22,11 @@ export interface EittrisBoardSnapshot {
   backgroundIndex: number; // which Grid background this board draws
   targetId: string | null; // who this player is currently targeting
   pieceSeq: number; // bumped on each spawn; phones use it to end a stale gesture
+  // Specials sitting on this board's settled blocks: cell index + type
+  specials: { i: number; t: number }[];
+  antidotes: number; // banked antidote charges
+  shieldMs: number; // remaining antidote shield (0 = inactive)
+  forcedSpecial: number | null; // dev selector echo
 }
 
 // ------------------------------------------------------------------------------------------
@@ -51,13 +56,22 @@ export const EittrisOnboardClientEndpoint: MessageEndpoint<unknown, EittrisOnboa
 //   pickTarget - target another player's board (uses `targetId`)
 // ------------------------------------------------------------------------------------------
 export type EittrisCommandKind =
-  "dragTo" | "release" | "hardDrop" | "slamLeft" | "slamRight" | "rotate" | "pickTarget";
+  | "dragTo"
+  | "release"
+  | "hardDrop"
+  | "slamLeft"
+  | "slamRight"
+  | "rotate"
+  | "pickTarget"
+  | "useAntidote" // fire a stored antidote (cure + shield)
+  | "setForcedSpecial"; // DEV ONLY: pin which special spawns
 
 export interface EittrisCommandMessage {
   command: EittrisCommandKind;
   column?: number; // dragTo: target column for the piece origin
   row?: number; // dragTo: target row for the piece origin
   targetId?: string; // pickTarget: the player to target
+  specialType?: number | null; // setForcedSpecial: SpecialType, or null for normal play
 }
 
 export const EittrisCommandEndpoint: MessageEndpoint<EittrisCommandMessage, void> = {

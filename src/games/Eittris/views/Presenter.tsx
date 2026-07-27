@@ -153,6 +153,8 @@ class BoardPanel extends React.Component<{
             cellPx={cellPx}
             backgroundUrl={backgrounds[board.backgroundIndex % backgrounds.length]}
             dimmed={!board.alive}
+            specials={board.specials.map((m) => ({ i: m.index, t: m.type }))}
+            specialsUrl={EittrisAssets.images.specials}
           />
           {!board.alive ? <div className={styles.toppedOut}>TOPPED OUT</div> : null}
         </div>
