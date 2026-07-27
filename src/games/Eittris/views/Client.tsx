@@ -29,6 +29,7 @@ import {
   DRAG_ACTIVATION_PX,
   FLICK_MAX_DURATION_MS,
   FLICK_MIN_DISTANCE_PX,
+  FLICK_REARM_MOVES,
   TAP_MAX_DISTANCE_PX,
   TAP_MAX_DURATION_MS,
 } from "../models/GameSettings";
@@ -67,13 +68,18 @@ class GestureTracker {
   private lastSentRow: number | null = null;
   private cellWidthPx = CELL_PX;
   private cellHeightPx = CELL_PX;
+  // Pointer-move events seen on the board since the last flick.  Flicks stay
+  // disarmed until this reaches FLICK_REARM_MOVES, which kills the phantom
+  // repeat you get when a flick's pointer-up lands off-screen.
+  private movesSinceFlick = Number.MAX_SAFE_INTEGER;
 
   constructor(private model: EittrisClientModel) {}
 
   down(e: React.PointerEvent, boardRect: DOMRect | null) {
-    // One gesture at a time: ignore extra pointers (and any stray down that
-    // arrives while a press is still unresolved)
-    if (this.pointerId !== null) return;
+    // A second finger during a gesture is ignored.  A press from the SAME
+    // pointer (a mouse always reuses id 1) means the previous gesture is
+    // definitively over, so start fresh rather than resuming a stale one.
+    if (this.pointerId !== null && this.pointerId !== e.pointerId) return;
     this.pointerId = e.pointerId;
     this.stale = false;
     this.startX = e.clientX;
@@ -111,6 +117,9 @@ class GestureTracker {
   }
 
   move(e: React.PointerEvent) {
+    // Count every move over the board, even ones outside a gesture - this is
+    // what re-arms flicking
+    if (this.movesSinceFlick < FLICK_REARM_MOVES) this.movesSinceFlick++;
     if (this.pointerId !== e.pointerId) return;
     // With a mouse, pointermove keeps firing after the button is released.
     // If we ever miss a pointerup (lost capture, released off-element), this
@@ -153,6 +162,10 @@ class GestureTracker {
 
     // A fast far swipe is a flick - it replaces the release
     if (duration < FLICK_MAX_DURATION_MS && distance > FLICK_MIN_DISTANCE_PX) {
+      // Disarmed until the board has seen a few moves since the last flick,
+      // so a flick that ended off-screen can't fire a second time
+      if (this.movesSinceFlick < FLICK_REARM_MOVES) return;
+      this.movesSinceFlick = 0;
       if (Math.abs(dx) >= Math.abs(dy)) {
         if (dx < 0) this.model.slamLeft();
         else this.model.slamRight();
