@@ -1,4 +1,4 @@
-# Mixtape — Design Spec (MVP)
+# Pass the AUX — Design Spec (MVP)
 
 > Designer's source-of-truth spec the implementation follows (PartyPix/CollageBoard style).
 > Concept, player counts, presenter + client state machines, the message table, the IRV
@@ -103,15 +103,15 @@ game-specific client→presenter messages; everything else is the standard Onboa
 
 | Endpoint (route)                                           | Dir     | Request → Response                                                                                                                                                                                                                                                                                  |
 | ---------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mixtapeOnboard`                                           | C→P req | `{}` → **full phone state**: `gameState`, `roundNumber`, `prompt`, `targetScore`, `scores[]` (id, name, avatarId, score), `mySubmission?`, `votingSongs[]` (id, title, artist, thumbnailUrl — only in Voting+), `myBallot?`, `winner?` (revealed submitters). Client rebuilds everything from this. |
-| `mixtapeSubmitSong`                                        | C→P req | `{ videoId, title, artist, thumbnailUrl, durationSec, startSec }` → `{ accepted, reason? }`. Adds/replaces this player's submission (only during `Selecting`).                                                                                                                                      |
-| `mixtapeSubmitBallot`                                      | C→P req | `{ ranking: string[] /* ordered videoIds, len 1..3, excludes own */ }` → `{ accepted, reason? }`. Only during `Voting`; validated (no self-vote, no dupes, known ids).                                                                                                                              |
+| `passTheAuxOnboard`                                        | C→P req | `{}` → **full phone state**: `gameState`, `roundNumber`, `prompt`, `targetScore`, `scores[]` (id, name, avatarId, score), `mySubmission?`, `votingSongs[]` (id, title, artist, thumbnailUrl — only in Voting+), `myBallot?`, `winner?` (revealed submitters). Client rebuilds everything from this. |
+| `passTheAuxSubmitSong`                                     | C→P req | `{ videoId, title, artist, thumbnailUrl, durationSec, startSec }` → `{ accepted, reason? }`. Adds/replaces this player's submission (only during `Selecting`).                                                                                                                                      |
+| `passTheAuxSubmitBallot`                                   | C→P req | `{ ranking: string[] /* ordered videoIds, len 1..3, excludes own */ }` → `{ accepted, reason? }`. Only during `Voting`; validated (no self-vote, no dupes, known ids).                                                                                                                              |
 | `InvalidateStateEndpoint`                                  | P→C f&f | (shared) presenter phase changed → every client calls `requestGameStateFromPresenter()`.                                                                                                                                                                                                            |
 | Join / Quit / Ping / Pause / Resume / Terminate / GameOver | —       | shared `basicEndpoints`.                                                                                                                                                                                                                                                                            |
 
 Payloads stay tiny (ids + short strings). No base64 anywhere.
 
-## Rules & scoring (pure logic in `mixtapeLogic.ts` + spec)
+## Rules & scoring (pure logic in `passTheAuxLogic.ts` + spec)
 
 **Submission:** one song per player per round; replacing overwrites. `startSec` clamped to
 `[0, max(0, durationSec − 30)]` when known, else `≥ 0`.

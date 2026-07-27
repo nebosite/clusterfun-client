@@ -14,7 +14,7 @@ import MessageEndpoint from "libs/messaging/MessageEndpoint";
 // ------------------------------------------------------------------------------------------
 // Shared shapes used inside the onboard response.
 // ------------------------------------------------------------------------------------------
-export interface MixtapeScoreInfo {
+export interface PassTheAuxScoreInfo {
   playerId: string;
   name: string;
   avatarId: number;
@@ -22,7 +22,7 @@ export interface MixtapeScoreInfo {
 }
 
 // A song as shown to voters — deliberately WITHOUT the submitter (kept secret until tally).
-export interface MixtapeVoteSong {
+export interface PassTheAuxVoteSong {
   videoId: string;
   title: string;
   artist: string;
@@ -30,7 +30,7 @@ export interface MixtapeVoteSong {
 }
 
 // A player's own cued-up submission (echoed back so a refreshed phone rebuilds its screen).
-export interface MixtapeSubmissionInfo {
+export interface PassTheAuxSubmissionInfo {
   videoId: string;
   title: string;
   artist: string;
@@ -44,35 +44,36 @@ export interface MixtapeSubmissionInfo {
 // on rejoin after a refresh, and whenever the presenter broadcasts InvalidateStateEndpoint.
 // The client FULLY rebuilds its screen from this (it can miss individual pushes).
 // ------------------------------------------------------------------------------------------
-export interface MixtapeOnboardResponse {
+export interface PassTheAuxOnboardResponse {
   gameState: string;
   roundNumber: number;
   prompt: string;
   targetScore: number;
-  scores: MixtapeScoreInfo[];
+  scores: PassTheAuxScoreInfo[];
   presentCount: number;
   submittedCount: number;
   votedCount: number;
   // Selecting: the caller's current cued song (or null)
-  mySubmission: MixtapeSubmissionInfo | null;
+  mySubmission: PassTheAuxSubmissionInfo | null;
   // Voting+: the round's songs (no submitters); the caller's own song id (to disable
   // self-vote); and the caller's current ballot (ordered videoIds).
-  votingSongs: MixtapeVoteSong[];
+  votingSongs: PassTheAuxVoteSong[];
   myOwnVideoId: string | null;
   myBallot: string[];
 }
 
-export const MixtapeOnboardClientEndpoint: MessageEndpoint<unknown, MixtapeOnboardResponse> = {
-  route: "/games/mixtape/lifecycle/onboard-client",
-  suggestedRetryIntervalMs: 10000,
-  suggestedTotalLifetimeMs: 60000,
-};
+export const PassTheAuxOnboardClientEndpoint: MessageEndpoint<unknown, PassTheAuxOnboardResponse> =
+  {
+    route: "/games/pass-the-aux/lifecycle/onboard-client",
+    suggestedRetryIntervalMs: 10000,
+    suggestedTotalLifetimeMs: 60000,
+  };
 
 // ------------------------------------------------------------------------------------------
 // Submit Song — the player cues up a track for the current round (Selecting only).
 // Re-submitting replaces the previous choice.
 // ------------------------------------------------------------------------------------------
-export interface MixtapeSubmitSongRequest {
+export interface PassTheAuxSubmitSongRequest {
   videoId: string;
   title: string;
   artist: string;
@@ -81,17 +82,17 @@ export interface MixtapeSubmitSongRequest {
   startSec: number;
 }
 
-export interface MixtapeSubmitSongResponse {
+export interface PassTheAuxSubmitSongResponse {
   accepted: boolean;
   reason?: string;
   startSec?: number; // authoritative (clamped) start offset
 }
 
-export const MixtapeSubmitSongEndpoint: MessageEndpoint<
-  MixtapeSubmitSongRequest,
-  MixtapeSubmitSongResponse
+export const PassTheAuxSubmitSongEndpoint: MessageEndpoint<
+  PassTheAuxSubmitSongRequest,
+  PassTheAuxSubmitSongResponse
 > = {
-  route: "/games/mixtape/actions/submit-song",
+  route: "/games/pass-the-aux/actions/submit-song",
   suggestedRetryIntervalMs: 4000,
   suggestedTotalLifetimeMs: 30000,
 };
@@ -100,21 +101,21 @@ export const MixtapeSubmitSongEndpoint: MessageEndpoint<
 // Submit Ballot — the player ranks their top 3 songs (Voting only).  ranking is an ordered
 // list of videoIds (1st, 2nd, 3rd), excluding the player's own song.
 // ------------------------------------------------------------------------------------------
-export interface MixtapeSubmitBallotRequest {
+export interface PassTheAuxSubmitBallotRequest {
   ranking: string[];
 }
 
-export interface MixtapeSubmitBallotResponse {
+export interface PassTheAuxSubmitBallotResponse {
   accepted: boolean;
   reason?: string;
   ranking?: string[]; // authoritative (sanitized) ranking
 }
 
-export const MixtapeSubmitBallotEndpoint: MessageEndpoint<
-  MixtapeSubmitBallotRequest,
-  MixtapeSubmitBallotResponse
+export const PassTheAuxSubmitBallotEndpoint: MessageEndpoint<
+  PassTheAuxSubmitBallotRequest,
+  PassTheAuxSubmitBallotResponse
 > = {
-  route: "/games/mixtape/actions/submit-ballot",
+  route: "/games/pass-the-aux/actions/submit-ballot",
   suggestedRetryIntervalMs: 4000,
   suggestedTotalLifetimeMs: 30000,
 };

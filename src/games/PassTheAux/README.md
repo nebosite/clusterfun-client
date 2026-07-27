@@ -1,4 +1,4 @@
-# Mixtape
+# Pass the AUX
 
 A music-matching party game for ClusterFun. See [DESIGN.md](DESIGN.md) for the full spec
 (state machines, message table, IRV rules, the music-provider abstraction, cut-lines).

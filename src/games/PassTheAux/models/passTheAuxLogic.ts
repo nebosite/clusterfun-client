@@ -1,8 +1,8 @@
 // ==========================================================================================
 // PURE, framework-free game rules.  No MobX, no session, no DOM - just data in, data out.
 //
-// All of Mixtape's real decision-making lives here so it is trivially unit-testable
-// (see mixtapeLogic.spec.ts) and the models stay thin: they hold observable state and
+// All of Pass the AUX's real decision-making lives here so it is trivially unit-testable
+// (see passTheAuxLogic.spec.ts) and the models stay thin: they hold observable state and
 // delegate every rule to these functions.  Mirrors PartyPix's partyPixLogic.ts and
 // CollageBoard's collageBoardLogic.ts.
 // ==========================================================================================

@@ -1,5 +1,5 @@
 // A thin React wrapper over the YouTube IFrame Player API.  A bare <iframe> can autoplay but
-// gives no volume control and no "actually started playing" signal - both of which Mixtape now
+// gives no volume control and no "actually started playing" signal - both of which Pass the AUX now
 // needs:
 //   - Presenter: fade the audio in on start / out before advancing, and arm the metadata-reveal
 //     timer only once playback truly begins (buffering must not eat the mystery window).

@@ -13,7 +13,7 @@ import {
   ErrorBoundary,
   PlayerAvatar,
 } from "libs";
-import { MixtapeClientModel, MixtapeClientState } from "../models/ClientModel";
+import { PassTheAuxClientModel, PassTheAuxClientState } from "../models/ClientModel";
 import { MAX_BALLOT, CLIENT_PREVIEW_MS } from "../models/GameSettings";
 import { Track, isRealVideoId } from "../models/musicProvider";
 import { YouTubePlayer } from "./YouTubePlayer";
@@ -29,12 +29,12 @@ const fmt = (sec: number) => {
 @inject("appModel")
 @observer
 class SelectingScreen extends React.Component<
-  { appModel?: MixtapeClientModel },
+  { appModel?: PassTheAuxClientModel },
   { query: string }
 > {
   private preview = React.createRef<YouTubePlayer>();
 
-  constructor(props: { appModel?: MixtapeClientModel }) {
+  constructor(props: { appModel?: PassTheAuxClientModel }) {
     super(props);
     this.state = { query: "" };
   }
@@ -172,7 +172,7 @@ class SelectingScreen extends React.Component<
 // -------------------------------------------------------------------
 @inject("appModel")
 @observer
-class VotingScreen extends React.Component<{ appModel?: MixtapeClientModel }> {
+class VotingScreen extends React.Component<{ appModel?: PassTheAuxClientModel }> {
   render() {
     const m = this.props.appModel!;
     return (
@@ -235,7 +235,7 @@ class VotingScreen extends React.Component<{ appModel?: MixtapeClientModel }> {
 @inject("appModel")
 @observer
 export default class Client extends React.Component<{
-  appModel?: MixtapeClientModel;
+  appModel?: PassTheAuxClientModel;
   uiProperties: UIProperties;
 }> {
   lastState: string = GeneralGameState.Unknown;
@@ -251,13 +251,13 @@ export default class Client extends React.Component<{
     switch (m.gameState) {
       case GeneralClientGameState.WaitingToStart:
         return <div className={styles.wait_text}>Sit tight — waiting for the host to start…</div>;
-      case MixtapeClientState.Selecting:
+      case PassTheAuxClientState.Selecting:
         this.alertUser();
         return <SelectingScreen />;
-      case MixtapeClientState.Voting:
+      case PassTheAuxClientState.Voting:
         this.alertUser();
         return <VotingScreen />;
-      case MixtapeClientState.Watching:
+      case PassTheAuxClientState.Watching:
         this.alertUser();
         return <div className={styles.watch}>Look up at the big screen 🔊</div>;
       case GeneralGameState.GameOver:
@@ -291,7 +291,7 @@ export default class Client extends React.Component<{
       >
         <div className={styles.gameclient}>
           <div className={styles.topbar}>
-            <span className={styles.gametitle}>MIXTAPE</span>
+            <span className={styles.gametitle}>PASS THE AUX</span>
             <span className={styles.me}>
               <PlayerAvatar avatarId={m?.avatarId ?? 0} size={44} /> {m?.playerName}
             </span>
