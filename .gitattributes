@@ -1,0 +1,22 @@
+# Store all text files with LF in the repo AND check them out with LF on every
+# platform. This matches Prettier's output and keeps line-ending-only churn out
+# of git status. (Modern Windows tooling handles LF fine.)
+* text=auto eol=lf
+
+# Shell scripts must always be LF (they run on the Pi)
+*.sh text eol=lf
+
+# Binary files - never normalize
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.wav binary
+*.mp3 binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.tgz binary
+*.zip binary
