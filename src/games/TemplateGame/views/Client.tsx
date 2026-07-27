@@ -95,7 +95,8 @@ class GameScreen extends React.Component<{ appModel?: TemplateClientModel }> {
     return (
       <div>
         <h4>
-          <PlayerAvatar avatarId={appModel.avatarId} size={50} /> {appModel.playerName}
+          <PlayerAvatar avatarId={appModel.avatarId} colorIndex={appModel.avatarColor} size={50} />{" "}
+          {appModel.playerName}
         </h4>
 
         <div>
@@ -217,7 +218,12 @@ export default class Client extends React.Component<{
             <div className={classNames(styles.divRow, styles.topbar)}>
               <span className={classNames(styles.gametitle)}>Template</span>
               <span>
-                <PlayerAvatar avatarId={appModel?.avatarId ?? 0} size={40} /> {appModel?.playerName}
+                <PlayerAvatar
+                  avatarId={appModel?.avatarId ?? 0}
+                  colorIndex={appModel?.avatarColor}
+                  size={40}
+                />{" "}
+                {appModel?.playerName}
               </span>
               <button className={classNames(styles.quitbutton)} onClick={() => appModel?.quitApp()}>
                 X

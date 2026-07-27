@@ -253,7 +253,7 @@ class TargetList extends React.Component<{ appModel?: EittrisClientModel }> {
             >
               <ThumbnailView thumb={p.thumb} />
               <div className={styles.targetInfo}>
-                <PlayerAvatar avatarId={p.avatarId} size={30} />
+                <PlayerAvatar avatarId={p.avatarId} colorIndex={p.avatarColor} size={30} />
                 <span className={styles.targetName}>{p.name}</span>
                 {isTarget ? <span className={styles.targetTag}>TARGET</span> : null}
                 {!p.alive ? <span className={styles.targetDeadTag}>OUT</span> : null}
@@ -415,7 +415,12 @@ export default class Client extends React.Component<{
             <div className={classNames(styles.divRow, styles.topbar)}>
               <span className={classNames(styles.gametitle)}>EITtris</span>
               <span>
-                <PlayerAvatar avatarId={appModel?.avatarId ?? 0} size={40} /> {appModel?.playerName}
+                <PlayerAvatar
+                  avatarId={appModel?.avatarId ?? 0}
+                  colorIndex={appModel?.avatarColor}
+                  size={40}
+                />{" "}
+                {appModel?.playerName}
               </span>
               <button className={classNames(styles.quitbutton)} onClick={() => appModel?.quitApp()}>
                 X

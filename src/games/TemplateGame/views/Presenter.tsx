@@ -48,7 +48,12 @@ class GatheringPlayersPage extends React.Component<{ appModel?: TemplatePresente
             <div className={styles.divRow}>
               {appModel.players.map((player) => (
                 <div className={styles.nameBox} key={player.playerId}>
-                  <PlayerAvatar avatarId={player.avatarId} size={48} /> {player.name}
+                  <PlayerAvatar
+                    avatarId={player.avatarId}
+                    colorIndex={player.avatarColor}
+                    size={48}
+                  />{" "}
+                  {player.name}
                 </div>
               ))}
             </div>
@@ -90,7 +95,8 @@ class PausedGamePage extends React.Component<{ appModel?: TemplatePresenterModel
         <ul>
           {appModel.players.map((player) => (
             <li key={player.playerId}>
-              <PlayerAvatar avatarId={player.avatarId} size={32} /> {player.name}
+              <PlayerAvatar avatarId={player.avatarId} colorIndex={player.avatarColor} size={32} />{" "}
+              {player.name}
             </li>
           ))}
         </ul>
@@ -215,7 +221,8 @@ class PlayingPage extends React.Component<{
             <div className={styles.scoreStrip}>
               {appModel.players.map((p) => (
                 <span className={styles.scoreItem} key={p.playerId}>
-                  <PlayerAvatar avatarId={p.avatarId} size={36} /> {p.name}: {p.totalScore}
+                  <PlayerAvatar avatarId={p.avatarId} colorIndex={p.avatarColor} size={36} />{" "}
+                  {p.name}: {p.totalScore}
                 </span>
               ))}
             </div>
@@ -256,7 +263,12 @@ class EndOfRoundPage extends React.Component<{ appModel?: TemplatePresenterModel
           <div>
             <div className={styles.winnerBanner}>
               {winners.map((w) => (
-                <PlayerAvatar avatarId={w.avatarId} size={64} key={w.playerId} />
+                <PlayerAvatar
+                  avatarId={w.avatarId}
+                  colorIndex={w.avatarColor}
+                  size={64}
+                  key={w.playerId}
+                />
               ))}{" "}
               {winners.length === 1
                 ? `🏆 ${winners[0].name} wins with ${winners[0].totalScore} points!`

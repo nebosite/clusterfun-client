@@ -81,6 +81,7 @@ export interface EittrisThumbnailEntry {
   playerId: string;
   name: string;
   avatarId: number;
+  avatarColor: number;
   alive: boolean;
   thumb: string; // 36-char base64 of 210 packed bits (see eittrisLogic)
 }

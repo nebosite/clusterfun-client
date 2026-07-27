@@ -16,6 +16,7 @@ export interface PieceSnapshot {
   pieceId: string;
   name: string;
   avatarId: number;
+  avatarColor: number;
   position: number;
   guess: number | null; // this round's pick (null = not picked yet)
   confirmed: boolean; // pick is locked in for this round
@@ -27,6 +28,7 @@ export interface PieceSnapshot {
 export interface OneOhOneMoveSummary extends PieceMove {
   name: string;
   avatarId: number;
+  avatarColor: number;
 }
 
 // ------------------------------------------------------------------------------------------

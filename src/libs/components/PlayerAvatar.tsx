@@ -1,102 +1,90 @@
 import React from "react";
+import avatarSheet from "./assets/avatars.png";
 
-// Grayscale tones for the neutral avatar shapes - a player's accent color
-// (when a game supplies one) provides the pop, not the shape.
-const AVATAR_TONES = ["#d4d6dd", "#9296a6", "#f2f3f6"];
+// The palette players pick from in the lobby.  The chosen INDEX travels with
+// the Join message (ClusterFunPlayer.avatarColor), so every game can draw a
+// player's mark in their own color.
+export const AVATAR_COLORS = [
+  "#ff4d6d",
+  "#22e0ff",
+  "#ffd21a",
+  "#7c5cff",
+  "#ff7a1a",
+  "#2ee6c8",
+  "#ff3ea5",
+  "#b6ff3a",
+  "#4d8bff",
+  "#ff5cc8",
+  "#ffb020",
+  "#12b8ff",
+];
 
-export const AVATAR_COUNT = 8;
+export function avatarColorFor(colorIndex: number | undefined): string {
+  const count = AVATAR_COLORS.length;
+  if (colorIndex === undefined) return AVATAR_COLORS[0];
+  return AVATAR_COLORS[((colorIndex % count) + count) % count];
+}
+
+// The avatar sprite sheet: 6 columns x 5 rows of icon silhouettes
+// (apple, key, bicycle, ... beach ball).  White art on transparency, so it
+// reads on any chip color.
+const SHEET_COLS = 6;
+const SHEET_ROWS = 5;
+export const AVATAR_COUNT = SHEET_COLS * SHEET_ROWS;
 
 // -------------------------------------------------------------------
-// PlayerAvatar - the standard player avatar mark.
+// PlayerAvatar - the standard player mark.
 //
-// Players pick one of these 8 abstract shapes in the lobby when they
-// join; the chosen index travels with the Join message and lands on
-// ClusterFunPlayer.avatarId, so every game can show who's who.  Render
-// this next to player names anywhere players appear (join lists,
-// scoreboards, winner screens...).
+// Players pick a shape AND a color in the lobby; both travel with the
+// Join message and land on ClusterFunPlayer (avatarId / avatarColor), so
+// every game can show who's who.  Render it next to player names anywhere
+// players appear (join lists, scoreboards, winner screens...).
 //
-//   <PlayerAvatar avatarId={player.avatarId} size={48} />
+//   <PlayerAvatar avatarId={player.avatarId} colorIndex={player.avatarColor} size={48} />
 //
-// `tone` optionally overrides the shape's fill (e.g. a team color);
-// `cut` is the punch-out detail color and defaults to a near-black.
+// `tone` overrides the chip color outright (e.g. a team color).
 // -------------------------------------------------------------------
 export function PlayerAvatar(props: {
   avatarId: number;
+  colorIndex?: number;
   size?: number;
   tone?: string;
-  cut?: string;
 }) {
   const safeId = ((props.avatarId % AVATAR_COUNT) + AVATAR_COUNT) % AVATAR_COUNT;
-  const tone = props.tone ?? AVATAR_TONES[safeId % AVATAR_TONES.length];
-  const cut = props.cut ?? "#12121a";
+  const color = props.tone ?? avatarColorFor(props.colorIndex);
   const size = props.size ?? 40;
 
-  const shape = () => {
-    switch (safeId) {
-      case 0:
-        return (
-          <>
-            <circle cx="20" cy="20" r="16" fill={tone} />
-            <circle cx="20" cy="20" r="6" fill={cut} />
-          </>
-        );
-      case 1:
-        return (
-          <>
-            <rect x="5" y="5" width="30" height="30" rx="8" fill={tone} />
-            <circle cx="20" cy="20" r="7" fill={cut} />
-          </>
-        );
-      case 2:
-        return (
-          <>
-            <polygon points="20,4 36,34 4,34" fill={tone} />
-            <circle cx="20" cy="25" r="5" fill={cut} />
-          </>
-        );
-      case 3:
-        return (
-          <>
-            <polygon points="20,3 37,20 20,37 3,20" fill={tone} />
-            <rect x="14" y="14" width="12" height="12" fill={cut} />
-          </>
-        );
-      case 4:
-        return (
-          <>
-            <circle cx="20" cy="20" r="16" fill={tone} />
-            <circle cx="20" cy="20" r="9" fill={cut} />
-          </>
-        );
-      case 5:
-        return (
-          <>
-            <rect x="6" y="8" width="28" height="10" rx="5" fill={tone} />
-            <rect x="6" y="22" width="28" height="10" rx="5" fill={tone} />
-          </>
-        );
-      case 6:
-        return (
-          <>
-            <circle cx="13" cy="13" r="8" fill={tone} />
-            <circle cx="27" cy="13" r="8" fill={tone} />
-            <circle cx="13" cy="27" r="8" fill={tone} />
-            <circle cx="27" cy="27" r="8" fill={tone} />
-          </>
-        );
-      default:
-        return (
-          <>
-            <polygon points="20,4 34,12 34,28 20,36 6,28 6,12" fill={tone} />
-            <circle cx="20" cy="20" r="6" fill={cut} />
-          </>
-        );
-    }
-  };
+  const col = safeId % SHEET_COLS;
+  const row = Math.floor(safeId / SHEET_COLS);
+  // Percentage positioning handles the sheet's non-integer cell width
+  const inset = Math.max(1, Math.round(size * 0.12));
 
   return (
-    <svg viewBox="0 0 40 40" width={size} height={size} style={{ verticalAlign: "middle" }}>
-      {shape()}
-    </svg>
+    <span
+      style={{
+        display: "inline-block",
+        position: "relative",
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        backgroundColor: color,
+        verticalAlign: "middle",
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          top: inset,
+          left: inset,
+          right: inset,
+          bottom: inset,
+          backgroundImage: `url(${avatarSheet})`,
+          backgroundSize: `${SHEET_COLS * 100}% ${SHEET_ROWS * 100}%`,
+          backgroundPosition: `${(col / (SHEET_COLS - 1)) * 100}% ${(row / (SHEET_ROWS - 1)) * 100}%`,
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+    </span>
   );
 }

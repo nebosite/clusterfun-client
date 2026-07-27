@@ -5,13 +5,24 @@ import { LobbyMode, LobbyModel } from "../models/LobbyModel";
 import classNames from "classnames";
 import { GLOBALS } from "../../Globals";
 import styles from "./LobbyComponent.module.css";
-import { PlayerAvatar, UIProperties, UINormalizer } from "libs";
+import {
+  AVATAR_COLORS,
+  AVATAR_COUNT,
+  PlayerAvatar,
+  SafeBrowser,
+  UIProperties,
+  UINormalizer,
+} from "libs";
 import Logger from "js-logger";
 import { GameDescriptor } from "games/lists/GameDescriptor";
 import { PartyBurstLogo } from "./PartyBurstLogo";
 import { ScaleToWidth } from "./ScaleToWidth";
+import { DragScroller } from "./DragScroller";
 import { GameThumbnail } from "./GameThumbnail";
 import { CATEGORIES, TILE_PALETTE, presentationFor, GamePresentation } from "../LobbyPresentation";
+
+// Every avatar in the sheet, for the picker
+const AVATAR_IDS = Array.from({ length: AVATAR_COUNT }, (_, i) => i);
 
 interface DecoratedGame {
   game: GameDescriptor;
@@ -197,12 +208,11 @@ class PresenterComponent extends React.Component<
 @observer
 class GameClientComponent extends React.Component<
   { lobbyModel?: LobbyModel },
-  { selectedColor: number; nameRemembered: boolean; popped: boolean[] }
+  { nameRemembered: boolean; popped: boolean[] }
 > {
   constructor(props: { lobbyModel?: LobbyModel }) {
     super(props);
     this.state = {
-      selectedColor: 1,
       nameRemembered: !!props.lobbyModel?.playerName?.trim(),
       popped: new Array(12).fill(false),
     };
@@ -232,11 +242,6 @@ class GameClientComponent extends React.Component<
 
         <PartyBurstLogo size={26} fontSize={45} />
 
-        <div className={styles.clientHeading}>
-          <span className={styles.clientTitle}>Jump in</span>
-          <span className={styles.clientSub}>Grab the code off the big screen</span>
-        </div>
-
         <div className={styles.joinCard}>
           {/* Your name */}
           <div className={styles.field}>
@@ -253,24 +258,13 @@ class GameClientComponent extends React.Component<
               value={lobbyModel.playerName}
               onChange={(ev) => (lobbyModel.playerName = ev.target.value)}
             />
-            {this.state.nameRemembered ? (
-              <button
-                className={styles.resetLink}
-                onClick={() => {
-                  lobbyModel.playerName = "";
-                  this.setState({ nameRemembered: false });
-                }}
-              >
-                not you?
-              </button>
-            ) : null}
           </div>
 
           {/* Avatar */}
           <div className={styles.field}>
             <span className={styles.fieldLabel}>Pick your avatar</span>
-            <div className={styles.avatarGrid}>
-              {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <DragScroller className={styles.avatarGrid}>
+              {AVATAR_IDS.map((i) => (
                 <button
                   key={i}
                   className={classNames(styles.avatarButton, {
@@ -279,30 +273,29 @@ class GameClientComponent extends React.Component<
                   onClick={() => (lobbyModel.avatarId = i)}
                   aria-label={`Avatar ${i + 1}`}
                 >
-                  <PlayerAvatar avatarId={i} />
+                  <PlayerAvatar avatarId={i} colorIndex={lobbyModel.avatarColor} />
                 </button>
               ))}
-            </div>
+            </DragScroller>
           </div>
 
           {/* Color */}
           <div className={styles.field}>
-            <span className={styles.fieldLabel}>…and a color</span>
             <div className={styles.colorGrid}>
-              {TILE_PALETTE.map((color, i) => (
+              {AVATAR_COLORS.map((color, i) => (
                 <button
                   key={color}
                   className={styles.colorSwatch}
                   style={{
                     background: color,
-                    ...(this.state.selectedColor === i
+                    ...(lobbyModel.avatarColor === i
                       ? {
                           boxShadow: `0 0 0 3px #08080d, 0 0 0 6px ${color}`,
                           transform: "scale(1.1)",
                         }
                       : {}),
                   }}
-                  onClick={() => this.setState({ selectedColor: i })}
+                  onClick={() => (lobbyModel.avatarColor = i)}
                   aria-label={`Color ${i + 1}`}
                 />
               ))}
@@ -359,7 +352,6 @@ class GameClientComponent extends React.Component<
 
         {/* Fidget toy */}
         <div className={styles.fidget}>
-          <span className={styles.fidgetLabel}>Bored? Pop 'em while you wait</span>
           <div className={styles.fidgetGrid}>
             {this.state.popped.map((isPopped, i) => (
               <button
@@ -368,13 +360,14 @@ class GameClientComponent extends React.Component<
                   [styles.fidgetPopped]: isPopped,
                 })}
                 style={{ background: TILE_PALETTE[i % TILE_PALETTE.length] }}
-                onClick={() =>
+                onClick={() => {
+                  SafeBrowser.vibrate([12]); // tiny pop
                   this.setState((s) => {
                     const popped = s.popped.slice();
                     popped[i] = !popped[i];
                     return { popped };
-                  })
-                }
+                  });
+                }}
                 aria-label={isPopped ? "Pop back" : "Sink bubble"}
               />
             ))}

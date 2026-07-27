@@ -177,7 +177,12 @@ class GatheringPlayersPage extends React.Component<{ appModel?: OneOhOnePresente
             <div className={styles.divRow}>
               {appModel.players.map((player) => (
                 <div className={styles.nameBox} key={player.playerId}>
-                  <PlayerAvatar avatarId={player.avatarId} size={40} /> {player.name}
+                  <PlayerAvatar
+                    avatarId={player.avatarId}
+                    colorIndex={player.avatarColor}
+                    size={40}
+                  />{" "}
+                  {player.name}
                 </div>
               ))}
             </div>
@@ -291,7 +296,8 @@ class RaceTrack extends React.Component<{
             key={piece.pieceId}
           >
             <div className={styles.laneLabel}>
-              <PlayerAvatar avatarId={piece.avatarId} size={26} /> {piece.name}
+              <PlayerAvatar avatarId={piece.avatarId} colorIndex={piece.avatarColor} size={26} />{" "}
+              {piece.name}
             </div>
             <div className={styles.laneTrack}>
               <div
@@ -303,7 +309,7 @@ class RaceTrack extends React.Component<{
                 className={styles.pieceMarker}
                 style={{ left: pct(animator.positionFor(piece)) }}
               >
-                <PlayerAvatar avatarId={piece.avatarId} size={30} />
+                <PlayerAvatar avatarId={piece.avatarId} colorIndex={piece.avatarColor} size={30} />
               </div>
             </div>
             <div className={styles.laneInfo}>
@@ -381,7 +387,12 @@ class GameOverPage extends React.Component<{
       <div>
         <div className={styles.winnerBanner}>
           {winners.map((w) => (
-            <PlayerAvatar avatarId={w.avatarId} size={64} key={w.pieceId} />
+            <PlayerAvatar
+              avatarId={w.avatarId}
+              colorIndex={w.avatarColor}
+              size={64}
+              key={w.pieceId}
+            />
           ))}{" "}
           🏆{" "}
           {winners.length === 1

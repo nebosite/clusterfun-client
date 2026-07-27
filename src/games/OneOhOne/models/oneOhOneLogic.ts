@@ -23,6 +23,7 @@ export interface GamePiece {
   pieceId: string;
   name: string;
   avatarId: number;
+  avatarColor: number;
   ownerId: string | null;
   attitude: BotAttitude | null;
   position: number;

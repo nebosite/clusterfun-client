@@ -515,8 +515,14 @@
 /* ---- Avatar picker ---- */
 .avatarGrid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, auto);
+  grid-auto-columns: 62px;
   gap: 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
 }
 .avatarButton {
   aspect-ratio: 1 / 1;
@@ -565,7 +571,9 @@
 .codeCells {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  gap: 9px;
+  /* 40% smaller than the full-width original */
+  max-width: 60%;
 }
 .codeCell {
   aspect-ratio: 3 / 4;
@@ -574,7 +582,7 @@
   justify-content: center;
   font-family: var(--mono);
   font-weight: 700;
-  font-size: calc(64px * var(--fs));
+  font-size: calc(38px * var(--fs));
   color: var(--text);
   background: var(--field);
   border: 2px solid var(--border);

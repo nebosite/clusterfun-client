@@ -72,7 +72,12 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
             <div className={styles.divRow}>
               {appModel.players.map((player) => (
                 <div className={styles.nameBox} key={player.playerId}>
-                  <PlayerAvatar avatarId={player.avatarId} size={40} /> {player.name}
+                  <PlayerAvatar
+                    avatarId={player.avatarId}
+                    colorIndex={player.avatarColor}
+                    size={40}
+                  />{" "}
+                  {player.name}
                 </div>
               ))}
             </div>
@@ -133,7 +138,11 @@ class BoardPanel extends React.Component<{
     return (
       <div className={classNames(styles.boardPanel, { [styles.winnerPanel]: isWinner })}>
         <div className={styles.boardLabel} style={{ maxWidth: cellPx * 10 + 8 }}>
-          <PlayerAvatar avatarId={player?.avatarId ?? 0} size={Math.max(18, cellPx * 2)} />
+          <PlayerAvatar
+            avatarId={player?.avatarId ?? 0}
+            colorIndex={player?.avatarColor}
+            size={Math.max(18, cellPx * 2)}
+          />
           <span>{player?.name ?? "?"}</span>
           {targetName ? <span className={styles.targetNote}>⚔ {targetName}</span> : null}
         </div>
@@ -200,7 +209,10 @@ class GameOverPage extends React.Component<{ appModel?: EittrisPresenterModel }>
     return (
       <div>
         <div className={styles.winnerBanner}>
-          {winner ? <PlayerAvatar avatarId={winner.avatarId} size={64} /> : null} 🏆{" "}
+          {winner ? (
+            <PlayerAvatar avatarId={winner.avatarId} colorIndex={winner.avatarColor} size={64} />
+          ) : null}{" "}
+          🏆{" "}
           {appModel.winnerName
             ? `${appModel.winnerName} is the last board standing!`
             : "Game over!"}

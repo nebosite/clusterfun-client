@@ -31,6 +31,8 @@ export class ClusterFunPlayer {
   // The avatar mark the player picked in the lobby (see PlayerAvatar).
   // Games should show this next to the player's name during play.
   @observable avatarId: number = 0;
+  // Palette slot the player picked in the lobby (see AVATAR_COLORS)
+  @observable avatarColor: number = 0;
 }
 
 // -------------------------------------------------------------------
@@ -152,7 +154,7 @@ export abstract class ClusterfunPresenterModel<
   // -------------------------------------------------------------------
   handleJoinMessage = async (
     sender: string,
-    message: { playerName: string; avatarId?: number },
+    message: { playerName: string; avatarId?: number; avatarColor?: number },
   ): Promise<{ isRejoin: boolean; didJoin: boolean; joinError?: string }> => {
     Logger.info(`Join message from ${sender}`);
 
@@ -185,6 +187,7 @@ export abstract class ClusterfunPresenterModel<
       Logger.info(`Returning player: ${returningPlayer.name}`);
       returningPlayer.playerId = sender;
       if (message.avatarId !== undefined) returningPlayer.avatarId = message.avatarId;
+      if (message.avatarColor !== undefined) returningPlayer.avatarColor = message.avatarColor;
       const index = this._exitedPlayers.indexOf(returningPlayer);
       this._exitedPlayers.splice(index, 1);
       this.players.push(returningPlayer);
@@ -208,6 +211,7 @@ export abstract class ClusterfunPresenterModel<
         } else {
           const entry = this.createFreshPlayerEntry(message.playerName, sender);
           entry.avatarId = message.avatarId ?? 0;
+          entry.avatarColor = message.avatarColor ?? 0;
           this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve");
           action(() => {
             this.players.push(entry);

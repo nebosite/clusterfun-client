@@ -60,7 +60,7 @@ class PieceCard extends React.Component<{
     return (
       <div className={styles.pieceCard}>
         <div className={styles.pieceHeader}>
-          <PlayerAvatar avatarId={piece.avatarId} size={36} />
+          <PlayerAvatar avatarId={piece.avatarId} colorIndex={piece.avatarColor} size={36} />
           <span className={styles.pieceName}>{piece.name}</span>
           <span className={styles.piecePosition}>at {piece.position}</span>
         </div>
@@ -111,7 +111,7 @@ class RoundResults extends React.Component<{ appModel?: OneOhOneClientModel }> {
               [styles.moveBad]: result.delta < 0 || result.busted,
             })}
           >
-            <PlayerAvatar avatarId={result.avatarId} size={26} />
+            <PlayerAvatar avatarId={result.avatarId} colorIndex={result.avatarColor} size={26} />
             <span className={styles.resultName}>{result.name}</span>
             <span className={styles.resultText}>
               {describeLastMove(result)} → {result.newPosition}
@@ -247,7 +247,12 @@ export default class Client extends React.Component<{
             <div className={classNames(styles.divRow, styles.topbar)}>
               <span className={classNames(styles.gametitle)}>101</span>
               <span>
-                <PlayerAvatar avatarId={appModel?.avatarId ?? 0} size={40} /> {appModel?.playerName}
+                <PlayerAvatar
+                  avatarId={appModel?.avatarId ?? 0}
+                  colorIndex={appModel?.avatarColor}
+                  size={40}
+                />{" "}
+                {appModel?.playerName}
               </span>
               <button className={classNames(styles.quitbutton)} onClick={() => appModel?.quitApp()}>
                 X

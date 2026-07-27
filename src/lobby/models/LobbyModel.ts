@@ -77,6 +77,17 @@ export class LobbyModel {
     })();
   }
 
+  @observable _avatarColor: number = 0;
+  get avatarColor(): number {
+    return this._avatarColor;
+  }
+  set avatarColor(value: number) {
+    action(() => {
+      this._avatarColor = value;
+      this.saveState();
+    })();
+  }
+
   playerId: string = "";
   @observable _roomId: string = "";
   get roomId(): string {
@@ -158,6 +169,7 @@ export class LobbyModel {
     let tempCount = this._instanceCount + 1;
     this._playerName = sessionStorage.getItem("clusterfun_playername") ?? "";
     this._avatarId = parseInt(sessionStorage.getItem("clusterfun_avatarid") ?? "0") || 0;
+    this._avatarColor = parseInt(sessionStorage.getItem("clusterfun_avatarcolor") ?? "0") || 0;
     this.playerId = "";
     this._roomId = sessionStorage.getItem("clusterfun_roomid") ?? "";
     this.lobbyState = LobbyState.Fresh;
@@ -187,6 +199,7 @@ export class LobbyModel {
       gameProperties: this.gameProperties,
       playerName: this.playerName,
       avatarId: this.avatarId,
+      avatarColor: this.avatarColor,
       messageThing: this._messageThingFactory(this.gameProperties!),
       logger: this.getGameLogger(),
       storage: this._storage,
@@ -278,6 +291,7 @@ export class LobbyModel {
     const state = {
       _playerName: this._playerName,
       _avatarId: this._avatarId,
+      _avatarColor: this._avatarColor,
       playerId: this.playerId,
       _roomId: this._roomId,
       gameProperties: this.gameProperties,
@@ -310,6 +324,7 @@ export class LobbyModel {
   public async joinGame() {
     sessionStorage.setItem("clusterfun_playername", this.playerName);
     sessionStorage.setItem("clusterfun_avatarid", this.avatarId.toString());
+    sessionStorage.setItem("clusterfun_avatarcolor", this.avatarColor.toString());
     sessionStorage.setItem("clusterfun_roomid", this.roomId);
     // Note: this does not establish a web socket
     this._serverCall<GameInstanceProperties>("/api/joingame", {

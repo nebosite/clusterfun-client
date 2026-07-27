@@ -237,6 +237,7 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
           pieceId: `${player.playerId}_p${i}`,
           name: this.piecesPerHuman > 1 ? `${player.name} ${i + 1}` : player.name,
           avatarId: player.avatarId,
+          avatarColor: player.avatarColor,
           ownerId: player.playerId,
           attitude: null,
           position: 0,
@@ -252,6 +253,7 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
         pieceId: `bot_${i}`,
         name: `${attitude} Bot ${i + 1}`,
         avatarId: (newPieces.length + i) % 8,
+        avatarColor: (newPieces.length + i) % 12,
         ownerId: null,
         attitude,
         position: 0,
@@ -335,7 +337,7 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
       const move = moveById.get(p.pieceId)!;
       p.position = move.newPosition;
       p.lastMove = move;
-      summaries.push({ ...move, name: p.name, avatarId: p.avatarId });
+      summaries.push({ ...move, name: p.name, avatarId: p.avatarId, avatarColor: p.avatarColor });
     });
     this.lastResults = summaries;
 
@@ -385,6 +387,7 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
         pieceId: p.pieceId,
         name: p.name,
         avatarId: p.avatarId,
+        avatarColor: p.avatarColor,
         position: p.position,
         guess: p.guess,
         confirmed: p.confirmed,

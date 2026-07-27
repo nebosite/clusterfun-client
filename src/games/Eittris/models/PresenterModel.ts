@@ -450,13 +450,17 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     this._thumbsChanged = false;
 
     const payload = {
-      players: this.boards.map((board): EittrisThumbnailEntry => ({
-        playerId: board.playerId,
-        name: this.players.find((p) => p.playerId === board.playerId)?.name ?? "?",
-        avatarId: this.players.find((p) => p.playerId === board.playerId)?.avatarId ?? 0,
-        alive: board.alive,
-        thumb: encodeThumbnail(board.grid, board.piece),
-      })),
+      players: this.boards.map((board): EittrisThumbnailEntry => {
+        const player = this.players.find((p) => p.playerId === board.playerId);
+        return {
+          playerId: board.playerId,
+          name: player?.name ?? "?",
+          avatarId: player?.avatarId ?? 0,
+          avatarColor: player?.avatarColor ?? 0,
+          alive: board.alive,
+          thumb: encodeThumbnail(board.grid, board.piece),
+        };
+      }),
     };
     this.sendToEveryone(EittrisThumbnailsEndpoint, () => payload);
   }
