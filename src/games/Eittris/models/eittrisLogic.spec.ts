@@ -1,0 +1,600 @@
+import {
+  BACKGROUND_COUNT,
+  BOARD_HEIGHT,
+  BOARD_WIDTH,
+  collides,
+  decodeGrid,
+  decodeThumbnail,
+  dragTowards,
+  EittrisPiece,
+  EMPTY_CELL,
+  emptyGrid,
+  encodeGrid,
+  encodeThumbnail,
+  gravityStep,
+  hardDrop,
+  initTargetRing,
+  isResting,
+  lockAndClear,
+  makeBoard,
+  MIN_INTERVAL_MS,
+  moveTowardColumn,
+  NEXT_PREVIEW_COUNT,
+  nextLivingTarget,
+  PIECE_COLORS,
+  PIECE_COUNT,
+  pieceCells,
+  randomPieceType,
+  rankBoards,
+  retargetOnDeath,
+  scoreForClear,
+  slamHorizontal,
+  SPAWN_X,
+  spawnNextFromQueue,
+  spawnPiece,
+  START_INTERVAL_MS,
+  tryMove,
+  tryRotateCW,
+} from "./eittrisLogic";
+
+// Sorted "x,y" strings for order-independent cell comparison
+function cellKeys(cells: { x: number; y: number }[]): string[] {
+  return cells.map((c) => `${c.x},${c.y}`).sort();
+}
+
+function pieceAt(type: number, rot = 0, x = 0, y = 0): EittrisPiece {
+  return { type, rot, x, y };
+}
+
+// ------------------------------------------------------------------------------------------
+// Shapes + rotation
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - piece shapes and rotation", () => {
+  it("has 7 pieces, each with a color and exactly 4 cells in every rotation", () => {
+    expect(PIECE_COUNT).toBe(7);
+    expect(PIECE_COLORS.length).toBe(7);
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      for (let rot = 0; rot < 4; rot++) {
+        const cells = pieceCells(pieceAt(type, rot));
+        expect(cells.length).toBe(4);
+        // no duplicate cells
+        expect(new Set(cellKeys(cells)).size).toBe(4);
+      }
+    }
+  });
+
+  it("matches the verbatim C# base shapes at rotation 0", () => {
+    expect(cellKeys(pieceCells(pieceAt(0)))).toEqual(
+      cellKeys([
+        { x: -1, y: 0 },
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 0, y: -1 },
+      ]),
+    ); // T
+    expect(cellKeys(pieceCells(pieceAt(1)))).toEqual(
+      cellKeys([
+        { x: 0, y: -1 },
+        { x: 0, y: 0 },
+        { x: 0, y: 1 },
+        { x: 0, y: 2 },
+      ]),
+    ); // I
+    expect(cellKeys(pieceCells(pieceAt(2)))).toEqual(
+      cellKeys([
+        { x: 0, y: -1 },
+        { x: 0, y: 0 },
+        { x: 0, y: 1 },
+        { x: 1, y: 1 },
+      ]),
+    ); // L
+    expect(cellKeys(pieceCells(pieceAt(3)))).toEqual(
+      cellKeys([
+        { x: 0, y: -1 },
+        { x: 0, y: 0 },
+        { x: 0, y: 1 },
+        { x: -1, y: 1 },
+      ]),
+    ); // reverse L
+    expect(cellKeys(pieceCells(pieceAt(4)))).toEqual(
+      cellKeys([
+        { x: 0, y: -1 },
+        { x: 0, y: 0 },
+        { x: -1, y: -1 },
+        { x: 1, y: 0 },
+      ]),
+    ); // Z
+    expect(cellKeys(pieceCells(pieceAt(5)))).toEqual(
+      cellKeys([
+        { x: 0, y: -1 },
+        { x: 0, y: 0 },
+        { x: 1, y: -1 },
+        { x: -1, y: 0 },
+      ]),
+    ); // reverse Z
+    expect(cellKeys(pieceCells(pieceAt(6)))).toEqual(
+      cellKeys([
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 1, y: 1 },
+      ]),
+    ); // O
+  });
+
+  it("R rotation maps (x,y) -> (-y,x): the T's flat row goes vertical", () => {
+    // T rot 1: (-1,0)->(0,-1), (0,0)->(0,0), (1,0)->(0,1), (0,-1)->(1,0)
+    expect(cellKeys(pieceCells(pieceAt(0, 1)))).toEqual(
+      cellKeys([
+        { x: 0, y: -1 },
+        { x: 0, y: 0 },
+        { x: 0, y: 1 },
+        { x: 1, y: 0 },
+      ]),
+    );
+  });
+
+  it("returns to the original shape after 4 clockwise rotations (all pieces)", () => {
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      expect(cellKeys(pieceCells(pieceAt(type, 4)))).toEqual(cellKeys(pieceCells(pieceAt(type))));
+    }
+  });
+
+  it("corner rotation keeps the O piece's footprint identical in every rotation", () => {
+    const base = cellKeys(pieceCells(pieceAt(6, 0)));
+    for (let rot = 1; rot < 4; rot++) {
+      expect(cellKeys(pieceCells(pieceAt(6, rot)))).toEqual(base);
+    }
+  });
+
+  it("every rotation of every piece stays within a 5x5 neighborhood of its origin", () => {
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      for (let rot = 0; rot < 4; rot++) {
+        for (const c of pieceCells(pieceAt(type, rot))) {
+          expect(Math.abs(c.x)).toBeLessThanOrEqual(2);
+          expect(Math.abs(c.y)).toBeLessThanOrEqual(2);
+        }
+      }
+    }
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Collision
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - collision", () => {
+  it("flags out-of-bounds left, right, and bottom", () => {
+    const grid = emptyGrid();
+    expect(collides(grid, [{ x: -1, y: 5 }])).toBe(true);
+    expect(collides(grid, [{ x: BOARD_WIDTH, y: 5 }])).toBe(true);
+    expect(collides(grid, [{ x: 5, y: BOARD_HEIGHT }])).toBe(true);
+    expect(collides(grid, [{ x: 5, y: BOARD_HEIGHT - 1 }])).toBe(false);
+  });
+
+  it("treats cells above the board (y < 0) as legal and non-colliding", () => {
+    const grid = emptyGrid();
+    expect(collides(grid, [{ x: 5, y: -1 }])).toBe(false);
+    expect(collides(grid, [{ x: 5, y: -5 }])).toBe(false);
+  });
+
+  it("flags occupied cells (y >= 0 only)", () => {
+    const grid = emptyGrid();
+    grid[10][4] = 2;
+    expect(collides(grid, [{ x: 4, y: 10 }])).toBe(true);
+    expect(collides(grid, [{ x: 4, y: 9 }])).toBe(false);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Movement
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - movement", () => {
+  it("tryMove refuses a move into the wall (no wall kicks)", () => {
+    const grid = emptyGrid();
+    const atLeftWall = pieceAt(6, 0, 0, 5); // O occupies x 0..1
+    expect(tryMove(grid, atLeftWall, -1, 0)).toBeNull();
+    expect(tryMove(grid, atLeftWall, 1, 0)).not.toBeNull();
+  });
+
+  it("tryRotateCW refuses a blocked rotation and leaves rot unchanged", () => {
+    const grid = emptyGrid();
+    // T at rot 0 occupies (4,5)(5,5)(6,5)(5,4).  Rot 1 needs (5,4)(5,5)(5,6)(6,5).
+    grid[6][5] = 0; // block (5,6)
+    const piece = pieceAt(0, 0, 5, 5);
+    expect(tryRotateCW(grid, piece)).toBeNull();
+    grid[6][5] = EMPTY_CELL;
+    expect(tryRotateCW(grid, piece)?.rot).toBe(1);
+  });
+
+  it("moveTowardColumn follows the target and stops at an obstruction", () => {
+    const grid = emptyGrid();
+    const piece = pieceAt(0, 0, 5, 5); // T, occupies x 4..6
+    expect(moveTowardColumn(grid, piece, 8).x).toBe(8);
+    expect(moveTowardColumn(grid, piece, 1).x).toBe(1);
+    grid[5][8] = 3; // wall at x=8 in the piece's row
+    expect(moveTowardColumn(grid, piece, 9).x).toBe(6); // right edge reaches x=7 -> origin 6
+  });
+
+  it("slamHorizontal runs to the walls", () => {
+    const grid = emptyGrid();
+    const piece = pieceAt(0, 0, 5, 5); // T needs x-1 and x+1 clear
+    expect(slamHorizontal(grid, piece, -1).x).toBe(1);
+    expect(slamHorizontal(grid, piece, 1).x).toBe(8);
+  });
+
+  it("hardDrop reports the rows dropped and rests on the stack", () => {
+    const grid = emptyGrid();
+    const piece = pieceAt(0, 0, 5, 0); // T flat row at y=0
+    const dropped = hardDrop(grid, piece);
+    expect(dropped.piece.y).toBe(BOARD_HEIGHT - 1);
+    expect(dropped.rowsDropped).toBe(BOARD_HEIGHT - 1);
+
+    grid[20][5] = 1; // one block under the center
+    const resting = hardDrop(grid, piece);
+    expect(resting.piece.y).toBe(BOARD_HEIGHT - 2);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Locking, clearing, scoring
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - lock + clear + score", () => {
+  it("scores n*n*1000 for n cleared rows", () => {
+    expect(scoreForClear(0)).toBe(0);
+    expect(scoreForClear(1)).toBe(1000);
+    expect(scoreForClear(2)).toBe(4000);
+    expect(scoreForClear(3)).toBe(9000);
+    expect(scoreForClear(4)).toBe(16000);
+  });
+
+  it("locks a piece into the grid without clearing anything", () => {
+    const grid = emptyGrid();
+    const result = lockAndClear(grid, pieceAt(0, 0, 5, BOARD_HEIGHT - 1));
+    expect(result.cleared).toBe(0);
+    expect(result.scoreGained).toBe(0);
+    expect(result.grid[BOARD_HEIGHT - 1][4]).toBe(0);
+    expect(result.grid[BOARD_HEIGHT - 1][5]).toBe(0);
+    expect(result.grid[BOARD_HEIGHT - 1][6]).toBe(0);
+    expect(result.grid[BOARD_HEIGHT - 2][5]).toBe(0);
+    // the input grid is untouched (pure)
+    expect(grid[BOARD_HEIGHT - 1][5]).toBe(EMPTY_CELL);
+  });
+
+  it("discards locked cells above the top of the board", () => {
+    const grid = emptyGrid();
+    // I piece vertical at y=0 spans y -1..2; the y=-1 cell just disappears
+    const result = lockAndClear(grid, pieceAt(1, 0, 5, 0));
+    expect(result.grid[0][5]).toBe(1);
+    expect(result.grid[1][5]).toBe(1);
+    expect(result.grid[2][5]).toBe(1);
+    expect(result.grid.length).toBe(BOARD_HEIGHT);
+  });
+
+  it("clears a single full row and shifts the stack down", () => {
+    const grid = emptyGrid();
+    for (let x = 0; x < BOARD_WIDTH; x++) if (x < 4 || x > 6) grid[20][x] = 1;
+    grid[19][0] = 2; // a marker block above the full row
+
+    // T lands flat filling (4..6, 20) with its bump at (5,19)
+    const result = lockAndClear(grid, pieceAt(0, 0, 5, 20));
+    expect(result.cleared).toBe(1);
+    expect(result.scoreGained).toBe(1000);
+    // row 20 cleared; the marker and the T bump shifted down one row
+    expect(result.grid[20][0]).toBe(2);
+    expect(result.grid[20][5]).toBe(0);
+    expect(result.grid[20][1]).toBe(EMPTY_CELL);
+  });
+
+  it("clears four rows at once with the I piece (16000 points)", () => {
+    const grid = emptyGrid();
+    for (let y = 17; y <= 20; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) if (x !== 9) grid[y][x] = 1;
+    }
+    // vertical I at x=9 fills rows 17..20 (y=18 spans y-1..y+2)
+    const result = lockAndClear(grid, pieceAt(1, 0, 9, 18));
+    expect(result.cleared).toBe(4);
+    expect(result.scoreGained).toBe(16000);
+    expect(result.grid.every((row) => row.every((cell) => cell === EMPTY_CELL))).toBe(true);
+  });
+
+  it("clears non-adjacent full rows atomically", () => {
+    const grid = emptyGrid();
+    for (let x = 1; x < BOARD_WIDTH; x++) {
+      grid[18][x] = 1; // row 18: missing only x=0
+      if (x !== 5) grid[19][x] = 2; // row 19: missing x=0 AND x=5 - stays partial
+      grid[20][x] = 3; // row 20: missing only x=0
+    }
+
+    // vertical I at x=0, y=18 fills (0,17)(0,18)(0,19)(0,20): completes rows 18 and 20
+    const result = lockAndClear(grid, pieceAt(1, 0, 0, 18));
+    expect(result.cleared).toBe(2);
+    expect(result.scoreGained).toBe(4000);
+    // the partial row 19 survives (with the I's cell at x=0), now at the bottom
+    expect(result.grid[20][0]).toBe(1);
+    expect(result.grid[20][1]).toBe(2);
+    expect(result.grid[20][5]).toBe(EMPTY_CELL);
+    // old row 17's lone I cell lands just above it
+    expect(result.grid[19][0]).toBe(1);
+    expect(result.grid[19][1]).toBe(EMPTY_CELL);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Gravity curve
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - gravity curve", () => {
+  it("decays exponentially above the knee", () => {
+    const next = gravityStep(1000, 1);
+    expect(next).toBeCloseTo(1000 * Math.exp(-0.006), 6);
+  });
+
+  it("decays linearly (3 ms per second) below the knee", () => {
+    expect(gravityStep(400, 2)).toBeCloseTo(400 - 6, 6);
+  });
+
+  it("is monotonically decreasing over a long simulated game", () => {
+    let interval = START_INTERVAL_MS;
+    let previous = interval;
+    for (let t = 0; t < 1000; t++) {
+      // 1000 seconds in 1s steps - well past the clamp
+      interval = gravityStep(interval, 1);
+      expect(interval).toBeLessThanOrEqual(previous);
+      previous = interval;
+    }
+    expect(interval).toBe(MIN_INTERVAL_MS);
+  });
+
+  it("clamps at the minimum interval", () => {
+    expect(gravityStep(MIN_INTERVAL_MS, 10)).toBe(MIN_INTERVAL_MS);
+    expect(gravityStep(81, 100)).toBe(MIN_INTERVAL_MS);
+  });
+
+  it("reaches ~0.5s from 1.0s in about two minutes (design ballpark)", () => {
+    let interval = START_INTERVAL_MS;
+    let seconds = 0;
+    while (interval > 500 && seconds < 500) {
+      interval = gravityStep(interval, 1);
+      seconds++;
+    }
+    expect(seconds).toBeGreaterThan(90);
+    expect(seconds).toBeLessThan(140);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Spawning + queue
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - spawning", () => {
+  it("spawns at column 5, row 0, with the requested rotation normalized", () => {
+    const piece = spawnPiece(3, 5);
+    expect(piece.x).toBe(SPAWN_X);
+    expect(piece.y).toBe(0);
+    expect(piece.rot).toBe(1);
+  });
+
+  it("randomPieceType covers all 7 types uniformly at the boundaries", () => {
+    expect(randomPieceType(() => 0)).toBe(0);
+    expect(randomPieceType(() => 0.999999)).toBe(6);
+  });
+
+  it("spawnNextFromQueue consumes the head and keeps the preview stocked", () => {
+    let calls = 0;
+    const rand = () => {
+      // types 2 then rotation etc - just cycle small values
+      calls++;
+      return 0.3;
+    };
+    const first = spawnNextFromQueue([4, 5], rand);
+    expect(first.piece.type).toBe(4);
+    expect(first.queue.length).toBe(NEXT_PREVIEW_COUNT);
+    expect(first.queue[0]).toBe(5);
+    expect(calls).toBeGreaterThan(0);
+  });
+
+  it("a fresh spawn into a blocked spawn area collides (board death condition)", () => {
+    const grid = emptyGrid();
+    grid[0][5] = 2;
+    const piece = spawnPiece(0, 0); // T occupies (4,0)(5,0)(6,0)(5,-1)
+    expect(collides(grid, pieceCells(piece))).toBe(true);
+  });
+
+  it("makeBoard builds a live board with a piece, a stocked queue, and a background", () => {
+    const board = makeBoard("p1", () => 0.1);
+    expect(board.alive).toBe(true);
+    expect(board.piece).not.toBeNull();
+    expect(board.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
+    expect(board.intervalMs).toBe(START_INTERVAL_MS);
+    expect(board.grid.length).toBe(BOARD_HEIGHT);
+    expect(board.grid[0].length).toBe(BOARD_WIDTH);
+    expect(board.backgroundIndex).toBeGreaterThanOrEqual(0);
+    expect(board.backgroundIndex).toBeLessThan(BACKGROUND_COUNT);
+    expect(board.targetId).toBeNull();
+    expect(board.pieceSeq).toBe(1);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Ranking
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - rankBoards", () => {
+  function board(playerId: string, alive: boolean, deathOrder: number, score: number) {
+    return { ...makeBoard(playerId, () => 0), alive, deathOrder, score };
+  }
+
+  it("ranks survivors first (by score), then later deaths, then score", () => {
+    const ranked = rankBoards([
+      board("earlyDeath", false, 1, 99999),
+      board("survivor", true, 0, 100),
+      board("lateDeath", false, 2, 50),
+    ]);
+    expect(ranked.map((b) => b.playerId)).toEqual(["survivor", "lateDeath", "earlyDeath"]);
+  });
+
+  it("breaks a same-death-order tie by score", () => {
+    const ranked = rankBoards([board("low", false, 1, 100), board("high", false, 1, 2000)]);
+    expect(ranked[0].playerId).toBe("high");
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Free 2D drag
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - dragTowards", () => {
+  it("moves horizontally AND down at once toward the target", () => {
+    const grid = emptyGrid();
+    const result = dragTowards(grid, pieceAt(0, 0, 5, 5), 8, 8);
+    expect(result.piece.x).toBe(8);
+    expect(result.piece.y).toBe(8);
+    expect(result.rowsDescended).toBe(3);
+  });
+
+  it("never moves up (a target row above the piece is ignored)", () => {
+    const grid = emptyGrid();
+    const result = dragTowards(grid, pieceAt(0, 0, 5, 5), 7, 2);
+    expect(result.piece.x).toBe(7);
+    expect(result.piece.y).toBe(5);
+    expect(result.rowsDescended).toBe(0);
+  });
+
+  it("stops at a horizontal obstruction when it cannot descend past it", () => {
+    const grid = emptyGrid();
+    grid[5][8] = 1; // blocks the T (occupies x-1..x+1) from reaching x=7 at y=5
+    const result = dragTowards(grid, pieceAt(0, 0, 5, 5), 8, 5);
+    expect(result.piece.x).toBe(6);
+    expect(result.piece.y).toBe(5);
+  });
+
+  it("navigates around an obstruction by descending below it", () => {
+    const grid = emptyGrid();
+    grid[5][8] = 1; // same wall, but the drag also goes down
+    const result = dragTowards(grid, pieceAt(0, 0, 5, 5), 8, 8);
+    expect(result.piece.x).toBe(8);
+    expect(result.piece.y).toBe(8);
+  });
+
+  it("stops descending on the stack but keeps sliding sideways - and does NOT lock", () => {
+    const grid = emptyGrid();
+    for (let x = 0; x < BOARD_WIDTH; x++) grid[8][x] = 2; // a full shelf at row 8
+    const result = dragTowards(grid, pieceAt(0, 0, 5, 5), 8, 15);
+    expect(result.piece.y).toBe(7); // resting on the shelf
+    expect(result.piece.x).toBe(8);
+    expect(result.rowsDescended).toBe(2);
+    // still a live piece - locking is the caller's decision (release/gravity)
+    expect(isResting(grid, result.piece)).toBe(true);
+  });
+});
+
+describe("eittrisLogic - isResting", () => {
+  it("is false in open air and true on the floor or the stack", () => {
+    const grid = emptyGrid();
+    expect(isResting(grid, pieceAt(0, 0, 5, 5))).toBe(false);
+    expect(isResting(grid, pieceAt(0, 0, 5, BOARD_HEIGHT - 1))).toBe(true);
+    grid[6][5] = 1; // block right under the T's center
+    expect(isResting(grid, pieceAt(0, 0, 5, 5))).toBe(true);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Target targeting
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - target targeting", () => {
+  function boardsFor(ids: string[]) {
+    return ids.map((id) => makeBoard(id, () => 0));
+  }
+
+  it("initTargetRing points each player at the next one (and null when solo)", () => {
+    const boards = boardsFor(["A", "B", "C"]);
+    initTargetRing(boards);
+    expect(boards.map((b) => b.targetId)).toEqual(["B", "C", "A"]);
+
+    const solo = boardsFor(["A"]);
+    initTargetRing(solo);
+    expect(solo[0].targetId).toBeNull();
+  });
+
+  it("nextLivingTarget walks the ring, skipping the dead and self", () => {
+    const ring = ["A", "B", "C", "D"];
+    expect(nextLivingTarget(ring, new Set(["A", "C"]), "A", "B")).toBe("C");
+    expect(nextLivingTarget(ring, new Set(["A", "D"]), "A", "B")).toBe("D");
+    // nobody left but me
+    expect(nextLivingTarget(["A", "B"], new Set(["A"]), "A", "B")).toBeNull();
+    // unknown fromId
+    expect(nextLivingTarget(ring, new Set(ring), "A", "ghost")).toBeNull();
+  });
+
+  it("retargetOnDeath re-aims every board that targeted the dead player", () => {
+    const boards = boardsFor(["A", "B", "C"]);
+    initTargetRing(boards); // A->B, B->C, C->A
+    boards[1].alive = false; // B dies
+    const changed = retargetOnDeath(boards, "B");
+    expect(changed).toEqual(["A"]);
+    expect(boards[0].targetId).toBe("C"); // A re-aims past dead B
+    expect(boards[1].targetId).toBe("C"); // B (dead) untouched - wasn't targeting B
+    expect(boards[2].targetId).toBe("A");
+  });
+
+  it("retargets to null when the dead target was the last other player", () => {
+    const boards = boardsFor(["A", "B"]);
+    initTargetRing(boards); // A->B, B->A
+    boards[1].alive = false;
+    retargetOnDeath(boards, "B");
+    expect(boards[0].targetId).toBeNull();
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// 1-bit thumbnails
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - thumbnails", () => {
+  it("encodes 210 cells into a 36-char base64 string and round-trips", () => {
+    const grid = emptyGrid();
+    grid[20][0] = 1;
+    grid[20][9] = 2;
+    grid[10][5] = 3;
+    const piece = pieceAt(0, 0, 5, 5); // adds (4,5)(5,5)(6,5)(5,4)
+
+    const thumb = encodeThumbnail(grid, piece);
+    expect(thumb.length).toBe(36);
+    expect(thumb).toMatch(/^[A-Za-z0-9+/]+$/);
+
+    const cells = decodeThumbnail(thumb);
+    expect(cells.length).toBe(BOARD_WIDTH * BOARD_HEIGHT);
+    const on = (x: number, y: number) => cells[y * BOARD_WIDTH + x];
+    expect(on(0, 20)).toBe(true); // settled cells
+    expect(on(9, 20)).toBe(true);
+    expect(on(5, 10)).toBe(true);
+    expect(on(4, 5)).toBe(true); // current-piece cells
+    expect(on(5, 5)).toBe(true);
+    expect(on(6, 5)).toBe(true);
+    expect(on(5, 4)).toBe(true);
+    expect(cells.filter(Boolean).length).toBe(7);
+  });
+
+  it("an empty board with no piece is all zeros", () => {
+    const thumb = encodeThumbnail(emptyGrid(), null);
+    expect(thumb).toBe("A".repeat(36)); // base64 'A' = 000000
+    expect(decodeThumbnail(thumb).every((cell) => !cell)).toBe(true);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Wire encoding
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - grid encoding", () => {
+  it("encodes to a 210-char string and round-trips", () => {
+    const grid = emptyGrid();
+    grid[0][0] = 0;
+    grid[10][5] = 6;
+    grid[20][9] = 3;
+    const encoded = encodeGrid(grid);
+    expect(encoded.length).toBe(BOARD_WIDTH * BOARD_HEIGHT);
+    expect(encoded[0]).toBe("0");
+    expect(encoded[10 * BOARD_WIDTH + 5]).toBe("6");
+    expect(encoded[20 * BOARD_WIDTH + 9]).toBe("3");
+    expect(decodeGrid(encoded)).toEqual(grid);
+  });
+
+  it("an empty grid is all dots", () => {
+    expect(encodeGrid(emptyGrid())).toBe(".".repeat(BOARD_WIDTH * BOARD_HEIGHT));
+  });
+});

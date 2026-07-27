@@ -97,6 +97,14 @@ const KNOWN: Record<string, Partial<GamePresentation>> = {
     playTime: "10m",
     thumbKind: "bars",
   },
+  Eittris: {
+    category: "Party",
+    blurb:
+      "Frenetic block-stacking battle: everyone runs a board from their phone — last one standing wins.",
+    players: "2–16",
+    playTime: "10m",
+    thumbKind: "bars",
+  },
 };
 
 // Two-letter monogram from the display name: initials of the first two

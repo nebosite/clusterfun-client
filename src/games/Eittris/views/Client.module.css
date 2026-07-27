@@ -1,0 +1,209 @@
+/* Overall Formatting */
+.gameclient {
+  width: 100%;
+  height: 100%;
+  background-color: rgb(43, 65, 98);
+  color: #eeeeee;
+  overflow: hidden;
+  font-size: 55px;
+  font-family: sans-serif;
+}
+
+.gameclient button {
+  font-size: 100%;
+  padding: 15px;
+  margin: 5px;
+}
+
+.gameclient .divRow {
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+.gameclient .gametitle {
+  font-weight: 800;
+}
+
+.gameclient .topbar {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding-top: 15px;
+}
+
+.gameclient .quitbutton {
+  font-size: 40px;
+  font-weight: 800;
+  padding: 0;
+  width: 100px;
+  margin: 0;
+}
+
+.gameclient .wait_text {
+  font-size: 90%;
+}
+
+.gameclient .instructions {
+  background: #1b2a42;
+  border: 2px solid #4d648a;
+  border-radius: 16px;
+  padding: 10px 30px;
+  font-size: 60%;
+  margin-top: 40px;
+}
+
+/* ---- The player's board ---- */
+
+.gameclient .statusRow {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  font-size: 70%;
+  margin-bottom: 18px;
+}
+
+.gameclient .score {
+  font-weight: 800;
+  color: #ffd34e;
+}
+
+.gameclient .nextLabel {
+  margin-left: auto;
+  font-size: 80%;
+  color: #b8c4d8;
+}
+
+.gameclient .boardArea {
+  position: relative;
+  display: inline-block;
+  border: 4px solid #4d648a;
+  border-radius: 6px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.gameclient .toppedOut {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-18deg);
+  font-weight: 900;
+  color: #ff9090;
+  text-shadow: 0 0 12px #000;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.gameclient .hintRow {
+  font-size: 40%;
+  color: #b8c4d8;
+  margin-top: 14px;
+}
+
+/* ---- Board + target list side by side ---- */
+
+.gameclient .boardRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.gameclient .targetList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 1390px;
+  overflow-y: auto;
+  flex: 1;
+  min-width: 0;
+}
+
+.gameclient .targetEntry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #1b2a42;
+  border: 4px solid #4d648a;
+  border-radius: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.gameclient .targetCurrent {
+  border-color: #ff4d4d;
+  background: rgba(255, 77, 77, 0.15);
+}
+
+.gameclient .targetDead {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* Stacked so the name still reads in the narrower column beside the
+   larger board */
+.gameclient .targetInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 55%;
+  min-width: 0;
+}
+
+.gameclient .targetName {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gameclient .targetTag {
+  color: #ff4d4d;
+  font-weight: 900;
+  font-size: 80%;
+}
+
+.gameclient .targetDeadTag {
+  color: #b8c4d8;
+  font-weight: 900;
+  font-size: 80%;
+}
+
+.gameclient .thumbCanvas {
+  image-rendering: pixelated;
+  width: 60px;
+  height: 126px;
+  border: 2px solid #4d648a;
+  background: #0a1220;
+  flex-shrink: 0;
+}
+
+/* ---- Win celebration ---- */
+
+.gameclient .celebration {
+  text-align: center;
+}
+
+.gameclient .celebrationTrophy {
+  font-size: 300px;
+  margin-top: 120px;
+  animation: trophyPulse 0.8s ease-in-out infinite alternate;
+}
+
+.gameclient .celebrationText {
+  font-size: 130px;
+  font-weight: 900;
+  color: #ffd34e;
+  animation: trophyPulse 0.8s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes trophyPulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.15);
+  }
+}

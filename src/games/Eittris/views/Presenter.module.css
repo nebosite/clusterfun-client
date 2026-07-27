@@ -1,0 +1,133 @@
+.gamepresenter {
+  width: 100%;
+  height: 100%;
+  background-color: rgb(43, 65, 98);
+  color: #eeeeee;
+  overflow: hidden;
+  font-size: 32px;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.gamepresenter button {
+  font-size: 100%;
+  padding: 5px 15px;
+}
+
+.gamepresenter .divRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.gamepresenter .nameBox {
+  padding: 10px 20px;
+}
+
+.gamepresenter .roomCode {
+  margin-right: 50px;
+}
+
+.gamepresenter .presenterButton {
+  font-size: 120%;
+  margin-top: 20px;
+}
+
+.gamepresenter .instructions {
+  background: #1b2a42;
+  border: 1px solid #4d648a;
+  border-radius: 10px;
+  padding: 6px 20px;
+  font-size: 75%;
+  margin: 12px 0;
+}
+
+.gamepresenter .instructions ul {
+  margin: 8px 0;
+}
+
+.gamepresenter .roundHeader {
+  font-size: 90%;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+/* ---- The wall of boards ---- */
+
+.gamepresenter .boardsRow {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.gamepresenter .boardPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.gamepresenter .boardLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 55%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gamepresenter .boardHolder {
+  position: relative;
+}
+
+.gamepresenter .targetNote {
+  color: #ff9090;
+  font-size: 80%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gamepresenter .toppedOut {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-18deg);
+  font-size: 55%;
+  font-weight: 900;
+  color: #ff9090;
+  text-shadow: 0 0 8px #000;
+  white-space: nowrap;
+}
+
+.gamepresenter .boardScore {
+  font-size: 50%;
+  color: #b8c4d8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gamepresenter .winnerPanel {
+  outline: 4px solid #48e148;
+  outline-offset: 4px;
+  border-radius: 6px;
+  animation: winnerPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes winnerPulse {
+  from {
+    background: rgba(72, 225, 72, 0.05);
+  }
+  to {
+    background: rgba(72, 225, 72, 0.25);
+  }
+}
+
+.gamepresenter .winnerBanner {
+  font-size: 140%;
+  font-weight: 700;
+  padding: 10px 0 20px 0;
+}

@@ -67,23 +67,43 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
     onfulfilled?: ((value: RESPONSE) => TResult1 | PromiseLike<TResult1>) | null | undefined,
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,
   ): PromiseLike<TResult1 | TResult2> {
-    if (this._state === RequestState.Resolved && onfulfilled) {
-      return Promise.resolve(onfulfilled(this._response!));
-    } else if (this._state === RequestState.Rejected && onrejected) {
-      return Promise.reject(onrejected(this._error!));
+    // Standard Promise semantics: a rejection handler RECOVERS (the derived
+    // promise resolves with its return value), a missing handler propagates
+    // the settlement, and a handler that throws rejects the derived promise.
+    if (this._state === RequestState.Resolved) {
+      return onfulfilled
+        ? Promise.resolve().then(() => onfulfilled(this._response!))
+        : (Promise.resolve(this._response!) as unknown as PromiseLike<TResult1>);
+    }
+    if (this._state === RequestState.Rejected) {
+      return onrejected
+        ? Promise.resolve().then(() => onrejected(this._error!))
+        : Promise.reject(this._error);
     }
 
-    return new Promise<TResult1>((resolve, reject) => {
-      if (onfulfilled) {
-        this._fulfilledCallbacks!.push((value: RESPONSE) => {
-          resolve(onfulfilled(value));
-        });
-      }
-      if (onrejected) {
-        this._rejectedCallbacks!.push((error: any) => {
-          reject(onrejected(error));
-        });
-      }
+    return new Promise<TResult1 | TResult2>((resolve, reject) => {
+      this._fulfilledCallbacks!.push((value: RESPONSE) => {
+        if (onfulfilled) {
+          try {
+            resolve(onfulfilled(value));
+          } catch (err) {
+            reject(err);
+          }
+        } else {
+          resolve(value as unknown as TResult1);
+        }
+      });
+      this._rejectedCallbacks!.push((error: any) => {
+        if (onrejected) {
+          try {
+            resolve(onrejected(error));
+          } catch (err) {
+            reject(err);
+          }
+        } else {
+          reject(error);
+        }
+      });
     });
   }
 
