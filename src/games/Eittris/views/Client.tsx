@@ -48,7 +48,10 @@ const THUMB_CELL_PX = 3; // target-list thumbnail cell size
 // Mouse and touch both arrive as pointer events.
 // -------------------------------------------------------------------
 class GestureTracker {
-  private active = false;
+  // The pointer that owns the gesture in flight.  null means "no gesture" -
+  // a NEW gesture can only start from a fresh pointer-down, so nothing can
+  // ever carry over from the previous press.
+  private pointerId: number | null = null;
   private startX = 0;
   private startY = 0;
   private startTime = 0;
@@ -68,7 +71,10 @@ class GestureTracker {
   constructor(private model: EittrisClientModel) {}
 
   down(e: React.PointerEvent, boardRect: DOMRect | null) {
-    this.active = true;
+    // One gesture at a time: ignore extra pointers (and any stray down that
+    // arrives while a press is still unresolved)
+    if (this.pointerId !== null) return;
+    this.pointerId = e.pointerId;
     this.stale = false;
     this.startX = e.clientX;
     this.startY = e.clientY;
@@ -84,6 +90,15 @@ class GestureTracker {
     this.cellHeightPx = (boardRect?.height ?? BOARD_HEIGHT * CELL_PX) / BOARD_HEIGHT;
   }
 
+  // End the gesture.  Until the next pointer-down, every event is ignored.
+  private end() {
+    this.pointerId = null;
+    this.stale = false;
+    this.dragSent = false;
+    this.lastSentColumn = null;
+    this.lastSentRow = null;
+  }
+
   // The piece we were steering is gone (locked by gravity, a release, or a
   // slam) - ignore the rest of this gesture until the finger lifts
   private checkStale(): boolean {
@@ -96,7 +111,15 @@ class GestureTracker {
   }
 
   move(e: React.PointerEvent) {
-    if (!this.active || this.checkStale()) return;
+    if (this.pointerId !== e.pointerId) return;
+    // With a mouse, pointermove keeps firing after the button is released.
+    // If we ever miss a pointerup (lost capture, released off-element), this
+    // catches it so the gesture can't run on into the next piece.
+    if (e.buttons === 0) {
+      this.end();
+      return;
+    }
+    if (this.checkStale()) return;
     const dx = e.clientX - this.startX;
     const dy = e.clientY - this.startY;
     if (!this.dragSent && Math.hypot(dx, dy) < DRAG_ACTIVATION_PX) return;
@@ -113,15 +136,20 @@ class GestureTracker {
   }
 
   up(e: React.PointerEvent) {
-    if (!this.active) return;
-    this.active = false;
-    // The piece was placed mid-gesture: swallow the flick/tap/release so it
-    // can't act on the piece that just spawned
-    if (this.checkStale()) return;
+    if (this.pointerId !== e.pointerId) return;
+    const wasStale = this.checkStale();
+    const dragSent = this.dragSent;
     const dx = e.clientX - this.startX;
     const dy = e.clientY - this.startY;
     const duration = performance.now() - this.startTime;
     const distance = Math.hypot(dx, dy);
+    // Close the gesture FIRST - whatever we send below is the last thing this
+    // press can do
+    this.end();
+
+    // The piece was placed mid-gesture: swallow the flick/tap/release so it
+    // can't act on the piece that just spawned
+    if (wasStale) return;
 
     // A fast far swipe is a flick - it replaces the release
     if (duration < FLICK_MAX_DURATION_MS && distance > FLICK_MIN_DISTANCE_PX) {
@@ -143,11 +171,11 @@ class GestureTracker {
     }
 
     // Otherwise end the drag: lock if resting, else resume gravity
-    if (this.dragSent) this.model.release();
+    if (dragSent) this.model.release();
   }
 
   cancel() {
-    this.active = false;
+    this.end();
   }
 }
 
@@ -300,12 +328,21 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
             ref={this.boardRef}
             className={styles.boardArea}
             onPointerDown={(e) => {
-              e.currentTarget.setPointerCapture(e.pointerId);
+              // Capture keeps move/up coming to this element even if the
+              // finger leaves the board - best-effort, never fatal
+              try {
+                e.currentTarget.setPointerCapture(e.pointerId);
+              } catch {
+                /* ignore */
+              }
               this.tracker.down(e, this.boardRef.current?.getBoundingClientRect() ?? null);
             }}
             onPointerMove={(e) => this.tracker.move(e)}
             onPointerUp={(e) => this.tracker.up(e)}
             onPointerCancel={() => this.tracker.cancel()}
+            // If capture is lost mid-gesture (re-render, browser quirk), drop
+            // the gesture rather than letting it run on
+            onLostPointerCapture={() => this.tracker.cancel()}
           >
             <BoardGrid
               grid={grid}
