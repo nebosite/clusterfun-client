@@ -46,7 +46,7 @@ import {
   tryMove,
   tryRotateCW,
 } from "./eittrisLogic";
-import { THUMBNAIL_INTERVAL_MS } from "./GameSettings";
+import { SPAWN_DELAY_MS, THUMBNAIL_INTERVAL_MS } from "./GameSettings";
 
 export class EittrisPlayer extends ClusterFunPlayer {}
 
@@ -259,7 +259,20 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // simulateBoard - gravity acceleration + due gravity steps for one board.
   // -------------------------------------------------------------------
   private simulateBoard(board: EittrisBoard, dtMs: number) {
-    if (!board.alive || !board.piece) return;
+    if (!board.alive) return;
+
+    // The board is in the post-lock gap: nothing falls, and no command can
+    // touch anything, until the next piece appears.
+    if (!board.piece) {
+      if (board.spawnDelayMs > 0) {
+        board.spawnDelayMs -= dtMs;
+        if (board.spawnDelayMs <= 0) {
+          board.spawnDelayMs = 0;
+          this.spawnNextPiece(board);
+        }
+      }
+      return;
+    }
 
     board.intervalMs = gravityStep(board.intervalMs, dtMs / 1000);
     board.dropTimerMs += dtMs;
@@ -295,15 +308,31 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       this.invokeEvent(EittrisGameEvent.RowsCleared, board.playerId, result.cleared);
     }
 
+    // Open the no-piece gap.  The next piece appears SPAWN_DELAY_MS later,
+    // which gives any in-flight gesture nothing to act on (see DESIGN.md).
+    board.piece = null;
+    board.dropTimerMs = 0;
+    board.spawnDelayMs = SPAWN_DELAY_MS;
+    board.pieceSeq++; // phones end any in-flight gesture on this piece
+
+    this.dirtyPlayerIds.add(board.playerId);
+    this.saveCheckpoint();
+  }
+
+  // -------------------------------------------------------------------
+  // spawnNextPiece - the gap expired: bring in the next piece.  A spawn
+  // that immediately collides kills the board (and every board targeting
+  // it re-aims at the next living player).
+  // -------------------------------------------------------------------
+  private spawnNextPiece(board: EittrisBoard) {
     const spawned = spawnNextFromQueue(board.nextQueue, () => this.randomDouble(1.0));
     board.nextQueue = spawned.queue;
     board.dropTimerMs = 0;
-    board.pieceSeq++; // phones end any in-flight gesture on this piece
+    board.pieceSeq++;
     if (collides(board.grid, pieceCells(spawned.piece))) {
       board.piece = null;
       board.alive = false;
       board.deathOrder = ++this.deathCount;
-      // Everyone aiming at the dead board re-targets; their phones need to know
       for (const changedId of retargetOnDeath(this.boards.slice(), board.playerId)) {
         this.dirtyPlayerIds.add(changedId);
       }
@@ -350,10 +379,35 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // handleCommand - apply a phone gesture to the sender's board.  All
   // rule decisions delegate to the pure logic module.
   // -------------------------------------------------------------------
+  // -------------------------------------------------------------------
+  // applyPickTarget - aim this board at another living player.  Returns
+  // whether anything changed.
+  // -------------------------------------------------------------------
+  private applyPickTarget(board: EittrisBoard, targetId: string): boolean {
+    const target = this.boards.find((b) => b.playerId === targetId);
+    if (!target || !target.alive || target.playerId === board.playerId) return false;
+    board.targetId = target.playerId;
+    this.saveCheckpoint();
+    return true;
+  }
+
   handleCommand = (sender: string, message: EittrisCommandMessage): void => {
     if (this.gameState !== EittrisGameState.Playing) return;
     const board = this.boards.find((b) => b.playerId === sender);
-    if (!board || !board.alive || !board.piece) return;
+    if (!board || !board.alive) return;
+
+    // Targeting doesn't touch the falling piece, so it works even in the
+    // post-lock gap
+    if (message.command === "pickTarget") {
+      if (message.targetId !== undefined && this.applyPickTarget(board, message.targetId)) {
+        this.dirtyPlayerIds.add(board.playerId);
+      }
+      return;
+    }
+
+    // Everything else needs a live piece.  During the spawn gap there is
+    // none, so stray commands from a finished gesture simply evaporate.
+    if (!board.piece) return;
 
     let changed = false;
     switch (message.command) {
@@ -403,15 +457,6 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
         if (rotated) {
           board.piece = rotated;
           changed = true;
-        }
-        break;
-      }
-      case "pickTarget": {
-        const target = this.boards.find((b) => b.playerId === message.targetId);
-        if (target && target.alive && target.playerId !== sender) {
-          board.targetId = target.playerId;
-          changed = true;
-          this.saveCheckpoint();
         }
         break;
       }

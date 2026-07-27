@@ -76,6 +76,9 @@ class GestureTracker {
   constructor(private model: EittrisClientModel) {}
 
   down(e: React.PointerEvent, boardRect: DOMRect | null) {
+    // No piece on the board (the post-lock spawn gap): accept nothing at
+    // all until the next piece appears
+    if (!this.model.piece) return;
     // A second finger during a gesture is ignored.  A press from the SAME
     // pointer (a mouse always reuses id 1) means the previous gesture is
     // definitively over, so start fresh rather than resuming a stale one.
@@ -109,7 +112,8 @@ class GestureTracker {
   // slam) - ignore the rest of this gesture until the finger lifts
   private checkStale(): boolean {
     if (this.stale) return true;
-    if (this.model.pieceSeq !== this.startPieceSeq) {
+    // No piece at all (spawn gap), or a different piece than we started on
+    if (!this.model.piece || this.model.pieceSeq !== this.startPieceSeq) {
       this.stale = true;
       return true;
     }

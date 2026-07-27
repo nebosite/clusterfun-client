@@ -9,6 +9,7 @@ import {
   getEittrisPresenterTypeHelper,
 } from "./PresenterModel";
 import { BOARD_HEIGHT, BOARD_WIDTH, EMPTY_CELL, START_INTERVAL_MS } from "./eittrisLogic";
+import { SPAWN_DELAY_MS } from "./GameSettings";
 
 // -------------------------------------------------------------------
 // A light integration test that drives the real presenter model through its
@@ -125,7 +126,10 @@ describe("EittrisPresenterModel - commands", () => {
 
     model.handleCommand("A", { command: "release" });
     expect(board.grid[BOARD_HEIGHT - 1][5]).toBe(0); // now it's settled
-    expect(board.piece!.y).toBe(0); // and a fresh piece spawned
+    // ...and the board sits empty through the spawn gap (no input possible)
+    expect(board.piece).toBeNull();
+    tickTo(model, SPAWN_DELAY_MS + 20);
+    expect(board.piece!.y).toBe(0); // then a fresh piece appears at the top
   });
 
   it("release on an airborne piece does nothing (gravity just resumes)", () => {
@@ -164,9 +168,33 @@ describe("EittrisPresenterModel - commands", () => {
     expect(board.grid[BOARD_HEIGHT - 1][5]).toBe(0);
     expect(board.grid[BOARD_HEIGHT - 1][6]).toBe(0);
     expect(board.grid[BOARD_HEIGHT - 2][5]).toBe(0);
-    // and a fresh piece spawned
+    // the board is empty during the spawn gap, then a fresh piece appears
+    expect(board.piece).toBeNull();
+    tickTo(model, SPAWN_DELAY_MS + 20);
     expect(board.piece!.y).toBe(0);
     expect(board.alive).toBe(true);
+  });
+
+  it("accepts no piece commands during the post-lock spawn gap", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    model.handleCommand("A", { command: "hardDrop" });
+    const gridAfterLock = JSON.stringify(board.grid);
+    const scoreAfterLock = board.score;
+
+    // A stray gesture arriving in the gap must do nothing at all
+    model.handleCommand("A", { command: "hardDrop" });
+    model.handleCommand("A", { command: "dragTo", column: 0, row: 20 });
+    model.handleCommand("A", { command: "rotate" });
+    model.handleCommand("A", { command: "release" });
+    expect(board.piece).toBeNull();
+    expect(JSON.stringify(board.grid)).toBe(gridAfterLock);
+    expect(board.score).toBe(scoreAfterLock);
+
+    // After the gap the new piece is untouched at its spawn spot
+    tickTo(model, SPAWN_DELAY_MS + 20);
+    expect(board.piece!.x).toBe(5);
+    expect(board.piece!.y).toBe(0);
   });
 
   it("bumps pieceSeq on every spawn so phones can end a stale gesture", () => {
@@ -211,6 +239,7 @@ describe("EittrisPresenterModel - hard drop leaves the next piece alone", () => 
     const boardB = model.boards.find((b) => b.playerId === "B")!;
 
     model.handleCommand("A", { command: "hardDrop" });
+    tickTo(model, SPAWN_DELAY_MS + 20); // wait out the spawn gap
     expect(boardA.piece!.y).toBe(0); // fresh piece at the top
 
     // Well under one gravity interval later, NEITHER board has stepped -
@@ -258,6 +287,7 @@ describe("EittrisPresenterModel - target targeting", () => {
       boardC.grid[0][5] = 3; // C's next spawn will collide
     });
     model.handleCommand("C", { command: "hardDrop" });
+    tickTo(model, SPAWN_DELAY_MS + 20); // the fatal spawn lands after the gap
     expect(boardC.alive).toBe(false);
     expect(model.gameState).toBe(EittrisGameState.Playing); // two still standing
 
@@ -359,7 +389,8 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
       boardA.grid[0][5] = 3; // blocks the next spawn at (5,0)
     });
 
-    model.handleCommand("A", { command: "hardDrop" }); // locks, then the spawn collides
+    model.handleCommand("A", { command: "hardDrop" }); // locks...
+    tickTo(model, SPAWN_DELAY_MS + 20); // ...and the delayed spawn collides
 
     expect(boardA.alive).toBe(false);
     expect(boardA.piece).toBeNull();
@@ -384,12 +415,15 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
     const board = model.boards[0];
 
     model.handleCommand("A", { command: "hardDrop" });
+    tickTo(model, SPAWN_DELAY_MS + 20);
     expect(model.gameState).toBe(EittrisGameState.Playing); // still alive, still playing
 
     runInAction(() => {
       board.grid[0][5] = 3;
     });
     model.handleCommand("A", { command: "hardDrop" });
+    // tickTo takes an ABSOLUTE game time - push past the second gap
+    tickTo(model, 2 * SPAWN_DELAY_MS + 60); // the fatal spawn lands after the gap
     expect(model.gameState).toBe(GeneralGameState.GameOver);
     expect(model.winnerId).toBe("A"); // ranked by death order; solo player still "wins"
   });

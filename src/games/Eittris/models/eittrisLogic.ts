@@ -309,6 +309,10 @@ export interface EittrisBoard {
   // piece they were dragging got placed, so the rest of that gesture can't
   // leak onto the next one.
   pieceSeq: number;
+  // Milliseconds left in the post-lock gap before the next piece appears
+  // (0 = not waiting).  While piece is null and this is counting down, the
+  // board accepts no input at all.
+  spawnDelayMs: number;
 }
 
 export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
@@ -327,6 +331,7 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     backgroundIndex: Math.min(BACKGROUND_COUNT - 1, Math.floor(rand() * BACKGROUND_COUNT)),
     targetId: null,
     pieceSeq: 1,
+    spawnDelayMs: 0,
   };
 }
 

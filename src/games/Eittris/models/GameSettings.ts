@@ -13,4 +13,8 @@ export const TAP_MAX_DISTANCE_PX = 10; // ... with less movement than this = tap
 export const FLICK_REARM_MOVES = 3;
 
 // Presenter simulation
+// Quiet gap between a piece locking and the next one appearing.  Nothing is
+// falling during it, so a gesture that outlives its piece has nothing to act
+// on - the structural cure for input leaking onto the next piece.
+export const SPAWN_DELAY_MS = 200;
 export const THUMBNAIL_INTERVAL_MS = 1000; // how often changed boards broadcast thumbnails

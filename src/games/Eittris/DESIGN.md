@@ -48,6 +48,12 @@ are healed by the standard invalidate → onboard resync.
   never locks — see controls). Hard drop = slam to floor and stick (+10/row). The next
   piece spawns with completely normal gravity (a carry-over "plummet" mode was tried and
   removed by user request).
+- **Spawn gap:** a locked piece is followed by a 200 ms gap (`SPAWN_DELAY_MS`) with **no
+  falling piece at all** before the next one appears. Both ends refuse input during it —
+  the presenter drops every piece command (only `pickTarget` still works) and the phone
+  won't start or continue a gesture. This is the structural cure for gestures leaking onto
+  the next piece: a flick whose pointer-up lands off-screen has nothing left to act on.
+  Death is evaluated when the delayed piece spawns, not when the previous one locks.
 - **Line clear:** atomic full-row clear (the original's per-cell 0.4 s cascade is a later
   polish item). Score `+= rows² × 1000` (1→1000, 2→4000, 3→9000, 4→16000). Rows counted.
 - **Game over (per player):** a freshly spawned piece that immediately collides kills the
