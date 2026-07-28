@@ -981,3 +981,46 @@ describe("EittrisPresenterModel - SeeShadows", () => {
     expect(board.seeShadows).toBe(true);
   });
 });
+
+describe("EittrisPresenterModel - CrazyIvan", () => {
+  it("mirrors the victim's sideways controls", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+
+    // Sane controls first
+    model.handleCommand("A", { command: "slamLeft" });
+    expect(board.piece!.x).toBe(1); // T occupies x-1..x+1
+
+    runInAction(() => {
+      board.crazyIvan = true;
+    });
+    // Now "left" goes right
+    model.handleCommand("A", { command: "slamLeft" });
+    expect(board.piece!.x).toBe(8);
+    model.handleCommand("A", { command: "slamRight" });
+    expect(board.piece!.x).toBe(1);
+  });
+
+  it("mirrors dragging too", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    runInAction(() => {
+      board.crazyIvan = true;
+    });
+    // asking for column 1 lands on the mirrored column 8
+    model.handleCommand("A", { command: "dragTo", column: 1, row: 0 });
+    expect(board.piece!.x).toBe(8);
+  });
+
+  it("is cured by an antidote", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    runInAction(() => {
+      board.crazyIvan = true;
+    });
+    model.handleCommand("A", { command: "useAntidote" });
+    expect(board.crazyIvan).toBe(false);
+    model.handleCommand("A", { command: "slamLeft" });
+    expect(board.piece!.x).toBe(1); // sane again
+  });
+});

@@ -534,6 +534,9 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
         case SpecialType.Speedup:
           victim.speedupStacks++;
           break;
+        case SpecialType.CrazyIvan:
+          victim.crazyIvan = true;
+          break;
         case SpecialType.EvilPieces:
           victim.evilPieces = true;
           victim.nextQueue = []; // flush the preview so evil pieces start now
@@ -787,11 +790,14 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
 
     let changed = false;
     switch (message.command) {
+      // CrazyIvan mirrors sideways movement and reverses rotation
       case "dragTo": {
         // Free 2D drag: toward the column AND down toward the row at once.
         // Drag contact NEVER locks - `release` (or natural gravity) does that.
         if (message.column === undefined) break;
-        const targetX = Math.max(0, Math.min(BOARD_WIDTH - 1, Math.floor(message.column)));
+        let wanted = Math.floor(message.column);
+        if (board.crazyIvan) wanted = BOARD_WIDTH - 1 - wanted; // mirrored
+        const targetX = Math.max(0, Math.min(BOARD_WIDTH - 1, wanted));
         const targetY = Math.min(BOARD_HEIGHT - 1, Math.floor(message.row ?? board.piece.y));
         const dragged = dragTowards(board.grid, board.piece, targetX, targetY);
         changed = dragged.piece.x !== board.piece.x || dragged.piece.y !== board.piece.y;
@@ -821,7 +827,8 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       }
       case "slamLeft":
       case "slamRight": {
-        const dir = message.command === "slamLeft" ? -1 : 1;
+        let dir: -1 | 1 = message.command === "slamLeft" ? -1 : 1;
+        if (board.crazyIvan) dir = dir === -1 ? 1 : -1;
         const slammed = slamHorizontal(board.grid, board.piece, dir);
         changed = slammed.x !== board.piece.x;
         board.piece = slammed;
@@ -911,6 +918,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       slowdownStacks: board.slowdownStacks,
       seeShadows: board.seeShadows,
       evilPieces: board.evilPieces,
+      crazyIvan: board.crazyIvan,
       shieldMs: Math.round(board.shieldMs),
       forcedSpecial: board.forcedSpecial,
       aiControlled: board.aiControlled,
