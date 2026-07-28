@@ -19,6 +19,7 @@ import tower from "./sounds/Smack07_Slam.wav";
 import bridge from "./sounds/Smack01.wav";
 import slowdown from "./sounds/Slowdown.wav";
 import shadows from "./sounds/Trans01.wav";
+import evil from "./sounds/Attack11_Trombone.wav";
 import dot from "./sounds/Dot.wav";
 import clear1 from "./sounds/Clear1Line.wav";
 import clear2 from "./sounds/Clear2Lines.wav";
@@ -46,6 +47,7 @@ const EittrisAssets = {
     bridge, // a Bridge roofing a stack
     slowdown, // SlowDown easing your own gravity
     shadows, // SeeShadows switching the landing ghost on
+    evil, // EvilPieces landing on someone
     hello, // a player joined (template placeholder - no eitrix equivalent wired)
     dot, // a piece locked in place
     clear1, // 1 row cleared

@@ -65,6 +65,8 @@ import {
   SPEEDUP_FACTOR,
   effectiveIntervalMs,
   cureAfflictions,
+  EVIL_PIECE_COUNT,
+  hasAfflictions,
 } from "./eittrisLogic";
 
 // Sorted "x,y" strings for order-independent cell comparison
@@ -1059,5 +1061,46 @@ describe("eittrisLogic - SlowDown", () => {
     cureAfflictions(board);
     expect(board.speedupStacks).toBe(0);
     expect(board.slowdownStacks).toBe(3);
+  });
+});
+
+describe("eittrisLogic - EvilPieces", () => {
+  it("has its own table, including five-cell pentominoes", () => {
+    expect(EVIL_PIECE_COUNT).toBe(8);
+    const sizes = new Set<number>();
+    for (let type = 0; type < EVIL_PIECE_COUNT; type++) {
+      const cells = pieceCells(spawnPiece(type, 0, true));
+      sizes.add(cells.length);
+      expect(new Set(cells.map((c) => `${c.x},${c.y}`)).size).toBe(cells.length);
+    }
+    expect(sizes.has(4)).toBe(true);
+    expect(sizes.has(5)).toBe(true); // the nasty ones
+  });
+
+  it("draws evil pieces only when the flag is set", () => {
+    const normal = spawnNextFromQueue([], () => 0.99, false);
+    const evil = spawnNextFromQueue([], () => 0.99, true);
+    expect(normal.piece.evil).toBe(false);
+    expect(evil.piece.evil).toBe(true);
+    expect(evil.piece.type).toBeLessThan(EVIL_PIECE_COUNT);
+  });
+
+  it("settles into single-digit cells so the wire encoding still works", () => {
+    const grid = emptyGrid();
+    // the biggest evil piece, dropped in
+    const piece = { type: 5, rot: 0, x: 5, y: BOARD_HEIGHT - 3, evil: true };
+    const result = lockAndClear(grid, piece);
+    const encoded = encodeGrid(result.grid);
+    expect(encoded.length).toBe(BOARD_WIDTH * BOARD_HEIGHT);
+    for (const ch of encoded) expect(ch === "." || /[0-8]/.test(ch)).toBe(true);
+    expect(decodeGrid(encoded)).toEqual(result.grid);
+  });
+
+  it("is an affliction an antidote washes off", () => {
+    const board = makeBoard("p1", () => 0.1);
+    board.evilPieces = true;
+    expect(hasAfflictions(board)).toBe(true);
+    cureAfflictions(board);
+    expect(board.evilPieces).toBe(false);
   });
 });

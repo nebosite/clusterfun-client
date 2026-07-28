@@ -534,6 +534,10 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
         case SpecialType.Speedup:
           victim.speedupStacks++;
           break;
+        case SpecialType.EvilPieces:
+          victim.evilPieces = true;
+          victim.nextQueue = []; // flush the preview so evil pieces start now
+          break;
         // Bridge lands on top of the stack, so it has its own painter
         case SpecialType.Bridge:
           victim.pendingBridge = makeBridgePlan(victim.grid, () => this.randomDouble(1.0));
@@ -641,7 +645,11 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // it re-aims at the next living player).
   // -------------------------------------------------------------------
   private spawnNextPiece(board: EittrisBoard) {
-    const spawned = spawnNextFromQueue(board.nextQueue, () => this.randomDouble(1.0));
+    const spawned = spawnNextFromQueue(
+      board.nextQueue,
+      () => this.randomDouble(1.0),
+      board.evilPieces,
+    );
     board.nextQueue = spawned.queue;
     board.dropTimerMs = 0;
     board.pieceSeq++;
@@ -704,7 +712,9 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     if (board.antidotes <= 0) return;
     board.antidotes--;
     // Wash off everything already applied, then shield against new hits
+    const wasEvil = board.evilPieces;
     cureAfflictions(board);
+    if (wasEvil) board.nextQueue = []; // back to normal pieces right away
     board.shieldMs = ANTIDOTE_DURATION_MS;
     this.dirtyPlayerIds.add(board.playerId);
     this.invokeEvent(EittrisGameEvent.AntidoteUsed, board.playerId);
@@ -900,6 +910,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       speedupStacks: board.speedupStacks,
       slowdownStacks: board.slowdownStacks,
       seeShadows: board.seeShadows,
+      evilPieces: board.evilPieces,
       shieldMs: Math.round(board.shieldMs),
       forcedSpecial: board.forcedSpecial,
       aiControlled: board.aiControlled,

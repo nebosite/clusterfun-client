@@ -62,6 +62,21 @@ const PIECE_DEFS = [
 
 export const PIECE_COUNT = PIECE_DEFS.length;
 
+// The EvilPieces table - verbatim from the original.  Z-heavy, and the last
+// three are five-cell pentominoes that no normal Tetris throws at you.
+const EVIL_PIECE_DEFS = [
+  "R|0,-1|0,0|-1,-1|1,0", // Z
+  "R|0,-1|0,0|1,-1|-1,0", // reverse Z
+  "C|0,0|1,0|0,1|1,1", // O
+  "C|1,-1|1,0|0,1|0,2", // hyper Z
+  "C|0,-1|0,0|1,1|1,2", // reverse hyper Z
+  "R|-1,-1|-1,0|-1,1|0,1|1,1", // big L (5 cells)
+  "R|1,-1|1,0|1,1|0,1|-1,1", // reverse big L (5 cells)
+  "R|0,-1|0,0|-1,1|0,1|1,1", // big T (5 cells)
+];
+
+export const EVIL_PIECE_COUNT = EVIL_PIECE_DEFS.length;
+
 // eitrix's own (deliberately non-standard) piece colors, indexed by type
 export const PIECE_COLORS = [
   "#00FFFF", // T cyan
@@ -85,6 +100,21 @@ interface PieceDef {
   offsets: Cell[];
 }
 
+function parseDefs(defs: string[]): PieceDef[] {
+  return defs.map((def) => {
+    const parts = def.split("|");
+    return {
+      centerType: parts[0] as "R" | "C",
+      offsets: parts.slice(1).map((p) => {
+        const [x, y] = p.split(",").map(Number);
+        return { x, y };
+      }),
+    };
+  });
+}
+
+const evilParsedDefs: PieceDef[] = parseDefs(EVIL_PIECE_DEFS);
+
 const parsedDefs: PieceDef[] = PIECE_DEFS.map((def) => {
   const parts = def.split("|");
   return {
@@ -96,12 +126,20 @@ const parsedDefs: PieceDef[] = PIECE_DEFS.map((def) => {
   };
 });
 
-// The falling piece: type index, clockwise rotation count 0-3, and board position
+// The falling piece: type index, clockwise rotation count 0-3, and board
+// position.  `evil` selects the EvilPieces table instead of the normal one.
 export interface EittrisPiece {
   type: number;
   rot: number;
   x: number;
   y: number;
+  evil?: boolean;
+}
+
+// Evil pieces borrow the normal colors, so a settled cell is always a
+// single digit and the grid encoding stays 210 characters
+export function pieceColorIndex(piece: EittrisPiece): number {
+  return piece.evil ? piece.type % PIECE_COUNT : piece.type;
 }
 
 // One clockwise rotation of a single offset
@@ -111,7 +149,8 @@ function rotateOffsetCW(centerType: "R" | "C", cell: Cell): Cell {
 
 // The four absolute board cells a piece occupies
 export function pieceCells(piece: EittrisPiece): Cell[] {
-  const def = parsedDefs[piece.type];
+  const table = piece.evil ? evilParsedDefs : parsedDefs;
+  const def = table[piece.type % table.length];
   return def.offsets.map((offset) => {
     let c = offset;
     for (let i = 0; i < ((piece.rot % 4) + 4) % 4; i++) {
@@ -257,9 +296,10 @@ export interface LockResult {
 
 export function lockAndClear(grid: number[][], piece: EittrisPiece): LockResult {
   const locked = grid.map((row) => row.slice());
+  const color = pieceColorIndex(piece);
   for (const c of pieceCells(piece)) {
     if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) {
-      locked[c.y][c.x] = piece.type;
+      locked[c.y][c.x] = color;
     }
   }
 
@@ -337,6 +377,7 @@ export const IMPLEMENTED_SPECIALS: SpecialType[] = [
   SpecialType.Bridge,
   SpecialType.SlowDown,
   SpecialType.SeeShadows,
+  SpecialType.EvilPieces,
 ];
 
 // Specials that are fired AT your target rather than kept for yourself
@@ -347,6 +388,7 @@ export const OFFENSIVE_SPECIALS: SpecialType[] = [
   SpecialType.Shackle,
   SpecialType.TowerOfEit,
   SpecialType.Bridge,
+  SpecialType.EvilPieces,
 ];
 
 export function isOffensive(type: SpecialType): boolean {
@@ -369,11 +411,12 @@ export function effectiveIntervalMs(
 // Everything an antidote washes off
 export function cureAfflictions(board: EittrisBoard): void {
   board.speedupStacks = 0;
+  board.evilPieces = false;
 }
 
 // Does this board have anything an antidote would cure?
 export function hasAfflictions(board: EittrisBoard): boolean {
-  return board.speedupStacks > 0;
+  return board.speedupStacks > 0 || board.evilPieces;
 }
 
 // A special sitting on one settled block.  It never decays: it waits there
@@ -459,20 +502,25 @@ export function randomPieceType(rand: () => number): number {
   return Math.min(PIECE_COUNT - 1, Math.floor(rand() * PIECE_COUNT));
 }
 
-export function spawnPiece(type: number, rotations: number): EittrisPiece {
-  return { type, rot: ((rotations % 4) + 4) % 4, x: SPAWN_X, y: SPAWN_Y };
+export function spawnPiece(type: number, rotations: number, evil = false): EittrisPiece {
+  return { type, rot: ((rotations % 4) + 4) % 4, x: SPAWN_X, y: SPAWN_Y, evil };
 }
 
 // Pull the next piece off the queue (refilling it) and spawn it with a random rotation
 export function spawnNextFromQueue(
   nextQueue: number[],
   rand: () => number,
+  evil = false,
 ): { piece: EittrisPiece; queue: number[] } {
+  const pick = () =>
+    evil
+      ? Math.min(EVIL_PIECE_COUNT - 1, Math.floor(rand() * EVIL_PIECE_COUNT))
+      : randomPieceType(rand);
   const queue = nextQueue.slice();
-  while (queue.length < NEXT_PREVIEW_COUNT) queue.push(randomPieceType(rand));
+  while (queue.length < NEXT_PREVIEW_COUNT) queue.push(pick());
   const type = queue.shift()!;
-  queue.push(randomPieceType(rand));
-  return { piece: spawnPiece(type, Math.floor(rand() * 4)), queue };
+  queue.push(pick());
+  return { piece: spawnPiece(type, Math.floor(rand() * 4), evil), queue };
 }
 
 // ------------------------------------------------------------------------------------------
@@ -512,6 +560,8 @@ export interface EittrisBoard {
   slowdownStacks: number;
   // SeeShadows: the landing ghost, on for the rest of the round once earned
   seeShadows: boolean;
+  // EvilPieces: this board draws from the nastier table until cured
+  evilPieces: boolean;
   shieldMs: number; // remaining antidote shield/cure time (0 = inactive)
   forcedSpecial: SpecialType | null; // dev selector: only ever spawn this
   // DEV: hand this board to the computer player
@@ -546,6 +596,7 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     speedupStacks: 0,
     slowdownStacks: 0,
     seeShadows: false,
+    evilPieces: false,
     shieldMs: 0,
     forcedSpecial: null,
     aiControlled: false,

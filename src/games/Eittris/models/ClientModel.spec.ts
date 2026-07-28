@@ -64,6 +64,7 @@ function snapshot(overrides: Partial<EittrisBoardSnapshot> = {}): EittrisBoardSn
     speedupStacks: 1,
     slowdownStacks: 0,
     seeShadows: false,
+    evilPieces: false,
     shieldMs: 4000,
     forcedSpecial: null,
     aiControlled: false,

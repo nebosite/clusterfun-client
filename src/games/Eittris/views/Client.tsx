@@ -224,10 +224,10 @@ class GestureTracker {
 }
 
 // A tiny preview of one upcoming piece type
-class PiecePreview extends React.Component<{ type: number }> {
+class PiecePreview extends React.Component<{ type: number; evil?: boolean }> {
   render() {
-    const { type } = this.props;
-    const cells = pieceCells(spawnPiece(type, 0)).map((c) => ({ x: c.x - 5, y: c.y }));
+    const { type, evil } = this.props;
+    const cells = pieceCells(spawnPiece(type, 0, evil)).map((c) => ({ x: c.x - 5, y: c.y }));
     const minX = Math.min(...cells.map((c) => c.x));
     const minY = Math.min(...cells.map((c) => c.y));
     const maxX = Math.max(...cells.map((c) => c.x));
@@ -384,6 +384,18 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
                   }}
                 />
                 SPEEDUP x{appModel.speedupStacks}
+              </span>
+            ) : null}
+            {appModel.evilPieces ? (
+              <span className={classNames(styles.afflictionChip, styles.afflictionBad)}>
+                <span
+                  className={styles.specialIcon}
+                  style={{
+                    backgroundImage: `url(${EittrisAssets.images.specials})`,
+                    backgroundPosition: `${(9 / 15) * 100}% 0%`,
+                  }}
+                />
+                EVIL PIECES
               </span>
             ) : null}
             {appModel.slowdownStacks > 0 ? (

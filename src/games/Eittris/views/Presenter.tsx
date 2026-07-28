@@ -38,6 +38,7 @@ const SPECIAL_SOUNDS: Partial<Record<SpecialType, string>> = {
   [SpecialType.Bridge]: EittrisAssets.sounds.bridge,
   [SpecialType.SlowDown]: EittrisAssets.sounds.slowdown,
   [SpecialType.SeeShadows]: EittrisAssets.sounds.shadows,
+  [SpecialType.EvilPieces]: EittrisAssets.sounds.evil,
 };
 
 function soundForSpecial(type: number): string {
