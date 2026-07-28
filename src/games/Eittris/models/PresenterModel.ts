@@ -59,7 +59,7 @@ import {
   SpecialType,
   EittrisPiece,
   liftPieceClear,
-  makeWallShape,
+  stencilShapeFor,
   paintStencilRow,
   STENCIL_ROW_MS,
   hasAfflictions,
@@ -485,13 +485,18 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
           victim.speedupStacks++;
           break;
         case SpecialType.TheWall:
+        case SpecialType.Escalator: {
+          // Every shape-painting attack goes through the same machinery
+          const shape = stencilShapeFor(type, () => this.randomDouble(1.0));
+          if (!shape) return;
           victim.pendingStencil = {
-            shape: makeWallShape(() => this.randomDouble(1.0)),
+            shape,
             row: 0,
             reverse: this.randomDouble(1.0) < 0.5,
             timerMs: 0,
           };
           break;
+        }
         default:
           Logger.warn(`Unhandled offensive special: ${SpecialType[type]}`);
           return;

@@ -53,6 +53,8 @@ import {
   liftPieceClear,
   WALL_ROWS,
   GARBAGE_CELL,
+  ESCALATOR_SHAPE,
+  stencilShapeFor,
 } from "./eittrisLogic";
 
 // Sorted "x,y" strings for order-independent cell comparison
@@ -879,5 +881,39 @@ describe("eittrisLogic - attack stencils", () => {
     expect(lifted).not.toBeNull();
     expect(lifted!.y).toBeLessThan(0);
     expect(collides(grid, pieceCells(lifted!))).toBe(false);
+  });
+});
+
+describe("eittrisLogic - Escalator", () => {
+  it("is a staircase that climbs one column per row", () => {
+    expect(ESCALATOR_SHAPE.length).toBe(10);
+    for (const row of ESCALATOR_SHAPE) expect(row.length).toBe(BOARD_WIDTH);
+    // Bottom row builds at the far left, each row up shifts one right
+    expect(ESCALATOR_SHAPE[ESCALATOR_SHAPE.length - 1].indexOf("#")).toBe(0);
+    expect(ESCALATOR_SHAPE[0].indexOf("#")).toBe(BOARD_WIDTH - 1);
+    for (let i = 1; i < ESCALATOR_SHAPE.length; i++) {
+      const above = ESCALATOR_SHAPE[i - 1].indexOf("#");
+      const below = ESCALATOR_SHAPE[i].indexOf("#");
+      expect(above - below).toBe(1);
+    }
+  });
+
+  it("is registered as a stencil attack", () => {
+    expect(stencilShapeFor(SpecialType.Escalator, () => 0.5)).toEqual(ESCALATOR_SHAPE);
+    expect(stencilShapeFor(SpecialType.TheWall, () => 0.5)!.length).toBe(WALL_ROWS);
+    expect(stencilShapeFor(SpecialType.Antidote, () => 0.5)).toBeNull();
+  });
+
+  it("paints a rising staircase of garbage", () => {
+    let grid = emptyGrid();
+    for (let r = 0; r < ESCALATOR_SHAPE.length; r++) {
+      grid = paintStencilRow(grid, ESCALATOR_SHAPE, r, false);
+    }
+    // one block on the bottom row at column 0, climbing one column per row up
+    expect(grid[BOARD_HEIGHT - 1][0]).toBe(GARBAGE_CELL);
+    expect(grid[BOARD_HEIGHT - 2][1]).toBe(GARBAGE_CELL);
+    expect(grid[BOARD_HEIGHT - 10][9]).toBe(GARBAGE_CELL);
+    // and it leaves the rest of each row alone
+    expect(grid[BOARD_HEIGHT - 1][5]).toBe(EMPTY_CELL);
   });
 });

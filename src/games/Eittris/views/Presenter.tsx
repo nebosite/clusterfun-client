@@ -28,6 +28,17 @@ import BoardGrid from "./BoardGrid";
 
 const RULES = ["Use your finger to control and place pieces"];
 
+// Which of the original's sounds each special plays when it lands
+const SPECIAL_SOUNDS: Partial<Record<SpecialType, string>> = {
+  [SpecialType.Speedup]: EittrisAssets.sounds.speedup,
+  [SpecialType.TheWall]: EittrisAssets.sounds.wall,
+  [SpecialType.Escalator]: EittrisAssets.sounds.smack,
+};
+
+function soundForSpecial(type: number): string {
+  return SPECIAL_SOUNDS[type as SpecialType] ?? EittrisAssets.sounds.speedup;
+}
+
 // Cell size that fits `count` boards across the 1920-wide presenter frame
 function presenterCellPx(count: number): number {
   const perBoard = 1800 / Math.max(1, count);
@@ -259,11 +270,7 @@ export default class Presenter extends React.Component<{
       EittrisGameEvent.SpecialFired,
       "special sound",
       (_attackerId: string, _victimId: string, type: number, repelled: boolean) => {
-        const sound = repelled
-          ? EittrisAssets.sounds.repel
-          : type === SpecialType.TheWall
-            ? EittrisAssets.sounds.wall
-            : EittrisAssets.sounds.speedup;
+        const sound = repelled ? EittrisAssets.sounds.repel : soundForSpecial(type);
         this.media.playSound(sound, { volume: 0.9 });
       },
     );

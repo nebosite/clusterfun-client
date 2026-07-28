@@ -326,10 +326,15 @@ export const IMPLEMENTED_SPECIALS: SpecialType[] = [
   SpecialType.Antidote,
   SpecialType.Speedup,
   SpecialType.TheWall,
+  SpecialType.Escalator,
 ];
 
 // Specials that are fired AT your target rather than kept for yourself
-export const OFFENSIVE_SPECIALS: SpecialType[] = [SpecialType.Speedup, SpecialType.TheWall];
+export const OFFENSIVE_SPECIALS: SpecialType[] = [
+  SpecialType.Speedup,
+  SpecialType.TheWall,
+  SpecialType.Escalator,
+];
 
 export function isOffensive(type: SpecialType): boolean {
   return OFFENSIVE_SPECIALS.includes(type);
@@ -836,4 +841,33 @@ export function liftPieceClear(grid: number[][], piece: EittrisPiece): EittrisPi
     current = { ...current, y: current.y - 1 };
   }
   return null;
+}
+
+// ------------------------------------------------------------------------------------------
+// Static stencil shapes, verbatim from the original.  Rows are listed
+// top-to-bottom; the LAST row lands on the bottom row of the victim's grid.
+// (TheWall is generated per-attack instead - see makeWallShape.)
+// ------------------------------------------------------------------------------------------
+export const ESCALATOR_SHAPE: string[] = [
+  ".........#",
+  "........#-",
+  ".......#-.",
+  "......#-..",
+  ".....#-...",
+  "....#-....",
+  "...#-.....",
+  "..#-......",
+  ".#-.......",
+  "#-........",
+];
+
+// Every special that paints a fixed shape.  Adding one here is all it takes.
+export const STENCIL_SHAPES: Partial<Record<SpecialType, string[]>> = {
+  [SpecialType.Escalator]: ESCALATOR_SHAPE,
+};
+
+// The shape an attack should paint (null if this special is not a stencil)
+export function stencilShapeFor(type: SpecialType, rand: () => number): string[] | null {
+  if (type === SpecialType.TheWall) return makeWallShape(rand);
+  return STENCIL_SHAPES[type] ?? null;
 }
