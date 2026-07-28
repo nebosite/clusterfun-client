@@ -15,6 +15,8 @@ import {
   GARBAGE_CELL,
   hasAfflictions,
   pieceCells,
+  pieceColorIndex,
+  decodePsychoOverlay,
   STENCIL_ROW_MS,
   SWAP_COLUMN_MS,
   WALL_ROWS,
@@ -1153,5 +1155,64 @@ describe("EittrisPresenterModel - the dev Attack button", () => {
 
     model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.TheWall });
     expect(victim.pendingStencil).not.toBeNull();
+  });
+});
+
+describe("EittrisPresenterModel - Psycho", () => {
+  it("starts a blank overlay on the victim and leaves the attacker alone", () => {
+    const { model } = startTwoPlayerGame();
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    expect(victim.psychoOverlay).toBeNull();
+
+    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.Psycho });
+
+    expect(victim.psychoSeed).toBeGreaterThan(0);
+    expect(victim.psychoOverlay).not.toBeNull();
+    expect(model.boards.find((b) => b.playerId === "A")!.psychoOverlay).toBeNull();
+  });
+
+  it("smears a trail under the falling piece as it goes", () => {
+    const { model } = startTwoPlayerGame();
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.Psycho });
+
+    tickTo(model, 50);
+    const under = pieceCells(victim.piece!).filter((c) => c.y >= 0);
+    expect(under.length).toBeGreaterThan(0);
+    for (const c of under)
+      expect(victim.psychoOverlay![c.y][c.x]).toBe(pieceColorIndex(victim.piece!));
+  });
+
+  it("keeps the palette but flips the background when a new piece arrives", () => {
+    const { model } = startTwoPlayerGame();
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.Psycho });
+    // A non-zero skew, so the XOR is observable
+    model.randomDouble = () => 0.5;
+
+    tickTo(model, 50);
+    const seedBefore = victim.psychoSeed;
+    const cornerBefore = victim.psychoOverlay![BOARD_HEIGHT - 1][0];
+
+    model.handleCommand("B", { command: "hardDrop" });
+    tickTo(model, 50 + SPAWN_DELAY_MS + 20); // through the gap into the next piece
+
+    // The palette must not move, or the trails already drawn would change color
+    expect(victim.psychoSeed).toBe(seedBefore);
+    expect(victim.psychoOverlay![BOARD_HEIGHT - 1][0]).not.toBe(cornerBefore);
+  });
+
+  it("rides the wire as an encoded string and comes off it unchanged", () => {
+    const { model } = startTwoPlayerGame();
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.Psycho });
+    tickTo(model, 50);
+
+    const snapshot = model.snapshotFor("B")!;
+    expect(typeof snapshot.psychoOverlay).toBe("string");
+    expect(decodePsychoOverlay(snapshot.psychoOverlay!)).toEqual(victim.psychoOverlay);
+
+    // An unafflicted board pays nothing for the feature
+    expect(model.snapshotFor("A")!.psychoOverlay).toBeNull();
   });
 });

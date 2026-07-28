@@ -62,20 +62,18 @@ const PIECE_DEFS = [
 
 export const PIECE_COUNT = PIECE_DEFS.length;
 
-// The EvilPieces table - verbatim from the original.  Z-heavy, and the last
-// three are five-cell pentominoes that no normal Tetris throws at you.
+// The EvilPieces table: nothing but Z pieces, left- and right-handed.  Both
+// of them leave a hole on flat ground no matter how they are rotated, so an
+// afflicted stack rots from underneath however well the victim places.
 const EVIL_PIECE_DEFS = [
   "R|0,-1|0,0|-1,-1|1,0", // Z
   "R|0,-1|0,0|1,-1|-1,0", // reverse Z
-  "C|0,0|1,0|0,1|1,1", // O
-  "C|1,-1|1,0|0,1|0,2", // hyper Z
-  "C|0,-1|0,0|1,1|1,2", // reverse hyper Z
-  "R|-1,-1|-1,0|-1,1|0,1|1,1", // big L (5 cells)
-  "R|1,-1|1,0|1,1|0,1|-1,1", // reverse big L (5 cells)
-  "R|0,-1|0,0|-1,1|0,1|1,1", // big T (5 cells)
 ];
 
 export const EVIL_PIECE_COUNT = EVIL_PIECE_DEFS.length;
+
+// Where the evil table's entries live in the normal table, in the same order
+export const Z_PIECE_TYPES = [4, 5];
 
 // eitrix's own (deliberately non-standard) piece colors, indexed by type
 export const PIECE_COLORS = [
@@ -136,10 +134,11 @@ export interface EittrisPiece {
   evil?: boolean;
 }
 
-// Evil pieces borrow the normal colors, so a settled cell is always a
-// single digit and the grid encoding stays 210 characters
+// Evil pieces ARE the two normal Z pieces, so they settle wearing the normal
+// Z colors - which also keeps every settled cell a single digit and the grid
+// encoding at 210 characters.
 export function pieceColorIndex(piece: EittrisPiece): number {
-  return piece.evil ? piece.type % PIECE_COUNT : piece.type;
+  return piece.evil ? Z_PIECE_TYPES[piece.type % Z_PIECE_TYPES.length] : piece.type;
 }
 
 // One clockwise rotation of a single offset
@@ -428,6 +427,7 @@ export function cureAfflictions(board: EittrisBoard): void {
   board.freezeDried = false;
   board.transparency = false;
   board.psychoSeed = 0;
+  board.psychoOverlay = null;
 }
 
 // Does this board have anything an antidote would cure?
@@ -593,6 +593,9 @@ export interface EittrisBoard {
   transparency: boolean;
   // Psycho: colors are remapped, reshuffled on every new piece
   psychoSeed: number; // 0 = not afflicted
+  // Psycho's per-cell palette indices - the XOR'd background plus the trail
+  // the falling piece leaves behind.  null whenever psychoSeed is 0.
+  psychoOverlay: number[][] | null;
   shieldMs: number; // remaining antidote shield/cure time (0 = inactive)
   forcedSpecial: SpecialType | null; // dev selector: only ever spawn this
   // DEV: hand this board to the computer player
@@ -637,6 +640,7 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     freezeDried: false,
     transparency: false,
     psychoSeed: 0,
+    psychoOverlay: null,
     shieldMs: 0,
     forcedSpecial: null,
     aiControlled: false,
@@ -1089,14 +1093,120 @@ export function paintBridgeColumn(grid: number[][], plan: PendingBridge): number
 }
 
 // ------------------------------------------------------------------------------------------
-// Psycho - every cell's color is remapped through a shuffle that changes on
-// each new piece.  The board underneath is untouched; only what you SEE lies.
+// SeeShadows - where the piece would come to rest if it fell from here.
 // ------------------------------------------------------------------------------------------
-export function psychoColorIndex(cellValue: number, seed: number, paletteSize: number): number {
-  if (seed <= 0) return cellValue;
-  const mixed = Math.sin((cellValue + 1) * seed * 0.7351) * 43758.5453;
-  const frac = mixed - Math.floor(mixed);
-  return Math.floor(frac * paletteSize) % paletteSize;
+export function landingCells(grid: number[][], piece: EittrisPiece | null): Set<number> {
+  const out = new Set<number>();
+  if (!piece) return out;
+  for (const c of pieceCells(hardDrop(grid, piece).piece)) {
+    if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) {
+      out.add(c.y * BOARD_WIDTH + c.x);
+    }
+  }
+  return out;
+}
+
+// ------------------------------------------------------------------------------------------
+// What a tap on a board cell means.  A tap only ever does something if it
+// lands on the piece itself (rotate) or, while SeeShadows is on, on the ghost
+// showing where it would land (drop it there).  A tap anywhere else is
+// deliberately ignored - stray taps used to spin the piece from across the
+// board, which is maddening when you are aiming.
+// ------------------------------------------------------------------------------------------
+export type TapAction = "rotate" | "drop" | "none";
+
+export function classifyTap(
+  grid: number[][],
+  piece: EittrisPiece | null,
+  cell: Cell,
+  seeShadows: boolean,
+): TapAction {
+  if (!piece) return "none";
+  if (cell.x < 0 || cell.x >= BOARD_WIDTH || cell.y < 0 || cell.y >= BOARD_HEIGHT) return "none";
+  const index = cell.y * BOARD_WIDTH + cell.x;
+  if (pieceCells(piece).some((c) => c.y * BOARD_WIDTH + c.x === index)) return "rotate";
+  if (seeShadows && landingCells(grid, piece).has(index)) return "drop";
+  return "none";
+}
+
+// ------------------------------------------------------------------------------------------
+// Psycho - the board underneath is untouched; only what you SEE lies.  Two
+// things happen at once, both straight from the original:
+//
+//   1. Every cell carries an index into a palette of 32 random colors.  Each
+//      time a new piece appears the WHOLE overlay is XOR'd with a fresh random
+//      skew, so the background flips to a different scramble of itself.
+//   2. The falling piece stamps its own color index into the overlay as it
+//      goes, leaving a translucent trail behind it that survives the XOR.
+//
+// Settled blocks also read their color out of the palette, so nothing on the
+// board is the color it should be.
+// ------------------------------------------------------------------------------------------
+export const PSYCHO_COLOR_COUNT = 32;
+
+// The palette is generated from the seed rather than sent, so the presenter
+// minis and the victim's phone agree without a single extra byte on the wire.
+export function psychoPalette(seed: number): string[] {
+  const colors: string[] = [];
+  let state = seed >>> 0 || 1;
+  const next = () => {
+    // xorshift32 - tiny, deterministic, and good enough for confetti
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    state >>>= 0;
+    return state / 0x100000000;
+  };
+  for (let i = 0; i < PSYCHO_COLOR_COUNT; i++) {
+    const channel = () =>
+      Math.floor(next() * 256)
+        .toString(16)
+        .padStart(2, "0");
+    colors.push(`#${channel()}${channel()}${channel()}`);
+  }
+  return colors;
+}
+
+export function emptyPsychoOverlay(): number[][] {
+  return Array.from({ length: BOARD_HEIGHT }, () => new Array(BOARD_WIDTH).fill(0));
+}
+
+// A new piece arrived: flip the whole overlay to a different scramble
+export function xorPsychoOverlay(overlay: number[][], skew: number): number[][] {
+  return overlay.map((row) => row.map((v) => (v ^ skew) % PSYCHO_COLOR_COUNT));
+}
+
+// The falling piece drags its color along behind it
+export function stampPsychoTrail(overlay: number[][], piece: EittrisPiece): number[][] {
+  const color = pieceColorIndex(piece) % PSYCHO_COLOR_COUNT;
+  const next = overlay.map((row) => row.slice());
+  for (const c of pieceCells(piece)) {
+    if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) next[c.y][c.x] = color;
+  }
+  return next;
+}
+
+// 0-31 packs into one character, so the whole overlay is 210 chars - and it
+// only rides along at all while somebody is actually afflicted.
+export function encodePsychoOverlay(overlay: number[][]): string {
+  let out = "";
+  for (let y = 0; y < BOARD_HEIGHT; y++) {
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      out += String.fromCharCode(48 + (overlay[y][x] % PSYCHO_COLOR_COUNT));
+    }
+  }
+  return out;
+}
+
+export function decodePsychoOverlay(encoded: string): number[][] {
+  const overlay = emptyPsychoOverlay();
+  for (let y = 0; y < BOARD_HEIGHT; y++) {
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      const code = encoded.charCodeAt(y * BOARD_WIDTH + x) - 48;
+      overlay[y][x] = Number.isFinite(code) && code >= 0 ? code % PSYCHO_COLOR_COUNT : 0;
+    }
+  }
+  return overlay;
 }
 
 // ------------------------------------------------------------------------------------------

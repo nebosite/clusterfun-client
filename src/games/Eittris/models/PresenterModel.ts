@@ -61,6 +61,11 @@ import {
   liftPieceClear,
   BRIDGE_COLUMN_MS,
   JUMBLE_NUDGES,
+  PSYCHO_COLOR_COUNT,
+  emptyPsychoOverlay,
+  encodePsychoOverlay,
+  stampPsychoTrail,
+  xorPsychoOverlay,
   JUMBLE_NUDGE_MS,
   jumbleOnce,
   swapColumn,
@@ -318,6 +323,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     this.tickJumble(board, dtMs);
     this.tickSwap(board, dtMs);
     this.tickAi(board, dtMs);
+    this.tickPsycho(board);
 
     // The board is in the post-lock gap: nothing falls, and no command can
     // touch anything, until the next piece appears.
@@ -352,6 +358,17 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       }
       this.dirtyPlayerIds.add(board.playerId);
     }
+  }
+
+  // -------------------------------------------------------------------
+  // tickPsycho - the falling piece smears its color into the overlay as it
+  // travels, so an afflicted board fills up with translucent trails of
+  // wherever the pieces have been.
+  // -------------------------------------------------------------------
+  private tickPsycho(board: EittrisBoard) {
+    if (board.psychoSeed <= 0 || !board.psychoOverlay || !board.piece) return;
+    board.psychoOverlay = stampPsychoTrail(board.psychoOverlay, board.piece);
+    this.dirtyPlayerIds.add(board.playerId);
   }
 
   // -------------------------------------------------------------------
@@ -605,6 +622,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
           break;
         case SpecialType.Psycho:
           victim.psychoSeed = 1 + Math.floor(this.randomDouble(1.0) * 9999);
+          victim.psychoOverlay = emptyPsychoOverlay();
           break;
         case SpecialType.Transparency:
           victim.transparency = true;
@@ -734,8 +752,13 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     board.nextQueue = spawned.queue;
     board.dropTimerMs = 0;
     board.pieceSeq++;
-    // Psycho re-rolls its palette with every new piece
-    if (board.psychoSeed > 0) board.psychoSeed = 1 + Math.floor(this.randomDouble(1.0) * 9999);
+    // Psycho flips the whole background to a new scramble of itself with
+    // every new piece.  The palette is left alone so the trails the last
+    // piece drew stay the color it drew them.
+    if (board.psychoSeed > 0 && board.psychoOverlay) {
+      const skew = Math.floor(this.randomDouble(1.0) * PSYCHO_COLOR_COUNT);
+      board.psychoOverlay = xorPsychoOverlay(board.psychoOverlay, skew);
+    }
     if (collides(board.grid, pieceCells(spawned.piece))) {
       board.piece = null;
       board.alive = false;
@@ -1010,6 +1033,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       freezeDried: board.freezeDried,
       transparency: board.transparency,
       psychoSeed: board.psychoSeed,
+      psychoOverlay: board.psychoOverlay ? encodePsychoOverlay(board.psychoOverlay) : null,
       shieldMs: Math.round(board.shieldMs),
       forcedSpecial: board.forcedSpecial,
       aiControlled: board.aiControlled,

@@ -20,11 +20,14 @@ import {
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
+  classifyTap,
   decodeGrid,
+  decodePsychoOverlay,
   decodeThumbnail,
   IMPLEMENTED_SPECIALS,
   PIECE_COLORS,
   pieceCells,
+  pieceColorIndex,
   spawnPiece,
   SPECIAL_NAMES,
 } from "../models/eittrisLogic";
@@ -72,7 +75,8 @@ const THUMB_CELL_PX = 3; // target-list thumbnail cell size
 //                   horizontally AND downward at once (never up)
 //   pointer-up after a drag -> release (locks only if the piece is resting)
 //   fast flick   -> slamLeft/slamRight/hardDrop/rotate by direction
-//   tap          -> rotate
+//   tap ON the piece   -> rotate
+//   tap ON the SeeShadows ghost -> drop the piece there
 // Mouse and touch both arrive as pointer events.
 // -------------------------------------------------------------------
 class GestureTracker {
@@ -95,6 +99,8 @@ class GestureTracker {
   private lastSentRow: number | null = null;
   private cellWidthPx = CELL_PX;
   private cellHeightPx = CELL_PX;
+  // Kept so a tap can be resolved back to the board cell it landed on
+  private boardRect: DOMRect | null = null;
   // Pointer-move events seen on the board since the last flick.  Flicks stay
   // disarmed until this reaches FLICK_REARM_MOVES, which kills the phantom
   // repeat you get when a flick's pointer-up lands off-screen.
@@ -122,6 +128,7 @@ class GestureTracker {
     this.lastSentColumn = null;
     this.lastSentRow = null;
     // Quantize by the on-screen board size (UINormalizer scales the layout)
+    this.boardRect = boardRect;
     this.cellWidthPx = (boardRect?.width ?? BOARD_WIDTH * CELL_PX) / BOARD_WIDTH;
     this.cellHeightPx = (boardRect?.height ?? BOARD_HEIGHT * CELL_PX) / BOARD_HEIGHT;
   }
@@ -208,14 +215,34 @@ class GestureTracker {
       return;
     }
 
-    // A quick touch that barely moved is a tap - rotate
+    // A quick touch that barely moved is a tap.  What it does depends on
+    // WHERE it landed: on the piece it rotates, on the landing ghost it drops
+    // the piece there, and anywhere else it is ignored.
     if (duration < TAP_MAX_DURATION_MS && distance < TAP_MAX_DISTANCE_PX) {
-      this.model.rotate();
+      const cell = this.cellAt(e.clientX, e.clientY);
+      const action = classifyTap(
+        decodeGrid(this.model.gridString),
+        this.model.piece,
+        cell,
+        this.model.seeShadows,
+      );
+      if (action === "rotate") this.model.rotate();
+      else if (action === "drop") this.model.hardDrop();
       return;
     }
 
     // Otherwise end the drag: lock if resting, else resume gravity
     if (dragSent) this.model.release();
+  }
+
+  // Screen point -> board cell.  Off-board points come back out of range,
+  // which classifyTap treats as "nothing here".
+  private cellAt(clientX: number, clientY: number): { x: number; y: number } {
+    if (!this.boardRect) return { x: -1, y: -1 };
+    return {
+      x: Math.floor((clientX - this.boardRect.left) / this.cellWidthPx),
+      y: Math.floor((clientY - this.boardRect.top) / this.cellHeightPx),
+    };
   }
 
   cancel() {
@@ -237,6 +264,9 @@ class PiecePreview extends React.Component<{ type: number; evil?: boolean }> {
     const rows = maxY - minY + 1;
     const size = 24;
     const filled = new Set(cells.map((c) => `${c.x - minX},${c.y - minY}`));
+    // While EvilPieces is on, the tray has to show the piece you will actually
+    // get - shape AND color come from the evil table, not the normal one
+    const color = PIECE_COLORS[pieceColorIndex({ type, rot: 0, x: 0, y: 0, evil })];
 
     const boxes: React.ReactNode[] = [];
     for (let y = 0; y < rows; y++) {
@@ -247,7 +277,7 @@ class PiecePreview extends React.Component<{ type: number; evil?: boolean }> {
             style={{
               width: size,
               height: size,
-              backgroundColor: filled.has(`${x},${y}`) ? PIECE_COLORS[type] : "transparent",
+              backgroundColor: filled.has(`${x},${y}`) ? color : "transparent",
             }}
           />,
         );
@@ -360,6 +390,9 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
     const { appModel } = this.props;
     if (!appModel) return <div>NO APP MODEL</div>;
     const grid = decodeGrid(appModel.gridString);
+    const psychoOverlay = appModel.psychoOverlay
+      ? decodePsychoOverlay(appModel.psychoOverlay)
+      : null;
     const dead = !appModel.alive;
     const backgrounds = EittrisAssets.images.backgrounds;
     const backgroundUrl = backgrounds[appModel.backgroundIndex % backgrounds.length];
@@ -508,7 +541,7 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
             <span className={styles.nextLabel}>Next</span>
             <div className={styles.nextPieces}>
               {appModel.nextTypes.map((type, i) => (
-                <PiecePreview type={type} key={i} />
+                <PiecePreview type={type} evil={appModel.evilPieces} key={i} />
               ))}
             </div>
           </div>
@@ -546,6 +579,7 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
               freezeDried={appModel.freezeDried}
               transparency={appModel.transparency}
               psychoSeed={appModel.psychoSeed}
+              psychoOverlay={psychoOverlay}
             />
             {dead ? <div className={styles.toppedOut}>TOPPED OUT</div> : null}
           </div>

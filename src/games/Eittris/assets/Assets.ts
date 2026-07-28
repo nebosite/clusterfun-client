@@ -2,6 +2,7 @@
 // Grid art (F:\Git\eitrix\Content); the logo is still the template placeholder.
 import logo from "./images/Logo.png";
 import specials from "./images/specials.png";
+import brick from "./images/brick.png";
 import grid00 from "./images/Grid00.png";
 import grid01 from "./images/Grid01.png";
 import grid02 from "./images/Grid02.png";
@@ -40,6 +41,9 @@ const EittrisAssets = {
   images: {
     logo,
     specials, // 16-icon strip lifted from the original atlas (SpecialType order)
+    // The original's white brick shape (atlas sprite 0).  Tinted and faded for
+    // the SeeShadows landing ghost and the Transparency brick outlines.
+    brick,
     // The board backgrounds the original randomizes over (index = backgroundIndex)
     backgrounds: [grid00, grid01, grid02, grid03, grid04, grid05, grid06],
   },

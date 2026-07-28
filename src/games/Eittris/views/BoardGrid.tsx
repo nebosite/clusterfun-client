@@ -4,20 +4,23 @@
 // stretched behind the blocks (no grid lines) with a translucent dark overlay
 // for readability.
 import React from "react";
+import EittrisAssets from "../assets/Assets";
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
   EittrisPiece,
   EMPTY_CELL,
-  hardDrop,
+  landingCells,
   PIECE_COLORS,
-  psychoColorIndex,
+  psychoPalette,
   pieceCells,
 } from "../models/eittrisLogic";
 
 const FALLBACK_COLOR = "#101a2c"; // shown when no background image is supplied
 const SPECIAL_ICON_COUNT = 16; // icons in assets/images/specials.png
 const SPECIAL_BLOCK_COLOR = "#4a4a4a"; // blocks hosting a powerup
+const SHADOW_ALPHA = 0.25; // the original draws its landing ghost at 20%
+const PSYCHO_TRAIL_ALPHA = 0.4; // and its psycho background at 40%
 
 // A stable per-cell offset for FreezeDried, so blocks jitter but do not
 // dance around every frame (the original picks it once per block)
@@ -42,8 +45,9 @@ interface BoardGridProps {
   specialsUrl?: string; // the 16-icon strip
   showShadow?: boolean; // SeeShadows: outline where the piece will land
   freezeDried?: boolean; // FreezeDried: settled blocks render tiny and jittered
-  transparency?: boolean; // Transparency: settled blocks are invisible
-  psychoSeed?: number; // Psycho: remap every color through this seed
+  transparency?: boolean; // Transparency: settled blocks are ghosted outlines
+  psychoSeed?: number; // Psycho: non-zero means the colors are lying
+  psychoOverlay?: number[][] | null; // Psycho: per-cell palette indices
 }
 
 export class BoardGrid extends React.Component<BoardGridProps> {
@@ -59,17 +63,16 @@ export class BoardGrid extends React.Component<BoardGridProps> {
       }
     }
 
-    // SeeShadows: a faint outline of where the piece would come to rest
-    const shadow = new Set<number>();
-    if (piece && this.props.showShadow) {
-      const landed = hardDrop(grid, piece).piece;
-      for (const c of pieceCells(landed)) {
-        if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) {
-          const index = c.y * BOARD_WIDTH + c.x;
-          if (!overlay.has(index)) shadow.add(index);
-        }
-      }
-    }
+    // SeeShadows: where the piece would land.  Drawn as a ghost brick INSIDE
+    // the cell - never as a border, which would grow the cell and push the
+    // whole grid off its own footprint.
+    const shadow = this.props.showShadow ? landingCells(grid, piece) : new Set<number>();
+
+    // Psycho: a palette of 32 random colors both ends derive from the seed,
+    // plus the per-cell indices carrying the falling piece's trails.
+    const psychoOn = (this.props.psychoSeed ?? 0) > 0;
+    const palette = psychoOn ? psychoPalette(this.props.psychoSeed!) : null;
+    const trails = psychoOn ? (this.props.psychoOverlay ?? null) : null;
 
     // Chunky beveled brick: lit top/left edge, shaded bottom/right edge, a
     // soft inner glow, and a dark seam so blocks read individually.  Bevel
@@ -97,44 +100,63 @@ export class BoardGrid extends React.Component<BoardGridProps> {
         // FreezeDried shrivels SETTLED blocks only - the falling piece stays
         // readable, which is what makes it so disorienting
         const isSettled = filled && !overlay.has(index);
-        // Transparency hides the settled stack completely - only the falling
-        // piece remains visible
-        const hidden = isSettled && this.props.transparency;
+        // Transparency reduces the settled stack to bare outlines - you can
+        // still find the surface, but nothing about it is easy to read
+        const ghosted = isSettled && this.props.transparency;
         const shrivelled = isSettled && this.props.freezeDried;
         const shrink = shrivelled ? 0.4 : 1;
         const jitter = shrivelled ? freezeJitter(index, cellPx) : null;
+
+        // Psycho paints empty cells with whatever the overlay says, so the
+        // background flickers between scrambles and the piece leaves a trail
+        const trailColor =
+          !filled && trails && palette ? palette[trails[y][x] % palette.length] : undefined;
+
+        const blockColor =
+          special !== undefined
+            ? SPECIAL_BLOCK_COLOR
+            : palette
+              ? palette[type % palette.length]
+              : PIECE_COLORS[type];
+
+        // The white brick sprite stands in for both ghosts, and both are
+        // drawn faintly.  A psycho trail underneath keeps its own alpha.
+        const isLandingGhost = !filled && shadow.has(index);
+        const ghostSprite = ghosted || isLandingGhost;
+        const alpha = ghostSprite
+          ? SHADOW_ALPHA
+          : !filled && trailColor
+            ? PSYCHO_TRAIL_ALPHA
+            : undefined;
+
         cells.push(
           <div
             key={index}
             style={{
               width: cellPx * shrink,
               height: cellPx * shrink,
+              boxSizing: "border-box",
               margin: jitter ? `${jitter.y}px 0 0 ${jitter.x}px` : undefined,
               // A block carrying a powerup is recolored dark gray so the
               // icon reads and the prize is obvious
-              backgroundColor: hidden
+              backgroundColor: ghosted
                 ? "transparent"
                 : filled
-                  ? special !== undefined
-                    ? SPECIAL_BLOCK_COLOR
-                    : PIECE_COLORS[
-                        psychoColorIndex(type, this.props.psychoSeed ?? 0, PIECE_COLORS.length)
-                      ]
-                  : "transparent",
-              // the landing ghost sits under everything else
-              border:
-                !filled && shadow.has(index)
-                  ? `${Math.max(1, Math.round(cellPx * 0.08))}px solid ${PIECE_COLORS[piece!.type]}66`
-                  : undefined,
-              boxShadow: filled && !hidden ? blockShadow : undefined,
+                  ? blockColor
+                  : (trailColor ?? "transparent"),
+              opacity: alpha,
+              boxShadow: filled && !ghosted ? blockShadow : undefined,
               borderRadius: filled ? Math.max(1, Math.round(cellPx * 0.1)) : undefined,
-              // The icon rides on top of the block it marks
+              // Three things ride the same brick sprite: the landing ghost,
+              // the Transparency outline, and (on top of a block) its icon.
               backgroundImage:
                 special !== undefined && this.props.specialsUrl
                   ? `url(${this.props.specialsUrl})`
-                  : undefined,
+                  : ghostSprite
+                    ? `url(${EittrisAssets.images.brick})`
+                    : undefined,
               backgroundSize:
-                special !== undefined ? `${SPECIAL_ICON_COUNT * 100}% 100%` : undefined,
+                special !== undefined ? `${SPECIAL_ICON_COUNT * 100}% 100%` : "100% 100%",
               backgroundPosition:
                 special !== undefined
                   ? `${(special / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`

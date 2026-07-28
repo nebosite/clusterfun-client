@@ -66,7 +66,8 @@ are healed by the standard invalidate → onboard resync.
 | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
 | **Free drag** (any direction)       | The piece follows the finger horizontally AND downward at once (never up); +10 per row descended |
 | **Release after a drag**            | Locks the piece only if it is resting; an airborne piece just resumes gravity                    |
-| **Tap**                             | Rotate clockwise                                                                                 |
+| **Tap on the piece**                | Rotate clockwise. A tap anywhere else on the board does nothing                                  |
+| **Tap on the landing ghost**        | Drop the piece there (SeeShadows only - with no ghost there is nothing to aim at)                |
 | **Swipe left / right** (fast flick) | Slam the piece all the way left / right                                                          |
 | **Swipe down** (fast flick)         | Hard drop (slam + stick); the next piece is unaffected                                           |
 | **Swipe up** (fast flick)           | Rotate clockwise                                                                                 |
@@ -202,22 +203,26 @@ structs and timers; it makes no rule decisions inline.
    - **Escalator** — paints a 10-row diagonal staircase up the victim's board.
    - **SlowDown** — your own gravity ×1.3 (a self-buff; targets victim in co-op mode).
    - **Jumble** — 200 random single-block scrambles shake the victim's stack apart.
-   - **Psycho** — victim's colors remap randomly every new piece (until cured).
+   - **Psycho** — every color the victim sees comes out of a palette of 32 random ones,
+     the falling piece smears a translucent trail behind it, and the whole background
+     XORs to a different scramble of itself with each new piece (until cured).
    - **Antidote** — stored (max 4); when fired: cures all afflictions/attacks and repels
      new ones for 10 s. Players start with 1.
    - **TheWall** — buries the victim under 8 solid rows, each with one random gap.
-   - **SeeShadows** — enables your ghost/landing-shadow piece for the round.
+   - **SeeShadows** — a faint ghost of the piece appears where it would land, and
+     tapping that ghost drops the piece there.
    - **Bridge** — paints 2 gapped rows directly on top of the victim's stack. Also
      auto-fires at your victim on any 4-line clear.
-   - **EvilPieces** — victim's pieces come from the evil table (Z-heavy + three 5-cell
-     pentominoes) until cured.
+   - **EvilPieces** — the victim gets nothing but Z pieces, left- and right-handed,
+     until cured. Both leave a hole on flat ground however they are turned.
    - **CrazyIvan** — inverts the victim's left/right and rotation controls until cured.
    - **Shackle** — paints an 11-row hollow ring of garbage in the victim's board.
    - **TowerOfEit** — paints a 12-row dark-gray castle tower in the victim's board.
    - **SwitchScreens** — swaps the two boards column by column. You trade stacks.
    - **FreezeDried** — victim's settled blocks render tiny and jittered (unreadable)
      until cured.
-   - **Transparency** — victim's settled stack becomes invisible until cured.
+   - **Transparency** — the victim's settled stack drops to bare ghost outlines (the
+     same brick sprite the landing shadow uses) until cured.
      Attack stencils are painted row by row (~0.1 s per row) in the attacker's color.
 3. **Rounds/tourney** — 5 rounds, placement points 8/5/3/2/1/1/1/0.
 4. **Visual/audio port** — glossy brick + bevel atlas rendering, glow behind the falling

@@ -67,7 +67,16 @@ import {
   cureAfflictions,
   EVIL_PIECE_COUNT,
   hasAfflictions,
-  psychoColorIndex,
+  Z_PIECE_TYPES,
+  PSYCHO_COLOR_COUNT,
+  psychoPalette,
+  emptyPsychoOverlay,
+  xorPsychoOverlay,
+  stampPsychoTrail,
+  encodePsychoOverlay,
+  decodePsychoOverlay,
+  landingCells,
+  classifyTap,
   jumbleOnce,
   JUMBLE_NUDGES,
   swapColumn,
@@ -1069,16 +1078,27 @@ describe("eittrisLogic - SlowDown", () => {
 });
 
 describe("eittrisLogic - EvilPieces", () => {
-  it("has its own table, including five-cell pentominoes", () => {
-    expect(EVIL_PIECE_COUNT).toBe(8);
-    const sizes = new Set<number>();
+  it("offers nothing but the two Z pieces", () => {
+    expect(EVIL_PIECE_COUNT).toBe(2);
+    // Both handednesses, and both are the same shape as the normal Z pieces
     for (let type = 0; type < EVIL_PIECE_COUNT; type++) {
-      const cells = pieceCells(spawnPiece(type, 0, true));
-      sizes.add(cells.length);
-      expect(new Set(cells.map((c) => `${c.x},${c.y}`)).size).toBe(cells.length);
+      const evilCells = pieceCells(spawnPiece(type, 0, true));
+      expect(evilCells.length).toBe(4);
+      const normalCells = pieceCells(spawnPiece(Z_PIECE_TYPES[type], 0, false));
+      expect(new Set(evilCells.map((c) => `${c.x},${c.y}`))).toEqual(
+        new Set(normalCells.map((c) => `${c.x},${c.y}`)),
+      );
     }
-    expect(sizes.has(4)).toBe(true);
-    expect(sizes.has(5)).toBe(true); // the nasty ones
+  });
+
+  it("always leaves a hole on flat ground, whichever way you turn it", () => {
+    for (let type = 0; type < EVIL_PIECE_COUNT; type++) {
+      for (let rot = 0; rot < 4; rot++) {
+        const landed = hardDrop(emptyGrid(), spawnPiece(type, rot, true)).piece;
+        const settled = lockAndClear(emptyGrid(), landed).grid;
+        expect(countCoveredGaps(settled)).toBeGreaterThan(0);
+      }
+    }
   });
 
   it("draws evil pieces only when the flag is set", () => {
@@ -1110,32 +1130,54 @@ describe("eittrisLogic - EvilPieces", () => {
 });
 
 describe("eittrisLogic - Psycho", () => {
-  it("leaves colors alone when not afflicted", () => {
-    for (let v = 0; v < 7; v++) expect(psychoColorIndex(v, 0, 9)).toBe(v);
+  it("builds the same 32-color palette on both ends from just the seed", () => {
+    const palette = psychoPalette(1234);
+    expect(palette.length).toBe(PSYCHO_COLOR_COUNT);
+    for (const c of palette) expect(c).toMatch(/^#[0-9a-f]{6}$/);
+    expect(psychoPalette(1234)).toEqual(palette); // the phone derives the same one
+    expect(psychoPalette(1235)).not.toEqual(palette);
   });
 
-  it("remaps into the palette and is stable for a given seed", () => {
-    const seed = 1234;
-    for (let v = 0; v < 7; v++) {
-      const mapped = psychoColorIndex(v, seed, 9);
-      expect(mapped).toBeGreaterThanOrEqual(0);
-      expect(mapped).toBeLessThan(9);
-      expect(psychoColorIndex(v, seed, 9)).toBe(mapped); // same seed, same answer
+  it("XORs the whole background to a new scramble on each new piece", () => {
+    let overlay = emptyPsychoOverlay();
+    overlay[3][4] = 7;
+    overlay = xorPsychoOverlay(overlay, 5);
+    expect(overlay[3][4]).toBe(7 ^ 5);
+    expect(overlay[0][0]).toBe(5); // even untouched cells flip
+    // XOR is its own inverse, so the same skew twice is a round trip
+    expect(xorPsychoOverlay(overlay, 5)[3][4]).toBe(7);
+    // and nothing can escape the palette
+    for (const row of xorPsychoOverlay(overlay, PSYCHO_COLOR_COUNT - 1)) {
+      for (const v of row) expect(v).toBeLessThan(PSYCHO_COLOR_COUNT);
     }
   });
 
-  it("shuffles differently as the seed changes", () => {
-    const before = [0, 1, 2, 3, 4, 5, 6].map((v) => psychoColorIndex(v, 11, 9));
-    const after = [0, 1, 2, 3, 4, 5, 6].map((v) => psychoColorIndex(v, 12, 9));
-    expect(before).not.toEqual(after);
+  it("smears the falling piece's color into the overlay as a trail", () => {
+    const piece = spawnPiece(1, 0, false); // the I piece, easy to spot
+    const overlay = stampPsychoTrail(emptyPsychoOverlay(), piece);
+    for (const c of pieceCells(piece)) {
+      if (c.y >= 0) expect(overlay[c.y][c.x]).toBe(1);
+    }
+    // A cell the piece never touched is untouched
+    expect(overlay[BOARD_HEIGHT - 1][0]).toBe(0);
+  });
+
+  it("survives the wire in 210 characters", () => {
+    let overlay = xorPsychoOverlay(emptyPsychoOverlay(), 19);
+    overlay = stampPsychoTrail(overlay, spawnPiece(4, 0, false));
+    const encoded = encodePsychoOverlay(overlay);
+    expect(encoded.length).toBe(BOARD_WIDTH * BOARD_HEIGHT);
+    expect(decodePsychoOverlay(encoded)).toEqual(overlay);
   });
 
   it("is an affliction the antidote clears", () => {
     const board = makeBoard("p1", () => 0.1);
     board.psychoSeed = 42;
+    board.psychoOverlay = emptyPsychoOverlay();
     expect(hasAfflictions(board)).toBe(true);
     cureAfflictions(board);
     expect(board.psychoSeed).toBe(0);
+    expect(board.psychoOverlay).toBeNull();
   });
 });
 
@@ -1212,5 +1254,57 @@ describe("eittrisLogic - swapColumn", () => {
     const b = emptyGrid();
     a[5][3] = 1;
     expect(swapColumn(a, b, 99).a[5][3]).toBe(1);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// SeeShadows + what a tap on the board means
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - the landing ghost and tap targets", () => {
+  it("puts the ghost exactly where a hard drop would land the piece", () => {
+    const grid = emptyGrid();
+    grid[BOARD_HEIGHT - 1][5] = 0; // a lump to land on
+    const piece = spawnPiece(6, 0, false); // O at the spawn column
+    const cells = landingCells(grid, piece);
+    const landed = hardDrop(grid, piece).piece;
+    expect(cells).toEqual(new Set(pieceCells(landed).map((c) => c.y * BOARD_WIDTH + c.x)));
+    expect(cells.size).toBe(4);
+  });
+
+  it("has no ghost with no piece", () => {
+    expect(landingCells(emptyGrid(), null).size).toBe(0);
+  });
+
+  it("rotates only when the tap lands on the piece itself", () => {
+    const grid = emptyGrid();
+    const piece = { type: 6, rot: 0, x: 5, y: 10, evil: false }; // O at (5,10)-(6,11)
+    expect(classifyTap(grid, piece, { x: 5, y: 10 }, false)).toBe("rotate");
+    expect(classifyTap(grid, piece, { x: 6, y: 11 }, false)).toBe("rotate");
+    // Next to it, far from it, and off the board are all ignored
+    expect(classifyTap(grid, piece, { x: 4, y: 10 }, false)).toBe("none");
+    expect(classifyTap(grid, piece, { x: 0, y: 0 }, false)).toBe("none");
+    expect(classifyTap(grid, piece, { x: -1, y: 10 }, false)).toBe("none");
+    expect(classifyTap(grid, piece, { x: 5, y: BOARD_HEIGHT }, false)).toBe("none");
+  });
+
+  it("drops the piece when the tap lands on the ghost, but only with SeeShadows on", () => {
+    const grid = emptyGrid();
+    const piece = { type: 6, rot: 0, x: 5, y: 2, evil: false };
+    const ghost = [...landingCells(grid, piece)][0];
+    const cell = { x: ghost % BOARD_WIDTH, y: Math.floor(ghost / BOARD_WIDTH) };
+    expect(classifyTap(grid, piece, cell, true)).toBe("drop");
+    // Without the affliction there is no ghost to aim at, so nothing happens
+    expect(classifyTap(grid, piece, cell, false)).toBe("none");
+  });
+
+  it("prefers rotating when the piece is already sitting on its own ghost", () => {
+    const grid = emptyGrid();
+    const resting = hardDrop(grid, spawnPiece(6, 0, false)).piece;
+    const cell = pieceCells(resting)[0];
+    expect(classifyTap(grid, resting, cell, true)).toBe("rotate");
+  });
+
+  it("does nothing at all during the spawn gap", () => {
+    expect(classifyTap(emptyGrid(), null, { x: 5, y: 5 }, true)).toBe("none");
   });
 });

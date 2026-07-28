@@ -33,6 +33,9 @@ export interface EittrisBoardSnapshot {
   freezeDried: boolean; // settled blocks render tiny and jittered
   transparency: boolean; // settled blocks are invisible
   psychoSeed: number; // non-zero = colors are scrambled with this seed
+  // Psycho's per-cell palette indices, 210 chars, one per cell.  Only sent
+  // while the affliction is on - null otherwise, so it costs nothing normally.
+  psychoOverlay: string | null;
   shieldMs: number; // remaining antidote shield (0 = inactive)
   forcedSpecial: number | null; // dev selector echo
   aiControlled: boolean; // dev: the computer is playing this board

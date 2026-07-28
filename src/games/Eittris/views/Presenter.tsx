@@ -182,6 +182,7 @@ class BoardPanel extends React.Component<{
             freezeDried={board.freezeDried}
             transparency={board.transparency}
             psychoSeed={board.psychoSeed}
+            psychoOverlay={board.psychoOverlay}
           />
           {!board.alive ? <div className={styles.toppedOut}>TOPPED OUT</div> : null}
         </div>
