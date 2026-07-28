@@ -11,7 +11,10 @@ import {
 import {
   ANTIDOTE_DURATION_MS,
   collides,
+  GARBAGE_CELL,
   pieceCells,
+  STENCIL_ROW_MS,
+  WALL_ROWS,
   effectiveIntervalMs,
   BOARD_HEIGHT,
   BOARD_WIDTH,
@@ -817,5 +820,89 @@ describe("EittrisPresenterModel - dev preferences survive the wait", () => {
     const info = model.handleOnboardClient("A", {});
     expect(info.board).toBeNull(); // no board yet...
     expect(info.aiControlled).toBe(true); // ...but the phone still knows
+  });
+});
+
+describe("EittrisPresenterModel - TheWall", () => {
+  function armWall(model: EittrisPresenterModel) {
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    runInAction(() => {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        if (x < 4 || x > 6) board.grid[BOARD_HEIGHT - 1][x] = 1;
+      }
+      board.specials.push({ index: (BOARD_HEIGHT - 1) * BOARD_WIDTH, type: SpecialType.TheWall });
+    });
+    return board;
+  }
+
+  it("buries the target one row at a time, bottom up", () => {
+    const { model } = startTwoPlayerGame();
+    armWall(model);
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    expect(victim.pendingStencil).toBeNull();
+
+    model.handleCommand("A", { command: "hardDrop" }); // collects and fires
+    expect(victim.pendingStencil).not.toBeNull();
+    expect(victim.pendingStencil!.shape.length).toBe(WALL_ROWS);
+
+    // Nothing painted yet...
+    expect(victim.grid[BOARD_HEIGHT - 1].every((c) => c === EMPTY_CELL)).toBe(true);
+
+    // ...one row lands per STENCIL_ROW_MS
+    let time = 0;
+    time += STENCIL_ROW_MS + 5;
+    tickTo(model, time);
+    expect(victim.grid[BOARD_HEIGHT - 1].some((c) => c === GARBAGE_CELL)).toBe(true);
+    expect(victim.grid[BOARD_HEIGHT - 2].every((c) => c === EMPTY_CELL)).toBe(true);
+
+    // let the whole wall finish
+    for (let i = 0; i < WALL_ROWS + 2; i++) {
+      time += STENCIL_ROW_MS + 5;
+      tickTo(model, time);
+    }
+    expect(victim.pendingStencil).toBeNull();
+    for (let r = 0; r < WALL_ROWS; r++) {
+      const row = victim.grid[BOARD_HEIGHT - 1 - r];
+      expect(row.filter((c) => c === GARBAGE_CELL).length).toBe(BOARD_WIDTH - 1); // one gap
+    }
+  });
+
+  it("leaves the attacker's own board alone", () => {
+    const { model } = startTwoPlayerGame();
+    const attacker = armWall(model);
+    model.handleCommand("A", { command: "hardDrop" });
+    expect(attacker.pendingStencil).toBeNull();
+  });
+
+  it("is turned away by an antidote shield", () => {
+    const { model } = startTwoPlayerGame();
+    armWall(model);
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    model.handleCommand("B", { command: "useAntidote" });
+
+    model.handleCommand("A", { command: "hardDrop" });
+
+    expect(victim.pendingStencil).toBeNull();
+    tickTo(model, STENCIL_ROW_MS * 4);
+    expect(victim.grid[BOARD_HEIGHT - 1].every((c) => c === EMPTY_CELL)).toBe(true);
+  });
+
+  it("keeps the victim's falling piece legal while burying it", () => {
+    const { model } = startTwoPlayerGame();
+    armWall(model);
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    runInAction(() => {
+      victim.piece = { type: 6, rot: 0, x: 4, y: BOARD_HEIGHT - 2 }; // low on the board
+    });
+
+    model.handleCommand("A", { command: "hardDrop" });
+    let time = 0;
+    for (let i = 0; i < WALL_ROWS + 2; i++) {
+      time += STENCIL_ROW_MS + 5;
+      tickTo(model, time);
+      if (victim.piece) {
+        expect(collides(victim.grid, pieceCells(victim.piece))).toBe(false);
+      }
+    }
   });
 });

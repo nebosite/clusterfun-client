@@ -48,6 +48,11 @@ import {
   dropDestination,
   planPlacement,
   nextAiMove,
+  makeWallShape,
+  paintStencilRow,
+  liftPieceClear,
+  WALL_ROWS,
+  GARBAGE_CELL,
 } from "./eittrisLogic";
 
 // Sorted "x,y" strings for order-independent cell comparison
@@ -65,7 +70,9 @@ function pieceAt(type: number, rot = 0, x = 0, y = 0): EittrisPiece {
 describe("eittrisLogic - piece shapes and rotation", () => {
   it("has 7 pieces, each with a color and exactly 4 cells in every rotation", () => {
     expect(PIECE_COUNT).toBe(7);
-    expect(PIECE_COLORS.length).toBe(7);
+    // ...plus one extra color for attack garbage (GARBAGE_CELL)
+    expect(PIECE_COLORS.length).toBe(PIECE_COUNT + 1);
+    expect(PIECE_COLORS[GARBAGE_CELL]).toBeDefined();
     for (let type = 0; type < PIECE_COUNT; type++) {
       for (let rot = 0; rot < 4; rot++) {
         const cells = pieceCells(pieceAt(type, rot));
@@ -798,5 +805,79 @@ describe("eittrisLogic - AI placement", () => {
     expect(nextAiMove(piece, { rot: 0, x: 2, score: 0 })).toBe("left");
     expect(nextAiMove(piece, { rot: 0, x: 8, score: 0 })).toBe("right");
     expect(nextAiMove(piece, { rot: 0, x: 5, score: 0 })).toBeNull(); // let it fall
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Attack stencils (TheWall)
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - attack stencils", () => {
+  it("builds a wall of solid rows, each with exactly one gap", () => {
+    const shape = makeWallShape(() => 0.35);
+    expect(shape.length).toBe(WALL_ROWS);
+    for (const row of shape) {
+      expect(row.length).toBe(BOARD_WIDTH);
+      expect((row.match(/-/g) || []).length).toBe(1);
+      expect((row.match(/#/g) || []).length).toBe(BOARD_WIDTH - 1);
+    }
+  });
+
+  it("paints from the bottom up, overwriting what was there", () => {
+    const grid = emptyGrid();
+    grid[BOARD_HEIGHT - 1][0] = 2; // an existing block the wall will bury
+    const shape = ["##########", "#########-"];
+
+    // row 0 = the shape's LAST row, landing on the grid's bottom row
+    const after = paintStencilRow(grid, shape, 0, false);
+    expect(after[BOARD_HEIGHT - 1][0]).toBe(GARBAGE_CELL); // overwritten
+    expect(after[BOARD_HEIGHT - 1][BOARD_WIDTH - 1]).toBe(EMPTY_CELL); // '-' cleared it
+    expect(after[BOARD_HEIGHT - 2].every((c) => c === EMPTY_CELL)).toBe(true); // untouched
+
+    // row 1 lands one higher
+    const after2 = paintStencilRow(after, shape, 1, false);
+    expect(after2[BOARD_HEIGHT - 2].every((c) => c === GARBAGE_CELL)).toBe(true);
+  });
+
+  it("mirrors the shape when reversed", () => {
+    const grid = emptyGrid();
+    const shape = ["-#########"]; // gap at the far left
+    const normal = paintStencilRow(grid, shape, 0, false);
+    const mirrored = paintStencilRow(grid, shape, 0, true);
+    expect(normal[BOARD_HEIGHT - 1][0]).toBe(EMPTY_CELL);
+    expect(mirrored[BOARD_HEIGHT - 1][BOARD_WIDTH - 1]).toBe(EMPTY_CELL);
+    expect(mirrored[BOARD_HEIGHT - 1][0]).toBe(GARBAGE_CELL);
+  });
+
+  it("never fills a row completely, so a wall alone cannot score", () => {
+    const shape = makeWallShape(() => 0.5);
+    let grid = emptyGrid();
+    for (let r = 0; r < shape.length; r++) grid = paintStencilRow(grid, shape, r, false);
+    for (let y = 0; y < BOARD_HEIGHT; y++) {
+      expect(grid[y].every((c) => c !== EMPTY_CELL)).toBe(false);
+    }
+  });
+
+  it("lifts a buried piece clear of the new blocks", () => {
+    const grid = emptyGrid();
+    for (let x = 0; x < BOARD_WIDTH; x++) grid[BOARD_HEIGHT - 1][x] = GARBAGE_CELL;
+    const buried = { type: 6, rot: 0, x: 4, y: BOARD_HEIGHT - 1 }; // O inside the wall
+    const lifted = liftPieceClear(grid, buried);
+    expect(lifted).not.toBeNull();
+    expect(collides(grid, pieceCells(lifted!))).toBe(false);
+    expect(lifted!.y).toBeLessThan(buried.y);
+  });
+
+  it("pushes the piece above a packed board rather than losing it", () => {
+    // Cells above the board are legal (that is where pieces spawn), so a
+    // fully buried piece ends up overhead - the board then tops out on the
+    // next lock, which is the right outcome.
+    const grid = emptyGrid();
+    for (let y = 0; y < BOARD_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) grid[y][x] = GARBAGE_CELL;
+    }
+    const lifted = liftPieceClear(grid, { type: 6, rot: 0, x: 4, y: 5 });
+    expect(lifted).not.toBeNull();
+    expect(lifted!.y).toBeLessThan(0);
+    expect(collides(grid, pieceCells(lifted!))).toBe(false);
   });
 });

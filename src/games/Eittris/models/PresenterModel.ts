@@ -58,6 +58,10 @@ import {
   SPECIAL_INTERVAL_MS,
   SpecialType,
   EittrisPiece,
+  liftPieceClear,
+  makeWallShape,
+  paintStencilRow,
+  STENCIL_ROW_MS,
   hasAfflictions,
   nextAiMove,
   planPlacement,
@@ -300,6 +304,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     if (!board.alive) return;
 
     this.tickSpecials(board, dtMs);
+    this.tickStencil(board, dtMs);
     this.tickAi(board, dtMs);
 
     // The board is in the post-lock gap: nothing falls, and no command can
@@ -364,6 +369,52 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     board.specialTimerMs = SPECIAL_INTERVAL_MS;
     this.dirtyPlayerIds.add(board.playerId);
     this.saveCheckpoint();
+  }
+
+  // -------------------------------------------------------------------
+  // tickStencil - paint an incoming attack into the board one row at a
+  // time (the original's ShapeDraw cadence), from the bottom up.
+  // -------------------------------------------------------------------
+  private tickStencil(board: EittrisBoard, dtMs: number) {
+    const pending = board.pendingStencil;
+    if (!pending) return;
+
+    pending.timerMs -= dtMs;
+    if (pending.timerMs > 0) return;
+    pending.timerMs = STENCIL_ROW_MS;
+
+    board.grid = paintStencilRow(board.grid, pending.shape, pending.row, pending.reverse);
+    pending.row++;
+    if (pending.row >= pending.shape.length) board.pendingStencil = null;
+
+    // Being buried can leave the falling piece inside solid blocks
+    if (board.piece) {
+      const lifted = liftPieceClear(board.grid, board.piece);
+      if (lifted) {
+        board.piece = lifted;
+      } else {
+        this.killBoard(board); // buried with nowhere to go
+      }
+    }
+    this.dirtyPlayerIds.add(board.playerId);
+    this.saveCheckpoint();
+  }
+
+  // -------------------------------------------------------------------
+  // killBoard - this board is done; retarget anyone aiming at it
+  // -------------------------------------------------------------------
+  private killBoard(board: EittrisBoard) {
+    if (!board.alive) return;
+    board.piece = null;
+    board.alive = false;
+    board.pendingStencil = null;
+    board.deathOrder = ++this.deathCount;
+    for (const changedId of retargetOnDeath(this.boards.slice(), board.playerId)) {
+      this.dirtyPlayerIds.add(changedId);
+    }
+    this.invokeEvent(EittrisGameEvent.PlayerDied, board.playerId);
+    this.dirtyPlayerIds.add(board.playerId);
+    this.checkForGameEnd();
   }
 
   // -------------------------------------------------------------------
@@ -432,6 +483,14 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       switch (type) {
         case SpecialType.Speedup:
           victim.speedupStacks++;
+          break;
+        case SpecialType.TheWall:
+          victim.pendingStencil = {
+            shape: makeWallShape(() => this.randomDouble(1.0)),
+            row: 0,
+            reverse: this.randomDouble(1.0) < 0.5,
+            timerMs: 0,
+          };
           break;
         default:
           Logger.warn(`Unhandled offensive special: ${SpecialType[type]}`);

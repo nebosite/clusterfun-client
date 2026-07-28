@@ -23,7 +23,7 @@ import {
   EittrisGameEvent,
   EittrisPlayer,
 } from "../models/PresenterModel";
-import { EittrisBoard } from "../models/eittrisLogic";
+import { EittrisBoard, SpecialType } from "../models/eittrisLogic";
 import BoardGrid from "./BoardGrid";
 
 const RULES = ["Use your finger to control and place pieces"];
@@ -258,10 +258,13 @@ export default class Presenter extends React.Component<{
     appModel?.subscribe(
       EittrisGameEvent.SpecialFired,
       "special sound",
-      (_attackerId: string, _victimId: string, _type: number, repelled: boolean) => {
-        this.media.playSound(repelled ? EittrisAssets.sounds.repel : EittrisAssets.sounds.speedup, {
-          volume: 0.9,
-        });
+      (_attackerId: string, _victimId: string, type: number, repelled: boolean) => {
+        const sound = repelled
+          ? EittrisAssets.sounds.repel
+          : type === SpecialType.TheWall
+            ? EittrisAssets.sounds.wall
+            : EittrisAssets.sounds.speedup;
+        this.media.playSound(sound, { volume: 0.9 });
       },
     );
     appModel?.subscribe(PresenterGameEvent.PlayerJoined, "play joined sound", () =>

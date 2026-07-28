@@ -106,6 +106,15 @@ Ported from the original's `Specials.cs`. Icons come straight from the eitrix at
 - **Antidote** (implemented): banked as a charge (max 4, everyone starts with 1). Firing it
   cures all afflictions/attacks and repels new ones for 10 s. The phone has a button showing
   the flask icon and the count, plus a `SHIELDED` countdown while it's up.
+- **Attack stencils:** the eitrix signature - an offensive special paints a shape into the
+  BOTTOM of the victim's grid, one row per `STENCIL_ROW_MS` (100 ms), **overwriting** what is
+  there rather than pushing the stack up, and randomly mirrored. `'#'` places a garbage block
+  (`GARBAGE_CELL`, its own gray), `'-'` destroys whatever is there, `'.'` leaves it alone. If
+  the burial leaves the victim's falling piece inside solid blocks it is lifted clear (it may
+  end up above the board, which tops out naturally on the next lock). Escalator, Bridge,
+  Shackle and TowerOfEit are all just different shapes through this same machinery.
+- **TheWall** (implemented): 8 solid rows, each with one random gap - a ragged chimney. Plays
+  the original `Attack04.wav`.
 - **Speedup** (implemented): the victim's gravity interval is permanently multiplied by
   `SPEEDUP_FACTOR` (0.6, verbatim from the original), floored at `MIN_INTERVAL_MS` so a
   stack of them can't make a board literally unplayable. Plays the original `Speedup.wav`

@@ -18,6 +18,9 @@ export const LINEAR_KNEE_MS = 500; // below this the decay goes linear
 export const LINEAR_DECAY_MS_PER_SEC = 3; // interval -= 3ms per elapsed second
 
 export const DROP_POINTS_PER_ROW = 10; // hard/soft dropped rows: +10 points per row
+// Garbage painted into a board by an attack.  Not a playable piece type -
+// it just occupies cells and renders in its own color.
+export const GARBAGE_CELL = 7;
 
 // Specials: a settled block gets tagged every 8s, but only ever ONE at a
 // time - it stays put until the player clears its row, and nothing new
@@ -32,6 +35,10 @@ export const ANTIDOTES_AT_START = 1;
 // (verbatim from the original), floored at MIN_INTERVAL_MS so a stack of
 // them can't make a board literally unplayable.
 export const SPEEDUP_FACTOR = 0.6;
+// TheWall: 8 solid rows, each with one random gap, painted into the bottom
+// of the victim's board one row per 100ms (the original's ShapeDraw cadence)
+export const WALL_ROWS = 8;
+export const STENCIL_ROW_MS = 100;
 export const EMPTY_CELL = -1;
 
 // ------------------------------------------------------------------------------------------
@@ -60,6 +67,7 @@ export const PIECE_COLORS = [
   "#FF8E00", // Z orange
   "#FFFF00", // reverse Z yellow
   "#0000FF", // O blue
+  "#8a8a8a", // 7: garbage painted by an attack
 ];
 
 export interface Cell {
@@ -314,10 +322,14 @@ export const SPECIAL_NAMES: string[] = [
 
 // Specials that actually DO something today.  Random rolls and the dev
 // selector only ever produce these; the rest land in later increments.
-export const IMPLEMENTED_SPECIALS: SpecialType[] = [SpecialType.Antidote, SpecialType.Speedup];
+export const IMPLEMENTED_SPECIALS: SpecialType[] = [
+  SpecialType.Antidote,
+  SpecialType.Speedup,
+  SpecialType.TheWall,
+];
 
 // Specials that are fired AT your target rather than kept for yourself
-export const OFFENSIVE_SPECIALS: SpecialType[] = [SpecialType.Speedup];
+export const OFFENSIVE_SPECIALS: SpecialType[] = [SpecialType.Speedup, SpecialType.TheWall];
 
 export function isOffensive(type: SpecialType): boolean {
   return OFFENSIVE_SPECIALS.includes(type);
@@ -477,6 +489,8 @@ export interface EittrisBoard {
   // DEV: hand this board to the computer player
   aiControlled: boolean;
   aiTimerMs: number; // countdown to the bot's next move
+  // An attack stencil currently painting itself into this board
+  pendingStencil: PendingStencil | null;
 }
 
 export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
@@ -504,6 +518,7 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     forcedSpecial: null,
     aiControlled: false,
     aiTimerMs: 0,
+    pendingStencil: null,
   };
 }
 
@@ -757,5 +772,68 @@ export function nextAiMove(piece: EittrisPiece, plan: AiPlan): AiMove {
   if (piece.rot !== plan.rot) return "rotate";
   if (piece.x > plan.x) return "left";
   if (piece.x < plan.x) return "right";
+  return null;
+}
+
+// ==========================================================================================
+// Attack stencils - the eitrix signature.  An attack paints a shape into the
+// BOTTOM of the victim's grid, one row per STENCIL_ROW_MS, overwriting what
+// is there (it does NOT push the stack up).  Shapes are arrays of rows,
+// bottom row last, using:
+//    '#' put a garbage block here
+//    '-' destroy whatever is here
+//    '.' leave this cell alone
+// The whole shape is randomly mirrored, exactly like the original.
+// ==========================================================================================
+
+// A stencil mid-paint, living on the victim's board
+export interface PendingStencil {
+  shape: string[];
+  row: number; // how many rows have been painted so far
+  reverse: boolean; // horizontal mirror
+  timerMs: number; // countdown to the next row
+}
+
+// TheWall: solid rows, each with a single random gap - a ragged chimney
+export function makeWallShape(rand: () => number): string[] {
+  const rows: string[] = [];
+  for (let i = 0; i < WALL_ROWS; i++) {
+    const gap = Math.min(BOARD_WIDTH - 1, Math.floor(rand() * BOARD_WIDTH));
+    let row = "";
+    for (let x = 0; x < BOARD_WIDTH; x++) row += x === gap ? "-" : "#";
+    rows.push(row);
+  }
+  return rows;
+}
+
+// Paint one row of a stencil.  rowIndex 0 is the shape's BOTTOM row, which
+// lands on the bottom row of the grid.
+export function paintStencilRow(
+  grid: number[][],
+  shape: string[],
+  rowIndex: number,
+  reverse: boolean,
+): number[][] {
+  const next = grid.map((row) => row.slice());
+  const gridY = BOARD_HEIGHT - 1 - rowIndex;
+  const line = shape[shape.length - 1 - rowIndex];
+  if (gridY < 0 || !line) return next;
+  for (let x = 0; x < BOARD_WIDTH; x++) {
+    const sourceX = reverse ? line.length - 1 - x : x;
+    const ch = line[sourceX];
+    if (ch === "#") next[gridY][x] = GARBAGE_CELL;
+    else if (ch === "-") next[gridY][x] = EMPTY_CELL;
+  }
+  return next;
+}
+
+// Being buried can leave the falling piece inside solid blocks.  Lift it
+// until it is legal again; null means there is nowhere left to go.
+export function liftPieceClear(grid: number[][], piece: EittrisPiece): EittrisPiece | null {
+  let current = piece;
+  for (let i = 0; i <= BOARD_HEIGHT; i++) {
+    if (!collides(grid, pieceCells(current))) return current;
+    current = { ...current, y: current.y - 1 };
+  }
   return null;
 }
