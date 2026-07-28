@@ -18,3 +18,6 @@ export const FLICK_REARM_MOVES = 3;
 // on - the structural cure for input leaking onto the next piece.
 export const SPAWN_DELAY_MS = 200;
 export const THUMBNAIL_INTERVAL_MS = 1000; // how often changed boards broadcast thumbnails
+
+// Computer player: one move (rotate or a single sideways step) twice a second
+export const AI_MOVE_INTERVAL_MS = 500;

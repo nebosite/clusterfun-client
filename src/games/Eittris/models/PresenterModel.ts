@@ -57,10 +57,24 @@ import {
   rollSpecialType,
   SPECIAL_INTERVAL_MS,
   SpecialType,
+  EittrisPiece,
+  hasAfflictions,
+  nextAiMove,
+  planPlacement,
 } from "./eittrisLogic";
-import { SPAWN_DELAY_MS, THUMBNAIL_INTERVAL_MS } from "./GameSettings";
+import { AI_MOVE_INTERVAL_MS, SPAWN_DELAY_MS, THUMBNAIL_INTERVAL_MS } from "./GameSettings";
 
-export class EittrisPlayer extends ClusterFunPlayer {}
+// In the Test Lobby every player is a bot by default so a game can be
+// watched end to end without touching four phones.
+const IS_DEV = process.env.REACT_APP_DEVMODE === "development";
+
+export class EittrisPlayer extends ClusterFunPlayer {
+  // Dev preferences, kept on the player so they survive the wait for the
+  // game to start and every subsequent round (boards are rebuilt each game).
+  // Plain fields: nothing renders them per-player, so no makeObservable needed.
+  aiControlled: boolean = IS_DEV;
+  forcedSpecial: SpecialType | null = null;
+}
 
 // -------------------------------------------------------------------
 // The Game state
@@ -204,6 +218,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     const newPlayer = new EittrisPlayer();
     newPlayer.playerId = id;
     newPlayer.name = name;
+    newPlayer.aiControlled = IS_DEV; // test mode: everyone is a bot by default
     return newPlayer;
   }
 
@@ -224,7 +239,15 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // -------------------------------------------------------------------
   prepareFreshRound = () => {
     const rand = () => this.randomDouble(1.0);
-    this.boards.replace(this.players.map((player) => makeBoard(player.playerId, rand)));
+    this.boards.replace(
+      this.players.map((player) => {
+        const board = makeBoard(player.playerId, rand);
+        board.aiControlled = player.aiControlled;
+        board.forcedSpecial = player.forcedSpecial;
+        if (board.forcedSpecial !== null) board.specialTimerMs = 0;
+        return board;
+      }),
+    );
     initTargetRing(this.boards);
     this.winnerId = null;
     this.winnerName = null;
@@ -277,6 +300,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     if (!board.alive) return;
 
     this.tickSpecials(board, dtMs);
+    this.tickAi(board, dtMs);
 
     // The board is in the post-lock gap: nothing falls, and no command can
     // touch anything, until the next piece appears.
@@ -340,6 +364,40 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     board.specialTimerMs = SPECIAL_INTERVAL_MS;
     this.dirtyPlayerIds.add(board.playerId);
     this.saveCheckpoint();
+  }
+
+  // -------------------------------------------------------------------
+  // tickAi - the computer player.  It only rotates and steps sideways (two
+  // moves a second), lining the piece up so gravity drops it where the
+  // planner wants.  It also knows to pop an antidote when afflicted.
+  // -------------------------------------------------------------------
+  private tickAi(board: EittrisBoard, dtMs: number) {
+    if (!board.aiControlled) return;
+    board.aiTimerMs -= dtMs;
+    if (board.aiTimerMs > 0) return;
+    board.aiTimerMs = AI_MOVE_INTERVAL_MS;
+
+    // Cure first - playing well while afflicted is a losing game
+    if (hasAfflictions(board) && board.antidotes > 0) {
+      this.useAntidote(board);
+      return;
+    }
+
+    if (!board.piece) return; // nothing to steer during the spawn gap
+    const plan = planPlacement(board.grid, board.piece);
+    if (!plan) return;
+
+    const move = nextAiMove(board.piece, plan);
+    if (move === null) return; // lined up - let gravity finish
+
+    let moved: EittrisPiece | null = null;
+    if (move === "rotate") moved = tryRotateCW(board.grid, board.piece);
+    else moved = tryMove(board.grid, board.piece, move === "left" ? -1 : 1, 0);
+
+    if (moved) {
+      board.piece = moved;
+      this.dirtyPlayerIds.add(board.playerId);
+    }
   }
 
   // -------------------------------------------------------------------
@@ -529,7 +587,38 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   }
 
   handleCommand = (sender: string, message: EittrisCommandMessage): void => {
-    if (this.gameState !== EittrisGameState.Playing) return;
+    // Dev preferences are stored on the player, so they work in ANY state -
+    // including while gathering, before a board exists
+    const player = this.players.find((p) => p.playerId === sender);
+    const isDevPreference =
+      message.command === "setAiControlled" || message.command === "setForcedSpecial";
+    if (!isDevPreference && this.gameState !== EittrisGameState.Playing) return;
+    if (message.command === "setAiControlled") {
+      const on = !!message.aiControlled;
+      if (player) player.aiControlled = on;
+      const myBoard = this.boards.find((b) => b.playerId === sender);
+      if (myBoard) {
+        myBoard.aiControlled = on;
+        myBoard.aiTimerMs = 0;
+        this.dirtyPlayerIds.add(sender);
+      }
+      this.saveCheckpoint();
+      return;
+    }
+    if (message.command === "setForcedSpecial") {
+      const wanted = message.specialType;
+      const value = wanted === undefined || wanted === null ? null : (wanted as SpecialType);
+      if (player) player.forcedSpecial = value;
+      const myBoard = this.boards.find((b) => b.playerId === sender);
+      if (myBoard) {
+        myBoard.forcedSpecial = value;
+        if (value !== null) myBoard.specialTimerMs = 0;
+        this.dirtyPlayerIds.add(sender);
+      }
+      this.saveCheckpoint();
+      return;
+    }
+
     const board = this.boards.find((b) => b.playerId === sender);
     if (!board || !board.alive) return;
 
@@ -545,17 +634,6 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       this.useAntidote(board);
       return;
     }
-    if (message.command === "setForcedSpecial") {
-      const wanted = message.specialType;
-      board.forcedSpecial =
-        wanted === undefined || wanted === null ? null : (wanted as SpecialType);
-      // A pinned special should show up right away, not on the next cycle
-      if (board.forcedSpecial !== null) board.specialTimerMs = 0;
-      this.dirtyPlayerIds.add(board.playerId);
-      this.saveCheckpoint();
-      return;
-    }
-
     // Everything else needs a live piece.  During the spawn gap there is
     // none, so stray commands from a finished gesture simply evaporate.
     if (!board.piece) return;
@@ -683,6 +761,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       speedupStacks: board.speedupStacks,
       shieldMs: Math.round(board.shieldMs),
       forcedSpecial: board.forcedSpecial,
+      aiControlled: board.aiControlled,
     };
   }
 
@@ -691,9 +770,12 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // -------------------------------------------------------------------
   handleOnboardClient = (sender: string, message: unknown): EittrisOnboardClientMessage => {
     this.telemetryLogger.logEvent("Presenter", "Onboard Client");
+    const player = this.players.find((p) => p.playerId === sender);
     return {
       gameState: this.gameState,
       board: this.snapshotFor(sender) ?? null,
+      aiControlled: player?.aiControlled ?? false,
+      forcedSpecial: player?.forcedSpecial ?? null,
       winnerName: this.winnerName,
       youWon: this.winnerId !== null && this.winnerId === sender,
     };

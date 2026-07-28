@@ -28,6 +28,7 @@ export interface EittrisBoardSnapshot {
   speedupStacks: number; // Speedup afflictions currently on this board
   shieldMs: number; // remaining antidote shield (0 = inactive)
   forcedSpecial: number | null; // dev selector echo
+  aiControlled: boolean; // dev: the computer is playing this board
 }
 
 // ------------------------------------------------------------------------------------------
@@ -36,6 +37,10 @@ export interface EittrisBoardSnapshot {
 export interface EittrisOnboardClientMessage {
   gameState: string;
   board: EittrisBoardSnapshot | null; // null while gathering (no board yet)
+  // Dev preferences live on the player, so they are reported even before a
+  // board exists (i.e. while waiting for the game to start)
+  aiControlled: boolean;
+  forcedSpecial: number | null;
   winnerName: string | null;
   youWon: boolean;
 }
@@ -65,7 +70,8 @@ export type EittrisCommandKind =
   | "rotate"
   | "pickTarget"
   | "useAntidote" // fire a stored antidote (cure + shield)
-  | "setForcedSpecial"; // DEV ONLY: pin which special spawns
+  | "setForcedSpecial" // DEV ONLY: pin which special spawns
+  | "setAiControlled"; // DEV ONLY: let the computer play this board
 
 export interface EittrisCommandMessage {
   command: EittrisCommandKind;
@@ -73,6 +79,7 @@ export interface EittrisCommandMessage {
   row?: number; // dragTo: target row for the piece origin
   targetId?: string; // pickTarget: the player to target
   specialType?: number | null; // setForcedSpecial: SpecialType, or null for normal play
+  aiControlled?: boolean; // setAiControlled
 }
 
 export const EittrisCommandEndpoint: MessageEndpoint<EittrisCommandMessage, void> = {

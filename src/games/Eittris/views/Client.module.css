@@ -302,7 +302,7 @@
 }
 
 .gameclient .devSelect {
-  font-size: 35%;
+  font-size: 49%;
   padding: 6px;
 }
 
@@ -382,4 +382,13 @@
   font-size: 38%;
   font-weight: 800;
   color: #b8c4d8;
+}
+
+.gameclient .devCheck {
+  font-size: 45%;
+  color: #b8c4d8;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
 }

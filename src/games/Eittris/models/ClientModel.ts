@@ -102,6 +102,7 @@ export class EittrisClientModel extends ClusterfunClientModel {
   @observable speedupStacks = 0;
   @observable shieldMs = 0;
   @observable forcedSpecial: number | null = null;
+  @observable aiControlled = false;
   // The most recent special that fired anywhere, for a brief phone banner
   @observable lastSpecialEvent: EittrisSpecialEventMessage | null = null;
   @observable winnerName: string | null = null;
@@ -149,6 +150,9 @@ export class EittrisClientModel extends ClusterfunClientModel {
       if (response.board) this.applySnapshot(response.board);
       this.winnerName = response.winnerName;
       this.youWon = response.youWon;
+      // Dev prefs come from the player, so they survive the pre-game wait
+      this.aiControlled = response.aiControlled;
+      this.forcedSpecial = response.forcedSpecial;
 
       switch (response.gameState) {
         case EittrisGameState.Playing:
@@ -252,6 +256,7 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.speedupStacks = snapshot.speedupStacks ?? 0;
     this.shieldMs = snapshot.shieldMs ?? 0;
     this.forcedSpecial = snapshot.forcedSpecial ?? null;
+    this.aiControlled = snapshot.aiControlled ?? false;
     this.clearStaleBanner();
     this.pieceSeq = snapshot.pieceSeq;
     this.targetId = snapshot.targetId;
@@ -308,6 +313,15 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.session.sendMessageToPresenter(EittrisCommandEndpoint, {
       command: "setForcedSpecial",
       specialType,
+    });
+  }
+
+  // DEV ONLY: hand this board to the computer player
+  setAiControlled(aiControlled: boolean) {
+    action(() => (this.aiControlled = aiControlled))();
+    this.session.sendMessageToPresenter(EittrisCommandEndpoint, {
+      command: "setAiControlled",
+      aiControlled,
     });
   }
 

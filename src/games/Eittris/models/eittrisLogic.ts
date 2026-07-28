@@ -474,6 +474,9 @@ export interface EittrisBoard {
   speedupStacks: number;
   shieldMs: number; // remaining antidote shield/cure time (0 = inactive)
   forcedSpecial: SpecialType | null; // dev selector: only ever spawn this
+  // DEV: hand this board to the computer player
+  aiControlled: boolean;
+  aiTimerMs: number; // countdown to the bot's next move
 }
 
 export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
@@ -499,6 +502,8 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     speedupStacks: 0,
     shieldMs: 0,
     forcedSpecial: null,
+    aiControlled: false,
+    aiTimerMs: 0,
   };
 }
 
@@ -634,4 +639,123 @@ export function decodeGrid(encoded: string): number[][] {
     grid[Math.floor(i / BOARD_WIDTH)][i % BOARD_WIDTH] = ch === "." ? EMPTY_CELL : Number(ch);
   }
   return grid;
+}
+
+// ==========================================================================================
+// Computer player (one difficulty for now).
+//
+// It only rotates and moves left/right - it never drops - so it plays by
+// steering the piece to a chosen column/rotation and letting gravity finish
+// the job.  The plan is scored the way a person eyeballs it:
+//   - land as low as possible
+//   - touch as much existing material as possible
+//   - never roof over an empty cell (a gap blocked from above is a disaster)
+// ==========================================================================================
+
+export interface AiPlan {
+  rot: number; // desired rotation (0-3)
+  x: number; // desired piece origin column
+  score: number;
+}
+
+// Where would this piece come to rest if it fell from here?
+export function dropDestination(grid: number[][], piece: EittrisPiece): EittrisPiece {
+  return hardDrop(grid, piece).piece;
+}
+
+// How many of the piece's faces would touch a wall, the floor, or a settled
+// block once it lands?
+export function contactCount(grid: number[][], piece: EittrisPiece): number {
+  const cells = pieceCells(piece);
+  const own = new Set(cells.map((c) => `${c.x},${c.y}`));
+  let contacts = 0;
+  for (const c of cells) {
+    const neighbors = [
+      { x: c.x - 1, y: c.y },
+      { x: c.x + 1, y: c.y },
+      { x: c.x, y: c.y + 1 },
+    ];
+    for (const n of neighbors) {
+      if (own.has(`${n.x},${n.y}`)) continue;
+      if (n.x < 0 || n.x >= BOARD_WIDTH || n.y >= BOARD_HEIGHT) {
+        contacts++; // wall or floor
+      } else if (n.y >= 0 && grid[n.y][n.x] !== EMPTY_CELL) {
+        contacts++; // settled block
+      }
+    }
+  }
+  return contacts;
+}
+
+// Empty cells with something solid above them - the holes we must not create
+export function countCoveredGaps(grid: number[][]): number {
+  let gaps = 0;
+  for (let x = 0; x < BOARD_WIDTH; x++) {
+    let covered = false;
+    for (let y = 0; y < BOARD_HEIGHT; y++) {
+      if (grid[y][x] !== EMPTY_CELL) covered = true;
+      else if (covered) gaps++;
+    }
+  }
+  return gaps;
+}
+
+// Settle a piece into a copy of the grid (no row clearing - the AI only
+// needs the resulting shape)
+function withPieceSettled(grid: number[][], piece: EittrisPiece): number[][] {
+  const next = grid.map((row) => row.slice());
+  for (const c of pieceCells(piece)) {
+    if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) {
+      next[c.y][c.x] = piece.type;
+    }
+  }
+  return next;
+}
+
+// Weights for the placement score.  Tuned so "don't make holes" dominates,
+// then "sit low", then "hug what's already there".
+export const AI_GAP_PENALTY = 40;
+export const AI_DEPTH_WEIGHT = 2;
+export const AI_CONTACT_WEIGHT = 3;
+
+export function scorePlacement(grid: number[][], landed: EittrisPiece): number {
+  const settled = withPieceSettled(grid, landed);
+  const newGaps = countCoveredGaps(settled) - countCoveredGaps(grid);
+  const lowest = Math.max(...pieceCells(landed).map((c) => c.y));
+  return (
+    -AI_GAP_PENALTY * newGaps +
+    AI_DEPTH_WEIGHT * lowest +
+    AI_CONTACT_WEIGHT * contactCount(grid, landed)
+  );
+}
+
+// Try every rotation at every reachable column and keep the best landing.
+// Columns are only considered if the piece can actually slide there from its
+// current position, since the AI moves one step at a time.
+export function planPlacement(grid: number[][], piece: EittrisPiece): AiPlan | null {
+  let best: AiPlan | null = null;
+  for (let rot = 0; rot < 4; rot++) {
+    const rotated = { ...piece, rot: (piece.rot + rot) % 4 };
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      const candidate = { ...rotated, x };
+      if (collides(grid, pieceCells(candidate))) continue;
+      const landed = dropDestination(grid, candidate);
+      const score = scorePlacement(grid, landed);
+      if (!best || score > best.score) {
+        best = { rot: candidate.rot, x, score };
+      }
+    }
+  }
+  return best;
+}
+
+// The single step to take right now to work toward the plan: rotate first,
+// then walk sideways.  null means "already lined up - just let it fall".
+export type AiMove = "rotate" | "left" | "right" | null;
+
+export function nextAiMove(piece: EittrisPiece, plan: AiPlan): AiMove {
+  if (piece.rot !== plan.rot) return "rotate";
+  if (piece.x > plan.x) return "left";
+  if (piece.x < plan.x) return "right";
+  return null;
 }

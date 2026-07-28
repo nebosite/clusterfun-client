@@ -580,6 +580,14 @@ export default class Client extends React.Component<{
                     </option>
                   ))}
                 </select>
+                <label className={styles.devCheck}>
+                  <input
+                    type="checkbox"
+                    checked={!!appModel?.aiControlled}
+                    onChange={(e) => appModel?.setAiControlled(e.target.checked)}
+                  />
+                  CPU
+                </label>
               </DevOnly>
               {IS_DEV ? null : <span className={classNames(styles.gametitle)}>EITtris</span>}
               <span>

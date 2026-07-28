@@ -42,6 +42,12 @@ import {
   pickSpecialCell,
   rollSpecialType,
   SpecialType,
+  countCoveredGaps,
+  contactCount,
+  scorePlacement,
+  dropDestination,
+  planPlacement,
+  nextAiMove,
 } from "./eittrisLogic";
 
 // Sorted "x,y" strings for order-independent cell comparison
@@ -677,5 +683,120 @@ describe("eittrisLogic - special markers", () => {
     expect(board.specials).toEqual([]);
     expect(board.shieldMs).toBe(0);
     expect(board.forcedSpecial).toBeNull();
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Computer player
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - AI placement", () => {
+  const gridWith = (fill: (g: number[][]) => void) => {
+    const g = emptyGrid();
+    fill(g);
+    return g;
+  };
+
+  it("counts covered gaps, not open space", () => {
+    const open = gridWith((g) => {
+      g[BOARD_HEIGHT - 1][0] = 1; // a lone block, nothing above it
+    });
+    expect(countCoveredGaps(open)).toBe(0);
+
+    const holed = gridWith((g) => {
+      g[BOARD_HEIGHT - 2][0] = 1; // roof...
+      // ...with BOARD_HEIGHT-1 empty underneath = one covered gap
+    });
+    expect(countCoveredGaps(holed)).toBe(1);
+  });
+
+  it("counts contact with the floor, walls and settled blocks", () => {
+    const g = emptyGrid();
+    // O piece resting in the bottom-left corner
+    const piece = { type: 6, rot: 0, x: 0, y: BOARD_HEIGHT - 2 };
+    // 2 floor contacts + 2 left-wall contacts
+    expect(contactCount(g, piece)).toBe(4);
+  });
+
+  it("prefers a flush landing over one that roofs a hole", () => {
+    // A one-column notch: dropping flat over it would cover the hole
+    const g = gridWith((grid) => {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        if (x !== 3) grid[BOARD_HEIGHT - 1][x] = 1;
+      }
+    });
+    const flat = { type: 1, rot: 1, x: 3, y: 0 }; // horizontal I over the notch
+    const upright = { type: 1, rot: 0, x: 3, y: 0 }; // vertical I into the notch
+    const flatScore = scorePlacement(g, dropDestination(g, flat));
+    const uprightScore = scorePlacement(g, dropDestination(g, upright));
+    expect(uprightScore).toBeGreaterThan(flatScore);
+  });
+
+  it("plans a legal placement for every piece on an empty board", () => {
+    const g = emptyGrid();
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      const plan = planPlacement(g, spawnPiece(type, 0));
+      expect(plan).not.toBeNull();
+      expect(plan!.x).toBeGreaterThanOrEqual(0);
+      expect(plan!.x).toBeLessThan(BOARD_WIDTH);
+      expect(plan!.rot).toBeGreaterThanOrEqual(0);
+      expect(plan!.rot).toBeLessThan(4);
+      // The plan must actually be placeable
+      expect(collides(g, pieceCells({ ...spawnPiece(type, 0), rot: plan!.rot, x: plan!.x }))).toBe(
+        false,
+      );
+    }
+  });
+
+  it("never roofs a hole when a clean placement exists", () => {
+    // A deep 1-wide well at column 8: laying a piece across it would seal
+    // the well shut, which the planner must refuse.
+    const g = gridWith((grid) => {
+      for (let y = BOARD_HEIGHT - 4; y < BOARD_HEIGHT; y++) {
+        for (let x = 0; x < BOARD_WIDTH; x++) {
+          if (x !== 8) grid[y][x] = 1;
+        }
+      }
+    });
+    // (S/Z pieces always leave a hole somewhere on flat ground - what
+    // matters is that nothing gets dropped across the well itself.)
+    const wellSealed = (grid: number[][]) => {
+      let roofed = false;
+      for (let y = 0; y < BOARD_HEIGHT; y++) {
+        if (grid[y][8] !== EMPTY_CELL) roofed = true;
+        else if (roofed) return true; // empty cell under something solid
+      }
+      return false;
+    };
+
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      const plan = planPlacement(g, spawnPiece(type, 0))!;
+      const landed = dropDestination(g, { type, rot: plan.rot, x: plan.x, y: 0 });
+      const after = g.map((row) => row.slice());
+      for (const c of pieceCells(landed)) {
+        if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) after[c.y][c.x] = type;
+      }
+      expect(wellSealed(after)).toBe(false);
+    }
+  });
+
+  it("takes the option with fewer covered gaps when it must choose", () => {
+    // Flat ground: a horizontal Z leaves a hole, so the planner should reach
+    // for the orientation/column that leaves the fewest
+    const g = emptyGrid();
+    const plan = planPlacement(g, spawnPiece(4, 0))!; // Z
+    const landed = dropDestination(g, { type: 4, rot: plan.rot, x: plan.x, y: 0 });
+    const after = g.map((row) => row.slice());
+    for (const c of pieceCells(landed)) {
+      if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) after[c.y][c.x] = 4;
+    }
+    expect(countCoveredGaps(after)).toBeLessThanOrEqual(1);
+  });
+
+  it("walks toward the plan one step at a time: rotate, then sideways", () => {
+    const piece = { type: 0, rot: 0, x: 5, y: 0 };
+    expect(nextAiMove(piece, { rot: 2, x: 5, score: 0 })).toBe("rotate");
+    expect(nextAiMove(piece, { rot: 0, x: 2, score: 0 })).toBe("left");
+    expect(nextAiMove(piece, { rot: 0, x: 8, score: 0 })).toBe("right");
+    expect(nextAiMove(piece, { rot: 0, x: 5, score: 0 })).toBeNull(); // let it fall
   });
 });

@@ -117,6 +117,24 @@ Ported from the original's `Specials.cs`. Icons come straight from the eitrix at
 Still to port (see the catalog at the end of this file): the other 15 specials, victim
 delivery of offensive ones, and the attack/affliction/repel machinery the antidote cures.
 
+## Computer player (dev tool)
+
+A `CPU` checkbox beside the dev special picker hands a board to the computer. One
+difficulty for now:
+
+- It only **rotates and steps sideways**, twice a second (`AI_MOVE_INTERVAL_MS`), lining the
+  piece up so normal gravity drops it where it wants — it never hard-drops.
+- `planPlacement` tries every rotation at every column, simulates the landing, and scores it:
+  a heavy penalty for **new covered gaps** (an empty cell roofed from above), then a bonus for
+  landing **low**, then for **contact** with walls/floor/settled blocks (`AI_GAP_PENALTY`,
+  `AI_DEPTH_WEIGHT`, `AI_CONTACT_WEIGHT`).
+- It pops an **antidote as soon as it is afflicted**, before worrying about placement.
+- All of it is pure and specced in `eittrisLogic.spec.ts`; the presenter just calls
+  `planPlacement` + `nextAiMove` on its tick.
+
+Note S/Z pieces provably cannot avoid making a hole on flat ground, so the planner minimises
+gaps rather than guaranteeing zero.
+
 ## Targeting (increment 1.5 — groundwork for powerups)
 
 Each board has a `targetId`, initialized as a ring at game start (player _i_ targets

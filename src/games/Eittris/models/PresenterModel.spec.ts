@@ -10,6 +10,8 @@ import {
 } from "./PresenterModel";
 import {
   ANTIDOTE_DURATION_MS,
+  collides,
+  pieceCells,
   effectiveIntervalMs,
   BOARD_HEIGHT,
   BOARD_WIDTH,
@@ -18,7 +20,7 @@ import {
   SpecialType,
   START_INTERVAL_MS,
 } from "./eittrisLogic";
-import { SPAWN_DELAY_MS } from "./GameSettings";
+import { AI_MOVE_INTERVAL_MS, SPAWN_DELAY_MS } from "./GameSettings";
 
 // -------------------------------------------------------------------
 // A light integration test that drives the real presenter model through its
@@ -708,5 +710,112 @@ describe("EittrisPresenterModel - the antidote cures afflictions", () => {
     const snap = model.snapshotFor("A")!;
     expect(snap.speedupStacks).toBe(1);
     expect(snap.intervalMs).toBeLessThan(natural);
+  });
+});
+
+describe("EittrisPresenterModel - computer player", () => {
+  it("only moves when switched on, then steers toward its plan", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    const startX = board.piece!.x;
+    const startRot = board.piece!.rot;
+
+    // Off by default: the clock ticks but the piece is untouched sideways
+    tickTo(model, AI_MOVE_INTERVAL_MS + 50);
+    expect(board.piece!.x).toBe(startX);
+    expect(board.piece!.rot).toBe(startRot);
+
+    model.handleCommand("A", { command: "setAiControlled", aiControlled: true });
+    expect(board.aiControlled).toBe(true);
+
+    // Now it acts on its own - one move per interval
+    let time = AI_MOVE_INTERVAL_MS + 50;
+    let moved = false;
+    for (let i = 0; i < 6 && !moved; i++) {
+      time += AI_MOVE_INTERVAL_MS + 10;
+      tickTo(model, time);
+      moved = board.piece!.x !== startX || board.piece!.rot !== startRot;
+    }
+    expect(moved).toBe(true);
+  });
+
+  it("pops an antidote as soon as it is afflicted", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    model.handleCommand("A", { command: "setAiControlled", aiControlled: true });
+    runInAction(() => {
+      board.speedupStacks = 2; // somebody sped it up
+    });
+    expect(board.antidotes).toBe(1);
+
+    tickTo(model, AI_MOVE_INTERVAL_MS + 50);
+
+    expect(board.speedupStacks).toBe(0); // cured itself
+    expect(board.antidotes).toBe(0);
+    expect(board.shieldMs).toBeGreaterThan(0);
+  });
+
+  it("does not waste an antidote when it is healthy", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    model.handleCommand("A", { command: "setAiControlled", aiControlled: true });
+    tickTo(model, AI_MOVE_INTERVAL_MS * 3);
+    expect(board.antidotes).toBe(1);
+  });
+
+  it("keeps the piece legal - it never steers into a collision", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    model.handleCommand("A", { command: "setAiControlled", aiControlled: true });
+    let time = 0;
+    for (let i = 0; i < 40; i++) {
+      time += AI_MOVE_INTERVAL_MS + 10;
+      tickTo(model, time);
+      if (board.piece) {
+        expect(collides(board.grid, pieceCells(board.piece))).toBe(false);
+      }
+    }
+    expect(board.alive).toBe(true);
+  });
+});
+
+describe("EittrisPresenterModel - dev preferences survive the wait", () => {
+  it("accepts the CPU toggle before the game starts and carries it into the board", () => {
+    const { model } = makeModel();
+    const player = addPlayer(model, "A", "Alice");
+    addPlayer(model, "B", "Bob");
+    expect(model.gameState).toBe(PresenterGameState.Gathering);
+
+    // No boards exist yet - the toggle has to land on the player
+    model.handleCommand("A", { command: "setAiControlled", aiControlled: true });
+    expect(player.aiControlled).toBe(true);
+
+    model.startGame();
+    tickTo(model, 0);
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    expect(board.aiControlled).toBe(true);
+    expect(model.boards.find((b) => b.playerId === "B")!.aiControlled).toBe(false);
+  });
+
+  it("keeps the preference across a replay", () => {
+    const { model } = startTwoPlayerGame();
+    model.handleCommand("A", { command: "setAiControlled", aiControlled: true });
+    model.handleCommand("A", { command: "setForcedSpecial", specialType: SpecialType.Speedup });
+
+    model.startGame(); // play again, same players
+    tickTo(model, 0);
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    expect(board.aiControlled).toBe(true);
+    expect(board.forcedSpecial).toBe(SpecialType.Speedup);
+  });
+
+  it("reports the preferences on onboard even while gathering", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    model.handleCommand("A", { command: "setAiControlled", aiControlled: true });
+
+    const info = model.handleOnboardClient("A", {});
+    expect(info.board).toBeNull(); // no board yet...
+    expect(info.aiControlled).toBe(true); // ...but the phone still knows
   });
 });
