@@ -383,6 +383,7 @@ export const IMPLEMENTED_SPECIALS: SpecialType[] = [
   SpecialType.Transparency,
   SpecialType.Psycho,
   SpecialType.Jumble,
+  SpecialType.SwitchScreens,
 ];
 
 // Specials that are fired AT your target rather than kept for yourself
@@ -399,6 +400,7 @@ export const OFFENSIVE_SPECIALS: SpecialType[] = [
   SpecialType.Transparency,
   SpecialType.Psycho,
   SpecialType.Jumble,
+  SpecialType.SwitchScreens,
 ];
 
 export function isOffensive(type: SpecialType): boolean {
@@ -601,6 +603,8 @@ export interface EittrisBoard {
   // Jumble shaking this board apart, a nudge at a time
   jumbleLeft: number;
   jumbleTimerMs: number;
+  // SwitchScreens trading columns with another board
+  pendingSwap: PendingSwap | null;
   // An attack stencil currently painting itself into this board
   pendingStencil: PendingStencil | null;
 }
@@ -640,6 +644,7 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     pendingStencil: null,
     pendingBridge: null,
     jumbleLeft: 0,
+    pendingSwap: null,
     jumbleTimerMs: 0,
   };
 }
@@ -1127,4 +1132,34 @@ export function jumbleOnce(grid: number[][], rand: () => number): number[][] {
   next[spot.y][spot.x] = next[y][x];
   next[y][x] = EMPTY_CELL;
   return next;
+}
+
+// ------------------------------------------------------------------------------------------
+// SwitchScreens - the meanest one: you trade stacks with your target, one
+// column at a time, left to right.  Only the attacker carries the plan; each
+// step swaps that column between the two grids.
+// ------------------------------------------------------------------------------------------
+export const SWAP_COLUMN_MS = 100;
+
+export interface PendingSwap {
+  otherId: string; // whose board we are trading with
+  column: number;
+  timerMs: number;
+}
+
+// Swap one column between two grids, returning both new grids
+export function swapColumn(
+  gridA: number[][],
+  gridB: number[][],
+  column: number,
+): { a: number[][]; b: number[][] } {
+  const a = gridA.map((row) => row.slice());
+  const b = gridB.map((row) => row.slice());
+  if (column < 0 || column >= BOARD_WIDTH) return { a, b };
+  for (let y = 0; y < BOARD_HEIGHT; y++) {
+    const keep = a[y][column];
+    a[y][column] = b[y][column];
+    b[y][column] = keep;
+  }
+  return { a, b };
 }

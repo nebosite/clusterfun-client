@@ -44,6 +44,7 @@ const SPECIAL_SOUNDS: Partial<Record<SpecialType, string>> = {
   [SpecialType.Transparency]: EittrisAssets.sounds.vanish,
   [SpecialType.Psycho]: EittrisAssets.sounds.psycho,
   [SpecialType.Jumble]: EittrisAssets.sounds.jumble,
+  [SpecialType.SwitchScreens]: EittrisAssets.sounds.swap,
 };
 
 function soundForSpecial(type: number): string {

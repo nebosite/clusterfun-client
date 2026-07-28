@@ -123,8 +123,15 @@ Ported from the original's `Specials.cs`. Icons come straight from the eitrix at
   Picking a type makes it the only one that spawns, and it appears immediately instead of
   waiting out the interval. Default `(normal random)` = normal play.
 
-Still to port (see the catalog at the end of this file): the other 15 specials, victim
-delivery of offensive ones, and the attack/affliction/repel machinery the antidote cures.
+**All 16 specials are implemented.** They fall into four families:
+
+- _Stencil attacks_ (TheWall, Escalator, Shackle, TowerOfEit) - paint a shape into the bottom
+  of the victim's grid, one row per 100 ms. `STENCIL_SHAPES` + `stencilShapeFor()`.
+- _Other attacks_ - Bridge (roofs the stack, column by column; also free on a 4-row clear),
+  Jumble (200 single-block nudges), SwitchScreens (trade stacks a column at a time).
+- _Afflictions_ (Speedup, EvilPieces, CrazyIvan, FreezeDried, Transparency, Psycho) - last
+  until an antidote washes them off; all listed in `cureAfflictions`/`hasAfflictions`.
+- _Kept for yourself_ (Antidote, SlowDown, SeeShadows) - no antidote strips your own perks.
 
 ## Computer player (dev tool)
 

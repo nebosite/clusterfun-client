@@ -63,6 +63,8 @@ import {
   JUMBLE_NUDGES,
   JUMBLE_NUDGE_MS,
   jumbleOnce,
+  swapColumn,
+  SWAP_COLUMN_MS,
   makeBridgePlan,
   paintBridgeColumn,
   stencilCellFor,
@@ -314,6 +316,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     this.tickStencil(board, dtMs);
     this.tickBridge(board, dtMs);
     this.tickJumble(board, dtMs);
+    this.tickSwap(board, dtMs);
     this.tickAi(board, dtMs);
 
     // The board is in the post-lock gap: nothing falls, and no command can
@@ -463,6 +466,39 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   }
 
   // -------------------------------------------------------------------
+  // tickSwap - trade one column at a time with the target's board
+  // -------------------------------------------------------------------
+  private tickSwap(board: EittrisBoard, dtMs: number) {
+    const swap = board.pendingSwap;
+    if (!swap) return;
+    const other = this.boards.find((b) => b.playerId === swap.otherId);
+    if (!other || !other.alive) {
+      board.pendingSwap = null; // nobody left to trade with
+      return;
+    }
+
+    swap.timerMs -= dtMs;
+    if (swap.timerMs > 0) return;
+    swap.timerMs = SWAP_COLUMN_MS;
+
+    const swapped = swapColumn(board.grid, other.grid, swap.column);
+    board.grid = swapped.a;
+    other.grid = swapped.b;
+    swap.column++;
+    if (swap.column >= BOARD_WIDTH) board.pendingSwap = null;
+
+    // Either piece can end up buried by what just arrived
+    for (const affected of [board, other]) {
+      if (!affected.piece) continue;
+      const lifted = liftPieceClear(affected.grid, affected.piece);
+      if (lifted) affected.piece = lifted;
+      else this.killBoard(affected);
+      this.dirtyPlayerIds.add(affected.playerId);
+    }
+    this.saveCheckpoint();
+  }
+
+  // -------------------------------------------------------------------
   // killBoard - this board is done; retarget anyone aiming at it
   // -------------------------------------------------------------------
   private killBoard(board: EittrisBoard) {
@@ -472,6 +508,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     board.pendingStencil = null;
     board.pendingBridge = null;
     board.jumbleLeft = 0;
+    board.pendingSwap = null;
     board.deathOrder = ++this.deathCount;
     for (const changedId of retargetOnDeath(this.boards.slice(), board.playerId)) {
       this.dirtyPlayerIds.add(changedId);
@@ -557,6 +594,10 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       switch (type) {
         case SpecialType.Speedup:
           victim.speedupStacks++;
+          break;
+        case SpecialType.SwitchScreens:
+          // The attacker owns the swap, since it touches both boards
+          board.pendingSwap = { otherId: victim.playerId, column: 0, timerMs: 0 };
           break;
         case SpecialType.Jumble:
           victim.jumbleLeft = JUMBLE_NUDGES;

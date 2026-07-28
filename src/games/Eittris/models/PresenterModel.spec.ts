@@ -16,6 +16,7 @@ import {
   hasAfflictions,
   pieceCells,
   STENCIL_ROW_MS,
+  SWAP_COLUMN_MS,
   WALL_ROWS,
   effectiveIntervalMs,
   BOARD_HEIGHT,
@@ -1068,5 +1069,46 @@ describe("EittrisPresenterModel - Transparency", () => {
       });
     }
     expect(hasAfflictions(board)).toBe(false);
+  });
+});
+
+describe("EittrisPresenterModel - SwitchScreens", () => {
+  it("trades the two boards column by column", () => {
+    const { model } = startTwoPlayerGame();
+    const attacker = model.boards.find((b) => b.playerId === "A")!;
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    runInAction(() => {
+      // give each board a signature so we can watch them change places
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        attacker.grid[BOARD_HEIGHT - 1][x] = 1;
+        victim.grid[BOARD_HEIGHT - 2][x] = 2;
+      }
+      attacker.pendingSwap = { otherId: "B", column: 0, timerMs: 0 };
+    });
+
+    let time = 0;
+    for (let i = 0; i < BOARD_WIDTH + 2; i++) {
+      time += SWAP_COLUMN_MS + 5;
+      tickTo(model, time);
+    }
+
+    expect(attacker.pendingSwap).toBeNull();
+    // the stacks have swapped places entirely
+    expect(attacker.grid[BOARD_HEIGHT - 2].every((c) => c === 2)).toBe(true);
+    expect(attacker.grid[BOARD_HEIGHT - 1].every((c) => c === EMPTY_CELL)).toBe(true);
+    expect(victim.grid[BOARD_HEIGHT - 1].every((c) => c === 1)).toBe(true);
+    expect(victim.grid[BOARD_HEIGHT - 2].every((c) => c === EMPTY_CELL)).toBe(true);
+  });
+
+  it("gives up cleanly if the other board dies mid-swap", () => {
+    const { model } = startTwoPlayerGame();
+    const attacker = model.boards.find((b) => b.playerId === "A")!;
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    runInAction(() => {
+      attacker.pendingSwap = { otherId: "B", column: 0, timerMs: 0 };
+      victim.alive = false;
+    });
+    tickTo(model, SWAP_COLUMN_MS + 20);
+    expect(attacker.pendingSwap).toBeNull();
   });
 });

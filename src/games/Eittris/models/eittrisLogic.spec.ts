@@ -70,6 +70,7 @@ import {
   psychoColorIndex,
   jumbleOnce,
   JUMBLE_NUDGES,
+  swapColumn,
 } from "./eittrisLogic";
 
 // Sorted "x,y" strings for order-independent cell comparison
@@ -1180,5 +1181,36 @@ describe("eittrisLogic - Jumble", () => {
     };
     for (let i = 0; i < JUMBLE_NUDGES; i++) grid = jumbleOnce(grid, rand);
     expect(grid.flat().filter((c) => c !== EMPTY_CELL).length).toBe(before);
+  });
+});
+
+describe("eittrisLogic - swapColumn", () => {
+  it("exchanges one column between two grids", () => {
+    const a = emptyGrid();
+    const b = emptyGrid();
+    a[5][3] = 1;
+    b[9][3] = 2;
+    const out = swapColumn(a, b, 3);
+    expect(out.a[9][3]).toBe(2);
+    expect(out.a[5][3]).toBe(EMPTY_CELL);
+    expect(out.b[5][3]).toBe(1);
+    expect(out.b[9][3]).toBe(EMPTY_CELL);
+  });
+
+  it("leaves other columns and the originals alone", () => {
+    const a = emptyGrid();
+    const b = emptyGrid();
+    a[5][3] = 1;
+    a[5][4] = 7;
+    const out = swapColumn(a, b, 3);
+    expect(out.a[5][4]).toBe(7); // untouched column
+    expect(a[5][3]).toBe(1); // inputs not mutated
+  });
+
+  it("ignores an out-of-range column", () => {
+    const a = emptyGrid();
+    const b = emptyGrid();
+    a[5][3] = 1;
+    expect(swapColumn(a, b, 99).a[5][3]).toBe(1);
   });
 });

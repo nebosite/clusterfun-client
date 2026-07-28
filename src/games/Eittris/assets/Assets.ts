@@ -25,6 +25,7 @@ import freeze from "./sounds/Attack07.wav";
 import vanish from "./sounds/Attack09.wav";
 import psycho from "./sounds/Attack10_Yell.wav";
 import jumble from "./sounds/Dot02.wav";
+import swap from "./sounds/Dot.wav";
 import dot from "./sounds/Dot.wav";
 import clear1 from "./sounds/Clear1Line.wav";
 import clear2 from "./sounds/Clear2Lines.wav";
@@ -58,6 +59,7 @@ const EittrisAssets = {
     vanish, // Transparency hiding a stack
     psycho, // Psycho scrambling the colors
     jumble, // Jumble shaking a stack apart
+    swap, // SwitchScreens trading boards
     hello, // a player joined (template placeholder - no eitrix equivalent wired)
     dot, // a piece locked in place
     clear1, // 1 row cleared
