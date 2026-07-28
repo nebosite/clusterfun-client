@@ -25,6 +25,7 @@ import ivan from "./sounds/Attack13_CrazyLaugh.wav";
 import freeze from "./sounds/Attack07.wav";
 import vanish from "./sounds/Attack09.wav";
 import psycho from "./sounds/Attack10_Yell.wav";
+import cured from "./sounds/Trans03_Chimes.wav";
 import jumble from "./sounds/Dot02.wav";
 import swap from "./sounds/Dot.wav";
 import dot from "./sounds/Dot.wav";
@@ -62,6 +63,7 @@ const EittrisAssets = {
     freeze, // FreezeDried shrivelling a stack
     vanish, // Transparency hiding a stack
     psycho, // Psycho scrambling the colors
+    cured, // an affliction let go - timed out, or an antidote washed it off
     jumble, // Jumble shaking a stack apart
     swap, // SwitchScreens trading boards
     hello, // a player joined (template placeholder - no eitrix equivalent wired)

@@ -61,6 +61,7 @@ import {
   liftPieceClear,
   BRIDGE_COLUMN_MS,
   JUMBLE_NUDGES,
+  refillNextQueue,
   AFFLICTION_TIMERS,
   afflictionMsLeft,
   startAffliction,
@@ -117,6 +118,7 @@ export enum EittrisGameEvent {
   SpecialCollected = "SpecialCollected", // args: playerId, SpecialType
   SpecialFired = "SpecialFired", // args: attackerId, victimId, type, repelled
   AntidoteUsed = "AntidoteUsed", // args: playerId
+  AfflictionEnded = "AfflictionEnded", // args: playerId, SpecialType[] that lifted
   PlayerDied = "PlayerDied",
   WinnerAnnounced = "WinnerAnnounced",
 }
@@ -376,11 +378,14 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     const secondsBefore = AFFLICTION_TIMERS.map((spec) =>
       Math.ceil(afflictionMsLeft(board, spec.type) / 1000),
     );
-    const expired = tickAfflictions(board, dtMs);
+    const ended = tickAfflictions(board, dtMs, () => this.randomDouble(1.0));
     const changed = AFFLICTION_TIMERS.some(
       (spec, i) => Math.ceil(afflictionMsLeft(board, spec.type) / 1000) !== secondsBefore[i],
     );
-    if (expired || changed) this.dirtyPlayerIds.add(board.playerId);
+    if (ended.length > 0 || changed) this.dirtyPlayerIds.add(board.playerId);
+    if (ended.length > 0) {
+      this.invokeEvent(EittrisGameEvent.AfflictionEnded, board.playerId, ended);
+    }
   }
 
   // -------------------------------------------------------------------
@@ -658,7 +663,8 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
           break;
         case SpecialType.EvilPieces:
           victim.evilPieces = true;
-          victim.nextQueue = []; // flush the preview so evil pieces start now
+          // Swap the preview for evil pieces at once, without ever emptying it
+          victim.nextQueue = refillNextQueue(() => this.randomDouble(1.0), true);
           break;
         // Bridge lands on top of the stack, so it has its own painter
         case SpecialType.Bridge:
@@ -843,13 +849,16 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   private useAntidote(board: EittrisBoard) {
     if (board.antidotes <= 0) return;
     board.antidotes--;
-    // Wash off everything already applied, then shield against new hits
-    const wasEvil = board.evilPieces;
-    cureAfflictions(board);
-    if (wasEvil) board.nextQueue = []; // back to normal pieces right away
+    // Wash off everything already applied, then shield against new hits.
+    // cureAfflictions refills the preview itself, so an EvilPieces victim is
+    // back on normal pieces without the tray ever going empty.
+    const ended = cureAfflictions(board, () => this.randomDouble(1.0));
     board.shieldMs = ANTIDOTE_DURATION_MS;
     this.dirtyPlayerIds.add(board.playerId);
     this.invokeEvent(EittrisGameEvent.AntidoteUsed, board.playerId);
+    if (ended.length > 0) {
+      this.invokeEvent(EittrisGameEvent.AfflictionEnded, board.playerId, ended);
+    }
     this.saveCheckpoint();
   }
 

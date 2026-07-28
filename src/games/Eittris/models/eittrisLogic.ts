@@ -9,7 +9,7 @@ export const BOARD_WIDTH = 10;
 export const BOARD_HEIGHT = 21; // row 0 at top; gravity is y++
 export const SPAWN_X = 5;
 export const SPAWN_Y = 0;
-export const NEXT_PREVIEW_COUNT = 2; // phones show the next 2 pieces
+export const NEXT_PREVIEW_COUNT = 1; // the phone's tray shows exactly one piece
 
 export const START_INTERVAL_MS = 1000; // gravity starts at 1 row per second
 export const MIN_INTERVAL_MS = 80; // sane floor for the gravity interval
@@ -438,7 +438,8 @@ export interface AfflictionSpec {
   type: SpecialType;
   timerField: keyof EittrisBoard;
   isOn: (board: EittrisBoard) => boolean;
-  lift: (board: EittrisBoard) => void;
+  // `rand` is here for EvilPieces, which has to rebuild the preview queue
+  lift: (board: EittrisBoard, rand: () => number) => void;
 }
 
 export const AFFLICTION_TIMERS: AfflictionSpec[] = [
@@ -455,9 +456,11 @@ export const AFFLICTION_TIMERS: AfflictionSpec[] = [
     type: SpecialType.EvilPieces,
     timerField: "evilPiecesMs",
     isOn: (b) => b.evilPieces,
-    lift: (b) => {
+    lift: (b, rand) => {
       b.evilPieces = false;
-      b.nextQueue = []; // flush the evil preview so normal pieces resume at once
+      // Swap the evil preview for a normal one right away, so the tray never
+      // sits empty waiting on the next spawn
+      b.nextQueue = refillNextQueue(rand, false);
     },
   },
   {
@@ -506,10 +509,14 @@ export function afflictionMsLeft(board: EittrisBoard, type: SpecialType): number
   return spec ? ((board as any)[spec.timerField] as number) : 0;
 }
 
-// Age every clock and lift whatever ran out.  Returns true if any affliction
-// ended, so the caller knows the board is worth re-sending.
-export function tickAfflictions(board: EittrisBoard, dtMs: number): boolean {
-  let expired = false;
+// Age every clock and lift whatever ran out.  Returns the afflictions that
+// ended, so the caller can re-send the board and announce them.
+export function tickAfflictions(
+  board: EittrisBoard,
+  dtMs: number,
+  rand: () => number,
+): SpecialType[] {
+  const ended: SpecialType[] = [];
   for (const spec of AFFLICTION_TIMERS) {
     const left = (board as any)[spec.timerField] as number;
     if (left <= 0) {
@@ -521,19 +528,23 @@ export function tickAfflictions(board: EittrisBoard, dtMs: number): boolean {
     const next = Math.max(0, left - dtMs);
     (board as any)[spec.timerField] = next;
     if (next === 0) {
-      spec.lift(board);
-      expired = true;
+      spec.lift(board, rand);
+      ended.push(spec.type);
     }
   }
-  return expired;
+  return ended;
 }
 
-// Everything an antidote washes off
-export function cureAfflictions(board: EittrisBoard): void {
+// Everything an antidote washes off.  Returns what was actually lifted, so
+// the same "an affliction ended" announcement covers curing too.
+export function cureAfflictions(board: EittrisBoard, rand: () => number): SpecialType[] {
+  const ended: SpecialType[] = [];
   for (const spec of AFFLICTION_TIMERS) {
-    spec.lift(board);
+    if (spec.isOn(board)) ended.push(spec.type);
+    spec.lift(board, rand);
     (board as any)[spec.timerField] = 0;
   }
+  return ended;
 }
 
 // Does this board have anything an antidote would cure?
@@ -643,6 +654,21 @@ export function spawnNextFromQueue(
   const type = queue.shift()!;
   queue.push(pick());
   return { piece: spawnPiece(type, Math.floor(rand() * 4), evil), queue };
+}
+
+// Build a full preview queue from scratch.  Used whenever an affliction
+// switches which table pieces come from - clearing the queue without
+// refilling it would leave the phone's Next tray empty until the next spawn.
+export function refillNextQueue(rand: () => number, evil = false): number[] {
+  const queue: number[] = [];
+  while (queue.length < NEXT_PREVIEW_COUNT) {
+    queue.push(
+      evil
+        ? Math.min(EVIL_PIECE_COUNT - 1, Math.floor(rand() * EVIL_PIECE_COUNT))
+        : randomPieceType(rand),
+    );
+  }
+  return queue;
 }
 
 // ------------------------------------------------------------------------------------------

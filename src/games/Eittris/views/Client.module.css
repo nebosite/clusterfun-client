@@ -1,5 +1,10 @@
 /* Overall Formatting */
 .gameclient {
+  /* The right-hand column, shared by the target list and the Next tray so the
+     two line up exactly.  The board row is 1000 virtual px wide, the board
+     itself is 10 cells of 64px plus its 8px of border, and they sit 18px
+     apart - whatever is left is the column. */
+  --side-column: calc(1000px - (10 * 64px + 8px) - 18px);
   width: 100%;
   height: 100%;
   background-color: rgb(43, 65, 98);
@@ -119,7 +124,10 @@
   border: 4px solid #4d648a;
   border-radius: 12px;
   background: #0d1626;
-  flex: 0 0 auto;
+  /* Same width as the target list it sits directly above */
+  box-sizing: border-box;
+  flex: 0 0 var(--side-column);
+  width: var(--side-column);
   margin-left: auto;
   min-height: 116px;
 }
@@ -135,7 +143,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  flex: 1;
+  box-sizing: border-box;
+  flex: 0 0 var(--side-column);
+  width: var(--side-column);
   max-height: 1352px;
   overflow-y: auto;
   /* never scroll sideways - entries clip/ellipsize instead */

@@ -334,7 +334,9 @@ class ThumbnailView extends React.Component<{ thumb: string }> {
 // -------------------------------------------------------------------
 // TargetList - the other players with live thumbnails; tap to target
 // -------------------------------------------------------------------
-class TargetList extends React.Component<{ appModel?: EittrisClientModel }> {
+@inject("appModel")
+@observer
+export class TargetList extends React.Component<{ appModel?: EittrisClientModel }> {
   render() {
     const { appModel } = this.props;
     if (!appModel) return null;

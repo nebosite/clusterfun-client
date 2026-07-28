@@ -439,11 +439,16 @@ describe("eittrisLogic - spawning", () => {
       calls++;
       return 0.3;
     };
-    const first = spawnNextFromQueue([4, 5], rand);
-    expect(first.piece.type).toBe(4);
+    const first = spawnNextFromQueue([4], rand);
+    expect(first.piece.type).toBe(4); // the head is what falls
+    // and the tray is restocked, so the phone always has something to show
     expect(first.queue.length).toBe(NEXT_PREVIEW_COUNT);
-    expect(first.queue[0]).toBe(5);
     expect(calls).toBeGreaterThan(0);
+
+    // An empty queue is filled before anything is taken from it
+    const fromEmpty = spawnNextFromQueue([], rand);
+    expect(fromEmpty.piece).not.toBeNull();
+    expect(fromEmpty.queue.length).toBe(NEXT_PREVIEW_COUNT);
   });
 
   it("a fresh spawn into a blocked spawn area collides (board death condition)", () => {
@@ -1078,7 +1083,7 @@ describe("eittrisLogic - SlowDown", () => {
     const board = makeBoard("p1", () => 0.1);
     board.speedupStacks = 2;
     board.slowdownStacks = 3;
-    cureAfflictions(board);
+    cureAfflictions(board, () => 0.5);
     expect(board.speedupStacks).toBe(0);
     expect(board.slowdownStacks).toBe(3);
   });
@@ -1131,7 +1136,7 @@ describe("eittrisLogic - EvilPieces", () => {
     const board = makeBoard("p1", () => 0.1);
     board.evilPieces = true;
     expect(hasAfflictions(board)).toBe(true);
-    cureAfflictions(board);
+    cureAfflictions(board, () => 0.5);
     expect(board.evilPieces).toBe(false);
   });
 });
@@ -1182,7 +1187,7 @@ describe("eittrisLogic - Psycho", () => {
     board.psychoSeed = 42;
     board.psychoOverlay = emptyPsychoOverlay();
     expect(hasAfflictions(board)).toBe(true);
-    cureAfflictions(board);
+    cureAfflictions(board, () => 0.5);
     expect(board.psychoSeed).toBe(0);
     expect(board.psychoOverlay).toBeNull();
   });
@@ -1343,10 +1348,10 @@ describe("eittrisLogic - affliction expiry", () => {
       expect(afflictionMsLeft(board, spec.type)).toBe(AFFLICTION_DURATION_MS);
 
       // One millisecond short: still afflicted
-      tickAfflictions(board, AFFLICTION_DURATION_MS - 1);
+      tickAfflictions(board, AFFLICTION_DURATION_MS - 1, () => 0.5);
       expect(spec.isOn(board)).toBe(true);
 
-      expect(tickAfflictions(board, 1)).toBe(true);
+      expect(tickAfflictions(board, 1, () => 0.5)).toEqual([spec.type]);
       expect(spec.isOn(board)).toBe(false);
       expect(afflictionMsLeft(board, spec.type)).toBe(0);
     }
@@ -1356,7 +1361,7 @@ describe("eittrisLogic - affliction expiry", () => {
     const board = makeBoard("p1", () => 0.1);
     board.speedupStacks = 1;
     startAffliction(board, SpecialType.Speedup);
-    tickAfflictions(board, 20000);
+    tickAfflictions(board, 20000, () => 0.5);
     expect(afflictionMsLeft(board, SpecialType.Speedup)).toBe(2000);
 
     // Hit again: full clock, and the stack survives
@@ -1366,13 +1371,13 @@ describe("eittrisLogic - affliction expiry", () => {
     expect(board.speedupStacks).toBe(2);
 
     // When it finally runs out, every stack goes at once
-    tickAfflictions(board, AFFLICTION_DURATION_MS);
+    tickAfflictions(board, AFFLICTION_DURATION_MS, () => 0.5);
     expect(board.speedupStacks).toBe(0);
   });
 
   it("leaves an unafflicted board completely alone", () => {
     const board = makeBoard("p1", () => 0.1);
-    expect(tickAfflictions(board, 5000)).toBe(false);
+    expect(tickAfflictions(board, 5000, () => 0.5)).toEqual([]);
     expect(hasAfflictions(board)).toBe(false);
     for (const spec of AFFLICTION_TIMERS) expect(afflictionMsLeft(board, spec.type)).toBe(0);
   });
@@ -1381,7 +1386,7 @@ describe("eittrisLogic - affliction expiry", () => {
     const board = makeBoard("p1", () => 0.1);
     board.slowdownStacks = 2;
     board.seeShadows = true;
-    tickAfflictions(board, AFFLICTION_DURATION_MS * 2);
+    tickAfflictions(board, AFFLICTION_DURATION_MS * 2, () => 0.5);
     expect(board.slowdownStacks).toBe(2);
     expect(board.seeShadows).toBe(true);
   });
@@ -1390,7 +1395,7 @@ describe("eittrisLogic - affliction expiry", () => {
     const board = makeBoard("p1", () => 0.1);
     board.crazyIvan = true; // an old checkpoint: flag set, timer still zero
     expect(afflictionMsLeft(board, SpecialType.CrazyIvan)).toBe(0);
-    tickAfflictions(board, 16);
+    tickAfflictions(board, 16, () => 0.5);
     expect(afflictionMsLeft(board, SpecialType.CrazyIvan)).toBe(AFFLICTION_DURATION_MS);
     expect(board.crazyIvan).toBe(true);
   });
@@ -1399,7 +1404,7 @@ describe("eittrisLogic - affliction expiry", () => {
     const board = makeBoard("p1", () => 0.1);
     for (const spec of AFFLICTION_TIMERS) afflict(board, spec);
     expect(hasAfflictions(board)).toBe(true);
-    cureAfflictions(board);
+    cureAfflictions(board, () => 0.5);
     expect(hasAfflictions(board)).toBe(false);
     for (const spec of AFFLICTION_TIMERS) expect(afflictionMsLeft(board, spec.type)).toBe(0);
   });

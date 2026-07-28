@@ -307,6 +307,12 @@ export default class Presenter extends React.Component<{
       const index = Math.max(1, Math.min(4, (cleared as number) ?? 1)) - 1;
       this.media.playSound(clearSounds[index], { volume: 0.8 });
     });
+    // An affliction letting go - whether it timed out or an antidote washed
+    // it off.  One chime per batch, so a cure that lifts four at once is not
+    // four overlapping chimes.
+    appModel?.subscribe(EittrisGameEvent.AfflictionEnded, "play cured sound", () =>
+      this.media.playSound(EittrisAssets.sounds.cured, { volume: 0.7 }),
+    );
     appModel?.subscribe(EittrisGameEvent.PlayerDied, "play death sound", () =>
       this.media.playSound(EittrisAssets.sounds.crowdAww, { volume: 0.9 }),
     );

@@ -5,6 +5,7 @@ import { PresenterGameState, GeneralGameState } from "libs";
 import {
   EittrisPresenterModel,
   EittrisGameState,
+  EittrisGameEvent,
   EittrisPlayer,
   getEittrisPresenterTypeHelper,
 } from "./PresenterModel";
@@ -20,6 +21,8 @@ import {
   AFFLICTION_TIMERS,
   afflictionMsLeft,
   PIECE_COUNT,
+  NEXT_PREVIEW_COUNT,
+  EVIL_PIECE_COUNT,
   hardDrop,
   emptyGrid,
   SPAWN_X,
@@ -117,7 +120,7 @@ describe("EittrisPresenterModel - game start", () => {
       expect(board.piece).not.toBeNull();
       expect(board.piece!.x).toBe(5); // spawn column
       expect(board.piece!.y).toBe(0);
-      expect(board.nextQueue.length).toBe(2); // phones preview the next 2
+      expect(board.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
       expect(board.intervalMs).toBe(START_INTERVAL_MS);
       expect(board.grid.length).toBe(BOARD_HEIGHT);
     }
@@ -462,7 +465,7 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
     expect(info.gameState).toBe(EittrisGameState.Playing);
     expect(info.board).not.toBeNull();
     expect(info.board!.piece!.x).toBe(2);
-    expect(info.board!.next.length).toBe(2);
+    expect(info.board!.next.length).toBe(NEXT_PREVIEW_COUNT);
     expect(info.board!.targetId).toBe("B"); // ring: A targets B
     expect(info.board!.backgroundIndex).toBeGreaterThanOrEqual(0);
     expect(info.winnerName).toBeNull();
@@ -1289,5 +1292,91 @@ describe("EittrisPresenterModel - the double-tap drop", () => {
     board.piece = { type: 1, rot: 1, x: 5, y: BOARD_HEIGHT - 1, evil: false };
     expect(() => model.handleCommand("A", { command: "doubleTapDrop" })).not.toThrow();
     expect(board.grid.flat().filter((c) => c !== EMPTY_CELL).length).toBe(4);
+  });
+});
+
+describe("EittrisPresenterModel - the Next tray is never empty", () => {
+  it("keeps exactly one piece in the preview through a whole piece cycle", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    for (let step = 0; step < 6; step++) {
+      expect(board.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
+      expect(model.snapshotFor("A")!.next.length).toBe(NEXT_PREVIEW_COUNT);
+      model.handleCommand("A", { command: "hardDrop" });
+      // ...including right through the post-lock gap, when nothing is falling
+      expect(board.piece).toBeNull();
+      expect(board.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
+      tickTo(model, (step + 1) * (SPAWN_DELAY_MS + 50));
+    }
+  });
+
+  it("swaps the preview for evil pieces without ever emptying it", () => {
+    const { model } = startTwoPlayerGame();
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.EvilPieces });
+    expect(victim.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
+    expect(victim.nextQueue.every((type) => type < EVIL_PIECE_COUNT)).toBe(true);
+
+    // ...and swaps it straight back when the affliction times out
+    tickTo(model, AFFLICTION_DURATION_MS + 100);
+    expect(victim.evilPieces).toBe(false);
+    expect(victim.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
+  });
+
+  it("keeps the preview stocked when an antidote cures EvilPieces", () => {
+    const { model } = startTwoPlayerGame();
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.EvilPieces });
+    model.handleCommand("B", { command: "useAntidote" });
+    expect(victim.evilPieces).toBe(false);
+    expect(victim.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
+  });
+});
+
+describe("EittrisPresenterModel - announcing that an affliction let go", () => {
+  function listenForEnded(model: EittrisPresenterModel) {
+    const seen: { playerId: string; types: SpecialType[] }[] = [];
+    model.subscribe(EittrisGameEvent.AfflictionEnded, "spec", (playerId: any, types: any) =>
+      seen.push({ playerId, types }),
+    );
+    return seen;
+  }
+
+  // invokeEvent defers by a tick, so let the queue drain before looking
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
+
+  it("fires when an affliction times out", async () => {
+    const { model } = startTwoPlayerGame();
+    const seen = listenForEnded(model);
+    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.Transparency });
+    await settle();
+    expect(seen.length).toBe(0);
+
+    tickTo(model, AFFLICTION_DURATION_MS + 100);
+    await settle();
+    expect(seen.length).toBe(1);
+    expect(seen[0].playerId).toBe("B");
+    expect(seen[0].types).toEqual([SpecialType.Transparency]);
+  });
+
+  it("fires once for a whole batch when an antidote washes several off", async () => {
+    const { model } = startTwoPlayerGame();
+    const seen = listenForEnded(model);
+    for (const type of [SpecialType.Speedup, SpecialType.CrazyIvan, SpecialType.FreezeDried]) {
+      model.handleCommand("A", { command: "fireSpecial", specialType: type });
+    }
+    model.handleCommand("B", { command: "useAntidote" });
+    await settle();
+
+    expect(seen.length).toBe(1); // one chime, not three
+    expect(seen[0].types.length).toBe(3);
+  });
+
+  it("stays quiet when an antidote is spent on a clean board", async () => {
+    const { model } = startTwoPlayerGame();
+    const seen = listenForEnded(model);
+    model.handleCommand("A", { command: "useAntidote" });
+    await settle();
+    expect(seen.length).toBe(0);
   });
 });
