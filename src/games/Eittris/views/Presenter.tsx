@@ -33,6 +33,7 @@ const SPECIAL_SOUNDS: Partial<Record<SpecialType, string>> = {
   [SpecialType.Speedup]: EittrisAssets.sounds.speedup,
   [SpecialType.TheWall]: EittrisAssets.sounds.wall,
   [SpecialType.Escalator]: EittrisAssets.sounds.smack,
+  [SpecialType.Shackle]: EittrisAssets.sounds.shackle,
 };
 
 function soundForSpecial(type: number): string {

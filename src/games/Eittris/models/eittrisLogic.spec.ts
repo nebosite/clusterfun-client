@@ -55,6 +55,7 @@ import {
   GARBAGE_CELL,
   ESCALATOR_SHAPE,
   stencilShapeFor,
+  SHACKLE_SHAPE,
 } from "./eittrisLogic";
 
 // Sorted "x,y" strings for order-independent cell comparison
@@ -915,5 +916,43 @@ describe("eittrisLogic - Escalator", () => {
     expect(grid[BOARD_HEIGHT - 10][9]).toBe(GARBAGE_CELL);
     // and it leaves the rest of each row alone
     expect(grid[BOARD_HEIGHT - 1][5]).toBe(EMPTY_CELL);
+  });
+});
+
+describe("eittrisLogic - Shackle", () => {
+  it("is a hollow ring: a solid outline around an empty middle", () => {
+    expect(SHACKLE_SHAPE.length).toBe(11);
+    for (const row of SHACKLE_SHAPE) expect(row.length).toBe(BOARD_WIDTH);
+    // the widest rows reach both walls
+    expect(SHACKLE_SHAPE[4][0]).toBe("#");
+    expect(SHACKLE_SHAPE[4][BOARD_WIDTH - 1]).toBe("#");
+    // and their middles are untouched
+    expect(SHACKLE_SHAPE[4].slice(2, 8)).toBe("......");
+  });
+
+  it("paints a ring whose inside stays empty", () => {
+    let grid = emptyGrid();
+    for (let r = 0; r < SHACKLE_SHAPE.length; r++) {
+      grid = paintStencilRow(grid, SHACKLE_SHAPE, r, false);
+    }
+    // ring wall present on the widest row (shape row 4 -> 11-1-4 = 6 up)
+    const wideY = BOARD_HEIGHT - 1 - 6;
+    expect(grid[wideY][0]).toBe(GARBAGE_CELL);
+    expect(grid[wideY][BOARD_WIDTH - 1]).toBe(GARBAGE_CELL);
+    // hollow middle
+    expect(grid[wideY][4]).toBe(EMPTY_CELL);
+    expect(grid[wideY][5]).toBe(EMPTY_CELL);
+  });
+
+  it("carves away blocks under its '-' outline", () => {
+    const grid = emptyGrid();
+    // fill the row the ring's bottom lands on
+    for (let x = 0; x < BOARD_WIDTH; x++) grid[BOARD_HEIGHT - 1][x] = 1;
+    const after = paintStencilRow(grid, SHACKLE_SHAPE, 0, false);
+    // bottom shape row is "..-####-.." - '-' at index 2 and 7 clear blocks
+    expect(after[BOARD_HEIGHT - 1][2]).toBe(EMPTY_CELL);
+    expect(after[BOARD_HEIGHT - 1][7]).toBe(EMPTY_CELL);
+    expect(after[BOARD_HEIGHT - 1][3]).toBe(GARBAGE_CELL);
+    expect(after[BOARD_HEIGHT - 1][0]).toBe(1); // '.' left alone
   });
 });

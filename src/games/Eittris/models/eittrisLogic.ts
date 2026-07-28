@@ -327,6 +327,7 @@ export const IMPLEMENTED_SPECIALS: SpecialType[] = [
   SpecialType.Speedup,
   SpecialType.TheWall,
   SpecialType.Escalator,
+  SpecialType.Shackle,
 ];
 
 // Specials that are fired AT your target rather than kept for yourself
@@ -334,6 +335,7 @@ export const OFFENSIVE_SPECIALS: SpecialType[] = [
   SpecialType.Speedup,
   SpecialType.TheWall,
   SpecialType.Escalator,
+  SpecialType.Shackle,
 ];
 
 export function isOffensive(type: SpecialType): boolean {
@@ -861,9 +863,25 @@ export const ESCALATOR_SHAPE: string[] = [
   "#-........",
 ];
 
+// A hollow ring of garbage - the '-' outline destroys what it passes over
+export const SHACKLE_SHAPE: string[] = [
+  "..........",
+  "..-####-..",
+  "..#----#..",
+  ".#-....-#.",
+  "#-......-#",
+  "#-......-#",
+  "#-......-#",
+  "#-......-#",
+  ".#-....-#.",
+  "..#----#..",
+  "..-####-..",
+];
+
 // Every special that paints a fixed shape.  Adding one here is all it takes.
 export const STENCIL_SHAPES: Partial<Record<SpecialType, string[]>> = {
   [SpecialType.Escalator]: ESCALATOR_SHAPE,
+  [SpecialType.Shackle]: SHACKLE_SHAPE,
 };
 
 // The shape an attack should paint (null if this special is not a stencil)

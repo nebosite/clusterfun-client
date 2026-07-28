@@ -485,7 +485,8 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
           victim.speedupStacks++;
           break;
         case SpecialType.TheWall:
-        case SpecialType.Escalator: {
+        case SpecialType.Escalator:
+        case SpecialType.Shackle: {
           // Every shape-painting attack goes through the same machinery
           const shape = stencilShapeFor(type, () => this.randomDouble(1.0));
           if (!shape) return;

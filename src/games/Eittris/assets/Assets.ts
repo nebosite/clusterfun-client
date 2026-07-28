@@ -14,6 +14,7 @@ import speedup from "./sounds/Speedup.wav";
 import repel from "./sounds/Attack02.wav";
 import wall from "./sounds/Attack04.wav";
 import smack from "./sounds/Smack00.wav";
+import shackle from "./sounds/Smack03a.wav";
 import dot from "./sounds/Dot.wav";
 import clear1 from "./sounds/Clear1Line.wav";
 import clear2 from "./sounds/Clear2Lines.wav";
@@ -36,6 +37,7 @@ const EittrisAssets = {
     repel, // an antidote shield turned an attack away
     wall, // TheWall burying a board
     smack, // a shape-painting attack landing
+    shackle, // the Shackle ring clamping down
     hello, // a player joined (template placeholder - no eitrix equivalent wired)
     dot, // a piece locked in place
     clear1, // 1 row cleared
