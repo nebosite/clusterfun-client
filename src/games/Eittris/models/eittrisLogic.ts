@@ -381,6 +381,7 @@ export const IMPLEMENTED_SPECIALS: SpecialType[] = [
   SpecialType.CrazyIvan,
   SpecialType.FreezeDried,
   SpecialType.Transparency,
+  SpecialType.Psycho,
 ];
 
 // Specials that are fired AT your target rather than kept for yourself
@@ -395,6 +396,7 @@ export const OFFENSIVE_SPECIALS: SpecialType[] = [
   SpecialType.CrazyIvan,
   SpecialType.FreezeDried,
   SpecialType.Transparency,
+  SpecialType.Psycho,
 ];
 
 export function isOffensive(type: SpecialType): boolean {
@@ -421,6 +423,7 @@ export function cureAfflictions(board: EittrisBoard): void {
   board.crazyIvan = false;
   board.freezeDried = false;
   board.transparency = false;
+  board.psychoSeed = 0;
 }
 
 // Does this board have anything an antidote would cure?
@@ -430,7 +433,8 @@ export function hasAfflictions(board: EittrisBoard): boolean {
     board.evilPieces ||
     board.crazyIvan ||
     board.freezeDried ||
-    board.transparency
+    board.transparency ||
+    board.psychoSeed > 0
   );
 }
 
@@ -583,6 +587,8 @@ export interface EittrisBoard {
   freezeDried: boolean;
   // Transparency: the settled stack is invisible until cured
   transparency: boolean;
+  // Psycho: colors are remapped, reshuffled on every new piece
+  psychoSeed: number; // 0 = not afflicted
   shieldMs: number; // remaining antidote shield/cure time (0 = inactive)
   forcedSpecial: SpecialType | null; // dev selector: only ever spawn this
   // DEV: hand this board to the computer player
@@ -621,6 +627,7 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     crazyIvan: false,
     freezeDried: false,
     transparency: false,
+    psychoSeed: 0,
     shieldMs: 0,
     forcedSpecial: null,
     aiControlled: false,
@@ -1067,4 +1074,15 @@ export function paintBridgeColumn(grid: number[][], plan: PendingBridge): number
     else next[y][x] = plan.blockCell;
   }
   return next;
+}
+
+// ------------------------------------------------------------------------------------------
+// Psycho - every cell's color is remapped through a shuffle that changes on
+// each new piece.  The board underneath is untouched; only what you SEE lies.
+// ------------------------------------------------------------------------------------------
+export function psychoColorIndex(cellValue: number, seed: number, paletteSize: number): number {
+  if (seed <= 0) return cellValue;
+  const mixed = Math.sin((cellValue + 1) * seed * 0.7351) * 43758.5453;
+  const frac = mixed - Math.floor(mixed);
+  return Math.floor(frac * paletteSize) % paletteSize;
 }

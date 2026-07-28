@@ -534,6 +534,9 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
         case SpecialType.Speedup:
           victim.speedupStacks++;
           break;
+        case SpecialType.Psycho:
+          victim.psychoSeed = 1 + Math.floor(this.randomDouble(1.0) * 9999);
+          break;
         case SpecialType.Transparency:
           victim.transparency = true;
           break;
@@ -662,6 +665,8 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     board.nextQueue = spawned.queue;
     board.dropTimerMs = 0;
     board.pieceSeq++;
+    // Psycho re-rolls its palette with every new piece
+    if (board.psychoSeed > 0) board.psychoSeed = 1 + Math.floor(this.randomDouble(1.0) * 9999);
     if (collides(board.grid, pieceCells(spawned.piece))) {
       board.piece = null;
       board.alive = false;
@@ -927,6 +932,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       crazyIvan: board.crazyIvan,
       freezeDried: board.freezeDried,
       transparency: board.transparency,
+      psychoSeed: board.psychoSeed,
       shieldMs: Math.round(board.shieldMs),
       forcedSpecial: board.forcedSpecial,
       aiControlled: board.aiControlled,

@@ -11,6 +11,7 @@ import {
   EMPTY_CELL,
   hardDrop,
   PIECE_COLORS,
+  psychoColorIndex,
   pieceCells,
 } from "../models/eittrisLogic";
 
@@ -42,6 +43,7 @@ interface BoardGridProps {
   showShadow?: boolean; // SeeShadows: outline where the piece will land
   freezeDried?: boolean; // FreezeDried: settled blocks render tiny and jittered
   transparency?: boolean; // Transparency: settled blocks are invisible
+  psychoSeed?: number; // Psycho: remap every color through this seed
 }
 
 export class BoardGrid extends React.Component<BoardGridProps> {
@@ -115,7 +117,9 @@ export class BoardGrid extends React.Component<BoardGridProps> {
                 : filled
                   ? special !== undefined
                     ? SPECIAL_BLOCK_COLOR
-                    : PIECE_COLORS[type]
+                    : PIECE_COLORS[
+                        psychoColorIndex(type, this.props.psychoSeed ?? 0, PIECE_COLORS.length)
+                      ]
                   : "transparent",
               // the landing ghost sits under everything else
               border:

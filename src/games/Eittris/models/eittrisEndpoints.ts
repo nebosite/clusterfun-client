@@ -32,6 +32,7 @@ export interface EittrisBoardSnapshot {
   crazyIvan: boolean; // controls are mirrored
   freezeDried: boolean; // settled blocks render tiny and jittered
   transparency: boolean; // settled blocks are invisible
+  psychoSeed: number; // non-zero = colors are scrambled with this seed
   shieldMs: number; // remaining antidote shield (0 = inactive)
   forcedSpecial: number | null; // dev selector echo
   aiControlled: boolean; // dev: the computer is playing this board

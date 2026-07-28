@@ -67,6 +67,7 @@ import {
   cureAfflictions,
   EVIL_PIECE_COUNT,
   hasAfflictions,
+  psychoColorIndex,
 } from "./eittrisLogic";
 
 // Sorted "x,y" strings for order-independent cell comparison
@@ -1102,5 +1103,35 @@ describe("eittrisLogic - EvilPieces", () => {
     expect(hasAfflictions(board)).toBe(true);
     cureAfflictions(board);
     expect(board.evilPieces).toBe(false);
+  });
+});
+
+describe("eittrisLogic - Psycho", () => {
+  it("leaves colors alone when not afflicted", () => {
+    for (let v = 0; v < 7; v++) expect(psychoColorIndex(v, 0, 9)).toBe(v);
+  });
+
+  it("remaps into the palette and is stable for a given seed", () => {
+    const seed = 1234;
+    for (let v = 0; v < 7; v++) {
+      const mapped = psychoColorIndex(v, seed, 9);
+      expect(mapped).toBeGreaterThanOrEqual(0);
+      expect(mapped).toBeLessThan(9);
+      expect(psychoColorIndex(v, seed, 9)).toBe(mapped); // same seed, same answer
+    }
+  });
+
+  it("shuffles differently as the seed changes", () => {
+    const before = [0, 1, 2, 3, 4, 5, 6].map((v) => psychoColorIndex(v, 11, 9));
+    const after = [0, 1, 2, 3, 4, 5, 6].map((v) => psychoColorIndex(v, 12, 9));
+    expect(before).not.toEqual(after);
+  });
+
+  it("is an affliction the antidote clears", () => {
+    const board = makeBoard("p1", () => 0.1);
+    board.psychoSeed = 42;
+    expect(hasAfflictions(board)).toBe(true);
+    cureAfflictions(board);
+    expect(board.psychoSeed).toBe(0);
   });
 });
