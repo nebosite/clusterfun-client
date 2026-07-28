@@ -43,6 +43,7 @@ const SPECIAL_SOUNDS: Partial<Record<SpecialType, string>> = {
   [SpecialType.FreezeDried]: EittrisAssets.sounds.freeze,
   [SpecialType.Transparency]: EittrisAssets.sounds.vanish,
   [SpecialType.Psycho]: EittrisAssets.sounds.psycho,
+  [SpecialType.Jumble]: EittrisAssets.sounds.jumble,
 };
 
 function soundForSpecial(type: number): string {

@@ -60,6 +60,9 @@ import {
   EittrisPiece,
   liftPieceClear,
   BRIDGE_COLUMN_MS,
+  JUMBLE_NUDGES,
+  JUMBLE_NUDGE_MS,
+  jumbleOnce,
   makeBridgePlan,
   paintBridgeColumn,
   stencilCellFor,
@@ -310,6 +313,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     this.tickSpecials(board, dtMs);
     this.tickStencil(board, dtMs);
     this.tickBridge(board, dtMs);
+    this.tickJumble(board, dtMs);
     this.tickAi(board, dtMs);
 
     // The board is in the post-lock gap: nothing falls, and no command can
@@ -440,6 +444,25 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   }
 
   // -------------------------------------------------------------------
+  // tickJumble - shake the stack apart a nudge at a time
+  // -------------------------------------------------------------------
+  private tickJumble(board: EittrisBoard, dtMs: number) {
+    if (board.jumbleLeft <= 0) return;
+    board.jumbleTimerMs -= dtMs;
+    if (board.jumbleTimerMs > 0) return;
+
+    // Catch up if several nudges came due in one tick
+    let budget = 12;
+    while (board.jumbleLeft > 0 && board.jumbleTimerMs <= 0 && budget-- > 0) {
+      board.grid = jumbleOnce(board.grid, () => this.randomDouble(1.0));
+      board.jumbleLeft--;
+      board.jumbleTimerMs += JUMBLE_NUDGE_MS;
+    }
+    this.dirtyPlayerIds.add(board.playerId);
+    if (board.jumbleLeft <= 0) this.saveCheckpoint();
+  }
+
+  // -------------------------------------------------------------------
   // killBoard - this board is done; retarget anyone aiming at it
   // -------------------------------------------------------------------
   private killBoard(board: EittrisBoard) {
@@ -448,6 +471,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     board.alive = false;
     board.pendingStencil = null;
     board.pendingBridge = null;
+    board.jumbleLeft = 0;
     board.deathOrder = ++this.deathCount;
     for (const changedId of retargetOnDeath(this.boards.slice(), board.playerId)) {
       this.dirtyPlayerIds.add(changedId);
@@ -533,6 +557,10 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       switch (type) {
         case SpecialType.Speedup:
           victim.speedupStacks++;
+          break;
+        case SpecialType.Jumble:
+          victim.jumbleLeft = JUMBLE_NUDGES;
+          victim.jumbleTimerMs = 0;
           break;
         case SpecialType.Psycho:
           victim.psychoSeed = 1 + Math.floor(this.randomDouble(1.0) * 9999);

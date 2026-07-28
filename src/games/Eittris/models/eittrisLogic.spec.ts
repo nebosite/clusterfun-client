@@ -68,6 +68,8 @@ import {
   EVIL_PIECE_COUNT,
   hasAfflictions,
   psychoColorIndex,
+  jumbleOnce,
+  JUMBLE_NUDGES,
 } from "./eittrisLogic";
 
 // Sorted "x,y" strings for order-independent cell comparison
@@ -1133,5 +1135,50 @@ describe("eittrisLogic - Psycho", () => {
     expect(hasAfflictions(board)).toBe(true);
     cureAfflictions(board);
     expect(board.psychoSeed).toBe(0);
+  });
+});
+
+describe("eittrisLogic - Jumble", () => {
+  it("moves a block into a neighbouring gap without creating or destroying any", () => {
+    const grid = emptyGrid();
+    grid[10][5] = 3;
+    const after = jumbleOnce(grid, () => 0.5);
+    const count = (g: number[][]) => g.flat().filter((c) => c !== EMPTY_CELL).length;
+    expect(count(after)).toBe(1); // still exactly one block
+    // and it did not stay put
+    expect(after[10][5] === 3 && count(after) === 1).toBe(false);
+  });
+
+  it("leaves a fully boxed-in block alone", () => {
+    const grid = emptyGrid();
+    // fill a 3x3 island; the middle block has nowhere to go
+    for (let y = 9; y <= 11; y++) for (let x = 4; x <= 6; x++) grid[y][x] = 1;
+    const before = JSON.stringify(grid);
+    // force the pick onto the middle cell by making it the only occupied one
+    const solo = emptyGrid();
+    for (let y = 0; y < BOARD_HEIGHT; y++) for (let x = 0; x < BOARD_WIDTH; x++) solo[y][x] = 1; // no empties at all
+    expect(jumbleOnce(solo, () => 0.5)).toEqual(solo);
+    expect(JSON.stringify(grid)).toBe(before); // untouched by the solo call
+  });
+
+  it("does nothing on an empty board", () => {
+    const grid = emptyGrid();
+    expect(jumbleOnce(grid, () => 0.5)).toEqual(grid);
+  });
+
+  it("conserves the total block count over many nudges", () => {
+    let grid = emptyGrid();
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      grid[BOARD_HEIGHT - 1][x] = 1;
+      grid[BOARD_HEIGHT - 2][x] = 2;
+    }
+    const before = grid.flat().filter((c) => c !== EMPTY_CELL).length;
+    let seed = 1;
+    const rand = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    for (let i = 0; i < JUMBLE_NUDGES; i++) grid = jumbleOnce(grid, rand);
+    expect(grid.flat().filter((c) => c !== EMPTY_CELL).length).toBe(before);
   });
 });

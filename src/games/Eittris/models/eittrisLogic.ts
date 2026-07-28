@@ -382,6 +382,7 @@ export const IMPLEMENTED_SPECIALS: SpecialType[] = [
   SpecialType.FreezeDried,
   SpecialType.Transparency,
   SpecialType.Psycho,
+  SpecialType.Jumble,
 ];
 
 // Specials that are fired AT your target rather than kept for yourself
@@ -397,6 +398,7 @@ export const OFFENSIVE_SPECIALS: SpecialType[] = [
   SpecialType.FreezeDried,
   SpecialType.Transparency,
   SpecialType.Psycho,
+  SpecialType.Jumble,
 ];
 
 export function isOffensive(type: SpecialType): boolean {
@@ -596,6 +598,9 @@ export interface EittrisBoard {
   aiTimerMs: number; // countdown to the bot's next move
   // A Bridge painting itself across the top of this board
   pendingBridge: PendingBridge | null;
+  // Jumble shaking this board apart, a nudge at a time
+  jumbleLeft: number;
+  jumbleTimerMs: number;
   // An attack stencil currently painting itself into this board
   pendingStencil: PendingStencil | null;
 }
@@ -634,6 +639,8 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     aiTimerMs: 0,
     pendingStencil: null,
     pendingBridge: null,
+    jumbleLeft: 0,
+    jumbleTimerMs: 0,
   };
 }
 
@@ -1085,4 +1092,39 @@ export function psychoColorIndex(cellValue: number, seed: number, paletteSize: n
   const mixed = Math.sin((cellValue + 1) * seed * 0.7351) * 43758.5453;
   const frac = mixed - Math.floor(mixed);
   return Math.floor(frac * paletteSize) % paletteSize;
+}
+
+// ------------------------------------------------------------------------------------------
+// Jumble - shakes the stack apart: over and over, pick an occupied cell and
+// shove it into a random empty neighbour.  Nothing is created or destroyed,
+// but a tidy stack turns into swiss cheese.
+// ------------------------------------------------------------------------------------------
+export const JUMBLE_NUDGES = 200;
+export const JUMBLE_NUDGE_MS = 15;
+
+// One nudge.  Returns the grid unchanged if the pick had nowhere to go.
+export function jumbleOnce(grid: number[][], rand: () => number): number[][] {
+  const occupied = occupiedCellIndices(grid);
+  if (occupied.length === 0) return grid;
+  const index = occupied[Math.min(occupied.length - 1, Math.floor(rand() * occupied.length))];
+  const y = Math.floor(index / BOARD_WIDTH);
+  const x = index % BOARD_WIDTH;
+
+  const empties: { x: number; y: number }[] = [];
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= BOARD_WIDTH || ny < 0 || ny >= BOARD_HEIGHT) continue;
+      if (grid[ny][nx] === EMPTY_CELL) empties.push({ x: nx, y: ny });
+    }
+  }
+  if (empties.length === 0) return grid;
+
+  const spot = empties[Math.min(empties.length - 1, Math.floor(rand() * empties.length))];
+  const next = grid.map((row) => row.slice());
+  next[spot.y][spot.x] = next[y][x];
+  next[y][x] = EMPTY_CELL;
+  return next;
 }
