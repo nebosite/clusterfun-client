@@ -78,7 +78,8 @@ export type EittrisCommandKind =
   | "pickTarget"
   | "useAntidote" // fire a stored antidote (cure + shield)
   | "setForcedSpecial" // DEV ONLY: pin which special spawns
-  | "setAiControlled"; // DEV ONLY: let the computer play this board
+  | "setAiControlled" // DEV ONLY: let the computer play this board
+  | "fireSpecial"; // DEV ONLY: collect the selected special right now
 
 export interface EittrisCommandMessage {
   command: EittrisCommandKind;

@@ -392,3 +392,19 @@
   gap: 6px;
   margin-left: 10px;
 }
+
+.gameclient .devButton {
+  font-size: 45%;
+  font-weight: 800;
+  padding: 4px 12px;
+  margin: 0 0 0 10px;
+  background: #6b1d1d;
+  border: 2px solid #ff4d4d;
+  border-radius: 8px;
+}
+
+.gameclient .devButton:disabled {
+  opacity: 0.4;
+  background: #2a3b57;
+  border-color: #4d648a;
+}

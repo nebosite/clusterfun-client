@@ -656,6 +656,14 @@ export default class Client extends React.Component<{
                     </option>
                   ))}
                 </select>
+                <button
+                  className={styles.devButton}
+                  disabled={appModel?.forcedSpecial === null}
+                  title="Collect the selected special right now"
+                  onClick={() => appModel?.fireSelectedSpecial()}
+                >
+                  Attack
+                </button>
                 <label className={styles.devCheck}>
                   <input
                     type="checkbox"

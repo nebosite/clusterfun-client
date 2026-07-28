@@ -330,6 +330,15 @@ export class EittrisClientModel extends ClusterfunClientModel {
     });
   }
 
+  // DEV ONLY: fire the selected special as though it had just been cleared
+  fireSelectedSpecial() {
+    if (this.forcedSpecial === null) return;
+    this.session.sendMessageToPresenter(EittrisCommandEndpoint, {
+      command: "fireSpecial",
+      specialType: this.forcedSpecial,
+    });
+  }
+
   // DEV ONLY: hand this board to the computer player
   setAiControlled(aiControlled: boolean) {
     action(() => (this.aiControlled = aiControlled))();

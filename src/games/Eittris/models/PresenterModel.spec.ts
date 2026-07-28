@@ -1112,3 +1112,46 @@ describe("EittrisPresenterModel - SwitchScreens", () => {
     expect(attacker.pendingSwap).toBeNull();
   });
 });
+
+describe("EittrisPresenterModel - the dev Attack button", () => {
+  it("fires the selected special exactly as if it had been cleared", () => {
+    const { model } = startTwoPlayerGame();
+    const attacker = model.boards.find((b) => b.playerId === "A")!;
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+
+    model.handleCommand("A", { command: "setForcedSpecial", specialType: SpecialType.Speedup });
+    expect(victim.speedupStacks).toBe(0);
+
+    model.handleCommand("A", { command: "fireSpecial" });
+
+    expect(victim.speedupStacks).toBe(1); // delivered to the target
+    expect(attacker.speedupStacks).toBe(0);
+  });
+
+  it("banks a defensive special on the presser instead", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    const before = board.antidotes;
+    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.Antidote });
+    expect(board.antidotes).toBe(before + 1);
+  });
+
+  it("does nothing when no special is selected", () => {
+    const { model } = startTwoPlayerGame();
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    expect(() => model.handleCommand("A", { command: "fireSpecial" })).not.toThrow();
+    expect(victim.speedupStacks).toBe(0);
+    expect(victim.pendingStencil).toBeNull();
+  });
+
+  it("works during the post-lock gap, when there is no falling piece", () => {
+    const { model } = startTwoPlayerGame();
+    const attacker = model.boards.find((b) => b.playerId === "A")!;
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    model.handleCommand("A", { command: "hardDrop" }); // opens the spawn gap
+    expect(attacker.piece).toBeNull();
+
+    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.TheWall });
+    expect(victim.pendingStencil).not.toBeNull();
+  });
+});

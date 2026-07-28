@@ -864,6 +864,14 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       this.useAntidote(board);
       return;
     }
+    // DEV: behave exactly as if this special had just been cleared
+    if (message.command === "fireSpecial") {
+      const wanted = message.specialType ?? board.forcedSpecial;
+      if (wanted !== null && wanted !== undefined) {
+        this.collectSpecial(board, wanted as SpecialType);
+      }
+      return;
+    }
     // Everything else needs a live piece.  During the spawn gap there is
     // none, so stray commands from a finished gesture simply evaporate.
     if (!board.piece) return;
