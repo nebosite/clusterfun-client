@@ -39,7 +39,31 @@ import {
 import EittrisAssets from "../assets/Assets";
 import BoardGrid from "./BoardGrid";
 
-const CELL_PX = 66; // board cell size in the phone's 1080x1920 virtual space
+// Board cell size in the phone's 1080x1920 virtual space.  Chosen with the
+// status strip's height so the grid's bottom edge lands exactly 15px above
+// the bottom of the visible area (21 * 64 + 8px border + 553px above = 1905).
+const CELL_PX = 64;
+// In dev the special picker takes the title's place in the top bar
+const IS_DEV = process.env.REACT_APP_DEVMODE === "development";
+
+// One line of plain English for a special that just fired
+export function describeSpecialEvent(
+  event: {
+    type: number;
+    attackerName: string;
+    victimName: string;
+    victimId: string;
+    attackerId: string;
+    repelled: boolean;
+  },
+  myId: string,
+): string {
+  const name = SPECIAL_NAMES[event.type] ?? "Special";
+  const attacker = event.attackerId === myId ? "You" : event.attackerName;
+  const victim = event.victimId === myId ? "you" : event.victimName;
+  if (event.repelled) return `${attacker} sent ${name} at ${victim} - SHIELDED!`;
+  return `${attacker} hit ${victim} with ${name}!`;
+}
 const THUMB_CELL_PX = 3; // target-list thumbnail cell size
 
 // -------------------------------------------------------------------
@@ -206,12 +230,17 @@ class PiecePreview extends React.Component<{ type: number }> {
     const cells = pieceCells(spawnPiece(type, 0)).map((c) => ({ x: c.x - 5, y: c.y }));
     const minX = Math.min(...cells.map((c) => c.x));
     const minY = Math.min(...cells.map((c) => c.y));
+    const maxX = Math.max(...cells.map((c) => c.x));
+    const maxY = Math.max(...cells.map((c) => c.y));
+    // Only the piece's own footprint, so the tray can center it
+    const cols = maxX - minX + 1;
+    const rows = maxY - minY + 1;
     const size = 24;
     const filled = new Set(cells.map((c) => `${c.x - minX},${c.y - minY}`));
 
     const boxes: React.ReactNode[] = [];
-    for (let y = 0; y < 4; y++) {
-      for (let x = 0; x < 4; x++) {
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
         boxes.push(
           <div
             key={`${x},${y}`}
@@ -225,7 +254,9 @@ class PiecePreview extends React.Component<{ type: number }> {
       }
     }
     return (
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(4, ${size}px)` }}>{boxes}</div>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, ${size}px)` }}>
+        {boxes}
+      </div>
     );
   }
 }
@@ -338,10 +369,50 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
         <div className={styles.statusRow}>
           <span className={styles.score}>{appModel.score} pts</span>
           <span>{appModel.rows} rows</span>
-          <span className={styles.nextLabel}>Next:</span>
-          {appModel.nextTypes.map((type, i) => (
-            <PiecePreview type={type} key={i} />
-          ))}
+        </div>
+        {/* Fixed-height strip: afflictions + the transient event banner.
+            It always occupies the same space so the board never shifts. */}
+        <div className={styles.statusArea}>
+          <div className={styles.afflictionRow}>
+            {appModel.speedupStacks > 0 ? (
+              <span className={classNames(styles.afflictionChip, styles.afflictionBad)}>
+                <span
+                  className={styles.specialIcon}
+                  style={{
+                    backgroundImage: `url(${EittrisAssets.images.specials})`,
+                    backgroundPosition: "0% 0%",
+                  }}
+                />
+                SPEEDUP x{appModel.speedupStacks}
+              </span>
+            ) : null}
+            {appModel.shieldMs > 0 ? (
+              <span className={classNames(styles.afflictionChip, styles.afflictionGood)}>
+                SHIELDED {Math.ceil(appModel.shieldMs / 1000)}s
+              </span>
+            ) : null}
+          </div>
+          <div className={styles.bannerRow}>
+            {appModel.lastSpecialEvent ? (
+              <span
+                className={classNames(styles.specialBanner, {
+                  [styles.specialBannerHit]:
+                    appModel.lastSpecialEvent.victimId === appModel.playerId &&
+                    !appModel.lastSpecialEvent.repelled,
+                  [styles.specialBannerRepel]: appModel.lastSpecialEvent.repelled,
+                })}
+              >
+                <span
+                  className={styles.specialIcon}
+                  style={{
+                    backgroundImage: `url(${EittrisAssets.images.specials})`,
+                    backgroundPosition: `${(appModel.lastSpecialEvent.type / 15) * 100}% 0%`,
+                  }}
+                />
+                {describeSpecialEvent(appModel.lastSpecialEvent, appModel.playerId)}
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className={styles.powerRow}>
           <button
@@ -360,29 +431,16 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
             />
             Antidote x{appModel.antidotes}
           </button>
-          {appModel.shieldMs > 0 ? (
-            <span className={styles.shieldTag}>
-              SHIELDED {Math.ceil(appModel.shieldMs / 1000)}s
-            </span>
-          ) : null}
+          {dead ? <span className={styles.hintRow}>Waiting for the round to end...</span> : null}
+          <div className={styles.nextBox}>
+            <span className={styles.nextLabel}>Next</span>
+            <div className={styles.nextPieces}>
+              {appModel.nextTypes.map((type, i) => (
+                <PiecePreview type={type} key={i} />
+              ))}
+            </div>
+          </div>
         </div>
-        <DevOnly>
-          <span className={styles.devLabel}>Force special:</span>
-          <select
-            className={styles.devSelect}
-            value={appModel.forcedSpecial === null ? "" : String(appModel.forcedSpecial)}
-            onChange={(e) =>
-              appModel.setForcedSpecial(e.target.value === "" ? null : Number(e.target.value))
-            }
-          >
-            <option value="">(normal random)</option>
-            {IMPLEMENTED_SPECIALS.map((t) => (
-              <option value={String(t)} key={t}>
-                {SPECIAL_NAMES[t]}
-              </option>
-            ))}
-          </select>
-        </DevOnly>
         <div className={styles.boardRow}>
           <div
             ref={this.boardRef}
@@ -417,13 +475,6 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
           </div>
           <TargetList />
         </div>
-        {!dead ? (
-          <div className={styles.hintRow}>
-            drag = move (down too) · tap/flick ↑ rotate · flick ⇄ slam · flick ↓ drop
-          </div>
-        ) : (
-          <div className={styles.hintRow}>Waiting for the round to end...</div>
-        )}
       </div>
     );
   }
@@ -512,7 +563,25 @@ export default class Client extends React.Component<{
         >
           <div className={styles.gameclient}>
             <div className={classNames(styles.divRow, styles.topbar)}>
-              <span className={classNames(styles.gametitle)}>EITtris</span>
+              <DevOnly>
+                <select
+                  className={styles.devSelect}
+                  value={appModel?.forcedSpecial === null ? "" : String(appModel?.forcedSpecial)}
+                  onChange={(e) =>
+                    appModel?.setForcedSpecial(
+                      e.target.value === "" ? null : Number(e.target.value),
+                    )
+                  }
+                >
+                  <option value="">(normal random)</option>
+                  {IMPLEMENTED_SPECIALS.map((t) => (
+                    <option value={String(t)} key={t}>
+                      {SPECIAL_NAMES[t]}
+                    </option>
+                  ))}
+                </select>
+              </DevOnly>
+              {IS_DEV ? null : <span className={classNames(styles.gametitle)}>EITtris</span>}
               <span>
                 <PlayerAvatar
                   avatarId={appModel?.avatarId ?? 0}

@@ -25,6 +25,7 @@ export interface EittrisBoardSnapshot {
   // Specials sitting on this board's settled blocks: cell index + type
   specials: { i: number; t: number }[];
   antidotes: number; // banked antidote charges
+  speedupStacks: number; // Speedup afflictions currently on this board
   shieldMs: number; // remaining antidote shield (0 = inactive)
   forcedSpecial: number | null; // dev selector echo
 }
@@ -106,4 +107,21 @@ export interface EittrisThumbnailsMessage {
 
 export const EittrisThumbnailsEndpoint: MessageEndpoint<EittrisThumbnailsMessage, void> = {
   route: "/games/eittris/lifecycle/thumbnails",
+};
+
+// ------------------------------------------------------------------------------------------
+// Special Event - presenter -> everyone whenever a special fires, so phones
+// can flash what just happened (who hit whom, and whether a shield ate it).
+// ------------------------------------------------------------------------------------------
+export interface EittrisSpecialEventMessage {
+  type: number; // SpecialType
+  attackerId: string;
+  attackerName: string;
+  victimId: string;
+  victimName: string;
+  repelled: boolean; // the victim's antidote shield turned it away
+}
+
+export const EittrisSpecialEventEndpoint: MessageEndpoint<EittrisSpecialEventMessage, void> = {
+  route: "/games/eittris/gameplay/special-event",
 };

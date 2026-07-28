@@ -19,6 +19,7 @@ import {
   EittrisOnboardClientEndpoint,
   EittrisOnboardClientMessage,
   EittrisBoardUpdateEndpoint,
+  EittrisSpecialEventEndpoint,
   EittrisThumbnailEntry,
   EittrisThumbnailsEndpoint,
 } from "./eittrisEndpoints";
@@ -48,6 +49,9 @@ import {
   ANTIDOTE_CHANCE,
   ANTIDOTE_DURATION_MS,
   ANTIDOTE_MAX,
+  cureAfflictions,
+  effectiveIntervalMs,
+  isOffensive,
   collectAndShiftMarkers,
   pickSpecialCell,
   rollSpecialType,
@@ -74,6 +78,7 @@ export enum EittrisGameEvent {
   PieceBumped = "PieceBumped", // a slam or hard-drop landing (Bump)
   RowsCleared = "RowsCleared", // args: playerId, rows cleared (picks ClearNLines)
   SpecialCollected = "SpecialCollected", // args: playerId, SpecialType
+  SpecialFired = "SpecialFired", // args: attackerId, victimId, type, repelled
   AntidoteUsed = "AntidoteUsed", // args: playerId
   PlayerDied = "PlayerDied",
   WinnerAnnounced = "WinnerAnnounced",
@@ -289,8 +294,10 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     board.intervalMs = gravityStep(board.intervalMs, dtMs / 1000);
     board.dropTimerMs += dtMs;
     for (;;) {
-      if (board.dropTimerMs < board.intervalMs || !board.alive || !board.piece) break;
-      board.dropTimerMs -= board.intervalMs;
+      // Afflictions (Speedup) squeeze the natural curve without changing it
+      const interval = effectiveIntervalMs(board.intervalMs, board.speedupStacks);
+      if (board.dropTimerMs < interval || !board.alive || !board.piece) break;
+      board.dropTimerMs -= interval;
       const moved = tryMove(board.grid, board.piece, 0, 1);
       if (moved) {
         board.piece = moved;
@@ -339,16 +346,63 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // collectSpecial - a marked block was cleared: bank or apply its effect
   // -------------------------------------------------------------------
   private collectSpecial(board: EittrisBoard, type: SpecialType) {
-    switch (type) {
-      case SpecialType.Antidote:
-        board.antidotes = Math.min(ANTIDOTE_MAX, board.antidotes + 1);
-        break;
-      default:
-        // Later increments fire the offensive specials at board.targetId
-        Logger.info(`Collected unimplemented special: ${SpecialType[type]}`);
-        break;
-    }
     this.invokeEvent(EittrisGameEvent.SpecialCollected, board.playerId, type);
+
+    if (!isOffensive(type)) {
+      // Defensive specials are kept by the collector
+      if (type === SpecialType.Antidote) {
+        board.antidotes = Math.min(ANTIDOTE_MAX, board.antidotes + 1);
+        this.dirtyPlayerIds.add(board.playerId);
+      } else {
+        Logger.info(`Collected unimplemented special: ${SpecialType[type]}`);
+      }
+      return;
+    }
+    this.fireAtTarget(board, type);
+  }
+
+  // -------------------------------------------------------------------
+  // fireAtTarget - send an offensive special at this board's target.  An
+  // antidote shield on the victim turns it away harmlessly.
+  // -------------------------------------------------------------------
+  private fireAtTarget(board: EittrisBoard, type: SpecialType) {
+    const victim = this.boards.find((b) => b.playerId === board.targetId && b.alive);
+    if (!victim) return; // nobody to hit (solo game, or the target died)
+
+    const repelled = victim.shieldMs > 0;
+    if (!repelled) {
+      switch (type) {
+        case SpecialType.Speedup:
+          victim.speedupStacks++;
+          break;
+        default:
+          Logger.warn(`Unhandled offensive special: ${SpecialType[type]}`);
+          return;
+      }
+    }
+
+    this.dirtyPlayerIds.add(victim.playerId);
+    this.invokeEvent(
+      EittrisGameEvent.SpecialFired,
+      board.playerId,
+      victim.playerId,
+      type,
+      repelled,
+    );
+    const payload = {
+      type,
+      attackerId: board.playerId,
+      attackerName: this.nameFor(board.playerId),
+      victimId: victim.playerId,
+      victimName: this.nameFor(victim.playerId),
+      repelled,
+    };
+    this.sendToEveryone(EittrisSpecialEventEndpoint, () => payload);
+    this.saveCheckpoint();
+  }
+
+  private nameFor(playerId: string): string {
+    return this.players.find((p) => p.playerId === playerId)?.name ?? "?";
   }
 
   // -------------------------------------------------------------------
@@ -454,6 +508,8 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   private useAntidote(board: EittrisBoard) {
     if (board.antidotes <= 0) return;
     board.antidotes--;
+    // Wash off everything already applied, then shield against new hits
+    cureAfflictions(board);
     board.shieldMs = ANTIDOTE_DURATION_MS;
     this.dirtyPlayerIds.add(board.playerId);
     this.invokeEvent(EittrisGameEvent.AntidoteUsed, board.playerId);
@@ -618,12 +674,13 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       score: board.score,
       rows: board.rows,
       alive: board.alive,
-      intervalMs: Math.round(board.intervalMs),
+      intervalMs: Math.round(effectiveIntervalMs(board.intervalMs, board.speedupStacks)),
       backgroundIndex: board.backgroundIndex,
       targetId: board.targetId,
       pieceSeq: board.pieceSeq,
       specials: board.specials.map((m) => ({ i: m.index, t: m.type })),
       antidotes: board.antidotes,
+      speedupStacks: board.speedupStacks,
       shieldMs: Math.round(board.shieldMs),
       forcedSpecial: board.forcedSpecial,
     };

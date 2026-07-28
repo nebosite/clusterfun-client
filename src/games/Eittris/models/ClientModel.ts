@@ -8,6 +8,7 @@ import {
   GeneralClientGameState,
   GeneralGameState,
   ITypeHelper,
+  SafeBrowser,
 } from "libs";
 import { action, makeObservable, observable } from "mobx";
 import { EittrisGameState } from "./PresenterModel";
@@ -17,6 +18,8 @@ import {
   EittrisCommandEndpoint,
   EittrisCommandMessage,
   EittrisOnboardClientEndpoint,
+  EittrisSpecialEventEndpoint,
+  EittrisSpecialEventMessage,
   EittrisThumbnailEntry,
   EittrisThumbnailsEndpoint,
   EittrisThumbnailsMessage,
@@ -59,6 +62,9 @@ export const getEittrisClientTypeHelper = (
       return null;
     },
     shouldStringify(typeName: string, propertyName: string, object: any): boolean {
+      // The event banner is a momentary flash - checkpointing it made it
+      // reappear after a refresh and linger into the next game
+      if (propertyName === "lastSpecialEvent") return false;
       return true;
     },
     reconstitute(typeName: string, propertyName: string, rehydratedObject: any) {
@@ -91,10 +97,13 @@ export class EittrisClientModel extends ClusterfunClientModel {
   @observable pieceSeq = 0;
   @observable targetId: string | null = null;
   // Specials on my settled blocks, my banked antidotes, and my shield timer
-  specials = observable<{ i: number; t: number }>([]);
+  @observable specials: { i: number; t: number }[] = [];
   @observable antidotes = 0;
+  @observable speedupStacks = 0;
   @observable shieldMs = 0;
   @observable forcedSpecial: number | null = null;
+  // The most recent special that fired anywhere, for a brief phone banner
+  @observable lastSpecialEvent: EittrisSpecialEventMessage | null = null;
   @observable winnerName: string | null = null;
   @observable youWon = false;
 
@@ -121,6 +130,7 @@ export class EittrisClientModel extends ClusterfunClientModel {
     super.reconstitute();
     this.listenToEndpointFromPresenter(EittrisBoardUpdateEndpoint, this.handleBoardUpdate);
     this.listenToEndpointFromPresenter(EittrisThumbnailsEndpoint, this.handleThumbnails);
+    this.listenToEndpointFromPresenter(EittrisSpecialEventEndpoint, this.handleSpecialEvent);
   }
 
   // -------------------------------------------------------------------
@@ -134,6 +144,8 @@ export class EittrisClientModel extends ClusterfunClientModel {
     const response = await this.session.requestPresenter(EittrisOnboardClientEndpoint, {});
     action(() => {
       if (this.gameState === GeneralClientGameState.JoinError) return;
+      // A resync means a new game/round or a rejoin - drop any stale banner
+      this.lastSpecialEvent = null;
       if (response.board) this.applySnapshot(response.board);
       this.winnerName = response.winnerName;
       this.youWon = response.youWon;
@@ -197,6 +209,35 @@ export class EittrisClientModel extends ClusterfunClientModel {
     })();
   };
 
+  // -------------------------------------------------------------------
+  // handleSpecialEvent - somebody's special fired; flash it briefly
+  // -------------------------------------------------------------------
+  protected handleSpecialEvent = (message: EittrisSpecialEventMessage) => {
+    action(() => (this.lastSpecialEvent = message))();
+    const mine = message.attackerId === this.playerId || message.victimId === this.playerId;
+    if (mine) SafeBrowser.vibrate([40, 40, 40]);
+    setTimeout(
+      () =>
+        action(() => {
+          if (this.lastSpecialEvent === message) this.lastSpecialEvent = null;
+        })(),
+      3000,
+    );
+  };
+
+  // A banner announcing a hit on me is meaningless once I'm cured
+  private clearStaleBanner() {
+    const event = this.lastSpecialEvent;
+    if (!event) return;
+    if (event.victimId === this.playerId && !event.repelled && !this.isAfflicted) {
+      this.lastSpecialEvent = null;
+    }
+  }
+
+  get isAfflicted(): boolean {
+    return this.speedupStacks > 0;
+  }
+
   private applySnapshot(snapshot: EittrisBoardSnapshot) {
     this.gridString = snapshot.grid;
     this.piece = snapshot.piece;
@@ -206,10 +247,12 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.alive = snapshot.alive;
     this.intervalMs = snapshot.intervalMs;
     this.backgroundIndex = snapshot.backgroundIndex;
-    this.specials.replace(snapshot.specials ?? []);
+    this.specials = snapshot.specials ?? [];
     this.antidotes = snapshot.antidotes ?? 0;
+    this.speedupStacks = snapshot.speedupStacks ?? 0;
     this.shieldMs = snapshot.shieldMs ?? 0;
     this.forcedSpecial = snapshot.forcedSpecial ?? null;
+    this.clearStaleBanner();
     this.pieceSeq = snapshot.pieceSeq;
     this.targetId = snapshot.targetId;
   }

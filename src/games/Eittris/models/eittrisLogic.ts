@@ -28,6 +28,10 @@ export const ANTIDOTE_CHANCE = 0.5;
 export const ANTIDOTE_MAX = 4;
 export const ANTIDOTE_DURATION_MS = 10000;
 export const ANTIDOTES_AT_START = 1;
+// Speedup: the victim's gravity interval is permanently multiplied by this
+// (verbatim from the original), floored at MIN_INTERVAL_MS so a stack of
+// them can't make a board literally unplayable.
+export const SPEEDUP_FACTOR = 0.6;
 export const EMPTY_CELL = -1;
 
 // ------------------------------------------------------------------------------------------
@@ -310,7 +314,31 @@ export const SPECIAL_NAMES: string[] = [
 
 // Specials that actually DO something today.  Random rolls and the dev
 // selector only ever produce these; the rest land in later increments.
-export const IMPLEMENTED_SPECIALS: SpecialType[] = [SpecialType.Antidote];
+export const IMPLEMENTED_SPECIALS: SpecialType[] = [SpecialType.Antidote, SpecialType.Speedup];
+
+// Specials that are fired AT your target rather than kept for yourself
+export const OFFENSIVE_SPECIALS: SpecialType[] = [SpecialType.Speedup];
+
+export function isOffensive(type: SpecialType): boolean {
+  return OFFENSIVE_SPECIALS.includes(type);
+}
+
+// Afflictions modify gravity WITHOUT touching the natural curve, so an
+// antidote can simply clear them and the board goes back to normal speed.
+export function effectiveIntervalMs(baseIntervalMs: number, speedupStacks: number): number {
+  const multiplier = Math.pow(SPEEDUP_FACTOR, Math.max(0, speedupStacks));
+  return Math.max(MIN_INTERVAL_MS, baseIntervalMs * multiplier);
+}
+
+// Everything an antidote washes off
+export function cureAfflictions(board: EittrisBoard): void {
+  board.speedupStacks = 0;
+}
+
+// Does this board have anything an antidote would cure?
+export function hasAfflictions(board: EittrisBoard): boolean {
+  return board.speedupStacks > 0;
+}
 
 // A special sitting on one settled block.  It never decays: it waits there
 // until the player clears its row, and no other special appears while it
@@ -441,6 +469,9 @@ export interface EittrisBoard {
   specials: SpecialMarker[];
   specialTimerMs: number; // countdown to tagging the next block
   antidotes: number; // stored antidote charges (max ANTIDOTE_MAX)
+  // Afflictions laid on this board by other players' specials.  Kept apart
+  // from intervalMs (the natural gravity curve) so an antidote can wipe them.
+  speedupStacks: number;
   shieldMs: number; // remaining antidote shield/cure time (0 = inactive)
   forcedSpecial: SpecialType | null; // dev selector: only ever spawn this
 }
@@ -465,6 +496,7 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     specials: [],
     specialTimerMs: SPECIAL_INTERVAL_MS,
     antidotes: ANTIDOTES_AT_START,
+    speedupStacks: 0,
     shieldMs: 0,
     forcedSpecial: null,
   };

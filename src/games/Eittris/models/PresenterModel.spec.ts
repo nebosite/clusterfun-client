@@ -10,6 +10,7 @@ import {
 } from "./PresenterModel";
 import {
   ANTIDOTE_DURATION_MS,
+  effectiveIntervalMs,
   BOARD_HEIGHT,
   BOARD_WIDTH,
   EMPTY_CELL,
@@ -591,5 +592,121 @@ describe("EittrisPresenterModel - specials", () => {
     // The shield runs down on the clock
     tickTo(model, 2000);
     expect(board.shieldMs).toBeLessThan(ANTIDOTE_DURATION_MS);
+  });
+});
+
+describe("EittrisPresenterModel - Speedup", () => {
+  // Give A a marked block whose row is one hard-drop away from clearing
+  function armSpeedup(model: EittrisPresenterModel) {
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    runInAction(() => {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        if (x < 4 || x > 6) board.grid[BOARD_HEIGHT - 1][x] = 1;
+      }
+      board.specials.push({ index: (BOARD_HEIGHT - 1) * BOARD_WIDTH, type: SpecialType.Speedup });
+    });
+    return board;
+  }
+
+  it("fires at the collector's target and speeds THEIR gravity, not their own", () => {
+    const { model } = startTwoPlayerGame();
+    const boardA = armSpeedup(model);
+    const boardB = model.boards.find((b) => b.playerId === "B")!;
+    expect(boardA.targetId).toBe("B"); // ring
+    const beforeA = boardA.intervalMs;
+    const beforeB = boardB.intervalMs;
+
+    model.handleCommand("A", { command: "hardDrop" }); // clears the marked row
+
+    // The natural curve is untouched; the affliction rides on top of it
+    expect(boardB.speedupStacks).toBe(1);
+    expect(effectiveIntervalMs(boardB.intervalMs, boardB.speedupStacks)).toBeCloseTo(
+      beforeB * 0.6,
+      5,
+    );
+    expect(boardA.speedupStacks).toBe(0); // the attacker is untouched
+    expect(boardA.intervalMs).toBe(beforeA);
+    expect(boardA.specials.length).toBe(0);
+  });
+
+  it("tells everyone what happened", () => {
+    const { model, sent } = startTwoPlayerGame();
+    armSpeedup(model);
+    sent.length = 0;
+    model.handleCommand("A", { command: "hardDrop" });
+
+    const events = sent.filter((s) => s.route.includes("special-event"));
+    expect(events.length).toBe(2); // one per player
+    expect(events[0].message).toMatchObject({
+      type: SpecialType.Speedup,
+      attackerId: "A",
+      victimId: "B",
+      repelled: false,
+    });
+  });
+
+  it("an antidote shield repels it, leaving gravity untouched", () => {
+    const { model, sent } = startTwoPlayerGame();
+    armSpeedup(model);
+    const boardB = model.boards.find((b) => b.playerId === "B")!;
+    model.handleCommand("B", { command: "useAntidote" }); // B raises the shield
+    const beforeB = boardB.intervalMs;
+    sent.length = 0;
+
+    model.handleCommand("A", { command: "hardDrop" });
+
+    expect(boardB.speedupStacks).toBe(0); // shield ate it
+    expect(boardB.intervalMs).toBe(beforeB);
+    const events = sent.filter((s) => s.route.includes("special-event"));
+    expect(events[0].message.repelled).toBe(true);
+  });
+
+  it("does nothing when there is no living target", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    model.startGame();
+    tickTo(model, 0);
+    const board = model.boards[0];
+    expect(board.targetId).toBeNull(); // solo game
+    runInAction(() => {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        if (x < 4 || x > 6) board.grid[BOARD_HEIGHT - 1][x] = 1;
+      }
+      board.specials.push({ index: (BOARD_HEIGHT - 1) * BOARD_WIDTH, type: SpecialType.Speedup });
+    });
+    expect(() => model.handleCommand("A", { command: "hardDrop" })).not.toThrow();
+    expect(board.specials.length).toBe(0);
+  });
+});
+
+describe("EittrisPresenterModel - the antidote cures afflictions", () => {
+  it("wipes Speedup stacks and restores normal gravity", () => {
+    const { model } = startTwoPlayerGame();
+    const boardB = model.boards.find((b) => b.playerId === "B")!;
+    runInAction(() => {
+      boardB.speedupStacks = 3; // hit three times
+    });
+    const naturalInterval = boardB.intervalMs;
+    expect(effectiveIntervalMs(boardB.intervalMs, boardB.speedupStacks)).toBeLessThan(
+      naturalInterval,
+    );
+
+    model.handleCommand("B", { command: "useAntidote" });
+
+    expect(boardB.speedupStacks).toBe(0);
+    expect(effectiveIntervalMs(boardB.intervalMs, boardB.speedupStacks)).toBe(naturalInterval);
+    expect(boardB.shieldMs).toBe(ANTIDOTE_DURATION_MS); // and it shields afterwards
+  });
+
+  it("reports the afflicted (not the natural) speed to the phone", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    const natural = Math.round(board.intervalMs);
+    runInAction(() => {
+      board.speedupStacks = 1;
+    });
+    const snap = model.snapshotFor("A")!;
+    expect(snap.speedupStacks).toBe(1);
+    expect(snap.intervalMs).toBeLessThan(natural);
   });
 });

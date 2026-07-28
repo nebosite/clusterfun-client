@@ -15,6 +15,7 @@ import {
 
 const FALLBACK_COLOR = "#101a2c"; // shown when no background image is supplied
 const SPECIAL_ICON_COUNT = 16; // icons in assets/images/specials.png
+const SPECIAL_BLOCK_COLOR = "#4a4a4a"; // blocks hosting a powerup
 
 interface BoardGridProps {
   grid: number[][];
@@ -69,7 +70,13 @@ export class BoardGrid extends React.Component<BoardGridProps> {
             style={{
               width: cellPx,
               height: cellPx,
-              backgroundColor: filled ? PIECE_COLORS[type] : "transparent",
+              // A block carrying a powerup is recolored dark gray so the
+              // icon reads and the prize is obvious
+              backgroundColor: filled
+                ? special !== undefined
+                  ? SPECIAL_BLOCK_COLOR
+                  : PIECE_COLORS[type]
+                : "transparent",
               boxShadow: filled ? blockShadow : undefined,
               borderRadius: filled ? Math.max(1, Math.round(cellPx * 0.1)) : undefined,
               // The icon rides on top of the block it marks

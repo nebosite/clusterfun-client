@@ -10,6 +10,8 @@ import grid04 from "./images/Grid04.png";
 import grid05 from "./images/Grid05.png";
 import grid06 from "./images/Grid06.png";
 import hello from "./sounds/hello.mp3";
+import speedup from "./sounds/Speedup.wav";
+import repel from "./sounds/Attack02.wav";
 import dot from "./sounds/Dot.wav";
 import clear1 from "./sounds/Clear1Line.wav";
 import clear2 from "./sounds/Clear2Lines.wav";
@@ -28,6 +30,8 @@ const EittrisAssets = {
     backgrounds: [grid00, grid01, grid02, grid03, grid04, grid05, grid06],
   },
   sounds: {
+    speedup, // a Speedup landed on someone
+    repel, // an antidote shield turned an attack away
     hello, // a player joined (template placeholder - no eitrix equivalent wired)
     dot, // a piece locked in place
     clear1, // 1 row cleared

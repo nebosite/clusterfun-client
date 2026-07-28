@@ -254,6 +254,16 @@ export default class Presenter extends React.Component<{
       EittrisAssets.sounds.clear4,
     ];
 
+    // A special landing (or bouncing off a shield) gets its own sound
+    appModel?.subscribe(
+      EittrisGameEvent.SpecialFired,
+      "special sound",
+      (_attackerId: string, _victimId: string, _type: number, repelled: boolean) => {
+        this.media.playSound(repelled ? EittrisAssets.sounds.repel : EittrisAssets.sounds.speedup, {
+          volume: 0.9,
+        });
+      },
+    );
     appModel?.subscribe(PresenterGameEvent.PlayerJoined, "play joined sound", () =>
       this.media.playSound(EittrisAssets.sounds.hello, { volume: 0.2 }),
     );

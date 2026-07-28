@@ -100,9 +100,16 @@ Ported from the original's `Specials.cs`. Icons come straight from the eitrix at
   ride down with their blocks.
 - **Rolls:** 50% antidote (`ANTIDOTE_CHANCE`), otherwise a random implemented special.
   `IMPLEMENTED_SPECIALS` gates what can appear, so unported specials never show up.
+- **Defensive vs offensive:** defensive specials are kept by the collector; offensive ones
+  (`OFFENSIVE_SPECIALS`) fire immediately at the collector's current **target**. A victim
+  with an antidote shield up **repels** the hit — no effect, and everyone is told it bounced.
 - **Antidote** (implemented): banked as a charge (max 4, everyone starts with 1). Firing it
   cures all afflictions/attacks and repels new ones for 10 s. The phone has a button showing
   the flask icon and the count, plus a `SHIELDED` countdown while it's up.
+- **Speedup** (implemented): the victim's gravity interval is permanently multiplied by
+  `SPEEDUP_FACTOR` (0.6, verbatim from the original), floored at `MIN_INTERVAL_MS` so a
+  stack of them can't make a board literally unplayable. Plays the original `Speedup.wav`
+  (`Attack02.wav` when repelled) and flashes a banner on every phone.
 - **Dev selector:** in dev mode only (`DevOnly`), the phone shows a `Force special` dropdown.
   Picking a type makes it the only one that spawns, and it appears immediately instead of
   waiting out the interval. Default `(normal random)` = normal play.
