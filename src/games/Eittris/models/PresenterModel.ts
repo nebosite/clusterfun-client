@@ -329,7 +329,11 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     board.dropTimerMs += dtMs;
     for (;;) {
       // Afflictions (Speedup) squeeze the natural curve without changing it
-      const interval = effectiveIntervalMs(board.intervalMs, board.speedupStacks);
+      const interval = effectiveIntervalMs(
+        board.intervalMs,
+        board.speedupStacks,
+        board.slowdownStacks,
+      );
       if (board.dropTimerMs < interval || !board.alive || !board.piece) break;
       board.dropTimerMs -= interval;
       const moved = tryMove(board.grid, board.piece, 0, 1);
@@ -498,6 +502,26 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       if (type === SpecialType.Antidote) {
         board.antidotes = Math.min(ANTIDOTE_MAX, board.antidotes + 1);
         this.dirtyPlayerIds.add(board.playerId);
+      } else if (type === SpecialType.SlowDown) {
+        // A gift to yourself: gentler gravity, and no antidote can wash it off
+        board.slowdownStacks++;
+        this.dirtyPlayerIds.add(board.playerId);
+        this.invokeEvent(
+          EittrisGameEvent.SpecialFired,
+          board.playerId,
+          board.playerId,
+          type,
+          false,
+        );
+        const payload = {
+          type,
+          attackerId: board.playerId,
+          attackerName: this.nameFor(board.playerId),
+          victimId: board.playerId,
+          victimName: this.nameFor(board.playerId),
+          repelled: false,
+        };
+        this.sendToEveryone(EittrisSpecialEventEndpoint, () => payload);
       } else {
         Logger.info(`Collected unimplemented special: ${SpecialType[type]}`);
       }
@@ -861,13 +885,16 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       score: board.score,
       rows: board.rows,
       alive: board.alive,
-      intervalMs: Math.round(effectiveIntervalMs(board.intervalMs, board.speedupStacks)),
+      intervalMs: Math.round(
+        effectiveIntervalMs(board.intervalMs, board.speedupStacks, board.slowdownStacks),
+      ),
       backgroundIndex: board.backgroundIndex,
       targetId: board.targetId,
       pieceSeq: board.pieceSeq,
       specials: board.specials.map((m) => ({ i: m.index, t: m.type })),
       antidotes: board.antidotes,
       speedupStacks: board.speedupStacks,
+      slowdownStacks: board.slowdownStacks,
       shieldMs: Math.round(board.shieldMs),
       forcedSpecial: board.forcedSpecial,
       aiControlled: board.aiControlled,

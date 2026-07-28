@@ -62,6 +62,7 @@ function snapshot(overrides: Partial<EittrisBoardSnapshot> = {}): EittrisBoardSn
     specials: [{ i: (BOARD_HEIGHT - 1) * BOARD_WIDTH, t: SpecialType.Antidote }],
     antidotes: 2,
     speedupStacks: 1,
+    slowdownStacks: 0,
     shieldMs: 4000,
     forcedSpecial: null,
     aiControlled: false,

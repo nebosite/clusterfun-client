@@ -61,6 +61,10 @@ import {
   stencilCellFor,
   bridgeTopRow,
   paintBridgeColumn,
+  SLOWDOWN_FACTOR,
+  SPEEDUP_FACTOR,
+  effectiveIntervalMs,
+  cureAfflictions,
 } from "./eittrisLogic";
 
 // Sorted "x,y" strings for order-independent cell comparison
@@ -1030,5 +1034,30 @@ describe("eittrisLogic - Bridge", () => {
     expect(() => paintBridgeColumn(grid, plan)).not.toThrow();
     const painted = paintBridgeColumn(grid, plan);
     expect(painted[0][3]).toBe(GARBAGE_CELL); // row 0 painted, row -1 skipped
+  });
+});
+
+describe("eittrisLogic - SlowDown", () => {
+  it("eases gravity, the mirror of Speedup", () => {
+    const base = 1000;
+    expect(effectiveIntervalMs(base, 0, 1)).toBeCloseTo(base * SLOWDOWN_FACTOR, 5);
+    expect(effectiveIntervalMs(base, 0, 2)).toBeCloseTo(base * SLOWDOWN_FACTOR ** 2, 5);
+    expect(effectiveIntervalMs(base, 0, 1)).toBeGreaterThan(base);
+  });
+
+  it("cancels out against Speedup", () => {
+    const base = 1000;
+    const both = effectiveIntervalMs(base, 1, 1);
+    expect(both).toBeCloseTo(base * SPEEDUP_FACTOR * SLOWDOWN_FACTOR, 5);
+    expect(both).toBeLessThan(base); // speedup is the stronger multiplier
+  });
+
+  it("is NOT washed off by an antidote (it is your own buff)", () => {
+    const board = makeBoard("p1", () => 0.1);
+    board.speedupStacks = 2;
+    board.slowdownStacks = 3;
+    cureAfflictions(board);
+    expect(board.speedupStacks).toBe(0);
+    expect(board.slowdownStacks).toBe(3);
   });
 });

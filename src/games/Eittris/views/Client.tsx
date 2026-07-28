@@ -386,6 +386,18 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
                 SPEEDUP x{appModel.speedupStacks}
               </span>
             ) : null}
+            {appModel.slowdownStacks > 0 ? (
+              <span className={classNames(styles.afflictionChip, styles.afflictionGood)}>
+                <span
+                  className={styles.specialIcon}
+                  style={{
+                    backgroundImage: `url(${EittrisAssets.images.specials})`,
+                    backgroundPosition: `${(2 / 15) * 100}% 0%`,
+                  }}
+                />
+                SLOWED x{appModel.slowdownStacks}
+              </span>
+            ) : null}
             {appModel.shieldMs > 0 ? (
               <span className={classNames(styles.afflictionChip, styles.afflictionGood)}>
                 SHIELDED {Math.ceil(appModel.shieldMs / 1000)}s

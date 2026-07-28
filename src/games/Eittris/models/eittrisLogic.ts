@@ -37,6 +37,8 @@ export const ANTIDOTES_AT_START = 1;
 // (verbatim from the original), floored at MIN_INTERVAL_MS so a stack of
 // them can't make a board literally unplayable.
 export const SPEEDUP_FACTOR = 0.6;
+// SlowDown is the mirror image, and a gift to yourself rather than an attack
+export const SLOWDOWN_FACTOR = 1.3;
 // TheWall: 8 solid rows, each with one random gap, painted into the bottom
 // of the victim's board one row per 100ms (the original's ShapeDraw cadence)
 export const WALL_ROWS = 8;
@@ -333,6 +335,7 @@ export const IMPLEMENTED_SPECIALS: SpecialType[] = [
   SpecialType.Shackle,
   SpecialType.TowerOfEit,
   SpecialType.Bridge,
+  SpecialType.SlowDown,
 ];
 
 // Specials that are fired AT your target rather than kept for yourself
@@ -351,8 +354,14 @@ export function isOffensive(type: SpecialType): boolean {
 
 // Afflictions modify gravity WITHOUT touching the natural curve, so an
 // antidote can simply clear them and the board goes back to normal speed.
-export function effectiveIntervalMs(baseIntervalMs: number, speedupStacks: number): number {
-  const multiplier = Math.pow(SPEEDUP_FACTOR, Math.max(0, speedupStacks));
+export function effectiveIntervalMs(
+  baseIntervalMs: number,
+  speedupStacks: number,
+  slowdownStacks: number = 0,
+): number {
+  const multiplier =
+    Math.pow(SPEEDUP_FACTOR, Math.max(0, speedupStacks)) *
+    Math.pow(SLOWDOWN_FACTOR, Math.max(0, slowdownStacks));
   return Math.max(MIN_INTERVAL_MS, baseIntervalMs * multiplier);
 }
 
@@ -498,6 +507,8 @@ export interface EittrisBoard {
   // Afflictions laid on this board by other players' specials.  Kept apart
   // from intervalMs (the natural gravity curve) so an antidote can wipe them.
   speedupStacks: number;
+  // SlowDown is a self-buff, so an antidote does NOT wash it off
+  slowdownStacks: number;
   shieldMs: number; // remaining antidote shield/cure time (0 = inactive)
   forcedSpecial: SpecialType | null; // dev selector: only ever spawn this
   // DEV: hand this board to the computer player
@@ -530,6 +541,7 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     specialTimerMs: SPECIAL_INTERVAL_MS,
     antidotes: ANTIDOTES_AT_START,
     speedupStacks: 0,
+    slowdownStacks: 0,
     shieldMs: 0,
     forcedSpecial: null,
     aiControlled: false,
