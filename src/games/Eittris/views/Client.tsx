@@ -386,6 +386,18 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
                 SPEEDUP x{appModel.speedupStacks}
               </span>
             ) : null}
+            {appModel.transparency ? (
+              <span className={classNames(styles.afflictionChip, styles.afflictionBad)}>
+                <span
+                  className={styles.specialIcon}
+                  style={{
+                    backgroundImage: `url(${EittrisAssets.images.specials})`,
+                    backgroundPosition: "100% 0%",
+                  }}
+                />
+                INVISIBLE
+              </span>
+            ) : null}
             {appModel.freezeDried ? (
               <span className={classNames(styles.afflictionChip, styles.afflictionBad)}>
                 <span
@@ -520,6 +532,7 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
               specialsUrl={EittrisAssets.images.specials}
               showShadow={appModel.seeShadows}
               freezeDried={appModel.freezeDried}
+              transparency={appModel.transparency}
             />
             {dead ? <div className={styles.toppedOut}>TOPPED OUT</div> : null}
           </div>

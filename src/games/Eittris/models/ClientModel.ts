@@ -105,6 +105,7 @@ export class EittrisClientModel extends ClusterfunClientModel {
   @observable evilPieces = false;
   @observable crazyIvan = false;
   @observable freezeDried = false;
+  @observable transparency = false;
   @observable shieldMs = 0;
   @observable forcedSpecial: number | null = null;
   @observable aiControlled = false;
@@ -264,6 +265,7 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.evilPieces = snapshot.evilPieces ?? false;
     this.crazyIvan = snapshot.crazyIvan ?? false;
     this.freezeDried = snapshot.freezeDried ?? false;
+    this.transparency = snapshot.transparency ?? false;
     this.shieldMs = snapshot.shieldMs ?? 0;
     this.forcedSpecial = snapshot.forcedSpecial ?? null;
     this.aiControlled = snapshot.aiControlled ?? false;

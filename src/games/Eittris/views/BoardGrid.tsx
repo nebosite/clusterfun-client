@@ -41,6 +41,7 @@ interface BoardGridProps {
   specialsUrl?: string; // the 16-icon strip
   showShadow?: boolean; // SeeShadows: outline where the piece will land
   freezeDried?: boolean; // FreezeDried: settled blocks render tiny and jittered
+  transparency?: boolean; // Transparency: settled blocks are invisible
 }
 
 export class BoardGrid extends React.Component<BoardGridProps> {
@@ -93,7 +94,11 @@ export class BoardGrid extends React.Component<BoardGridProps> {
         const special = specialAt.get(index);
         // FreezeDried shrivels SETTLED blocks only - the falling piece stays
         // readable, which is what makes it so disorienting
-        const shrivelled = filled && !overlay.has(index) && this.props.freezeDried;
+        const isSettled = filled && !overlay.has(index);
+        // Transparency hides the settled stack completely - only the falling
+        // piece remains visible
+        const hidden = isSettled && this.props.transparency;
+        const shrivelled = isSettled && this.props.freezeDried;
         const shrink = shrivelled ? 0.4 : 1;
         const jitter = shrivelled ? freezeJitter(index, cellPx) : null;
         cells.push(
@@ -105,17 +110,19 @@ export class BoardGrid extends React.Component<BoardGridProps> {
               margin: jitter ? `${jitter.y}px 0 0 ${jitter.x}px` : undefined,
               // A block carrying a powerup is recolored dark gray so the
               // icon reads and the prize is obvious
-              backgroundColor: filled
-                ? special !== undefined
-                  ? SPECIAL_BLOCK_COLOR
-                  : PIECE_COLORS[type]
-                : "transparent",
+              backgroundColor: hidden
+                ? "transparent"
+                : filled
+                  ? special !== undefined
+                    ? SPECIAL_BLOCK_COLOR
+                    : PIECE_COLORS[type]
+                  : "transparent",
               // the landing ghost sits under everything else
               border:
                 !filled && shadow.has(index)
                   ? `${Math.max(1, Math.round(cellPx * 0.08))}px solid ${PIECE_COLORS[piece!.type]}66`
                   : undefined,
-              boxShadow: filled ? blockShadow : undefined,
+              boxShadow: filled && !hidden ? blockShadow : undefined,
               borderRadius: filled ? Math.max(1, Math.round(cellPx * 0.1)) : undefined,
               // The icon rides on top of the block it marks
               backgroundImage:

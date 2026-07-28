@@ -534,6 +534,9 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
         case SpecialType.Speedup:
           victim.speedupStacks++;
           break;
+        case SpecialType.Transparency:
+          victim.transparency = true;
+          break;
         case SpecialType.FreezeDried:
           victim.freezeDried = true;
           break;
@@ -923,6 +926,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       evilPieces: board.evilPieces,
       crazyIvan: board.crazyIvan,
       freezeDried: board.freezeDried,
+      transparency: board.transparency,
       shieldMs: Math.round(board.shieldMs),
       forcedSpecial: board.forcedSpecial,
       aiControlled: board.aiControlled,

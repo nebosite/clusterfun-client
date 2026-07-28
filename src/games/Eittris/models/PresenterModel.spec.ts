@@ -13,6 +13,7 @@ import {
   BRIDGE_COLUMN_MS,
   collides,
   GARBAGE_CELL,
+  hasAfflictions,
   pieceCells,
   STENCIL_ROW_MS,
   WALL_ROWS,
@@ -1037,5 +1038,35 @@ describe("EittrisPresenterModel - FreezeDried", () => {
     model.handleCommand("A", { command: "useAntidote" });
     expect(board.freezeDried).toBe(false);
     expect(model.snapshotFor("A")!.freezeDried).toBe(false);
+  });
+});
+
+describe("EittrisPresenterModel - Transparency", () => {
+  it("hides the target's stack until an antidote clears it", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    runInAction(() => {
+      board.transparency = true;
+    });
+    expect(model.snapshotFor("A")!.transparency).toBe(true);
+    expect(hasAfflictions(board)).toBe(true);
+
+    model.handleCommand("A", { command: "useAntidote" });
+    expect(board.transparency).toBe(false);
+  });
+
+  it("counts every affliction the bot should cure", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    for (const key of ["evilPieces", "crazyIvan", "freezeDried", "transparency"] as const) {
+      runInAction(() => {
+        (board as any)[key] = true;
+      });
+      expect(hasAfflictions(board)).toBe(true);
+      runInAction(() => {
+        (board as any)[key] = false;
+      });
+    }
+    expect(hasAfflictions(board)).toBe(false);
   });
 });
