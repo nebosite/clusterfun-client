@@ -32,6 +32,9 @@ export interface EittrisBoardSnapshot {
   crazyIvan: boolean; // controls are mirrored
   freezeDried: boolean; // settled blocks render tiny and jittered
   transparency: boolean; // settled blocks are invisible
+  // Milliseconds left on each affliction, in AFFLICTION_TIMERS order, so the
+  // phone can draw a countdown bar on every status chip.
+  afflictionMs: number[];
   psychoSeed: number; // non-zero = colors are scrambled with this seed
   // Psycho's per-cell palette indices, 210 chars, one per cell.  Only sent
   // while the affliction is on - null otherwise, so it costs nothing normally.
@@ -78,6 +81,7 @@ export type EittrisCommandKind =
   | "slamLeft"
   | "slamRight"
   | "rotate"
+  | "doubleTapDrop" // a double tap: undo the first tap's rotation, then drop
   | "pickTarget"
   | "useAntidote" // fire a stored antidote (cure + shield)
   | "setForcedSpecial" // DEV ONLY: pin which special spawns

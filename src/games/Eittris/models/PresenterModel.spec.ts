@@ -16,6 +16,13 @@ import {
   hasAfflictions,
   pieceCells,
   pieceColorIndex,
+  AFFLICTION_DURATION_MS,
+  AFFLICTION_TIMERS,
+  afflictionMsLeft,
+  PIECE_COUNT,
+  hardDrop,
+  emptyGrid,
+  SPAWN_X,
   decodePsychoOverlay,
   STENCIL_ROW_MS,
   SWAP_COLUMN_MS,
@@ -1214,5 +1221,73 @@ describe("EittrisPresenterModel - Psycho", () => {
 
     // An unafflicted board pays nothing for the feature
     expect(model.snapshotFor("A")!.psychoOverlay).toBeNull();
+  });
+});
+
+describe("EittrisPresenterModel - afflictions wear off", () => {
+  it("clears an affliction 22 seconds after it lands", () => {
+    const { model } = startTwoPlayerGame();
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.CrazyIvan });
+    expect(victim.crazyIvan).toBe(true);
+
+    tickTo(model, AFFLICTION_DURATION_MS - 100);
+    expect(victim.crazyIvan).toBe(true);
+
+    tickTo(model, AFFLICTION_DURATION_MS + 100);
+    expect(victim.crazyIvan).toBe(false);
+    expect(afflictionMsLeft(victim, SpecialType.CrazyIvan)).toBe(0);
+  });
+
+  it("puts the remaining time on the wire for the phone's countdown bar", () => {
+    const { model } = startTwoPlayerGame();
+    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.FreezeDried });
+
+    const snapshot = model.snapshotFor("B")!;
+    expect(snapshot.afflictionMs.length).toBe(AFFLICTION_TIMERS.length);
+    const index = AFFLICTION_TIMERS.findIndex((s) => s.type === SpecialType.FreezeDried);
+    expect(snapshot.afflictionMs[index]).toBe(AFFLICTION_DURATION_MS);
+    // Nothing else is running
+    expect(snapshot.afflictionMs.filter((ms) => ms > 0).length).toBe(1);
+  });
+
+  it("hands EvilPieces victims normal pieces again once it expires", () => {
+    const { model } = startTwoPlayerGame();
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.EvilPieces });
+    expect(victim.evilPieces).toBe(true);
+
+    tickTo(model, AFFLICTION_DURATION_MS + 100);
+    expect(victim.evilPieces).toBe(false);
+    // The evil preview was flushed, so what comes next is a normal piece
+    expect(victim.nextQueue.every((type) => type < PIECE_COUNT)).toBe(true);
+  });
+});
+
+describe("EittrisPresenterModel - the double-tap drop", () => {
+  it("takes back the first tap's rotation, then drops like a flick", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    const startRot = board.piece!.rot;
+
+    model.handleCommand("A", { command: "rotate" }); // the first tap of the pair
+    expect(board.piece!.rot).toBe((startRot + 1) % 4);
+
+    model.handleCommand("A", { command: "doubleTapDrop" });
+
+    // The piece locked at the bottom wearing its ORIGINAL rotation
+    const settled = board.grid.flat().filter((c) => c !== EMPTY_CELL).length;
+    expect(settled).toBe(4);
+    const landed = hardDrop(emptyGrid(), { type: 0, rot: startRot, x: SPAWN_X, y: 0 }).piece;
+    for (const c of pieceCells(landed)) expect(board.grid[c.y][c.x]).not.toBe(EMPTY_CELL);
+  });
+
+  it("drops as-is when the rotation cannot be taken back", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    // An I piece lying flat on the floor has no room to stand up again
+    board.piece = { type: 1, rot: 1, x: 5, y: BOARD_HEIGHT - 1, evil: false };
+    expect(() => model.handleCommand("A", { command: "doubleTapDrop" })).not.toThrow();
+    expect(board.grid.flat().filter((c) => c !== EMPTY_CELL).length).toBe(4);
   });
 });

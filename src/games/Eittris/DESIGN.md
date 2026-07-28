@@ -66,8 +66,8 @@ are healed by the standard invalidate → onboard resync.
 | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
 | **Free drag** (any direction)       | The piece follows the finger horizontally AND downward at once (never up); +10 per row descended |
 | **Release after a drag**            | Locks the piece only if it is resting; an airborne piece just resumes gravity                    |
-| **Tap on the piece**                | Rotate clockwise. A tap anywhere else on the board does nothing                                  |
-| **Tap on the landing ghost**        | Drop the piece there (SeeShadows only - with no ghost there is nothing to aim at)                |
+| **Tap**                             | Rotate clockwise. Every gesture works anywhere on the grid and acts on the falling piece         |
+| **Double tap** (within 300 ms)      | Drop the piece, exactly like a downward flick. The first tap's rotation is taken back first      |
 | **Swipe left / right** (fast flick) | Slam the piece all the way left / right                                                          |
 | **Swipe down** (fast flick)         | Hard drop (slam + stick); the next piece is unaffected                                           |
 | **Swipe up** (fast flick)           | Rotate clockwise                                                                                 |
@@ -130,8 +130,10 @@ Ported from the original's `Specials.cs`. Icons come straight from the eitrix at
   of the victim's grid, one row per 100 ms. `STENCIL_SHAPES` + `stencilShapeFor()`.
 - _Other attacks_ - Bridge (roofs the stack, column by column; also free on a 4-row clear),
   Jumble (200 single-block nudges), SwitchScreens (trade stacks a column at a time).
-- _Afflictions_ (Speedup, EvilPieces, CrazyIvan, FreezeDried, Transparency, Psycho) - last
-  until an antidote washes them off; all listed in `cureAfflictions`/`hasAfflictions`.
+- _Afflictions_ (Speedup, EvilPieces, CrazyIvan, FreezeDried, Transparency, Psycho) - each wears
+  off on its own after **22 s** (`AFFLICTION_DURATION_MS`); a repeat hit refreshes that clock
+  rather than stacking a second one, and an antidote still lifts them all at once. The table
+  driving expiry, curing, and the phone's status chips is `AFFLICTION_TIMERS`.
 - _Kept for yourself_ (Antidote, SlowDown, SeeShadows) - no antidote strips your own perks.
 
 ## Computer player (dev tool)
@@ -209,8 +211,7 @@ structs and timers; it makes no rule decisions inline.
    - **Antidote** — stored (max 4); when fired: cures all afflictions/attacks and repels
      new ones for 10 s. Players start with 1.
    - **TheWall** — buries the victim under 8 solid rows, each with one random gap.
-   - **SeeShadows** — a faint ghost of the piece appears where it would land, and
-     tapping that ghost drops the piece there.
+   - **SeeShadows** — a faint ghost of the piece appears where it would land.
    - **Bridge** — paints 2 gapped rows directly on top of the victim's stack. Also
      auto-fires at your victim on any 4-line clear.
    - **EvilPieces** — the victim gets nothing but Z pieces, left- and right-handed,

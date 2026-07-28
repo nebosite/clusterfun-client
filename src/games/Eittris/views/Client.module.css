@@ -357,6 +357,8 @@
 }
 
 .gameclient .afflictionChip {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -407,4 +409,28 @@
   opacity: 0.4;
   background: #2a3b57;
   border-color: #4d648a;
+}
+
+/* Countdown bar on any status chip that has a clock.  It rides the chip's
+   bottom edge so a running timer never changes the chip's size, and it eases
+   over 1s - the rate at which the presenter re-sends a ticking board. */
+.gameclient .chipSeconds {
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+.gameclient .chipTimerTrack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.gameclient .chipTimerBar {
+  display: block;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.85);
+  transition: width 1s linear;
 }

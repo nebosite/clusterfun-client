@@ -21,6 +21,10 @@ import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
   classifyTap,
+  SpecialType,
+  AFFLICTION_TIMERS,
+  AFFLICTION_DURATION_MS,
+  ANTIDOTE_DURATION_MS,
   decodeGrid,
   decodePsychoOverlay,
   decodeThumbnail,
@@ -75,8 +79,9 @@ const THUMB_CELL_PX = 3; // target-list thumbnail cell size
 //                   horizontally AND downward at once (never up)
 //   pointer-up after a drag -> release (locks only if the piece is resting)
 //   fast flick   -> slamLeft/slamRight/hardDrop/rotate by direction
-//   tap ON the piece   -> rotate
-//   tap ON the SeeShadows ghost -> drop the piece there
+//   tap          -> rotate (anywhere on the grid - it always acts on the
+//                   falling piece, so you never have to hit the piece itself)
+//   double tap   -> drop the piece, exactly as a downward flick would
 // Mouse and touch both arrive as pointer events.
 // -------------------------------------------------------------------
 class GestureTracker {
@@ -99,8 +104,8 @@ class GestureTracker {
   private lastSentRow: number | null = null;
   private cellWidthPx = CELL_PX;
   private cellHeightPx = CELL_PX;
-  // Kept so a tap can be resolved back to the board cell it landed on
-  private boardRect: DOMRect | null = null;
+  // When the last tap landed, so the next one can be read as a double tap
+  private lastTapTime: number | null = null;
   // Pointer-move events seen on the board since the last flick.  Flicks stay
   // disarmed until this reaches FLICK_REARM_MOVES, which kills the phantom
   // repeat you get when a flick's pointer-up lands off-screen.
@@ -128,7 +133,6 @@ class GestureTracker {
     this.lastSentColumn = null;
     this.lastSentRow = null;
     // Quantize by the on-screen board size (UINormalizer scales the layout)
-    this.boardRect = boardRect;
     this.cellWidthPx = (boardRect?.width ?? BOARD_WIDTH * CELL_PX) / BOARD_WIDTH;
     this.cellHeightPx = (boardRect?.height ?? BOARD_HEIGHT * CELL_PX) / BOARD_HEIGHT;
   }
@@ -215,34 +219,28 @@ class GestureTracker {
       return;
     }
 
-    // A quick touch that barely moved is a tap.  What it does depends on
-    // WHERE it landed: on the piece it rotates, on the landing ghost it drops
-    // the piece there, and anywhere else it is ignored.
+    // A quick touch that barely moved is a tap.  It works anywhere on the
+    // grid and always acts on the falling piece; a second one close behind it
+    // is a double tap, which drops.
     if (duration < TAP_MAX_DURATION_MS && distance < TAP_MAX_DISTANCE_PX) {
-      const cell = this.cellAt(e.clientX, e.clientY);
-      const action = classifyTap(
-        decodeGrid(this.model.gridString),
-        this.model.piece,
-        cell,
-        this.model.seeShadows,
-      );
-      if (action === "rotate") this.model.rotate();
-      else if (action === "drop") this.model.hardDrop();
+      const now = performance.now();
+      const sinceLastTap = this.lastTapTime === null ? null : now - this.lastTapTime;
+      const action = classifyTap(!!this.model.piece, sinceLastTap);
+      if (action === "drop") {
+        // Consumed - a third tap starts a fresh pair rather than dropping again
+        this.lastTapTime = null;
+        this.model.doubleTapDrop();
+      } else if (action === "rotate") {
+        this.lastTapTime = now;
+        this.model.rotate();
+      }
       return;
     }
+    // Anything that was not a tap breaks up a would-be double tap
+    this.lastTapTime = null;
 
     // Otherwise end the drag: lock if resting, else resume gravity
     if (dragSent) this.model.release();
-  }
-
-  // Screen point -> board cell.  Off-board points come back out of range,
-  // which classifyTap treats as "nothing here".
-  private cellAt(clientX: number, clientY: number): { x: number; y: number } {
-    if (!this.boardRect) return { x: -1, y: -1 };
-    return {
-      x: Math.floor((clientX - this.boardRect.left) / this.cellWidthPx),
-      y: Math.floor((clientY - this.boardRect.top) / this.cellHeightPx),
-    };
   }
 
   cancel() {
@@ -336,8 +334,6 @@ class ThumbnailView extends React.Component<{ thumb: string }> {
 // -------------------------------------------------------------------
 // TargetList - the other players with live thumbnails; tap to target
 // -------------------------------------------------------------------
-@inject("appModel")
-@observer
 class TargetList extends React.Component<{ appModel?: EittrisClientModel }> {
   render() {
     const { appModel } = this.props;
@@ -375,6 +371,54 @@ class TargetList extends React.Component<{ appModel?: EittrisClientModel }> {
   }
 }
 
+// -------------------------------------------------------------------
+// AfflictionChip - one status chip.  Anything with a clock on it carries a
+// countdown bar along its bottom edge, so you can see how much longer you
+// have to live with it (or how much shield is left) without reading numbers.
+// The bar eases over 1s because that is how often the presenter re-sends the
+// board while a timer is running.
+// -------------------------------------------------------------------
+interface ChipInfo {
+  label: string;
+  tone: "bad" | "good";
+  iconIndex?: number; // position in the 16-icon specials strip
+  msLeft?: number;
+  totalMs?: number;
+}
+
+class AfflictionChip extends React.Component<ChipInfo> {
+  render() {
+    const { label, tone, iconIndex, msLeft, totalMs } = this.props;
+    const timed = msLeft !== undefined && totalMs !== undefined && totalMs > 0;
+    const fraction = timed ? Math.max(0, Math.min(1, msLeft! / totalMs!)) : 0;
+    return (
+      <span
+        className={classNames(styles.afflictionChip, {
+          [styles.afflictionBad]: tone === "bad",
+          [styles.afflictionGood]: tone === "good",
+        })}
+      >
+        {iconIndex === undefined ? null : (
+          <span
+            className={styles.specialIcon}
+            style={{
+              backgroundImage: `url(${EittrisAssets.images.specials})`,
+              backgroundPosition: `${(iconIndex / 15) * 100}% 0%`,
+            }}
+          />
+        )}
+        {label}
+        {timed ? <span className={styles.chipSeconds}>{Math.ceil(msLeft! / 1000)}s</span> : null}
+        {timed ? (
+          <span className={styles.chipTimerTrack}>
+            <span className={styles.chipTimerBar} style={{ width: `${fraction * 100}%` }} />
+          </span>
+        ) : null}
+      </span>
+    );
+  }
+}
+
 @inject("appModel")
 @observer
 class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
@@ -384,6 +428,90 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
   constructor(props: Readonly<{ appModel?: EittrisClientModel }>) {
     super(props);
     this.tracker = new GestureTracker(props.appModel!);
+  }
+
+  // Everything currently showing in the status strip, in a fixed order so
+  // chips do not jump around as they come and go.
+  afflictionChips(): ChipInfo[] {
+    const appModel = this.props.appModel!;
+    const left = (type: SpecialType) => {
+      const index = AFFLICTION_TIMERS.findIndex((spec) => spec.type === type);
+      return index < 0 ? undefined : appModel.afflictionMs[index];
+    };
+    const timed = (type: SpecialType) => ({
+      msLeft: left(type),
+      totalMs: AFFLICTION_DURATION_MS,
+    });
+    const chips: ChipInfo[] = [];
+    if (appModel.speedupStacks > 0) {
+      chips.push({
+        label: `SPEEDUP x${appModel.speedupStacks}`,
+        tone: "bad",
+        iconIndex: SpecialType.Speedup,
+        ...timed(SpecialType.Speedup),
+      });
+    }
+    if (appModel.psychoSeed > 0) {
+      chips.push({
+        label: "PSYCHO",
+        tone: "bad",
+        iconIndex: SpecialType.Psycho,
+        ...timed(SpecialType.Psycho),
+      });
+    }
+    if (appModel.transparency) {
+      chips.push({
+        label: "INVISIBLE",
+        tone: "bad",
+        iconIndex: SpecialType.Transparency,
+        ...timed(SpecialType.Transparency),
+      });
+    }
+    if (appModel.freezeDried) {
+      chips.push({
+        label: "FREEZE DRIED",
+        tone: "bad",
+        iconIndex: SpecialType.FreezeDried,
+        ...timed(SpecialType.FreezeDried),
+      });
+    }
+    if (appModel.crazyIvan) {
+      chips.push({
+        label: "REVERSED",
+        tone: "bad",
+        iconIndex: SpecialType.CrazyIvan,
+        ...timed(SpecialType.CrazyIvan),
+      });
+    }
+    if (appModel.evilPieces) {
+      chips.push({
+        label: "EVIL PIECES",
+        tone: "bad",
+        iconIndex: SpecialType.EvilPieces,
+        ...timed(SpecialType.EvilPieces),
+      });
+    }
+    // Self-buffs: no clock, they are yours for the rest of the round
+    if (appModel.slowdownStacks > 0) {
+      chips.push({
+        label: `SLOWED x${appModel.slowdownStacks}`,
+        tone: "good",
+        iconIndex: SpecialType.SlowDown,
+      });
+    }
+    if (appModel.seeShadows) {
+      chips.push({ label: "SHADOWS", tone: "good", iconIndex: SpecialType.SeeShadows });
+    }
+    if (appModel.shieldMs > 0) {
+      chips.push({
+        label: "SHIELDED",
+        tone: "good",
+        iconIndex: SpecialType.Antidote,
+        msLeft: appModel.shieldMs,
+        totalMs: ANTIDOTE_DURATION_MS,
+      });
+    }
+    return chips;
   }
 
   render() {
@@ -407,95 +535,9 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
             It always occupies the same space so the board never shifts. */}
         <div className={styles.statusArea}>
           <div className={styles.afflictionRow}>
-            {appModel.speedupStacks > 0 ? (
-              <span className={classNames(styles.afflictionChip, styles.afflictionBad)}>
-                <span
-                  className={styles.specialIcon}
-                  style={{
-                    backgroundImage: `url(${EittrisAssets.images.specials})`,
-                    backgroundPosition: "0% 0%",
-                  }}
-                />
-                SPEEDUP x{appModel.speedupStacks}
-              </span>
-            ) : null}
-            {appModel.psychoSeed > 0 ? (
-              <span className={classNames(styles.afflictionChip, styles.afflictionBad)}>
-                <span
-                  className={styles.specialIcon}
-                  style={{
-                    backgroundImage: `url(${EittrisAssets.images.specials})`,
-                    backgroundPosition: `${(4 / 15) * 100}% 0%`,
-                  }}
-                />
-                PSYCHO
-              </span>
-            ) : null}
-            {appModel.transparency ? (
-              <span className={classNames(styles.afflictionChip, styles.afflictionBad)}>
-                <span
-                  className={styles.specialIcon}
-                  style={{
-                    backgroundImage: `url(${EittrisAssets.images.specials})`,
-                    backgroundPosition: "100% 0%",
-                  }}
-                />
-                INVISIBLE
-              </span>
-            ) : null}
-            {appModel.freezeDried ? (
-              <span className={classNames(styles.afflictionChip, styles.afflictionBad)}>
-                <span
-                  className={styles.specialIcon}
-                  style={{
-                    backgroundImage: `url(${EittrisAssets.images.specials})`,
-                    backgroundPosition: `${(14 / 15) * 100}% 0%`,
-                  }}
-                />
-                FREEZE DRIED
-              </span>
-            ) : null}
-            {appModel.crazyIvan ? (
-              <span className={classNames(styles.afflictionChip, styles.afflictionBad)}>
-                <span
-                  className={styles.specialIcon}
-                  style={{
-                    backgroundImage: `url(${EittrisAssets.images.specials})`,
-                    backgroundPosition: `${(10 / 15) * 100}% 0%`,
-                  }}
-                />
-                REVERSED
-              </span>
-            ) : null}
-            {appModel.evilPieces ? (
-              <span className={classNames(styles.afflictionChip, styles.afflictionBad)}>
-                <span
-                  className={styles.specialIcon}
-                  style={{
-                    backgroundImage: `url(${EittrisAssets.images.specials})`,
-                    backgroundPosition: `${(9 / 15) * 100}% 0%`,
-                  }}
-                />
-                EVIL PIECES
-              </span>
-            ) : null}
-            {appModel.slowdownStacks > 0 ? (
-              <span className={classNames(styles.afflictionChip, styles.afflictionGood)}>
-                <span
-                  className={styles.specialIcon}
-                  style={{
-                    backgroundImage: `url(${EittrisAssets.images.specials})`,
-                    backgroundPosition: `${(2 / 15) * 100}% 0%`,
-                  }}
-                />
-                SLOWED x{appModel.slowdownStacks}
-              </span>
-            ) : null}
-            {appModel.shieldMs > 0 ? (
-              <span className={classNames(styles.afflictionChip, styles.afflictionGood)}>
-                SHIELDED {Math.ceil(appModel.shieldMs / 1000)}s
-              </span>
-            ) : null}
+            {this.afflictionChips().map((chip) => (
+              <AfflictionChip key={chip.label} {...chip} />
+            ))}
           </div>
           <div className={styles.bannerRow}>
             {appModel.lastSpecialEvent ? (

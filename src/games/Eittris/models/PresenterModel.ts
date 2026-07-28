@@ -61,6 +61,11 @@ import {
   liftPieceClear,
   BRIDGE_COLUMN_MS,
   JUMBLE_NUDGES,
+  AFFLICTION_TIMERS,
+  afflictionMsLeft,
+  startAffliction,
+  tickAfflictions,
+  tryRotateCCW,
   PSYCHO_COLOR_COUNT,
   emptyPsychoOverlay,
   encodePsychoOverlay,
@@ -324,6 +329,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     this.tickSwap(board, dtMs);
     this.tickAi(board, dtMs);
     this.tickPsycho(board);
+    this.tickAfflictionTimers(board, dtMs);
 
     // The board is in the post-lock gap: nothing falls, and no command can
     // touch anything, until the next piece appears.
@@ -358,6 +364,23 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       }
       this.dirtyPlayerIds.add(board.playerId);
     }
+  }
+
+  // -------------------------------------------------------------------
+  // tickAfflictionTimers - every affliction wears off on its own after
+  // AFFLICTION_DURATION_MS.  The board is only re-sent when the displayed
+  // second changes (or something expires), so the phones' countdown bars stay
+  // current without a full board update on every frame.
+  // -------------------------------------------------------------------
+  private tickAfflictionTimers(board: EittrisBoard, dtMs: number) {
+    const secondsBefore = AFFLICTION_TIMERS.map((spec) =>
+      Math.ceil(afflictionMsLeft(board, spec.type) / 1000),
+    );
+    const expired = tickAfflictions(board, dtMs);
+    const changed = AFFLICTION_TIMERS.some(
+      (spec, i) => Math.ceil(afflictionMsLeft(board, spec.type) / 1000) !== secondsBefore[i],
+    );
+    if (expired || changed) this.dirtyPlayerIds.add(board.playerId);
   }
 
   // -------------------------------------------------------------------
@@ -661,6 +684,9 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
           Logger.warn(`Unhandled offensive special: ${SpecialType[type]}`);
           return;
       }
+      // Start (or refresh) this affliction's clock.  One-shot attacks that
+      // just paint into the board have no clock and are ignored here.
+      startAffliction(victim, type);
     }
 
     this.dirtyPlayerIds.add(victim.playerId);
@@ -928,8 +954,15 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
         }
         break;
       }
+      // A double tap: the first tap of the pair already rotated the piece, so
+      // put that back (when it still fits) and then drop it like a flick.
+      case "doubleTapDrop":
       case "hardDrop": {
-        const dropped = hardDrop(board.grid, board.piece);
+        let falling = board.piece;
+        if (message.command === "doubleTapDrop") {
+          falling = tryRotateCCW(board.grid, falling) ?? falling;
+        }
+        const dropped = hardDrop(board.grid, falling);
         board.piece = dropped.piece;
         board.score += dropped.rowsDropped * DROP_POINTS_PER_ROW;
         this.lockCurrentPiece(board, EittrisGameEvent.PieceBumped);
@@ -1033,6 +1066,9 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       freezeDried: board.freezeDried,
       transparency: board.transparency,
       psychoSeed: board.psychoSeed,
+      afflictionMs: AFFLICTION_TIMERS.map((spec) =>
+        Math.max(0, Math.round(afflictionMsLeft(board, spec.type))),
+      ),
       psychoOverlay: board.psychoOverlay ? encodePsychoOverlay(board.psychoOverlay) : null,
       shieldMs: Math.round(board.shieldMs),
       forcedSpecial: board.forcedSpecial,

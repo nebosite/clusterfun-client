@@ -106,6 +106,8 @@ export class EittrisClientModel extends ClusterfunClientModel {
   @observable crazyIvan = false;
   @observable freezeDried = false;
   @observable transparency = false;
+  // Milliseconds left on each affliction, in AFFLICTION_TIMERS order
+  @observable afflictionMs: number[] = [];
   @observable psychoSeed = 0;
   @observable psychoOverlay: string | null = null;
   @observable shieldMs = 0;
@@ -268,6 +270,7 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.crazyIvan = snapshot.crazyIvan ?? false;
     this.freezeDried = snapshot.freezeDried ?? false;
     this.transparency = snapshot.transparency ?? false;
+    this.afflictionMs = (snapshot.afflictionMs ?? []).slice();
     this.psychoSeed = snapshot.psychoSeed ?? 0;
     this.psychoOverlay = snapshot.psychoOverlay ?? null;
     this.shieldMs = snapshot.shieldMs ?? 0;
@@ -314,6 +317,12 @@ export class EittrisClientModel extends ClusterfunClientModel {
 
   rotate() {
     this.sendCommand({ command: "rotate" });
+  }
+
+  // A double tap lands the piece the way a downward flick would - the
+  // presenter takes back the first tap's rotation before dropping it.
+  doubleTapDrop() {
+    this.sendCommand({ command: "doubleTapDrop" });
   }
 
   // Fire a banked antidote.  Uses the raw send so it works during the

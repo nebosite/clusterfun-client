@@ -32,6 +32,9 @@ export const SPECIAL_INTERVAL_MS = 8000;
 export const ANTIDOTE_CHANCE = 0.5;
 export const ANTIDOTE_MAX = 4;
 export const ANTIDOTE_DURATION_MS = 10000;
+// Every affliction wears off on its own after this long.  Getting hit again
+// with the same one refreshes the clock rather than stacking a second timer.
+export const AFFLICTION_DURATION_MS = 22000;
 export const ANTIDOTES_AT_START = 1;
 // Speedup: the victim's gravity interval is permanently multiplied by this
 // (verbatim from the original), floored at MIN_INTERVAL_MS so a stack of
@@ -192,6 +195,12 @@ export function tryMove(
 
 export function tryRotateCW(grid: number[][], piece: EittrisPiece): EittrisPiece | null {
   const rotated = { ...piece, rot: (piece.rot + 1) % 4 };
+  return collides(grid, pieceCells(rotated)) ? null : rotated;
+}
+
+// Used to take back the rotation the first tap of a double tap caused
+export function tryRotateCCW(grid: number[][], piece: EittrisPiece): EittrisPiece | null {
+  const rotated = { ...piece, rot: (piece.rot + 3) % 4 };
   return collides(grid, pieceCells(rotated)) ? null : rotated;
 }
 
@@ -419,27 +428,117 @@ export function effectiveIntervalMs(
   return Math.max(MIN_INTERVAL_MS, baseIntervalMs * multiplier);
 }
 
+// ------------------------------------------------------------------------------------------
+// Afflictions and their clocks.  Each entry knows how to read its timer, how
+// to tell whether the affliction is on, and how to lift it when time is up -
+// so expiry, curing, and the status chips all work off one table instead of
+// six near-identical branches.
+// ------------------------------------------------------------------------------------------
+export interface AfflictionSpec {
+  type: SpecialType;
+  timerField: keyof EittrisBoard;
+  isOn: (board: EittrisBoard) => boolean;
+  lift: (board: EittrisBoard) => void;
+}
+
+export const AFFLICTION_TIMERS: AfflictionSpec[] = [
+  {
+    type: SpecialType.Speedup,
+    timerField: "speedupMs",
+    isOn: (b) => b.speedupStacks > 0,
+    // Every stack goes at once - one clock covers the affliction, not the hits
+    lift: (b) => {
+      b.speedupStacks = 0;
+    },
+  },
+  {
+    type: SpecialType.EvilPieces,
+    timerField: "evilPiecesMs",
+    isOn: (b) => b.evilPieces,
+    lift: (b) => {
+      b.evilPieces = false;
+      b.nextQueue = []; // flush the evil preview so normal pieces resume at once
+    },
+  },
+  {
+    type: SpecialType.CrazyIvan,
+    timerField: "crazyIvanMs",
+    isOn: (b) => b.crazyIvan,
+    lift: (b) => {
+      b.crazyIvan = false;
+    },
+  },
+  {
+    type: SpecialType.FreezeDried,
+    timerField: "freezeDriedMs",
+    isOn: (b) => b.freezeDried,
+    lift: (b) => {
+      b.freezeDried = false;
+    },
+  },
+  {
+    type: SpecialType.Transparency,
+    timerField: "transparencyMs",
+    isOn: (b) => b.transparency,
+    lift: (b) => {
+      b.transparency = false;
+    },
+  },
+  {
+    type: SpecialType.Psycho,
+    timerField: "psychoMs",
+    isOn: (b) => b.psychoSeed > 0,
+    lift: (b) => {
+      b.psychoSeed = 0;
+      b.psychoOverlay = null;
+    },
+  },
+];
+
+// A fresh hit puts the clock back to a full duration
+export function startAffliction(board: EittrisBoard, type: SpecialType): void {
+  const spec = AFFLICTION_TIMERS.find((a) => a.type === type);
+  if (spec) (board as any)[spec.timerField] = AFFLICTION_DURATION_MS;
+}
+
+export function afflictionMsLeft(board: EittrisBoard, type: SpecialType): number {
+  const spec = AFFLICTION_TIMERS.find((a) => a.type === type);
+  return spec ? ((board as any)[spec.timerField] as number) : 0;
+}
+
+// Age every clock and lift whatever ran out.  Returns true if any affliction
+// ended, so the caller knows the board is worth re-sending.
+export function tickAfflictions(board: EittrisBoard, dtMs: number): boolean {
+  let expired = false;
+  for (const spec of AFFLICTION_TIMERS) {
+    const left = (board as any)[spec.timerField] as number;
+    if (left <= 0) {
+      // An affliction with no clock (restored from an older checkpoint) still
+      // needs one, or it would hang around forever
+      if (spec.isOn(board)) (board as any)[spec.timerField] = AFFLICTION_DURATION_MS;
+      continue;
+    }
+    const next = Math.max(0, left - dtMs);
+    (board as any)[spec.timerField] = next;
+    if (next === 0) {
+      spec.lift(board);
+      expired = true;
+    }
+  }
+  return expired;
+}
+
 // Everything an antidote washes off
 export function cureAfflictions(board: EittrisBoard): void {
-  board.speedupStacks = 0;
-  board.evilPieces = false;
-  board.crazyIvan = false;
-  board.freezeDried = false;
-  board.transparency = false;
-  board.psychoSeed = 0;
-  board.psychoOverlay = null;
+  for (const spec of AFFLICTION_TIMERS) {
+    spec.lift(board);
+    (board as any)[spec.timerField] = 0;
+  }
 }
 
 // Does this board have anything an antidote would cure?
 export function hasAfflictions(board: EittrisBoard): boolean {
-  return (
-    board.speedupStacks > 0 ||
-    board.evilPieces ||
-    board.crazyIvan ||
-    board.freezeDried ||
-    board.transparency ||
-    board.psychoSeed > 0
-  );
+  return AFFLICTION_TIMERS.some((spec) => spec.isOn(board));
 }
 
 // A special sitting on one settled block.  It never decays: it waits there
@@ -591,6 +690,14 @@ export interface EittrisBoard {
   freezeDried: boolean;
   // Transparency: the settled stack is invisible until cured
   transparency: boolean;
+  // Milliseconds left on each affliction (0 = not afflicted).  One clock per
+  // affliction, refreshed by a fresh hit; see AFFLICTION_TIMERS.
+  speedupMs: number;
+  evilPiecesMs: number;
+  crazyIvanMs: number;
+  freezeDriedMs: number;
+  transparencyMs: number;
+  psychoMs: number;
   // Psycho: colors are remapped, reshuffled on every new piece
   psychoSeed: number; // 0 = not afflicted
   // Psycho's per-cell palette indices - the XOR'd background plus the trail
@@ -639,6 +746,12 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     crazyIvan: false,
     freezeDried: false,
     transparency: false,
+    speedupMs: 0,
+    evilPiecesMs: 0,
+    crazyIvanMs: 0,
+    freezeDriedMs: 0,
+    transparencyMs: 0,
+    psychoMs: 0,
     psychoSeed: 0,
     psychoOverlay: null,
     shieldMs: 0,
@@ -1107,26 +1220,22 @@ export function landingCells(grid: number[][], piece: EittrisPiece | null): Set<
 }
 
 // ------------------------------------------------------------------------------------------
-// What a tap on a board cell means.  A tap only ever does something if it
-// lands on the piece itself (rotate) or, while SeeShadows is on, on the ghost
-// showing where it would land (drop it there).  A tap anywhere else is
-// deliberately ignored - stray taps used to spin the piece from across the
-// board, which is maddening when you are aiming.
+// What a tap means.  Every gesture works anywhere on the grid and always acts
+// on the falling piece - you never have to hit the piece itself, which would
+// be hopeless on a phone.  A single tap rotates; a second tap inside
+// DOUBLE_TAP_MS drops the piece as though it had been flicked down.  The
+// first tap of a pair has already rotated it, so the drop takes that rotation
+// back first - a double tap lands the piece the way it looked when you
+// started tapping, exactly like a downward flick would.
 // ------------------------------------------------------------------------------------------
+export const DOUBLE_TAP_MS = 300;
+
 export type TapAction = "rotate" | "drop" | "none";
 
-export function classifyTap(
-  grid: number[][],
-  piece: EittrisPiece | null,
-  cell: Cell,
-  seeShadows: boolean,
-): TapAction {
-  if (!piece) return "none";
-  if (cell.x < 0 || cell.x >= BOARD_WIDTH || cell.y < 0 || cell.y >= BOARD_HEIGHT) return "none";
-  const index = cell.y * BOARD_WIDTH + cell.x;
-  if (pieceCells(piece).some((c) => c.y * BOARD_WIDTH + c.x === index)) return "rotate";
-  if (seeShadows && landingCells(grid, piece).has(index)) return "drop";
-  return "none";
+export function classifyTap(hasPiece: boolean, msSinceLastTap: number | null): TapAction {
+  if (!hasPiece) return "none";
+  if (msSinceLastTap !== null && msSinceLastTap <= DOUBLE_TAP_MS) return "drop";
+  return "rotate";
 }
 
 // ------------------------------------------------------------------------------------------

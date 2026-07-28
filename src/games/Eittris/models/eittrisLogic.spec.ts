@@ -77,6 +77,13 @@ import {
   decodePsychoOverlay,
   landingCells,
   classifyTap,
+  DOUBLE_TAP_MS,
+  tryRotateCCW,
+  AFFLICTION_DURATION_MS,
+  AFFLICTION_TIMERS,
+  startAffliction,
+  afflictionMsLeft,
+  tickAfflictions,
   jumbleOnce,
   JUMBLE_NUDGES,
   swapColumn,
@@ -1260,7 +1267,7 @@ describe("eittrisLogic - swapColumn", () => {
 // ------------------------------------------------------------------------------------------
 // SeeShadows + what a tap on the board means
 // ------------------------------------------------------------------------------------------
-describe("eittrisLogic - the landing ghost and tap targets", () => {
+describe("eittrisLogic - the landing ghost", () => {
   it("puts the ghost exactly where a hard drop would land the piece", () => {
     const grid = emptyGrid();
     grid[BOARD_HEIGHT - 1][5] = 0; // a lump to land on
@@ -1274,37 +1281,126 @@ describe("eittrisLogic - the landing ghost and tap targets", () => {
   it("has no ghost with no piece", () => {
     expect(landingCells(emptyGrid(), null).size).toBe(0);
   });
+});
 
-  it("rotates only when the tap lands on the piece itself", () => {
-    const grid = emptyGrid();
-    const piece = { type: 6, rot: 0, x: 5, y: 10, evil: false }; // O at (5,10)-(6,11)
-    expect(classifyTap(grid, piece, { x: 5, y: 10 }, false)).toBe("rotate");
-    expect(classifyTap(grid, piece, { x: 6, y: 11 }, false)).toBe("rotate");
-    // Next to it, far from it, and off the board are all ignored
-    expect(classifyTap(grid, piece, { x: 4, y: 10 }, false)).toBe("none");
-    expect(classifyTap(grid, piece, { x: 0, y: 0 }, false)).toBe("none");
-    expect(classifyTap(grid, piece, { x: -1, y: 10 }, false)).toBe("none");
-    expect(classifyTap(grid, piece, { x: 5, y: BOARD_HEIGHT }, false)).toBe("none");
+describe("eittrisLogic - taps", () => {
+  it("rotates on a single tap, wherever it landed", () => {
+    expect(classifyTap(true, null)).toBe("rotate");
+    expect(classifyTap(true, 5000)).toBe("rotate");
   });
 
-  it("drops the piece when the tap lands on the ghost, but only with SeeShadows on", () => {
-    const grid = emptyGrid();
-    const piece = { type: 6, rot: 0, x: 5, y: 2, evil: false };
-    const ghost = [...landingCells(grid, piece)][0];
-    const cell = { x: ghost % BOARD_WIDTH, y: Math.floor(ghost / BOARD_WIDTH) };
-    expect(classifyTap(grid, piece, cell, true)).toBe("drop");
-    // Without the affliction there is no ghost to aim at, so nothing happens
-    expect(classifyTap(grid, piece, cell, false)).toBe("none");
-  });
-
-  it("prefers rotating when the piece is already sitting on its own ghost", () => {
-    const grid = emptyGrid();
-    const resting = hardDrop(grid, spawnPiece(6, 0, false)).piece;
-    const cell = pieceCells(resting)[0];
-    expect(classifyTap(grid, resting, cell, true)).toBe("rotate");
+  it("drops on a second tap inside the double-tap window", () => {
+    expect(classifyTap(true, 0)).toBe("drop");
+    expect(classifyTap(true, DOUBLE_TAP_MS)).toBe("drop");
+    expect(classifyTap(true, DOUBLE_TAP_MS + 1)).toBe("rotate");
   });
 
   it("does nothing at all during the spawn gap", () => {
-    expect(classifyTap(emptyGrid(), null, { x: 5, y: 5 }, true)).toBe("none");
+    expect(classifyTap(false, null)).toBe("none");
+    expect(classifyTap(false, 10)).toBe("none");
+  });
+});
+
+describe("eittrisLogic - taking a rotation back", () => {
+  it("tryRotateCCW is the exact inverse of tryRotateCW", () => {
+    const grid = emptyGrid();
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      const piece = spawnPiece(type, 0, false);
+      const turned = tryRotateCW(grid, { ...piece, y: 10 })!;
+      expect(turned).not.toBeNull();
+      expect(tryRotateCCW(grid, turned)!.rot).toBe(((piece.rot % 4) + 4) % 4);
+    }
+  });
+
+  it("refuses to un-rotate into a wall, so the caller can just drop as-is", () => {
+    const grid = emptyGrid();
+    // An I piece lying flat against the floor cannot stand back up
+    const flat = { type: 1, rot: 1, x: 5, y: BOARD_HEIGHT - 1, evil: false };
+    expect(tryRotateCCW(grid, flat)).toBeNull();
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Afflictions wear off on their own
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - affliction expiry", () => {
+  // Turn an affliction on the way the presenter does
+  function afflict(board: ReturnType<typeof makeBoard>, spec: (typeof AFFLICTION_TIMERS)[0]) {
+    if (spec.type === SpecialType.Speedup) board.speedupStacks = 1;
+    if (spec.type === SpecialType.EvilPieces) board.evilPieces = true;
+    if (spec.type === SpecialType.CrazyIvan) board.crazyIvan = true;
+    if (spec.type === SpecialType.FreezeDried) board.freezeDried = true;
+    if (spec.type === SpecialType.Transparency) board.transparency = true;
+    if (spec.type === SpecialType.Psycho) board.psychoSeed = 7;
+    startAffliction(board, spec.type);
+  }
+
+  it("lifts every affliction after 22 seconds, and not a tick before", () => {
+    for (const spec of AFFLICTION_TIMERS) {
+      const board = makeBoard("p1", () => 0.1);
+      afflict(board, spec);
+      expect(spec.isOn(board)).toBe(true);
+      expect(afflictionMsLeft(board, spec.type)).toBe(AFFLICTION_DURATION_MS);
+
+      // One millisecond short: still afflicted
+      tickAfflictions(board, AFFLICTION_DURATION_MS - 1);
+      expect(spec.isOn(board)).toBe(true);
+
+      expect(tickAfflictions(board, 1)).toBe(true);
+      expect(spec.isOn(board)).toBe(false);
+      expect(afflictionMsLeft(board, spec.type)).toBe(0);
+    }
+  });
+
+  it("refreshes the clock on a repeat hit instead of stacking a second one", () => {
+    const board = makeBoard("p1", () => 0.1);
+    board.speedupStacks = 1;
+    startAffliction(board, SpecialType.Speedup);
+    tickAfflictions(board, 20000);
+    expect(afflictionMsLeft(board, SpecialType.Speedup)).toBe(2000);
+
+    // Hit again: full clock, and the stack survives
+    board.speedupStacks++;
+    startAffliction(board, SpecialType.Speedup);
+    expect(afflictionMsLeft(board, SpecialType.Speedup)).toBe(AFFLICTION_DURATION_MS);
+    expect(board.speedupStacks).toBe(2);
+
+    // When it finally runs out, every stack goes at once
+    tickAfflictions(board, AFFLICTION_DURATION_MS);
+    expect(board.speedupStacks).toBe(0);
+  });
+
+  it("leaves an unafflicted board completely alone", () => {
+    const board = makeBoard("p1", () => 0.1);
+    expect(tickAfflictions(board, 5000)).toBe(false);
+    expect(hasAfflictions(board)).toBe(false);
+    for (const spec of AFFLICTION_TIMERS) expect(afflictionMsLeft(board, spec.type)).toBe(0);
+  });
+
+  it("does not touch the self-buffs - SlowDown and SeeShadows are yours to keep", () => {
+    const board = makeBoard("p1", () => 0.1);
+    board.slowdownStacks = 2;
+    board.seeShadows = true;
+    tickAfflictions(board, AFFLICTION_DURATION_MS * 2);
+    expect(board.slowdownStacks).toBe(2);
+    expect(board.seeShadows).toBe(true);
+  });
+
+  it("gives a clock to an affliction restored without one, rather than letting it linger", () => {
+    const board = makeBoard("p1", () => 0.1);
+    board.crazyIvan = true; // an old checkpoint: flag set, timer still zero
+    expect(afflictionMsLeft(board, SpecialType.CrazyIvan)).toBe(0);
+    tickAfflictions(board, 16);
+    expect(afflictionMsLeft(board, SpecialType.CrazyIvan)).toBe(AFFLICTION_DURATION_MS);
+    expect(board.crazyIvan).toBe(true);
+  });
+
+  it("an antidote still wipes everything, clocks and all", () => {
+    const board = makeBoard("p1", () => 0.1);
+    for (const spec of AFFLICTION_TIMERS) afflict(board, spec);
+    expect(hasAfflictions(board)).toBe(true);
+    cureAfflictions(board);
+    expect(hasAfflictions(board)).toBe(false);
+    for (const spec of AFFLICTION_TIMERS) expect(afflictionMsLeft(board, spec.type)).toBe(0);
   });
 });
