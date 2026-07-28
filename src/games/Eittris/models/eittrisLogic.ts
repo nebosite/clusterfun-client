@@ -21,6 +21,8 @@ export const DROP_POINTS_PER_ROW = 10; // hard/soft dropped rows: +10 points per
 // Garbage painted into a board by an attack.  Not a playable piece type -
 // it just occupies cells and renders in its own color.
 export const GARBAGE_CELL = 7;
+// TowerOfEit lays its own darker stone (the original forces DarkGray)
+export const TOWER_CELL = 8;
 
 // Specials: a settled block gets tagged every 8s, but only ever ONE at a
 // time - it stays put until the player clears its row, and nothing new
@@ -68,6 +70,7 @@ export const PIECE_COLORS = [
   "#FFFF00", // reverse Z yellow
   "#0000FF", // O blue
   "#8a8a8a", // 7: garbage painted by an attack
+  "#4f4f4f", // 8: TowerOfEit's darker stone
 ];
 
 export interface Cell {
@@ -328,6 +331,7 @@ export const IMPLEMENTED_SPECIALS: SpecialType[] = [
   SpecialType.TheWall,
   SpecialType.Escalator,
   SpecialType.Shackle,
+  SpecialType.TowerOfEit,
 ];
 
 // Specials that are fired AT your target rather than kept for yourself
@@ -336,6 +340,7 @@ export const OFFENSIVE_SPECIALS: SpecialType[] = [
   SpecialType.TheWall,
   SpecialType.Escalator,
   SpecialType.Shackle,
+  SpecialType.TowerOfEit,
 ];
 
 export function isOffensive(type: SpecialType): boolean {
@@ -799,6 +804,7 @@ export interface PendingStencil {
   row: number; // how many rows have been painted so far
   reverse: boolean; // horizontal mirror
   timerMs: number; // countdown to the next row
+  blockCell: number; // what '#' lays down (garbage, or the tower's stone)
 }
 
 // TheWall: solid rows, each with a single random gap - a ragged chimney
@@ -820,6 +826,7 @@ export function paintStencilRow(
   shape: string[],
   rowIndex: number,
   reverse: boolean,
+  blockCell: number = GARBAGE_CELL,
 ): number[][] {
   const next = grid.map((row) => row.slice());
   const gridY = BOARD_HEIGHT - 1 - rowIndex;
@@ -828,7 +835,7 @@ export function paintStencilRow(
   for (let x = 0; x < BOARD_WIDTH; x++) {
     const sourceX = reverse ? line.length - 1 - x : x;
     const ch = line[sourceX];
-    if (ch === "#") next[gridY][x] = GARBAGE_CELL;
+    if (ch === "#") next[gridY][x] = blockCell;
     else if (ch === "-") next[gridY][x] = EMPTY_CELL;
   }
   return next;
@@ -878,11 +885,33 @@ export const SHACKLE_SHAPE: string[] = [
   "..-####-..",
 ];
 
+// A squat castle tower, laid in its own darker stone
+export const TOWER_SHAPE: string[] = [
+  "-#-#--#-#-",
+  "-########-",
+  "-########-",
+  "--##-###--",
+  "--##-###--",
+  "--####-#--",
+  "--####-#--",
+  "--#-####--",
+  "--#-####--",
+  "--###-##--",
+  "--###-##--",
+  "--######--",
+];
+
 // Every special that paints a fixed shape.  Adding one here is all it takes.
 export const STENCIL_SHAPES: Partial<Record<SpecialType, string[]>> = {
   [SpecialType.Escalator]: ESCALATOR_SHAPE,
   [SpecialType.Shackle]: SHACKLE_SHAPE,
+  [SpecialType.TowerOfEit]: TOWER_SHAPE,
 };
+
+// Most attacks lay ordinary garbage; the tower lays its own stone
+export function stencilCellFor(type: SpecialType): number {
+  return type === SpecialType.TowerOfEit ? TOWER_CELL : GARBAGE_CELL;
+}
 
 // The shape an attack should paint (null if this special is not a stencil)
 export function stencilShapeFor(type: SpecialType, rand: () => number): string[] | null {

@@ -56,6 +56,9 @@ import {
   ESCALATOR_SHAPE,
   stencilShapeFor,
   SHACKLE_SHAPE,
+  TOWER_SHAPE,
+  TOWER_CELL,
+  stencilCellFor,
 } from "./eittrisLogic";
 
 // Sorted "x,y" strings for order-independent cell comparison
@@ -73,9 +76,10 @@ function pieceAt(type: number, rot = 0, x = 0, y = 0): EittrisPiece {
 describe("eittrisLogic - piece shapes and rotation", () => {
   it("has 7 pieces, each with a color and exactly 4 cells in every rotation", () => {
     expect(PIECE_COUNT).toBe(7);
-    // ...plus one extra color for attack garbage (GARBAGE_CELL)
-    expect(PIECE_COLORS.length).toBe(PIECE_COUNT + 1);
+    // ...plus the attack cells (garbage and the tower's stone)
+    expect(PIECE_COLORS.length).toBeGreaterThanOrEqual(PIECE_COUNT);
     expect(PIECE_COLORS[GARBAGE_CELL]).toBeDefined();
+    for (let type = 0; type < PIECE_COUNT; type++) expect(PIECE_COLORS[type]).toBeDefined();
     for (let type = 0; type < PIECE_COUNT; type++) {
       for (let rot = 0; rot < 4; rot++) {
         const cells = pieceCells(pieceAt(type, rot));
@@ -954,5 +958,31 @@ describe("eittrisLogic - Shackle", () => {
     expect(after[BOARD_HEIGHT - 1][7]).toBe(EMPTY_CELL);
     expect(after[BOARD_HEIGHT - 1][3]).toBe(GARBAGE_CELL);
     expect(after[BOARD_HEIGHT - 1][0]).toBe(1); // '.' left alone
+  });
+});
+
+describe("eittrisLogic - TowerOfEit", () => {
+  it("is a 12-row tower with crenellations on top", () => {
+    expect(TOWER_SHAPE.length).toBe(12);
+    for (const row of TOWER_SHAPE) expect(row.length).toBe(BOARD_WIDTH);
+    expect(TOWER_SHAPE[0]).toBe("-#-#--#-#-"); // battlements
+    expect(TOWER_SHAPE[TOWER_SHAPE.length - 1]).toBe("--######--"); // solid base
+  });
+
+  it("lays its own darker stone, not ordinary garbage", () => {
+    expect(stencilCellFor(SpecialType.TowerOfEit)).toBe(TOWER_CELL);
+    expect(stencilCellFor(SpecialType.TheWall)).toBe(GARBAGE_CELL);
+    expect(stencilCellFor(SpecialType.Escalator)).toBe(GARBAGE_CELL);
+    expect(PIECE_COLORS[TOWER_CELL]).toBeDefined();
+    expect(PIECE_COLORS[TOWER_CELL]).not.toBe(PIECE_COLORS[GARBAGE_CELL]);
+  });
+
+  it("paints in stone when asked to", () => {
+    let grid = emptyGrid();
+    grid = paintStencilRow(grid, TOWER_SHAPE, 0, false, TOWER_CELL);
+    // bottom row "--######--": columns 2..7 are stone, edges untouched
+    expect(grid[BOARD_HEIGHT - 1][2]).toBe(TOWER_CELL);
+    expect(grid[BOARD_HEIGHT - 1][7]).toBe(TOWER_CELL);
+    expect(grid[BOARD_HEIGHT - 1][0]).toBe(EMPTY_CELL);
   });
 });

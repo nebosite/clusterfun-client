@@ -59,6 +59,7 @@ import {
   SpecialType,
   EittrisPiece,
   liftPieceClear,
+  stencilCellFor,
   stencilShapeFor,
   paintStencilRow,
   STENCIL_ROW_MS,
@@ -383,7 +384,13 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     if (pending.timerMs > 0) return;
     pending.timerMs = STENCIL_ROW_MS;
 
-    board.grid = paintStencilRow(board.grid, pending.shape, pending.row, pending.reverse);
+    board.grid = paintStencilRow(
+      board.grid,
+      pending.shape,
+      pending.row,
+      pending.reverse,
+      pending.blockCell,
+    );
     pending.row++;
     if (pending.row >= pending.shape.length) board.pendingStencil = null;
 
@@ -486,7 +493,8 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
           break;
         case SpecialType.TheWall:
         case SpecialType.Escalator:
-        case SpecialType.Shackle: {
+        case SpecialType.Shackle:
+        case SpecialType.TowerOfEit: {
           // Every shape-painting attack goes through the same machinery
           const shape = stencilShapeFor(type, () => this.randomDouble(1.0));
           if (!shape) return;
@@ -495,6 +503,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
             row: 0,
             reverse: this.randomDouble(1.0) < 0.5,
             timerMs: 0,
+            blockCell: stencilCellFor(type),
           };
           break;
         }
