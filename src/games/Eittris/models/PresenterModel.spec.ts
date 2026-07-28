@@ -10,6 +10,7 @@ import {
 } from "./PresenterModel";
 import {
   ANTIDOTE_DURATION_MS,
+  BRIDGE_COLUMN_MS,
   collides,
   GARBAGE_CELL,
   pieceCells,
@@ -904,5 +905,51 @@ describe("EittrisPresenterModel - TheWall", () => {
         expect(collides(victim.grid, pieceCells(victim.piece))).toBe(false);
       }
     }
+  });
+});
+
+describe("EittrisPresenterModel - Bridge", () => {
+  it("is fired automatically by a four-row clear", () => {
+    const { model } = startTwoPlayerGame();
+    const attacker = model.boards.find((b) => b.playerId === "A")!;
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    // Four rows ready to go, with a vertical I about to complete them
+    runInAction(() => {
+      for (let y = BOARD_HEIGHT - 4; y < BOARD_HEIGHT; y++) {
+        for (let x = 0; x < BOARD_WIDTH; x++) {
+          if (x !== 0) attacker.grid[y][x] = 1;
+        }
+      }
+      attacker.piece = { type: 1, rot: 0, x: 0, y: 1 }; // I piece over column 0
+    });
+
+    model.handleCommand("A", { command: "hardDrop" });
+
+    expect(attacker.rows).toBe(4);
+    expect(victim.pendingBridge).not.toBeNull(); // a free Bridge for the target
+  });
+
+  it("paints across the victim column by column", () => {
+    const { model } = startTwoPlayerGame();
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    runInAction(() => {
+      victim.pendingBridge = {
+        topY: BOARD_HEIGHT - 2,
+        skipX: [3, 6],
+        column: 0,
+        timerMs: 0,
+        blockCell: GARBAGE_CELL,
+      };
+    });
+
+    let time = 0;
+    for (let i = 0; i < BOARD_WIDTH + 2; i++) {
+      time += BRIDGE_COLUMN_MS + 5;
+      tickTo(model, time);
+    }
+    expect(victim.pendingBridge).toBeNull();
+    const row = victim.grid[BOARD_HEIGHT - 2];
+    expect(row.filter((c) => c === GARBAGE_CELL).length).toBe(BOARD_WIDTH - 1);
+    expect(row[3]).toBe(EMPTY_CELL); // its gap
   });
 });

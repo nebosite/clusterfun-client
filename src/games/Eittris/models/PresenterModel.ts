@@ -59,6 +59,9 @@ import {
   SpecialType,
   EittrisPiece,
   liftPieceClear,
+  BRIDGE_COLUMN_MS,
+  makeBridgePlan,
+  paintBridgeColumn,
   stencilCellFor,
   stencilShapeFor,
   paintStencilRow,
@@ -306,6 +309,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
 
     this.tickSpecials(board, dtMs);
     this.tickStencil(board, dtMs);
+    this.tickBridge(board, dtMs);
     this.tickAi(board, dtMs);
 
     // The board is in the post-lock gap: nothing falls, and no command can
@@ -408,6 +412,30 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   }
 
   // -------------------------------------------------------------------
+  // tickBridge - roof the victim's stack, one column at a time
+  // -------------------------------------------------------------------
+  private tickBridge(board: EittrisBoard, dtMs: number) {
+    const bridge = board.pendingBridge;
+    if (!bridge) return;
+
+    bridge.timerMs -= dtMs;
+    if (bridge.timerMs > 0) return;
+    bridge.timerMs = BRIDGE_COLUMN_MS;
+
+    board.grid = paintBridgeColumn(board.grid, bridge);
+    bridge.column++;
+    if (bridge.column >= BOARD_WIDTH) board.pendingBridge = null;
+
+    if (board.piece) {
+      const lifted = liftPieceClear(board.grid, board.piece);
+      if (lifted) board.piece = lifted;
+      else this.killBoard(board);
+    }
+    this.dirtyPlayerIds.add(board.playerId);
+    this.saveCheckpoint();
+  }
+
+  // -------------------------------------------------------------------
   // killBoard - this board is done; retarget anyone aiming at it
   // -------------------------------------------------------------------
   private killBoard(board: EittrisBoard) {
@@ -415,6 +443,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     board.piece = null;
     board.alive = false;
     board.pendingStencil = null;
+    board.pendingBridge = null;
     board.deathOrder = ++this.deathCount;
     for (const changedId of retargetOnDeath(this.boards.slice(), board.playerId)) {
       this.dirtyPlayerIds.add(changedId);
@@ -491,11 +520,15 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
         case SpecialType.Speedup:
           victim.speedupStacks++;
           break;
+        // Bridge lands on top of the stack, so it has its own painter
+        case SpecialType.Bridge:
+          victim.pendingBridge = makeBridgePlan(victim.grid, () => this.randomDouble(1.0));
+          break;
+        // Everything else paints a shape into the bottom of the board
         case SpecialType.TheWall:
         case SpecialType.Escalator:
         case SpecialType.Shackle:
         case SpecialType.TowerOfEit: {
-          // Every shape-painting attack goes through the same machinery
           const shape = stencilShapeFor(type, () => this.randomDouble(1.0));
           if (!shape) return;
           victim.pendingStencil = {
@@ -560,6 +593,8 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     if (result.cleared > 0) {
       this.invokeEvent(EittrisGameEvent.RowsCleared, board.playerId, result.cleared);
     }
+    // Clearing four rows fires a free Bridge at your target
+    if (result.cleared >= 4) this.fireAtTarget(board, SpecialType.Bridge);
 
     // Open the no-piece gap.  The next piece appears SPAWN_DELAY_MS later,
     // which gives any in-flight gesture nothing to act on (see DESIGN.md).

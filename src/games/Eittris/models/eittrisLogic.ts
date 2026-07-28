@@ -332,6 +332,7 @@ export const IMPLEMENTED_SPECIALS: SpecialType[] = [
   SpecialType.Escalator,
   SpecialType.Shackle,
   SpecialType.TowerOfEit,
+  SpecialType.Bridge,
 ];
 
 // Specials that are fired AT your target rather than kept for yourself
@@ -341,6 +342,7 @@ export const OFFENSIVE_SPECIALS: SpecialType[] = [
   SpecialType.Escalator,
   SpecialType.Shackle,
   SpecialType.TowerOfEit,
+  SpecialType.Bridge,
 ];
 
 export function isOffensive(type: SpecialType): boolean {
@@ -501,6 +503,8 @@ export interface EittrisBoard {
   // DEV: hand this board to the computer player
   aiControlled: boolean;
   aiTimerMs: number; // countdown to the bot's next move
+  // A Bridge painting itself across the top of this board
+  pendingBridge: PendingBridge | null;
   // An attack stencil currently painting itself into this board
   pendingStencil: PendingStencil | null;
 }
@@ -531,6 +535,7 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     aiControlled: false,
     aiTimerMs: 0,
     pendingStencil: null,
+    pendingBridge: null,
   };
 }
 
@@ -917,4 +922,58 @@ export function stencilCellFor(type: SpecialType): number {
 export function stencilShapeFor(type: SpecialType, rand: () => number): string[] | null {
   if (type === SpecialType.TheWall) return makeWallShape(rand);
   return STENCIL_SHAPES[type] ?? null;
+}
+
+// ------------------------------------------------------------------------------------------
+// Bridge - unlike the other attacks this one lands ON TOP of the victim's
+// stack rather than at the floor, and paints column by column instead of row
+// by row: two rows, each with one random gap, roofing whatever is there.
+// It is also fired automatically at your target whenever you clear 4 rows.
+// ------------------------------------------------------------------------------------------
+export const BRIDGE_COLUMN_MS = 120;
+export const BRIDGE_ROWS = 2;
+
+export interface PendingBridge {
+  topY: number; // the row the first bridge row lands on
+  skipX: number[]; // one gap column per bridge row
+  column: number; // how far across we have painted
+  timerMs: number;
+  blockCell: number;
+}
+
+// The row just above the victim's stack (mirrors the original's scan)
+export function bridgeTopRow(grid: number[][]): number {
+  let j = 0;
+  for (; j < BOARD_HEIGHT - 1; j++) {
+    if (grid[j].some((c) => c !== EMPTY_CELL)) break;
+  }
+  return j - 1;
+}
+
+export function makeBridgePlan(grid: number[][], rand: () => number): PendingBridge {
+  return {
+    topY: bridgeTopRow(grid),
+    skipX: [
+      Math.min(BOARD_WIDTH - 1, Math.floor(rand() * BOARD_WIDTH)),
+      Math.min(BOARD_WIDTH - 1, Math.floor(rand() * BOARD_WIDTH)),
+    ],
+    column: 0,
+    timerMs: 0,
+    blockCell: GARBAGE_CELL,
+  };
+}
+
+// Paint one column of the bridge: a block on each of its rows, except where
+// that row's gap falls - there it destroys whatever was underneath.
+export function paintBridgeColumn(grid: number[][], plan: PendingBridge): number[][] {
+  const next = grid.map((row) => row.slice());
+  const x = plan.column;
+  if (x < 0 || x >= BOARD_WIDTH) return next;
+  for (let j = 0; j < BRIDGE_ROWS; j++) {
+    const y = plan.topY - j;
+    if (y < 0 || y >= BOARD_HEIGHT) continue;
+    if (x === plan.skipX[j]) next[y][x] = EMPTY_CELL;
+    else next[y][x] = plan.blockCell;
+  }
+  return next;
 }

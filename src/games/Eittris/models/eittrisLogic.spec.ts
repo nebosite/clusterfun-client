@@ -59,6 +59,8 @@ import {
   TOWER_SHAPE,
   TOWER_CELL,
   stencilCellFor,
+  bridgeTopRow,
+  paintBridgeColumn,
 } from "./eittrisLogic";
 
 // Sorted "x,y" strings for order-independent cell comparison
@@ -984,5 +986,49 @@ describe("eittrisLogic - TowerOfEit", () => {
     expect(grid[BOARD_HEIGHT - 1][2]).toBe(TOWER_CELL);
     expect(grid[BOARD_HEIGHT - 1][7]).toBe(TOWER_CELL);
     expect(grid[BOARD_HEIGHT - 1][0]).toBe(EMPTY_CELL);
+  });
+});
+
+describe("eittrisLogic - Bridge", () => {
+  it("finds the row just above the stack", () => {
+    const grid = emptyGrid();
+    expect(bridgeTopRow(grid)).toBe(BOARD_HEIGHT - 2); // empty board (matches the original)
+    grid[10][3] = 1;
+    expect(bridgeTopRow(grid)).toBe(9); // one row above the highest block
+  });
+
+  it("roofs the stack with two rows, one gap each", () => {
+    const grid = emptyGrid();
+    for (let x = 0; x < BOARD_WIDTH; x++) grid[15][x] = 1; // a stack topping at row 15
+    const plan = { topY: 14, skipX: [2, 5], column: 0, timerMs: 0, blockCell: GARBAGE_CELL };
+
+    let painted = grid;
+    for (let c = 0; c < BOARD_WIDTH; c++) {
+      painted = paintBridgeColumn(painted, { ...plan, column: c });
+    }
+    // row 14 solid except its gap at column 2
+    expect(painted[14][2]).toBe(EMPTY_CELL);
+    expect(painted[14][0]).toBe(GARBAGE_CELL);
+    // row 13 solid except its gap at column 5
+    expect(painted[13][5]).toBe(EMPTY_CELL);
+    expect(painted[13][0]).toBe(GARBAGE_CELL);
+    // the stack below is untouched
+    expect(painted[15].every((c) => c === 1)).toBe(true);
+  });
+
+  it("destroys what is under its gaps", () => {
+    const grid = emptyGrid();
+    grid[14][2] = 3; // a block right where the gap will fall
+    const plan = { topY: 14, skipX: [2, 5], column: 2, timerMs: 0, blockCell: GARBAGE_CELL };
+    const painted = paintBridgeColumn(grid, plan);
+    expect(painted[14][2]).toBe(EMPTY_CELL);
+  });
+
+  it("clips safely against the top of the board", () => {
+    const grid = emptyGrid();
+    const plan = { topY: 0, skipX: [4, 4], column: 3, timerMs: 0, blockCell: GARBAGE_CELL };
+    expect(() => paintBridgeColumn(grid, plan)).not.toThrow();
+    const painted = paintBridgeColumn(grid, plan);
+    expect(painted[0][3]).toBe(GARBAGE_CELL); // row 0 painted, row -1 skipped
   });
 });
