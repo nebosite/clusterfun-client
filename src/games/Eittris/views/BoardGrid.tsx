@@ -9,6 +9,7 @@ import {
   BOARD_WIDTH,
   EittrisPiece,
   EMPTY_CELL,
+  hardDrop,
   PIECE_COLORS,
   pieceCells,
 } from "../models/eittrisLogic";
@@ -26,6 +27,7 @@ interface BoardGridProps {
   // Specials sitting on settled blocks: cell index + SpecialType
   specials?: { i: number; t: number }[];
   specialsUrl?: string; // the 16-icon strip
+  showShadow?: boolean; // SeeShadows: outline where the piece will land
 }
 
 export class BoardGrid extends React.Component<BoardGridProps> {
@@ -37,6 +39,18 @@ export class BoardGrid extends React.Component<BoardGridProps> {
       for (const c of pieceCells(piece)) {
         if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) {
           overlay.set(c.y * BOARD_WIDTH + c.x, piece.type);
+        }
+      }
+    }
+
+    // SeeShadows: a faint outline of where the piece would come to rest
+    const shadow = new Set<number>();
+    if (piece && this.props.showShadow) {
+      const landed = hardDrop(grid, piece).piece;
+      for (const c of pieceCells(landed)) {
+        if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) {
+          const index = c.y * BOARD_WIDTH + c.x;
+          if (!overlay.has(index)) shadow.add(index);
         }
       }
     }
@@ -77,6 +91,11 @@ export class BoardGrid extends React.Component<BoardGridProps> {
                   ? SPECIAL_BLOCK_COLOR
                   : PIECE_COLORS[type]
                 : "transparent",
+              // the landing ghost sits under everything else
+              border:
+                !filled && shadow.has(index)
+                  ? `${Math.max(1, Math.round(cellPx * 0.08))}px solid ${PIECE_COLORS[piece!.type]}66`
+                  : undefined,
               boxShadow: filled ? blockShadow : undefined,
               borderRadius: filled ? Math.max(1, Math.round(cellPx * 0.1)) : undefined,
               // The icon rides on top of the block it marks

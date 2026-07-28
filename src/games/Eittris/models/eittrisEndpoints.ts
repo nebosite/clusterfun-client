@@ -27,6 +27,7 @@ export interface EittrisBoardSnapshot {
   antidotes: number; // banked antidote charges
   speedupStacks: number; // Speedup afflictions currently on this board
   slowdownStacks: number; // SlowDown self-buffs (not curable)
+  seeShadows: boolean; // draw the landing ghost
   shieldMs: number; // remaining antidote shield (0 = inactive)
   forcedSpecial: number | null; // dev selector echo
   aiControlled: boolean; // dev: the computer is playing this board

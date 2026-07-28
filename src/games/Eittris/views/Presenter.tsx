@@ -37,6 +37,7 @@ const SPECIAL_SOUNDS: Partial<Record<SpecialType, string>> = {
   [SpecialType.TowerOfEit]: EittrisAssets.sounds.tower,
   [SpecialType.Bridge]: EittrisAssets.sounds.bridge,
   [SpecialType.SlowDown]: EittrisAssets.sounds.slowdown,
+  [SpecialType.SeeShadows]: EittrisAssets.sounds.shadows,
 };
 
 function soundForSpecial(type: number): string {
@@ -170,6 +171,7 @@ class BoardPanel extends React.Component<{
             dimmed={!board.alive}
             specials={board.specials.map((m) => ({ i: m.index, t: m.type }))}
             specialsUrl={EittrisAssets.images.specials}
+            showShadow={board.seeShadows}
           />
           {!board.alive ? <div className={styles.toppedOut}>TOPPED OUT</div> : null}
         </div>

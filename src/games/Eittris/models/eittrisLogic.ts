@@ -336,6 +336,7 @@ export const IMPLEMENTED_SPECIALS: SpecialType[] = [
   SpecialType.TowerOfEit,
   SpecialType.Bridge,
   SpecialType.SlowDown,
+  SpecialType.SeeShadows,
 ];
 
 // Specials that are fired AT your target rather than kept for yourself
@@ -509,6 +510,8 @@ export interface EittrisBoard {
   speedupStacks: number;
   // SlowDown is a self-buff, so an antidote does NOT wash it off
   slowdownStacks: number;
+  // SeeShadows: the landing ghost, on for the rest of the round once earned
+  seeShadows: boolean;
   shieldMs: number; // remaining antidote shield/cure time (0 = inactive)
   forcedSpecial: SpecialType | null; // dev selector: only ever spawn this
   // DEV: hand this board to the computer player
@@ -542,6 +545,7 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     antidotes: ANTIDOTES_AT_START,
     speedupStacks: 0,
     slowdownStacks: 0,
+    seeShadows: false,
     shieldMs: 0,
     forcedSpecial: null,
     aiControlled: false,

@@ -953,3 +953,31 @@ describe("EittrisPresenterModel - Bridge", () => {
     expect(row[3]).toBe(EMPTY_CELL); // its gap
   });
 });
+
+describe("EittrisPresenterModel - SeeShadows", () => {
+  it("switches the landing ghost on for the collector, permanently", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    expect(board.seeShadows).toBe(false);
+
+    runInAction(() => {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        if (x < 4 || x > 6) board.grid[BOARD_HEIGHT - 1][x] = 1;
+      }
+      board.specials.push({
+        index: (BOARD_HEIGHT - 1) * BOARD_WIDTH,
+        type: SpecialType.SeeShadows,
+      });
+    });
+    model.handleCommand("A", { command: "hardDrop" });
+
+    expect(board.seeShadows).toBe(true); // kept by the collector...
+    expect(victim.seeShadows).toBe(false); // ...not inflicted on the target
+    expect(model.snapshotFor("A")!.seeShadows).toBe(true);
+
+    // and an antidote does not take your own perk away
+    model.handleCommand("A", { command: "useAntidote" });
+    expect(board.seeShadows).toBe(true);
+  });
+});

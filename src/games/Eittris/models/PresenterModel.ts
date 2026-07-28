@@ -502,26 +502,16 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       if (type === SpecialType.Antidote) {
         board.antidotes = Math.min(ANTIDOTE_MAX, board.antidotes + 1);
         this.dirtyPlayerIds.add(board.playerId);
+      } else if (type === SpecialType.SeeShadows) {
+        // Earned for the rest of the round (the original never removes it)
+        board.seeShadows = true;
+        this.dirtyPlayerIds.add(board.playerId);
+        this.announceSelfSpecial(board, type);
       } else if (type === SpecialType.SlowDown) {
         // A gift to yourself: gentler gravity, and no antidote can wash it off
         board.slowdownStacks++;
         this.dirtyPlayerIds.add(board.playerId);
-        this.invokeEvent(
-          EittrisGameEvent.SpecialFired,
-          board.playerId,
-          board.playerId,
-          type,
-          false,
-        );
-        const payload = {
-          type,
-          attackerId: board.playerId,
-          attackerName: this.nameFor(board.playerId),
-          victimId: board.playerId,
-          victimName: this.nameFor(board.playerId),
-          repelled: false,
-        };
-        this.sendToEveryone(EittrisSpecialEventEndpoint, () => payload);
+        this.announceSelfSpecial(board, type);
       } else {
         Logger.info(`Collected unimplemented special: ${SpecialType[type]}`);
       }
@@ -588,6 +578,20 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     };
     this.sendToEveryone(EittrisSpecialEventEndpoint, () => payload);
     this.saveCheckpoint();
+  }
+
+  // Tell the room about a special somebody kept for themselves
+  private announceSelfSpecial(board: EittrisBoard, type: SpecialType) {
+    this.invokeEvent(EittrisGameEvent.SpecialFired, board.playerId, board.playerId, type, false);
+    const payload = {
+      type,
+      attackerId: board.playerId,
+      attackerName: this.nameFor(board.playerId),
+      victimId: board.playerId,
+      victimName: this.nameFor(board.playerId),
+      repelled: false,
+    };
+    this.sendToEveryone(EittrisSpecialEventEndpoint, () => payload);
   }
 
   private nameFor(playerId: string): string {
@@ -895,6 +899,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       antidotes: board.antidotes,
       speedupStacks: board.speedupStacks,
       slowdownStacks: board.slowdownStacks,
+      seeShadows: board.seeShadows,
       shieldMs: Math.round(board.shieldMs),
       forcedSpecial: board.forcedSpecial,
       aiControlled: board.aiControlled,

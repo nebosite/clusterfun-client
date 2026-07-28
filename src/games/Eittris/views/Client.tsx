@@ -482,6 +482,7 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
               dimmed={dead}
               specials={appModel.specials.slice()}
               specialsUrl={EittrisAssets.images.specials}
+              showShadow={appModel.seeShadows}
             />
             {dead ? <div className={styles.toppedOut}>TOPPED OUT</div> : null}
           </div>
