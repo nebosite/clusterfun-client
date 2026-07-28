@@ -30,6 +30,7 @@ export interface EittrisBoardSnapshot {
   seeShadows: boolean; // draw the landing ghost
   evilPieces: boolean; // drawing from the evil piece table
   crazyIvan: boolean; // controls are mirrored
+  freezeDried: boolean; // settled blocks render tiny and jittered
   shieldMs: number; // remaining antidote shield (0 = inactive)
   forcedSpecial: number | null; // dev selector echo
   aiControlled: boolean; // dev: the computer is playing this board

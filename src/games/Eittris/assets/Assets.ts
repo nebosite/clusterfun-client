@@ -21,6 +21,7 @@ import slowdown from "./sounds/Slowdown.wav";
 import shadows from "./sounds/Trans01.wav";
 import evil from "./sounds/Attack11_Trombone.wav";
 import ivan from "./sounds/Attack13_CrazyLaugh.wav";
+import freeze from "./sounds/Attack07.wav";
 import dot from "./sounds/Dot.wav";
 import clear1 from "./sounds/Clear1Line.wav";
 import clear2 from "./sounds/Clear2Lines.wav";
@@ -50,6 +51,7 @@ const EittrisAssets = {
     shadows, // SeeShadows switching the landing ghost on
     evil, // EvilPieces landing on someone
     ivan, // CrazyIvan flipping the controls
+    freeze, // FreezeDried shrivelling a stack
     hello, // a player joined (template placeholder - no eitrix equivalent wired)
     dot, // a piece locked in place
     clear1, // 1 row cleared

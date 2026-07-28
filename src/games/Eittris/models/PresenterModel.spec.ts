@@ -1024,3 +1024,18 @@ describe("EittrisPresenterModel - CrazyIvan", () => {
     expect(board.piece!.x).toBe(1); // sane again
   });
 });
+
+describe("EittrisPresenterModel - FreezeDried", () => {
+  it("afflicts the target and is cured by an antidote", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    runInAction(() => {
+      board.freezeDried = true;
+    });
+    expect(model.snapshotFor("A")!.freezeDried).toBe(true);
+
+    model.handleCommand("A", { command: "useAntidote" });
+    expect(board.freezeDried).toBe(false);
+    expect(model.snapshotFor("A")!.freezeDried).toBe(false);
+  });
+});

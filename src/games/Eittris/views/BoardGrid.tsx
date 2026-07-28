@@ -18,6 +18,18 @@ const FALLBACK_COLOR = "#101a2c"; // shown when no background image is supplied
 const SPECIAL_ICON_COUNT = 16; // icons in assets/images/specials.png
 const SPECIAL_BLOCK_COLOR = "#4a4a4a"; // blocks hosting a powerup
 
+// A stable per-cell offset for FreezeDried, so blocks jitter but do not
+// dance around every frame (the original picks it once per block)
+function freezeJitter(index: number, cellPx: number): { x: number; y: number } {
+  const h = Math.sin(index * 12.9898) * 43758.5453;
+  const g = Math.sin(index * 78.233) * 12345.6789;
+  const frac = (v: number) => v - Math.floor(v);
+  return {
+    x: Math.round((0.1 + frac(h) * 0.4) * cellPx),
+    y: Math.round((0.1 + frac(g) * 0.4) * cellPx),
+  };
+}
+
 interface BoardGridProps {
   grid: number[][];
   piece: EittrisPiece | null;
@@ -28,6 +40,7 @@ interface BoardGridProps {
   specials?: { i: number; t: number }[];
   specialsUrl?: string; // the 16-icon strip
   showShadow?: boolean; // SeeShadows: outline where the piece will land
+  freezeDried?: boolean; // FreezeDried: settled blocks render tiny and jittered
 }
 
 export class BoardGrid extends React.Component<BoardGridProps> {
@@ -78,12 +91,18 @@ export class BoardGrid extends React.Component<BoardGridProps> {
         const type = overlay.has(index) ? overlay.get(index)! : (grid[y]?.[x] ?? EMPTY_CELL);
         const filled = type !== EMPTY_CELL;
         const special = specialAt.get(index);
+        // FreezeDried shrivels SETTLED blocks only - the falling piece stays
+        // readable, which is what makes it so disorienting
+        const shrivelled = filled && !overlay.has(index) && this.props.freezeDried;
+        const shrink = shrivelled ? 0.4 : 1;
+        const jitter = shrivelled ? freezeJitter(index, cellPx) : null;
         cells.push(
           <div
             key={index}
             style={{
-              width: cellPx,
-              height: cellPx,
+              width: cellPx * shrink,
+              height: cellPx * shrink,
+              margin: jitter ? `${jitter.y}px 0 0 ${jitter.x}px` : undefined,
               // A block carrying a powerup is recolored dark gray so the
               // icon reads and the prize is obvious
               backgroundColor: filled

@@ -379,6 +379,7 @@ export const IMPLEMENTED_SPECIALS: SpecialType[] = [
   SpecialType.SeeShadows,
   SpecialType.EvilPieces,
   SpecialType.CrazyIvan,
+  SpecialType.FreezeDried,
 ];
 
 // Specials that are fired AT your target rather than kept for yourself
@@ -391,6 +392,7 @@ export const OFFENSIVE_SPECIALS: SpecialType[] = [
   SpecialType.Bridge,
   SpecialType.EvilPieces,
   SpecialType.CrazyIvan,
+  SpecialType.FreezeDried,
 ];
 
 export function isOffensive(type: SpecialType): boolean {
@@ -415,11 +417,12 @@ export function cureAfflictions(board: EittrisBoard): void {
   board.speedupStacks = 0;
   board.evilPieces = false;
   board.crazyIvan = false;
+  board.freezeDried = false;
 }
 
 // Does this board have anything an antidote would cure?
 export function hasAfflictions(board: EittrisBoard): boolean {
-  return board.speedupStacks > 0 || board.evilPieces || board.crazyIvan;
+  return board.speedupStacks > 0 || board.evilPieces || board.crazyIvan || board.freezeDried;
 }
 
 // A special sitting on one settled block.  It never decays: it waits there
@@ -567,6 +570,8 @@ export interface EittrisBoard {
   evilPieces: boolean;
   // CrazyIvan: left/right and rotation are inverted until cured
   crazyIvan: boolean;
+  // FreezeDried: settled blocks shrivel to jittered specks until cured
+  freezeDried: boolean;
   shieldMs: number; // remaining antidote shield/cure time (0 = inactive)
   forcedSpecial: SpecialType | null; // dev selector: only ever spawn this
   // DEV: hand this board to the computer player
@@ -603,6 +608,7 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     seeShadows: false,
     evilPieces: false,
     crazyIvan: false,
+    freezeDried: false,
     shieldMs: 0,
     forcedSpecial: null,
     aiControlled: false,
