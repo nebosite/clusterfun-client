@@ -82,6 +82,9 @@ Work in this order, keeping the game playable in the Test Lobby after each slice
 - Every serializable class registered in the type helpers; `saveCheckpoint()` after
   meaningful state changes. Verify by refreshing mid-game in the Test Lobby.
 - Rule logic goes in the pure logic file with specs, not inline in models.
+- Lifecycle analytics (start, end, joins, rejoins, quits) are fired by the BASE classes -
+  never re-send them. For game-specific events use `this.analytics.track("name", {...})`
+  with flat scalar params; the game, device id and host/client are attached for you.
 - One class per file, MobX observables for view-driving state, imports from `"libs"`.
 - `npm test` and `npm run format` must pass before every commit; commit in the
   `clusterfun-client` submodule, not the root repo.

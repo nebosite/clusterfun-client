@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { GLOBALS } from "./Globals";
 import { getGameListPromise } from "GameChooser";
 import { GameDescriptor, GameManifestItem } from "games/lists/GameDescriptor";
+import { fetchPopularity, sortGamesByPopularity } from "games/lists/gamePopularity";
 import { GameInstanceProperties } from "libs/config/GameInstanceProperties";
 import { WebSocketMessageThing } from "libs/messaging/MessageThing";
 import "index.css";
@@ -57,8 +58,15 @@ async function serverCall<T>(url: string, payload: any | undefined) {
   }
 }
 
+// Real analytics run whenever the build asks for them and nothing has opted
+// out.  .env.production sets the flag, so a production build reports for real
+// without anyone having to remember a command-line variable; the Test Lobby
+// (.env.dev) leaves it unset and gets the console-logging mock.
+const useRealTelemetry =
+  !!process.env.REACT_APP_USE_REAL_TELEMETRY && !process.env.REACT_APP_NO_TELEMETRY;
+
 const telemetryFactoryPromise = (async () => {
-  if (process.env.REACT_APP_USE_REAL_TELEMETRY) {
+  if (useRealTelemetry) {
     const realModulePromise = import("./libs/telemetry/TelemetryLogger");
     const googleTrackingIds = (await import("./secrets")).googleTrackingIds;
     const TelemetryLoggerFactory = (await realModulePromise).TelemetryLoggerFactory;
@@ -166,6 +174,9 @@ else {
     }
 
     const allGames = await getGameListPromise();
+    // What people actually play decides the order of the lobby.  Fetched
+    // alongside the manifest; if it is unavailable the registry order stands.
+    const popularity = await fetchPopularity();
     const gameList = gamesFromServerManifest
       .map((serverItem) => {
         const foundGame = allGames.find(
@@ -183,7 +194,9 @@ else {
       })
       .filter((i) => i !== undefined) as GameDescriptor[];
 
-    root.render(<LobbyMainPage lobbyModel={lobbyModel} games={gameList} />);
+    root.render(
+      <LobbyMainPage lobbyModel={lobbyModel} games={sortGamesByPopularity(gameList, popularity)} />,
+    );
   })();
   root.render(<div>Loading stuff....</div>);
 }

@@ -1,4 +1,5 @@
 import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage } from "../../libs";
+import { AnalyticsEntity } from "../telemetry/AnalyticsTypes";
 import { makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 import Logger from "js-logger";
@@ -44,6 +45,10 @@ export const getClientTypeHelper = (derivedClassHelper: ITypeHelper): ITypeHelpe
 // Client data and logic
 // -------------------------------------------------------------------
 export abstract class ClusterfunClientModel extends BaseGameModel {
+  protected get analyticsEntity(): AnalyticsEntity {
+    return "client";
+  }
+
   @observable private _playerName: string;
   get playerName() {
     return this._playerName;
@@ -136,14 +141,20 @@ export abstract class ClusterfunClientModel extends BaseGameModel {
   // handleJoinAckMessage
   // -------------------------------------------------------------------
   handleJoinAck = (message: { isRejoin: boolean; didJoin: boolean; joinError?: string }) => {
+    // The host reports the authoritative join/rejoin counts; this is the same
+    // moment seen from the phone, tagged entity=client.  Filter on entity when
+    // reading the reports, or a two-player game looks like four joins.
     if (!message.didJoin) {
+      this.analytics.joinDenied(message.joinError ?? "unknown");
       this.joinError = message.joinError ?? "Unknown reason";
       this.gameState = GeneralClientGameState.JoinError;
     } else if (!message.isRejoin) {
+      this.analytics.playerJoined(1);
       this.clearCheckpoint();
       this.gameState = GeneralClientGameState.WaitingToStart;
     } else {
       Logger.info("Rejoining...");
+      this.analytics.playerRejoined(1, "id");
       this.unStashCheckpoint();
       this.gameState = GeneralClientGameState.WaitingToStart;
     }

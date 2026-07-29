@@ -215,9 +215,85 @@ Env files (CRA `REACT_APP_*`):
 
 - `.env.dev` — `REACT_APP_DEVMODE=development`, `REACT_APP_SHOW_DEBUG_GAMES=1` (Test Lobby + debug games).
 - `.env.local` — everything commented out (behaves like production lobby locally).
-- `REACT_APP_USE_REAL_TELEMETRY=1` swaps the mock telemetry for real GA and pulls tracking
-  IDs from `src/secrets.ts` (create from `src/secrets.ts.template`; git-ignored).
+- `.env.production` — `REACT_APP_USE_REAL_TELEMETRY=1`, loaded automatically by
+  `npm run build`, so production reports real analytics. Set `REACT_APP_NO_TELEMETRY=1` to
+  opt a build out. Tracking IDs come from `src/secrets.ts` (create from
+  `src/secrets.ts.template`; git-ignored) — see Analytics below.
 - `proxy` in `package.json` points API/socket calls at `http://localhost:8080` (the relay).
+
+## Analytics
+
+Two separate things, on purpose:
+
+**Google Analytics (GA4)** answers the product questions. Everything goes to **one** GA4
+property — the game is a _parameter_ on each event, not a property of its own, so "which
+games get played the most" is one report rather than five. The measurement id lives in
+gitignored `src/secrets.ts` under the name `DEFAULT` (copy `src/secrets.ts.template`); with
+no secrets file the app still runs and just logs events to the console.
+
+Real reporting is on whenever `REACT_APP_USE_REAL_TELEMETRY` is set and
+`REACT_APP_NO_TELEMETRY` is not. `.env.production` sets it, so **`npm run build` reports for
+real**; `.env.dev` leaves it unset, so the Test Lobby gets `MockTelemetryLogger` and prints
+`Analytics(<game>): <event> {...}` to the console — which is how you check events without
+touching GA.
+
+### Using it from a game
+
+`BaseGameModel` exposes `this.analytics`. That is the whole API:
+
+```ts
+this.analytics.track("word_played", { length: 7, bonus: true });
+```
+
+Three dimensions are stamped onto **every** event and cannot be overridden by the caller:
+
+| Param       | Meaning                                                        |
+| ----------- | -------------------------------------------------------------- |
+| `game`      | The game, folded so a host and its phones agree (see below)    |
+| `device_id` | A random per-browser id from `localStorage`; anonymous, no PII |
+| `entity`    | `host` (shared screen), `client` (a phone), or `lobby`         |
+
+> **Naming:** client models are called `<Game>Client` by convention, and
+> `BaseGameModel.analyticsGameName` strips that suffix. If a host and its clients ever report
+> different `game` values, every by-game report silently splits in two — override
+> `analyticsGameName` if a game names its models some other way.
+
+Analytics never throws into game code: a failing backend is logged and swallowed.
+
+### What the base classes report on their own
+
+A game gets these for free — do not re-send them:
+
+| Event                | Fired by  | Carries                                                                          |
+| -------------------- | --------- | -------------------------------------------------------------------------------- |
+| `cf_game_started`    | presenter | `player_count`, `replay`                                                         |
+| `cf_game_ended`      | presenter | `outcome` (completed/abandoned), `completed`, `player_count`, `duration_seconds` |
+| `cf_player_joined`   | both      | `player_count`                                                                   |
+| `cf_player_rejoined` | both      | `player_count`, `matched_by` (`id`/`name`)                                       |
+| `cf_player_quit`     | presenter | `player_count`                                                                   |
+| `cf_join_denied`     | both      | `reason`                                                                         |
+
+- **Completion** means the game reached `GameOver`; **abandoned** means it was destroyed
+  while still playing. A game that simply stops being heard from reports neither, which
+  matters when reading completion rates.
+- **Rejoins are the lost-connection signal** — the presenter only takes that path for a
+  player it had already lost. `matched_by: "name"` means the device had forgotten its id,
+  i.e. a reboot.
+- Host and client both report joins, tagged by `entity`. **Filter `entity=host` for
+  authoritative counts**, or a two-player game looks like four joins.
+
+## Game popularity (the lobby's own ordering)
+
+Separate from GA, and deliberately so: the lobby must be able to order itself without a third
+party in the loop. The relay counts plays and joins per game and serves them at
+`GET /api/game_popularity` (see [../clusterfun-server/CLAUDE.md](../clusterfun-server/CLAUDE.md)).
+`games/lists/gamePopularity.ts` fetches that and sorts the list, most-played first.
+
+- The score is **recency-weighted** (a play is worth half as much after a month), so last
+  year's hit does not outrank what people are playing now.
+- Games with no plays keep their registry position rather than sinking — otherwise a new
+  game could never climb.
+- If the endpoint is missing or unreachable, the lobby silently keeps registry order.
 
 ## Testing
 

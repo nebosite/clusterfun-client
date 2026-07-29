@@ -7,6 +7,9 @@ import {
   BaseAnimationController,
   BruteForceSerializer,
 } from "../../libs";
+import { GameAnalytics } from "../telemetry/GameAnalytics";
+import { AnalyticsEntity } from "../telemetry/AnalyticsTypes";
+import { getDeviceId } from "../telemetry/DeviceId";
 
 import { action, makeObservable, observable } from "mobx";
 import Logger from "js-logger";
@@ -107,6 +110,7 @@ function createSerializer(typeHelper: ITypeHelper) {
           case "_lastCheckpointTime":
           case "_isShutdown":
           case "telemetryLogger":
+          case "_analytics":
           case "onTick":
           case "serializer":
           case "session":
@@ -191,6 +195,44 @@ export abstract class BaseGameModel {
   public session: ISessionHelper;
   protected telemetryLogger: ITelemetryLogger;
   protected storage: IStorage;
+
+  // -------------------------------------------------------------------
+  // analytics - the reporter game code uses:
+  //
+  //     this.analytics.track("word_played", { length: 7 });
+  //
+  // It stamps the game name, this browser's device id, and whether we are the
+  // host or a client onto every event, so a game author never has to.  The
+  // lifecycle events (game started/ended, joins, rejoins) are fired by the
+  // presenter and client base classes - a game gets those for free.
+  //
+  // Built on first use rather than in the constructor: subclasses decide the
+  // entity, and a restored model must not touch storage while deserializing.
+  // -------------------------------------------------------------------
+  private _analytics?: GameAnalytics;
+  public get analytics(): GameAnalytics {
+    if (!this._analytics) {
+      this._analytics = new GameAnalytics(this.telemetryLogger, {
+        game: this.analyticsGameName,
+        deviceId: getDeviceId(this.storage),
+        entity: this.analyticsEntity,
+      });
+    }
+    return this._analytics;
+  }
+
+  // Overridden by the presenter (host) and client base classes
+  protected get analyticsEntity(): AnalyticsEntity {
+    return "client";
+  }
+
+  // The game these events belong to.  Client models are named "<Game>Client"
+  // by convention (every game in the repo does this), and a host and its
+  // phones MUST report the same game name or every by-game report splits in
+  // two.  Override if a game names its models some other way.
+  protected get analyticsGameName(): string {
+    return this.name.replace(/Client$/, "");
+  }
 
   public onTick = new EventThing<number>("BaseGameModel");
   private _scheduledEvents: Map<number, Array<() => void>>;

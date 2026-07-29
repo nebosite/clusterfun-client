@@ -91,6 +91,24 @@ Suppose your game is called **Quizzo**.
 - **New states without screens.** Every value you put in `gameState` needs a case in the
   view's `renderSubScreen` on the affected role — the default case is an error screen.
 
+## Analytics
+
+You get the important events for free. `ClusterfunPresenterModel` and `ClusterfunClientModel`
+already report game starts and endings (with player count, duration, and whether it was
+played to completion), joins, rejoins, quits and denied joins — **do not re-send those**.
+
+For anything specific to your game, `this.analytics` is on every model:
+
+```ts
+this.analytics.track("word_played", { length: 7, bonus: true });
+```
+
+The game name, an anonymous per-browser device id, and whether you are the host or a client
+are attached automatically. Keep parameters flat (strings, numbers, booleans) — GA4 takes
+nothing else. In the Test Lobby these print to the browser console as
+`Analytics(<game>): <event> {...}`, so you can check them without a GA login. See the
+client's CLAUDE.md "Analytics" section for the full event list.
+
 ## How to add a new game with Claude
 
 This folder ships with a [CLAUDE.md](CLAUDE.md) that turns Claude into a game-building

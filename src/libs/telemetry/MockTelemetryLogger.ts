@@ -1,5 +1,6 @@
 import Logger from "js-logger";
 import { ITelemetryLogger } from "../../libs";
+import { AnalyticsParams } from "./AnalyticsTypes";
 
 // -------------------------------------------------------------------
 //  MockTelemetryLoggerFactory
@@ -17,5 +18,8 @@ export class MockTelemetryLogger implements ITelemetryLogger {
   }
   logPageView(relativeUrl: string) {
     Logger.info(`TelemetryPageView(${this.name}): ${relativeUrl}`);
+  }
+  logAnalyticsEvent(event: string, params: AnalyticsParams) {
+    Logger.info(`Analytics(${this.name}): ${event} ${JSON.stringify(params)}`);
   }
 }

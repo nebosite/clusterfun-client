@@ -1,4 +1,5 @@
 import { ITypeHelper, ISessionHelper, ITelemetryLogger, IStorage } from "../../libs";
+import { AnalyticsEntity, GameOutcome } from "../telemetry/AnalyticsTypes";
 import { action, makeObservable, observable } from "mobx";
 import { BaseGameModel, GeneralGameState } from "./BaseGameModel";
 import Logger from "js-logger";
@@ -109,6 +110,33 @@ export abstract class ClusterfunPresenterModel<
   private _stateBeforePause: string = "";
   private _fullyInitialized = false;
 
+  // Analytics bookkeeping.  Both are plain serializable fields so a host that
+  // refreshes mid-game still reports an honest duration and does not
+  // double-report an ending.
+  private _gameStartedAtMs = 0;
+  private _gameEndReported = false;
+
+  protected get analyticsEntity(): AnalyticsEntity {
+    return "host";
+  }
+
+  // Wall-clock seconds since this game started (0 if it never did)
+  private get _gameDurationSeconds(): number {
+    if (!this._gameStartedAtMs) return 0;
+    return (Date.now() - this._gameStartedAtMs) / 1000;
+  }
+
+  // -------------------------------------------------------------------
+  // reportGameEnded - fired once per game, whichever way it ends.  Reaching
+  // GameOver is "completed"; being destroyed while still playing is
+  // "abandoned".  A game nobody ever started is not reported at all.
+  // -------------------------------------------------------------------
+  private reportGameEnded(outcome: GameOutcome) {
+    if (this._gameEndReported || !this._gameStartedAtMs) return;
+    this._gameEndReported = true;
+    this.analytics.gameEnded(outcome, this.players.length, this._gameDurationSeconds);
+  }
+
   abstract createFreshPlayerEntry(name: string, id: string): PlayerType;
 
   // -------------------------------------------------------------------
@@ -130,6 +158,16 @@ export abstract class ClusterfunPresenterModel<
 
   reconstitute(): void {
     super.reconstitute();
+    // Setting gameState raises an event named after the state, so the two ways
+    // a game can end are just two subscriptions.  Destroyed fires for both a
+    // deliberate quit and a torn-down room, and reportGameEnded is idempotent,
+    // so a game that ends properly and is then destroyed reports once.
+    this.subscribe(GeneralGameState.GameOver, "Analytics GameOver", () =>
+      this.reportGameEnded("completed"),
+    );
+    this.subscribe(GeneralGameState.Destroyed, "Analytics Destroyed", () =>
+      this.reportGameEnded("abandoned"),
+    );
     this.subscribe(GeneralGameState.Destroyed, "Presenter EndGame", async () => {
       if (this._fullyInitialized) {
         await this.requestEveryone(TerminateGameEndpoint, (p, ie) => ({}));
@@ -174,6 +212,7 @@ export abstract class ClusterfunPresenterModel<
     let returningPlayer = this._exitedPlayers.find(
       (p) => p.playerId === sender,
     ) as unknown as PlayerType;
+    let matchedByName = false;
 
     // It's possible that the player has rebooted their device and doesn't have the player ID anymore -
     // if this is the case and we want to accomodate it, try matching on the player name
@@ -181,6 +220,7 @@ export abstract class ClusterfunPresenterModel<
       returningPlayer = this._exitedPlayers.find(
         (p) => p.name === message.playerName,
       ) as unknown as PlayerType;
+      matchedByName = !!returningPlayer;
     }
 
     if (returningPlayer) {
@@ -192,6 +232,11 @@ export abstract class ClusterfunPresenterModel<
       this._exitedPlayers.splice(index, 1);
       this.players.push(returningPlayer);
       this.telemetryLogger.logEvent("Presenter", "JoinRequest", "ApproveRejoin");
+      // A returning player is the lost-connection signal: this branch is only
+      // reached for somebody the host had already lost.  `matchedBy` says
+      // whether their device remembered its id or they had to be found by
+      // name, which is what a full device reboot looks like.
+      this.analytics.playerRejoined(this.players.length, matchedByName ? "name" : "id");
       this.invokeEvent(PresenterGameEvent.PlayerJoined, returningPlayer);
       return {
         didJoin: true,
@@ -207,6 +252,7 @@ export abstract class ClusterfunPresenterModel<
         if (existingPlayer) {
           Logger.info(`Denying join because name exists`);
           this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Name Taken)");
+          this.analytics.joinDenied("name_taken");
           return { didJoin: false, isRejoin: false, joinError: `That name is taken` };
         } else {
           const entry = this.createFreshPlayerEntry(message.playerName, sender);
@@ -219,10 +265,12 @@ export abstract class ClusterfunPresenterModel<
           this.saveCheckpoint();
           this.invokeEvent(PresenterGameEvent.PlayerJoined, entry);
           this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve new player");
+          this.analytics.playerJoined(this.players.length);
           return { didJoin: true, isRejoin: false };
         }
       } else {
         this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Full)");
+        this.analytics.joinDenied("room_full");
         return {
           didJoin: false,
           isRejoin: false,
@@ -231,6 +279,7 @@ export abstract class ClusterfunPresenterModel<
       }
     } else {
       this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Not Allowed)");
+      this.analytics.joinDenied("room_closed");
       return {
         didJoin: false,
         isRejoin: false,
@@ -246,6 +295,7 @@ export abstract class ClusterfunPresenterModel<
     if (this.gameState === GeneralGameState.Destroyed) return;
     Logger.info("received quit message from " + sender);
     this.telemetryLogger.logEvent("Presenter", "QuitRequest");
+    this.analytics.playerQuit(Math.max(0, this.players.length - 1));
     const player = this.players.find((p) => p.playerId === sender);
     if (player) {
       this.players.remove(player);
@@ -295,11 +345,15 @@ export abstract class ClusterfunPresenterModel<
   //  startGame
   // -------------------------------------------------------------------
   startGame = () => {
+    const replay = this._gameStartedAtMs > 0;
+    this._gameStartedAtMs = Date.now();
+    this._gameEndReported = false;
     this.gameState = GeneralGameState.Playing;
     this.prepareFreshRound();
     this.startNextRound();
     this.saveCheckpoint();
     this.telemetryLogger.logEvent("Presenter", "Start");
+    this.analytics.gameStarted(this.players.length, replay);
   };
 
   // -------------------------------------------------------------------
