@@ -17,13 +17,16 @@ RetroSpectro TODO
     [ ] Show time left on client
 
 NEW
+
     
 
 IMPORTANT
     [ ] Can't store old meetings
         [ ] Save current meeting 
         [ ] Load old meeting
-    [ ] Deltas/Follow ups
+    [ ] Have a way for Deltas/Follow ups
+    [ ] Better OOB experience
+    [ ] a short video to help explain it
 
 MAYBE NEVER
     [ ] Change background according to redness
