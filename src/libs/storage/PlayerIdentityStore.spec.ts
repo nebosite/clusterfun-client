@@ -41,6 +41,7 @@ describe("PlayerIdentityStore", () => {
       avatarId: 7,
       avatarColor: 3,
       roomId: "AB12",
+      playerToken: "",
     });
   });
 
@@ -118,5 +119,38 @@ describe("PlayerIdentityStore - refusing to trust what it reads", () => {
     expect(() => store.save({ playerName: "Ann", avatarId: 3 })).not.toThrow();
     expect(store.load()).toMatchObject({ playerName: "Ann", avatarId: 3 });
     expect(() => store.forgetAll()).not.toThrow();
+  });
+});
+
+describe("PlayerIdentityStore - the reconnect token", () => {
+  it("mints one on first use and keeps it", () => {
+    const store = new PlayerIdentityStore(memoryAccessor());
+    const first = store.token();
+    expect(first).toBeTruthy();
+    expect(store.token()).toBe(first);
+  });
+
+  it("gives different browsers different tokens", () => {
+    expect(new PlayerIdentityStore(memoryAccessor()).token()).not.toBe(
+      new PlayerIdentityStore(memoryAccessor()).token(),
+    );
+  });
+
+  it("keeps the token when the room code is forgotten", () => {
+    // The token has to outlive a game, or reconnecting after one ends - which
+    // is exactly when you want to rejoin - would mint a brand new identity.
+    const store = new PlayerIdentityStore(memoryAccessor());
+    const token = store.token();
+    store.save({ roomId: "AB12" });
+    store.forgetRoom();
+    expect(store.token()).toBe(token);
+    expect(store.load().roomId).toBe("");
+  });
+
+  it("survives a save of everything else", () => {
+    const store = new PlayerIdentityStore(memoryAccessor());
+    const token = store.token();
+    store.save({ playerName: "Ann", avatarId: 4, avatarColor: 2, roomId: "WXYZ" });
+    expect(store.load().playerToken).toBe(token);
   });
 });

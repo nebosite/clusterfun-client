@@ -27,6 +27,9 @@ export enum PresenterGameEvent {
 }
 
 export class ClusterFunPlayer {
+  // The private token from the device that owns this seat.  Reconnecting is
+  // matched on it, so nobody can claim a player by typing their name.
+  playerToken: string = "";
   playerId: string = "";
   @observable name: string = "";
   // The avatar mark the player picked in the lobby (see PlayerAvatar).
@@ -116,7 +119,11 @@ export abstract class ClusterfunPresenterModel<
   // Hooks for a game that wants to do something about a player coming and
   // going mid-match.  Both are no-ops by default.
   protected onPlayerExited(_player: PlayerType) {}
-  protected onPlayerReturned(_player: PlayerType) {}
+  // `previousPlayerId` is what they were known by before this reconnect.  The
+  // relay issues a NEW id on every join, so anything a game keys by player id
+  // - a board, a target, a score row - has to be moved across, or the player
+  // comes back to a seat they can no longer reach.
+  protected onPlayerReturned(_player: PlayerType, _previousPlayerId: string) {}
 
   // General Game Settings
   minPlayers = 3;
@@ -209,13 +216,34 @@ export abstract class ClusterfunPresenterModel<
   // -------------------------------------------------------------------
   handleJoinMessage = async (
     sender: string,
-    message: { playerName: string; avatarId?: number; avatarColor?: number },
+    message: {
+      playerName: string;
+      avatarId?: number;
+      avatarColor?: number;
+      playerToken?: string;
+    },
   ): Promise<{ isRejoin: boolean; didJoin: boolean; joinError?: string }> => {
     Logger.info(`Join message from ${sender}`);
 
     // If a player has already joined, any additional Join messages should be idempotent.
     // Do send an Ack in case it's needed, though.
     let resendingPlayer = this.players.find((p) => p.playerId === sender) as unknown as PlayerType;
+    // ...or the same person back on a new connection, which the relay gives a
+    // new id.  Their token still names them, so move the seat to the new id.
+    if (!resendingPlayer && message.playerToken) {
+      const sameDevice = this.players.find(
+        (p) => p.playerToken && p.playerToken === message.playerToken,
+      ) as unknown as PlayerType;
+      if (sameDevice) {
+        const previousPlayerId = sameDevice.playerId;
+        action(() => {
+          sameDevice.playerId = sender;
+        })();
+        this.onPlayerReturned(sameDevice, previousPlayerId);
+        this.saveCheckpoint();
+        resendingPlayer = sameDevice;
+      }
+    }
     if (resendingPlayer) {
       Logger.debug(`Repeated join message: ${resendingPlayer.name}`);
       return {
@@ -224,16 +252,30 @@ export abstract class ClusterfunPresenterModel<
       };
     }
 
-    // If the player isn't currently in the game, but joined previously,
-    // find them by playerID first
-    let returningPlayer = this._exitedPlayers.find(
-      (p) => p.playerId === sender,
-    ) as unknown as PlayerType;
+    // Finding a returning player, in order of how much we trust the evidence.
+    //
+    // The private token comes first: a phone keeps it for itself, so it proves
+    // the device really is the one that held the seat.  The relay hands out a
+    // brand new playerId on every join, so after a genuine disconnect the id
+    // is useless - the token is what makes reconnecting work at all.
     let matchedByName = false;
+    const token = message.playerToken;
+    let returningPlayer = (token
+      ? this._exitedPlayers.find((p) => p.playerToken === token)
+      : undefined) as unknown as PlayerType;
 
-    // It's possible that the player has rebooted their device and doesn't have the player ID anymore -
-    // if this is the case and we want to accomodate it, try matching on the player name
-    if (!returningPlayer && this.allowRejoinOnNameOnly) {
+    // Then the player id, for a client that never really went away
+    if (!returningPlayer) {
+      returningPlayer = this._exitedPlayers.find(
+        (p) => p.playerId === sender,
+      ) as unknown as PlayerType;
+    }
+
+    // Name matching is the last resort, and only for a game that asks for it:
+    // names are public - they are on the big screen - so anyone could type one
+    // in and take a seat.  A device that presented a token is never matched
+    // this way, because a token that does not match means it is NOT them.
+    if (!returningPlayer && this.allowRejoinOnNameOnly && !token) {
       returningPlayer = this._exitedPlayers.find(
         (p) => p.name === message.playerName,
       ) as unknown as PlayerType;
@@ -242,19 +284,24 @@ export abstract class ClusterfunPresenterModel<
 
     if (returningPlayer) {
       Logger.info(`Returning player: ${returningPlayer.name}`);
-      returningPlayer.playerId = sender;
-      if (message.avatarId !== undefined) returningPlayer.avatarId = message.avatarId;
-      if (message.avatarColor !== undefined) returningPlayer.avatarColor = message.avatarColor;
-      const index = this._exitedPlayers.indexOf(returningPlayer);
-      this._exitedPlayers.splice(index, 1);
-      this.players.push(returningPlayer);
+      const previousPlayerId = returningPlayer.playerId;
+      // players is observable, so the reseating belongs in an action
+      action(() => {
+        returningPlayer.playerId = sender;
+        if (message.playerToken) returningPlayer.playerToken = message.playerToken;
+        if (message.avatarId !== undefined) returningPlayer.avatarId = message.avatarId;
+        if (message.avatarColor !== undefined) returningPlayer.avatarColor = message.avatarColor;
+        const index = this._exitedPlayers.indexOf(returningPlayer);
+        this._exitedPlayers.splice(index, 1);
+        this.players.push(returningPlayer);
+      })();
       this.telemetryLogger.logEvent("Presenter", "JoinRequest", "ApproveRejoin");
       // A returning player is the lost-connection signal: this branch is only
       // reached for somebody the host had already lost.  `matchedBy` says
       // whether their device remembered its id or they had to be found by
       // name, which is what a full device reboot looks like.
       this.analytics.playerRejoined(this.players.length, matchedByName ? "name" : "id");
-      this.onPlayerReturned(returningPlayer);
+      this.onPlayerReturned(returningPlayer, previousPlayerId);
       this.invokeEvent(PresenterGameEvent.PlayerJoined, returningPlayer);
       return {
         didJoin: true,
@@ -274,6 +321,7 @@ export abstract class ClusterfunPresenterModel<
           return { didJoin: false, isRejoin: false, joinError: `That name is taken` };
         } else {
           const entry = this.createFreshPlayerEntry(message.playerName, sender);
+          entry.playerToken = message.playerToken ?? "";
           entry.avatarId = message.avatarId ?? 0;
           entry.avatarColor = message.avatarColor ?? 0;
           this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve");

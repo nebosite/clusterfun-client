@@ -392,20 +392,66 @@ class RoomCodeField extends React.Component<{ lobbyModel: LobbyModel }, { caret:
     if (!el) return;
     el.focus({ preventScroll: true });
     // Never past the end of what has been typed - a caret floating in an
-    // empty box you cannot type into yet would be a lie.
-    const at = Math.min(index, this.props.lobbyModel.roomId.length);
-    try {
-      el.setSelectionRange(at, at);
-    } catch {
-      /* some mobile keyboards refuse selection ranges; the focus is enough */
-    }
+    // empty box you cannot type into yet would be a lie.  A full code can put
+    // the caret on the last box, which is where overwriting happens.
+    const at = Math.min(index, Math.max(0, Math.min(3, this.props.lobbyModel.roomId.length)));
     this.setState({ caret: at });
   };
 
+  // -------------------------------------------------------------------
+  // handleKey - a code box overwrites rather than inserts.  With four
+  // characters already there, a plain <input maxLength=4> silently refuses
+  // every keystroke, so correcting one letter meant deleting the lot.  Typing
+  // now replaces the character under the caret and steps to the next box.
+  // -------------------------------------------------------------------
+  private handleKey = (ev: React.KeyboardEvent<HTMLInputElement>) => {
+    const { lobbyModel } = this.props;
+    const code = lobbyModel.roomId;
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+
+    // OUR caret, not the DOM's.  React resets an input's selection to the end
+    // every time the value changes, so the browser's idea of where the caret
+    // is bears no relation to the box the player tapped.  The cells own the
+    // hit-testing (the input is pointer-events: none), so the component's own
+    // caret is the only honest answer.
+    const caret = Math.max(0, Math.min(this.state.caret < 0 ? code.length : this.state.caret, 3));
+
+    if (/^[a-zA-Z0-9]$/.test(ev.key)) {
+      ev.preventDefault();
+      const chars = code.padEnd(4, " ").split("");
+      chars[caret] = ev.key.toUpperCase();
+      lobbyModel.roomId = chars.join("").trimEnd();
+      // Step along, and stop at the last box rather than wrapping
+      this.setState({ caret: Math.min(caret + 1, 3) });
+      return;
+    }
+
+    if (ev.key === "Backspace") {
+      ev.preventDefault();
+      // Clear the box we are in if it has something, else step back and clear
+      const target = code[caret] ? caret : Math.max(0, caret - 1);
+      const chars = code.padEnd(4, " ").split("");
+      chars[target] = " ";
+      lobbyModel.roomId = chars.join("").trimEnd();
+      this.setState({ caret: target });
+      return;
+    }
+
+    if (ev.key === "Delete") {
+      ev.preventDefault();
+      const chars = code.padEnd(4, " ").split("");
+      chars[caret] = " ";
+      lobbyModel.roomId = chars.join("").trimEnd();
+      this.setState({ caret });
+    }
+  };
+
+  // Only used to LIGHT the field up on focus - the caret position itself is
+  // ours to decide (see handleKey).
   private syncCaret = () => {
-    const el = this.input.current;
-    if (!el) return;
-    this.setState({ caret: el.selectionStart ?? this.props.lobbyModel.roomId.length });
+    if (this.state.caret < 0) {
+      this.setState({ caret: Math.min(this.props.lobbyModel.roomId.length, 3) });
+    }
   };
 
   render() {
@@ -459,9 +505,11 @@ class RoomCodeField extends React.Component<{ lobbyModel: LobbyModel }, { caret:
             maxLength={4}
             aria-label="Room code"
             value={code}
+            onKeyDown={this.handleKey}
             onChange={(ev) => {
+              // Only reached for input we did not handle ourselves (a paste,
+              // or a mobile keyboard that does not raise keydown)
               lobbyModel.roomId = ev.target.value.toUpperCase();
-              // Let the model clamp/filter first, then read the caret back
               setTimeout(this.syncCaret, 0);
             }}
             onFocus={this.syncCaret}

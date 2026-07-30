@@ -197,7 +197,10 @@ export class BoardGrid extends React.Component<BoardGridProps, BoardGridState> {
         // The white brick sprite stands in for both ghosts, and both are
         // drawn faintly.  A psycho trail underneath keeps its own alpha.
         const isLandingGhost = !filled && shadow.has(index);
-        const ghostSprite = ghosted || isLandingGhost;
+        // The landing ghost is a faint brick; a Transparency block is an
+        // OUTLINE with nothing inside it, so you can find the surface without
+        // being able to read the stack.
+        const ghostSprite = isLandingGhost;
         const alpha = ghostSprite
           ? SHADOW_ALPHA
           : !filled && trailColor
@@ -222,6 +225,11 @@ export class BoardGrid extends React.Component<BoardGridProps, BoardGridState> {
                   : (trailColor ?? "transparent"),
               opacity: alpha,
               boxShadow: filled && !ghosted ? blockShadow : undefined,
+              // Outline only: box-sizing is border-box, so this cannot push
+              // the grid out of its own footprint.
+              border: ghosted
+                ? `${Math.max(1, Math.round(cellPx * 0.09))}px solid rgba(255, 255, 255, 0.5)`
+                : undefined,
               borderRadius: filled ? Math.max(1, Math.round(cellPx * 0.1)) : undefined,
               // Three things ride the same brick sprite: the landing ghost,
               // the Transparency outline, and (on top of a block) its icon.

@@ -4,7 +4,15 @@ import MessageEndpoint from "./MessageEndpoint";
  * Endpoint for joining a game from the client
  */
 export const JoinEndpoint: MessageEndpoint<
-  { playerName: string; avatarId?: number; avatarColor?: number },
+  {
+    playerName: string;
+    avatarId?: number;
+    avatarColor?: number;
+    // A private, random id this browser keeps for itself.  Reconnecting is
+    // matched on THIS, not on the player's name - a name is public, visible on
+    // the big screen, and anyone could type it in and take over your seat.
+    playerToken?: string;
+  },
   { isRejoin: boolean; didJoin: boolean; joinError?: string }
 > = {
   route: "/basic/handshake/join",

@@ -3,6 +3,7 @@
 import logo from "./images/Logo.png";
 import specials from "./images/specials.png";
 import brick from "./images/brick.png";
+import dmitri from "./images/dmitri.png";
 import grid00 from "./images/Grid00.png";
 import grid01 from "./images/Grid01.png";
 import grid02 from "./images/Grid02.png";
@@ -45,6 +46,8 @@ const EittrisAssets = {
     // The original's white brick shape (atlas sprite 0).  Tinted and faded for
     // the SeeShadows landing ghost and the Transparency brick outlines.
     brick,
+    // The host screen's resident composer, bottom-left of the setup page
+    dmitri,
     // The board backgrounds the original randomizes over (index = backgroundIndex)
     backgrounds: [grid00, grid01, grid02, grid03, grid04, grid05, grid06],
   },

@@ -32,6 +32,12 @@ import {
   emptyGrid,
   START_INTERVAL_MS,
 } from "./eittrisLogic";
+import {
+  VIBRATE_CLEAR,
+  VIBRATE_BIG_CLEAR,
+  VIBRATE_ATTACKED,
+  VIBRATE_SHIELDED,
+} from "./GameSettings";
 
 // -------------------------------------------------------------------
 // Type helper for save/restore
@@ -103,6 +109,8 @@ export class EittrisClientModel extends ClusterfunClientModel {
   @observable slowdownStacks = 0;
   @observable seeShadows = false;
   @observable crystalBall = false;
+  // Which clear we last buzzed for, so one clear buzzes once
+  private _lastClearBuzz = "";
   @observable evilPieces = false;
   @observable crazyIvan = false;
   @observable freezeDried = false;
@@ -239,6 +247,10 @@ export class EittrisClientModel extends ClusterfunClientModel {
     // room is noise on a phone the size of a playing card, and it crowds out
     // the one message that actually needs acting on.
     if (message.victimId !== this.playerId) return;
+    // Getting hit is the loudest thing that happens to you, so it gets the
+    // loudest buzz - and a shielded hit gets a lighter one, since the news is
+    // good.  Phones stay silent otherwise: the shared screen has the speakers.
+    SafeBrowser.vibrate(message.repelled ? VIBRATE_SHIELDED : VIBRATE_ATTACKED);
     action(() => (this.lastSpecialEvent = message))();
     const mine = message.attackerId === this.playerId || message.victimId === this.playerId;
     if (mine) SafeBrowser.vibrate([40, 40, 40]);
@@ -284,6 +296,16 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.freezeDried = snapshot.freezeDried ?? false;
     this.transparency = snapshot.transparency ?? false;
     this.afflictionMs = (snapshot.afflictionMs ?? []).slice();
+    // A clear that has just started: buzz for it, harder for a big one.  The
+    // rows arrive once per clear, so this cannot fire twice for the same one.
+    const clearingNow = snapshot.clearing;
+    if (clearingNow && clearingNow.rows.length > 0) {
+      const key = `${clearingNow.rows.join(",")}:${this.pieceSeq}`;
+      if (key !== this._lastClearBuzz) {
+        this._lastClearBuzz = key;
+        SafeBrowser.vibrate(clearingNow.rows.length >= 4 ? VIBRATE_BIG_CLEAR : VIBRATE_CLEAR);
+      }
+    }
     this.clearing = snapshot.clearing ?? null;
     this.psychoSeed = snapshot.psychoSeed ?? 0;
     this.psychoOverlay = snapshot.psychoOverlay ?? null;

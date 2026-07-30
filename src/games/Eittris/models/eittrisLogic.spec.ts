@@ -21,6 +21,7 @@ import {
   moveTowardColumn,
   NEXT_PREVIEW_COUNT,
   NEXT_QUEUE_DEPTH,
+  refillNextQueue,
   SPECIAL_MIN_ROW_GAP,
   defaultSettings,
   sanitizeSettings,
@@ -51,6 +52,8 @@ import {
   countCoveredGaps,
   contactCount,
   scorePlacement,
+  stackHeight,
+  withPieceSettled,
   dropDestination,
   planPlacement,
   nextAiMove,
@@ -1672,5 +1675,105 @@ describe("eittrisLogic - where the fallen rows came from", () => {
 
   it("is all zeroes when nothing was cleared", () => {
     expect(finalRowDrops([]).every((d) => d === 0)).toBe(true);
+  });
+});
+
+describe("eittrisLogic - the computer player weighs holes against height", () => {
+  // Left half built ten rows high and flat; right half bare floor with a
+  // single bump.  Placing on the left is clean but perches the piece high;
+  // placing over the bump on the right is low but buries one cell.
+  function highLeftLowRight(): number[][] {
+    const grid = emptyGrid();
+    for (let y = BOARD_HEIGHT - 10; y < BOARD_HEIGHT; y++) {
+      for (let x = 0; x <= 4; x++) grid[y][x] = 1;
+    }
+    grid[BOARD_HEIGHT - 1][6] = 1; // the bump
+    return grid;
+  }
+
+  it("prefers a low placement that makes a hole over a high one that does not", () => {
+    const grid = highLeftLowRight();
+    const O = (x: number) => ({ type: 6, rot: 0, x, y: 0, evil: false });
+    const lowWithHole = dropDestination(grid, O(6)); // rests on the bump
+    const highButClean = dropDestination(grid, O(0)); // on top of the stack
+
+    // It buries a cell...
+    const buried = countCoveredGaps(withPieceSettled(grid, lowWithHole)) - countCoveredGaps(grid);
+    expect(buried).toBeGreaterThan(0);
+    // ...and is still the better move, because the alternative is up in the air
+    expect(scorePlacement(grid, lowWithHole)).toBeGreaterThan(scorePlacement(grid, highButClean));
+  });
+
+  it("still avoids a hole when both options sit at the same height", () => {
+    // Nothing has changed about hating holes for their own sake - only about
+    // what they are worth relative to height.
+    const grid = emptyGrid();
+    grid[BOARD_HEIGHT - 1][0] = 1; // a bump that would trap a cell beside it
+    const clean = dropDestination(grid, { type: 6, rot: 0, x: 4, y: 0, evil: false });
+    const overBump = dropDestination(grid, { type: 6, rot: 0, x: 0, y: 0, evil: false });
+    expect(scorePlacement(grid, clean)).toBeGreaterThan(scorePlacement(grid, overBump));
+  });
+
+  it("measures how tall the stack is", () => {
+    expect(stackHeight(emptyGrid())).toBe(0);
+    const grid = emptyGrid();
+    grid[BOARD_HEIGHT - 1][3] = 1;
+    expect(stackHeight(grid)).toBe(1);
+    grid[BOARD_HEIGHT - 5][7] = 1;
+    expect(stackHeight(grid)).toBe(5);
+  });
+
+  it("penalises a taller result even when nothing is buried", () => {
+    const grid = emptyGrid();
+    const onFloor = dropDestination(grid, { type: 6, rot: 0, x: 0, y: 0, evil: false });
+    const scoreLow = scorePlacement(grid, onFloor);
+    // The same piece on a board that is already high scores worse
+    const tall = emptyGrid();
+    for (let y = BOARD_HEIGHT - 10; y < BOARD_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) tall[y][x] = 1;
+    }
+    const onTop = dropDestination(tall, { type: 6, rot: 0, x: 0, y: 0, evil: false });
+    expect(scorePlacement(tall, onTop)).toBeLessThan(scoreLow);
+  });
+});
+
+describe("eittrisLogic - the piece queue follows the piece table in use", () => {
+  // A queue holds INDEXES, and evil pieces index a different table.  A queue
+  // left over from before a switch would show - and deal - the wrong shapes.
+  it("is rebuilt with evil pieces when EvilPieces lifts and normal ones return", () => {
+    const board = makeBoard("p1", () => 0.5);
+    board.evilPieces = true;
+    startAffliction(board, SpecialType.EvilPieces); // as the presenter does
+    board.nextQueue = refillNextQueue(() => 0.5, true);
+    expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+    expect(board.nextQueue.every((type) => type < EVIL_PIECE_COUNT)).toBe(true);
+
+    // When it wears off, the queue is rebuilt against the normal table
+    tickAfflictions(board, AFFLICTION_DURATION_MS, () => 0.5);
+    expect(board.evilPieces).toBe(false);
+    expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+    expect(board.nextQueue.every((type) => type < PIECE_COUNT)).toBe(true);
+  });
+
+  it("is rebuilt when an antidote cures EvilPieces too", () => {
+    const board = makeBoard("p1", () => 0.5);
+    board.evilPieces = true;
+    startAffliction(board, SpecialType.EvilPieces);
+    board.nextQueue = refillNextQueue(() => 0.5, true);
+    cureAfflictions(board, () => 0.5);
+    expect(board.evilPieces).toBe(false);
+    expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+  });
+
+  it("never leaves the queue empty across the switch", () => {
+    // An empty queue is a blank Next tray, which looks like a bug to a player
+    const board = makeBoard("p1", () => 0.5);
+    board.evilPieces = true;
+    startAffliction(board, SpecialType.EvilPieces);
+    board.nextQueue = refillNextQueue(() => 0.5, true);
+    for (let i = 0; i < 5; i++) {
+      tickAfflictions(board, AFFLICTION_DURATION_MS, () => 0.5);
+      expect(board.nextQueue.length).toBeGreaterThan(0);
+    }
   });
 });

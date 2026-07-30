@@ -26,3 +26,14 @@ export const AI_MOVE_INTERVAL_MS = 500;
 // phone or a fumbled code should not cost somebody the whole round.  Players
 // who are REJOINING are always let back in, however long it has been.
 export const LATE_JOIN_GRACE_MS = 15000;
+
+// ------------------------------------------------------------------------------------------
+// Vibration, not sound.  The shared screen has the speakers; a phone buzzing in a pocket is
+// what tells its owner something happened to THEM.  Patterns are milliseconds on/off, and
+// the two that matter most - clearing four rows, and being attacked - are the two you can
+// feel through a table.
+// ------------------------------------------------------------------------------------------
+export const VIBRATE_CLEAR = [25];
+export const VIBRATE_BIG_CLEAR = [60, 40, 60, 40, 120];
+export const VIBRATE_ATTACKED = [90, 50, 90];
+export const VIBRATE_SHIELDED = [20, 40, 20];

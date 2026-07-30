@@ -22,6 +22,11 @@ export interface PlayerIdentity {
   avatarId: number;
   avatarColor: number;
   roomId: string;
+  // A private, random id this browser keeps for itself.  It is what proves a
+  // reconnecting player really is who they say - unlike a name, which is on
+  // the big screen for anyone to read and type in.  Never displayed, never
+  // sent anywhere but the presenter of the game you are in.
+  playerToken: string;
 }
 
 export const BLANK_IDENTITY: PlayerIdentity = {
@@ -29,7 +34,16 @@ export const BLANK_IDENTITY: PlayerIdentity = {
   avatarId: 0,
   avatarColor: 0,
   roomId: "",
+  playerToken: "",
 };
+
+// A token is minted once per browser and then kept.  Random and meaningless:
+// it identifies the seat you are holding, nothing about you.
+function mintToken(): string {
+  const globalCrypto = typeof crypto !== "undefined" ? crypto : undefined;
+  if (globalCrypto?.randomUUID) return globalCrypto.randomUUID();
+  return `t${Date.now().toString(36)}${Math.floor(Math.random() * 1e12).toString(36)}`;
+}
 
 function asNumber(value: unknown, fallback = 0): number {
   const parsed = typeof value === "number" ? value : parseInt(String(value), 10);
@@ -71,6 +85,7 @@ export class PlayerIdentityStore {
           .toUpperCase()
           .replace(/[^A-Z0-9]/g, "")
           .slice(0, 4),
+        playerToken: asString(parsed.playerToken, 64),
       };
     } catch (err) {
       Logger.warn(`Could not read the remembered player identity: ${err}`);
@@ -90,6 +105,19 @@ export class PlayerIdentityStore {
       Logger.warn(`Could not remember the player identity: ${err}`);
       this.fallback = merged;
     }
+  }
+
+  // -------------------------------------------------------------------
+  // token - the private id this browser reconnects with, minted on first use
+  // and kept from then on.  Deliberately NOT cleared with the room code: it
+  // has to outlive a game for reconnecting to work at all.
+  // -------------------------------------------------------------------
+  token(): string {
+    const current = this.load();
+    if (current.playerToken) return current.playerToken;
+    const minted = mintToken();
+    this.save({ playerToken: minted });
+    return minted;
   }
 
   // -------------------------------------------------------------------

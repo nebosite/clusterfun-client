@@ -246,6 +246,8 @@ export class LobbyModel {
       playerName: this.playerName,
       avatarId: this.avatarId,
       avatarColor: this.avatarColor,
+      // Proves this device owns its seat when reconnecting
+      playerToken: this._identity.token(),
       messageThing: this._messageThingFactory(this.gameProperties!),
       logger: this.getGameLogger(),
       storage: this._storage,

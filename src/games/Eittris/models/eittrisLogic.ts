@@ -1023,7 +1023,7 @@ export function countCoveredGaps(grid: number[][]): number {
 
 // Settle a piece into a copy of the grid (no row clearing - the AI only
 // needs the resulting shape)
-function withPieceSettled(grid: number[][], piece: EittrisPiece): number[][] {
+export function withPieceSettled(grid: number[][], piece: EittrisPiece): number[][] {
   const next = grid.map((row) => row.slice());
   for (const c of pieceCells(piece)) {
     if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) {
@@ -1033,11 +1033,26 @@ function withPieceSettled(grid: number[][], piece: EittrisPiece): number[][] {
   return next;
 }
 
-// Weights for the placement score.  Tuned so "don't make holes" dominates,
-// then "sit low", then "hug what's already there".
-export const AI_GAP_PENALTY = 40;
-export const AI_DEPTH_WEIGHT = 2;
+// Weights for the placement score.
+//
+// A hole used to cost 40 against a depth weight of 2 - twenty rows of height -
+// so the bot would build a tower to the ceiling rather than ever bury a
+// square.  That loses games: a hole costs you roughly one future clear, while
+// a stack near the top costs you the whole board.  A hole is now worth about
+// four rows of height, so the bot takes one when the alternative is perching a
+// piece up high, and there is an outright penalty on how tall the stack gets.
+export const AI_GAP_PENALTY = 12;
+export const AI_DEPTH_WEIGHT = 3;
 export const AI_CONTACT_WEIGHT = 3;
+export const AI_HEIGHT_PENALTY = 4;
+
+// How many rows tall the stack is (0 = empty board)
+export function stackHeight(grid: number[][]): number {
+  for (let y = 0; y < BOARD_HEIGHT; y++) {
+    if (grid[y].some((cell) => cell !== EMPTY_CELL)) return BOARD_HEIGHT - y;
+  }
+  return 0;
+}
 
 export function scorePlacement(grid: number[][], landed: EittrisPiece): number {
   const settled = withPieceSettled(grid, landed);
@@ -1046,7 +1061,8 @@ export function scorePlacement(grid: number[][], landed: EittrisPiece): number {
   return (
     -AI_GAP_PENALTY * newGaps +
     AI_DEPTH_WEIGHT * lowest +
-    AI_CONTACT_WEIGHT * contactCount(grid, landed)
+    AI_CONTACT_WEIGHT * contactCount(grid, landed) -
+    AI_HEIGHT_PENALTY * stackHeight(settled)
   );
 }
 

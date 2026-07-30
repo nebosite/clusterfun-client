@@ -349,23 +349,43 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   protected onPlayerExited(player: EittrisPlayer) {
     const board = this.boards.find((b) => b.playerId === player.playerId);
     if (!board || !board.alive) return;
-    board.robotTakeover = true;
-    board.aiControlled = true;
-    board.aiTimerMs = 0;
+    // boards is a deep observable, so these belong in an action
+    action(() => {
+      board.robotTakeover = true;
+      board.aiControlled = true;
+      board.aiTimerMs = 0;
+    })();
     this.dirtyPlayerIds.add(board.playerId);
     this.saveCheckpoint();
   }
 
-  protected onPlayerReturned(player: EittrisPlayer) {
-    const board = this.boards.find((b) => b.playerId === player.playerId);
+  protected onPlayerReturned(player: EittrisPlayer, previousPlayerId: string) {
+    // Boards are keyed by player id, and a reconnect arrives on a brand new
+    // one - so the board has to be moved across, along with every other
+    // board's aim at it.  Without this the player rejoins to a seat they
+    // cannot reach: their commands find no board and nothing responds.
+    const board =
+      this.boards.find((b) => b.playerId === previousPlayerId) ??
+      this.boards.find((b) => b.playerId === player.playerId);
     if (!board) return;
-    if (board.robotTakeover) {
-      board.robotTakeover = false;
-      // Back to whatever the player themselves had set, not simply "off"
-      board.aiControlled = player.aiControlled;
-      this.dirtyPlayerIds.add(board.playerId);
-      this.saveCheckpoint();
-    }
+
+    action(() => {
+      if (previousPlayerId !== player.playerId) {
+        board.playerId = player.playerId;
+        for (const other of this.boards) {
+          if (other.targetId === previousPlayerId) other.targetId = player.playerId;
+        }
+        this.dirtyPlayerIds.add(player.playerId);
+      }
+
+      if (board.robotTakeover) {
+        board.robotTakeover = false;
+        // Back to whatever the player themselves had set, not simply "off"
+        board.aiControlled = player.aiControlled;
+      }
+    })();
+    this.dirtyPlayerIds.add(board.playerId);
+    this.saveCheckpoint();
   }
 
   // -------------------------------------------------------------------

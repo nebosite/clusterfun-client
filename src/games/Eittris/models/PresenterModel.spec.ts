@@ -1631,3 +1631,116 @@ describe("EittrisPresenterModel - host settings in play", () => {
     for (const marker of board.specials) expect(marker.type).toBe(SpecialType.Speedup);
   });
 });
+
+describe("EittrisPresenterModel - reconnecting to your own seat", () => {
+  // The relay hands out a fresh playerId on every join, so after a real
+  // disconnect the id proves nothing.  The private token is what does.
+  const joinAs = (name: string, token: string) => ({ playerName: name, playerToken: token });
+
+  // Give a player already in the game the token their device would hold
+  function withToken(model: EittrisPresenterModel, playerId: string, token: string) {
+    const player = model.players.find((p) => p.playerId === playerId)!;
+    player.playerToken = token;
+    return player;
+  }
+
+  it("puts a returning player back in control of their own board", async () => {
+    const { model } = startTwoPlayerGame();
+    withToken(model, "A", "token-alice");
+    const board = model.boards.find((b) => b.playerId === "A")!;
+
+    model.handlePlayerQuitMessage("A", {});
+    expect(board.robotTakeover).toBe(true);
+
+    // ...and comes back on a brand new connection id
+    const ack = await model.handleJoinMessage("A-new-id", joinAs("Alice", "token-alice"));
+
+    expect(ack.didJoin).toBe(true);
+    expect(ack.isRejoin).toBe(true);
+    const player = model.players.find((p) => p.playerToken === "token-alice")!;
+    expect(player.playerId).toBe("A-new-id"); // the seat moved to the new socket
+    expect(board.robotTakeover).toBe(false); // and they have it back
+  });
+
+  it("will not let somebody take a seat by typing the same name", async () => {
+    const { model } = startTwoPlayerGame();
+    const alice = withToken(model, "A", "token-alice");
+    model.handlePlayerQuitMessage("A", {});
+
+    // An imposter knows the name - it is on the big screen - but not the token
+    const ack = await model.handleJoinMessage("imposter", joinAs(alice.name, "token-imposter"));
+
+    expect(ack.isRejoin).toBe(false);
+    // Alice's seat is still hers, waiting for her
+    expect(model.players.some((p) => p.playerToken === "token-alice")).toBe(false);
+  });
+
+  it("moves the seat when the same device reconnects without ever quitting", async () => {
+    // A phone that drops its socket and comes straight back: the presenter
+    // never saw a quit, so the player is still in `players` under the old id.
+    const { model } = startTwoPlayerGame();
+    withToken(model, "A", "token-alice");
+
+    const ack = await model.handleJoinMessage("A-reconnected", joinAs("Alice", "token-alice"));
+
+    expect(ack.didJoin).toBe(true);
+    const seats = model.players.filter((p) => p.playerToken === "token-alice");
+    expect(seats.length).toBe(1); // one seat, not two
+    expect(seats[0].playerId).toBe("A-reconnected");
+  });
+
+  it("still lets a tokenless client rejoin by name, for older clients", async () => {
+    const { model } = startTwoPlayerGame();
+    const bob = model.players.find((p) => p.playerId === "B")!;
+    model.handlePlayerQuitMessage("B", {});
+    const ack = await model.handleJoinMessage("B-new", { playerName: bob.name });
+    expect(ack.isRejoin).toBe(true);
+  });
+});
+
+describe("EittrisPresenterModel - a reconnected player can actually play", () => {
+  it("brings the board across to the new connection id", async () => {
+    // The bug this guards: boards are keyed by player id, and a reconnect
+    // arrives on a NEW one.  Without moving the board, the player rejoins to
+    // a seat their commands cannot reach - the game looks joined and does
+    // nothing at all.
+    const { model } = startTwoPlayerGame();
+    const alice = model.players.find((p) => p.playerId === "A")!;
+    alice.playerToken = "token-alice";
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    const rowsBefore = board.rows;
+
+    model.handlePlayerQuitMessage("A", {});
+    await model.handleJoinMessage("A-new", {
+      playerName: alice.name,
+      playerToken: "token-alice",
+    });
+
+    // Same board, now answering to the new id
+    expect(model.boards.find((b) => b.playerId === "A-new")).toBe(board);
+    expect(model.boards.some((b) => b.playerId === "A")).toBe(false);
+    expect(board.rows).toBe(rowsBefore); // their game carried on, not restarted
+
+    // ...and it takes their commands
+    const before = board.piece!.x;
+    model.handleCommand("A-new", { command: "moveLeft" });
+    expect(board.piece!.x).toBe(before - 1);
+  });
+
+  it("re-aims everyone who was attacking them at the new id", async () => {
+    const { model } = startTwoPlayerGame();
+    const alice = model.players.find((p) => p.playerId === "A")!;
+    alice.playerToken = "token-alice";
+    const bobBoard = model.boards.find((b) => b.playerId === "B")!;
+    bobBoard.targetId = "A";
+
+    model.handlePlayerQuitMessage("A", {});
+    await model.handleJoinMessage("A-new", {
+      playerName: alice.name,
+      playerToken: "token-alice",
+    });
+
+    // Otherwise Bob would be firing at a player id that no longer exists
+    expect(bobBoard.targetId).toBe("A-new");
+  });
+});

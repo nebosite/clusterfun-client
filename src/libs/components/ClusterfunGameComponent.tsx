@@ -32,6 +32,7 @@ export interface ClusterFunGameProps {
   logger: ITelemetryLogger;
   storage: IStorage;
   onGameEnded: (reason?: GameEndReason) => void;
+  playerToken?: string;
   serverCall: <T>(url: string, payload: any) => Promise<T>;
 }
 
@@ -99,6 +100,9 @@ export class ClusterfunGameComponent extends React.Component<ClusterFunGameProps
       }
       if (this.props.avatarColor !== undefined) {
         (this.appModel as ClusterfunClientModel).avatarColor = this.props.avatarColor;
+      }
+      if (this.props.playerToken) {
+        (this.appModel as ClusterfunClientModel).playerToken = this.props.playerToken;
       }
     }
 

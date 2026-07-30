@@ -247,3 +247,78 @@
   background-repeat: no-repeat;
   flex: 0 0 auto;
 }
+
+/* ---- Gathering screen furniture ---- */
+
+/* Dmitri, bottom-left.  He is decoration, so he never takes pointer events,
+   and the setup panel is shaped to flow around his shoulder. */
+/* He stands in a gutter of his own (see .lowerSetup), so the controls sit
+   beside him rather than on top of him. */
+.dmitri {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 300px;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+  /* Fades into the background rather than ending on a hard edge */
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, black 12%);
+  mask-image: linear-gradient(to top, transparent 0%, black 12%);
+}
+.gatheringLayout {
+  position: relative;
+}
+
+/* The lower half of the page steps aside for him */
+.lowerSetup {
+  position: relative;
+  z-index: 3;
+  margin-left: 320px;
+}
+.setupPanel {
+  position: relative;
+  z-index: 3;
+}
+
+/* ---- The robot demo, framed ---- */
+.demoFrame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px 14px 18px;
+  border: 4px solid #4d648a;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(13, 22, 38, 0.9), rgba(8, 14, 26, 0.9));
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.8);
+}
+.demoTitle {
+  font-size: 55%;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9fb2cc;
+}
+/* Centred against the setup column beside it */
+.demoColumn {
+  align-self: center;
+  justify-content: center;
+}
+
+/* ---- Powerup checkboxes, in aligned columns ---- */
+.specialChecks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(240px, 1fr));
+  gap: 8px 24px;
+  flex: 1 1 100%;
+}
+.specialCheck {
+  /* Icon and label line up down each column because every row is the same
+     grid, rather than wrapping wherever the text happens to end. */
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 8px;
+}

@@ -90,9 +90,12 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
 
     return (
       <div className={styles.gatheringLayout}>
+        {/* Dmitri in the bottom-left corner.  The setup panel uses a CSS
+            shape so the text flows around his shoulder instead of running
+            underneath him. */}
+        <img className={styles.dmitri} src={EittrisAssets.images.dmitri} alt="" aria-hidden />
         <div className={styles.gatheringMain}>
           <h3>Welcome to EITtris</h3>
-          <InstructionsBox />
           <p>
             To Join: go to http://{window.location.host} and enter this room code: {appModel.roomId}
           </p>
@@ -117,107 +120,114 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
             <div>Waiting for players to join...</div>
           )}
 
-          {/* Game setup.  Everything here is decided before the round starts,
+          {/* Everything from here down is indented to clear Dmitri, who
+              stands in the gutter on the left. */}
+          <div className={styles.lowerSetup}>
+            {/* Game setup.  Everything here is decided before the round starts,
             and rides the checkpoint so a refresh mid-setup loses nothing. */}
-          <div className={styles.setupPanel}>
-            <div className={styles.setupRow}>
-              <span className={styles.setupLabel}>Antidotes to start:</span>
-              {[0, 1, 2, 3].map((count) => (
+            <div className={styles.setupPanel}>
+              <div className={styles.setupRow}>
+                <span className={styles.setupLabel}>Antidotes to start:</span>
+                {[0, 1, 2, 3].map((count) => (
+                  <button
+                    key={count}
+                    className={classNames(styles.robotButton, {
+                      [styles.robotButtonOn]: appModel.settings.startingAntidotes === count,
+                    })}
+                    onClick={() => appModel.setStartingAntidotes(count)}
+                  >
+                    {count}
+                  </button>
+                ))}
+              </div>
+
+              <div className={styles.setupRow}>
+                <span className={styles.setupLabel}>Four-row award:</span>
+                <select
+                  className={styles.setupSelect}
+                  value={appModel.settings.fourRowAward}
+                  onChange={(ev) => appModel.setFourRowAward(Number(ev.target.value))}
+                >
+                  {IMPLEMENTED_SPECIALS.map((type) => (
+                    <option key={type} value={type}>
+                      {SPECIAL_NAMES[type]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.setupRow}>
+                <span className={styles.setupLabel}>Powerups in play:</span>
+                <div className={styles.specialChecks}>
+                  {IMPLEMENTED_SPECIALS.map((type) => (
+                    <label key={type} className={styles.specialCheck}>
+                      <input
+                        type="checkbox"
+                        checked={appModel.isSpecialAllowed(type)}
+                        onChange={() => appModel.toggleAllowedSpecial(type)}
+                      />
+                      <span
+                        className={styles.specialCheckIcon}
+                        style={{
+                          backgroundImage: `url(${EittrisAssets.images.specials})`,
+                          backgroundPosition: `${(type / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`,
+                        }}
+                      />
+                      {SPECIAL_NAMES[type]}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Robot players: enough to make a game of it with one or two people.
+            They never change how many humans are needed to start. */}
+            <div className={styles.robotPicker}>
+              <span className={styles.robotLabel}>Robot players:</span>
+              {[0, 1, 2, 3, 4].map((count) => (
                 <button
                   key={count}
                   className={classNames(styles.robotButton, {
-                    [styles.robotButtonOn]: appModel.settings.startingAntidotes === count,
+                    [styles.robotButtonOn]: appModel.robotCount === count,
                   })}
-                  onClick={() => appModel.setStartingAntidotes(count)}
+                  onClick={() => appModel.setRobotCount(count)}
                 >
                   {count}
                 </button>
               ))}
+              {appModel.robotCount > 0 ? (
+                <span className={styles.robotNames}>
+                  {appModel.robots.map((robot) => (
+                    <span className={styles.nameBox} key={robot.playerId}>
+                      <PlayerAvatar
+                        avatarId={robot.avatarId}
+                        colorIndex={robot.avatarColor}
+                        size={40}
+                      />{" "}
+                      {robot.name}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
             </div>
 
-            <div className={styles.setupRow}>
-              <span className={styles.setupLabel}>Four-row award:</span>
-              <select
-                className={styles.setupSelect}
-                value={appModel.settings.fourRowAward}
-                onChange={(ev) => appModel.setFourRowAward(Number(ev.target.value))}
-              >
-                {IMPLEMENTED_SPECIALS.map((type) => (
-                  <option key={type} value={type}>
-                    {SPECIAL_NAMES[type]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className={styles.setupRow}>
-              <span className={styles.setupLabel}>Powerups in play:</span>
-              <div className={styles.specialChecks}>
-                {IMPLEMENTED_SPECIALS.map((type) => (
-                  <label key={type} className={styles.specialCheck}>
-                    <input
-                      type="checkbox"
-                      checked={appModel.isSpecialAllowed(type)}
-                      onChange={() => appModel.toggleAllowedSpecial(type)}
-                    />
-                    <span
-                      className={styles.specialCheckIcon}
-                      style={{
-                        backgroundImage: `url(${EittrisAssets.images.specials})`,
-                        backgroundPosition: `${(type / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`,
-                      }}
-                    />
-                    {SPECIAL_NAMES[type]}
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Robot players: enough to make a game of it with one or two people.
-            They never change how many humans are needed to start. */}
-          <div className={styles.robotPicker}>
-            <span className={styles.robotLabel}>Robot players:</span>
-            {[0, 1, 2, 3, 4].map((count) => (
-              <button
-                key={count}
-                className={classNames(styles.robotButton, {
-                  [styles.robotButtonOn]: appModel.robotCount === count,
-                })}
-                onClick={() => appModel.setRobotCount(count)}
-              >
-                {count}
+            {appModel.canStart ? (
+              <button className={styles.presenterButton} onClick={() => appModel.startGame()}>
+                Click here to start!
               </button>
-            ))}
-            {appModel.robotCount > 0 ? (
-              <span className={styles.robotNames}>
-                {appModel.robots.map((robot) => (
-                  <span className={styles.nameBox} key={robot.playerId}>
-                    <PlayerAvatar
-                      avatarId={robot.avatarId}
-                      colorIndex={robot.avatarColor}
-                      size={40}
-                    />{" "}
-                    {robot.name}
-                  </span>
-                ))}
-              </span>
-            ) : null}
+            ) : (
+              <div>Waiting for at least {appModel.minPlayers} player(s) to join...</div>
+            )}
           </div>
-
-          {appModel.canStart ? (
-            <button className={styles.presenterButton} onClick={() => appModel.startGame()}>
-              Click here to start!
-            </button>
-          ) : (
-            <div>Waiting for at least {appModel.minPlayers} player(s) to join...</div>
-          )}
         </div>
 
         {/* A robot playing the game, so the big screen has something
             happening on it while people are still typing in the room code. */}
         <div className={styles.demoColumn}>
-          <RobotDemo cellPx={18} />
+          <div className={styles.demoFrame}>
+            <div className={styles.demoTitle}>Robot demo</div>
+            <RobotDemo cellPx={18} />
+          </div>
         </div>
       </div>
     );

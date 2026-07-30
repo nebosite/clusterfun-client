@@ -62,6 +62,9 @@ export abstract class ClusterfunClientModel extends BaseGameModel {
   // Set by the framework before reconstitute() so it rides the Join message.
   @observable avatarId: number = 0;
   @observable avatarColor: number = 0;
+  // The private id this device reconnects with.  Set by the lobby; never shown
+  // and never checkpointed alongside game state - it belongs to the browser.
+  playerToken: string = "";
   gameTerminated = false;
   private _stateIsInvalid = true;
 
@@ -104,6 +107,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel {
         playerName: this._playerName,
         avatarId: this.avatarId,
         avatarColor: this.avatarColor,
+        playerToken: this.playerToken,
       })
       .then((ack) => {
         this.handleJoinAck(ack);
