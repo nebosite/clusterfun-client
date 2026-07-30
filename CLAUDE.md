@@ -221,6 +221,40 @@ Env files (CRA `REACT_APP_*`):
   `src/secrets.ts.template`; git-ignored) — see Analytics below.
 - `proxy` in `package.json` points API/socket calls at `http://localhost:8080` (the relay).
 
+## Keyboard & controller input (`libs/Input/`)
+
+Any game can take keyboard and controller input by declaring a **binding table** and handing
+it to `GameInputController`. Nothing in the framework knows about a particular game, so a
+game changes its controls by editing data, not event handlers.
+
+```ts
+const controller = new GameInputController(MY_BINDINGS, {
+  onAction: (action) => {
+    /* "moveLeft", "drop", ... */
+  },
+  onGamepadChange: (connected) => this.setState({ hasGamepad: connected }),
+});
+controller.attach(); // componentDidMount
+controller.detach(); // componentWillUnmount
+```
+
+- **Keys are matched on `KeyboardEvent.code`** (the physical key), so WASD still works on
+  AZERTY and `Numpad4` is distinguishable from a top-row `4`.
+- **Controllers are polled**, because the Gamepad API has no button events. The controller
+  runs a `requestAnimationFrame` loop and turns polled state into presses/releases. This
+  works on phones too — a Bluetooth pad reports through the same API.
+- **Hold-to-repeat is ours, not the browser's** (`ActionRepeater`): the OS repeat rate is a
+  user setting, which is no basis for game feel. Repeat is opt-in _per action_ — holding
+  "left" should walk a piece across the board, holding "rotate" should not spin it. The
+  repeater takes an explicit `dtMs`, which is what makes the cadence unit-testable.
+- **Focus loss releases everything.** Alt-tab while holding a key and the `keyup` never
+  arrives, which would leave a piece sliding forever.
+- **Text fields win.** While an `input`/`textarea`/`select` has focus, keys belong to it.
+
+See `games/Eittris/models/eittrisInput.ts` for a worked example: nine actions bound across
+four keyboard clusters (WASD, IJKL, arrows, numpad) plus a controller, following the usual
+tetris conventions so muscle memory carries over.
+
 ## Analytics
 
 Two separate things, on purpose:

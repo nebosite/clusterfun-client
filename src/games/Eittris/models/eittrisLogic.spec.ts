@@ -77,6 +77,9 @@ import {
   decodePsychoOverlay,
   landingCells,
   classifyTap,
+  MAX_ROBOTS,
+  robotRoster,
+  isRobotId,
   DOUBLE_TAP_MS,
   tryRotateCCW,
   AFFLICTION_DURATION_MS,
@@ -1407,5 +1410,42 @@ describe("eittrisLogic - affliction expiry", () => {
     cureAfflictions(board, () => 0.5);
     expect(hasAfflictions(board)).toBe(false);
     for (const spec of AFFLICTION_TIMERS) expect(afflictionMsLeft(board, spec.type)).toBe(0);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Robot players
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - the robot roster", () => {
+  it("builds the number the host asked for", () => {
+    expect(robotRoster(0)).toEqual([]);
+    expect(robotRoster(3).length).toBe(3);
+    expect(robotRoster(MAX_ROBOTS).length).toBe(MAX_ROBOTS);
+  });
+
+  it("never builds more than the cap, or a negative number of robots", () => {
+    expect(robotRoster(99).length).toBe(MAX_ROBOTS);
+    expect(robotRoster(-4)).toEqual([]);
+    expect(robotRoster(NaN)).toEqual([]);
+  });
+
+  it("gives each robot a distinct id, name, avatar and colour", () => {
+    const roster = robotRoster(MAX_ROBOTS);
+    expect(new Set(roster.map((r) => r.playerId)).size).toBe(MAX_ROBOTS);
+    expect(new Set(roster.map((r) => r.name)).size).toBe(MAX_ROBOTS);
+    expect(new Set(roster.map((r) => r.avatarId)).size).toBe(MAX_ROBOTS);
+    expect(new Set(roster.map((r) => r.avatarColor)).size).toBe(MAX_ROBOTS);
+  });
+
+  it("is derived purely from the count, so only the count needs saving", () => {
+    expect(robotRoster(2)).toEqual(robotRoster(2));
+  });
+
+  it("uses ids no real player could collide with, and recognises them", () => {
+    for (const robot of robotRoster(MAX_ROBOTS)) expect(isRobotId(robot.playerId)).toBe(true);
+    // Real ids come from the relay's generatePersonalId
+    expect(isRobotId("A1b2C3")).toBe(false);
+    expect(isRobotId("robot")).toBe(false);
+    expect(isRobotId("")).toBe(false);
   });
 });

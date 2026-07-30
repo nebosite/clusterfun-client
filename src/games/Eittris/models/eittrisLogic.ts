@@ -1408,3 +1408,39 @@ export function swapColumn(
   }
   return { a, b };
 }
+
+// ------------------------------------------------------------------------------------------
+// Robot players - boards the host simulates so a game works with one or two people.
+//
+// They are NOT participants: the relay has never heard of them, so they must never appear in
+// the presenter's player list, or every broadcast would try to deliver messages to an id that
+// does not exist.  Their whole identity is derived from the index, which means the host only
+// has to remember HOW MANY there are.
+// ------------------------------------------------------------------------------------------
+export const MAX_ROBOTS = 4;
+
+export interface EittrisRobot {
+  playerId: string;
+  name: string;
+  avatarId: number;
+  avatarColor: number;
+}
+
+// Spread out across the avatar sheet and the palette so robots are easy to tell
+// apart from each other at a glance on the host screen.
+const ROBOT_AVATARS = [12, 19, 25, 6];
+const ROBOT_COLORS = [1, 5, 9, 3];
+
+export function robotRoster(count: number): EittrisRobot[] {
+  const wanted = Math.max(0, Math.min(MAX_ROBOTS, Math.floor(count || 0)));
+  return Array.from({ length: wanted }, (_, i) => ({
+    playerId: `robot-${i + 1}`,
+    name: `Robot ${i + 1}`,
+    avatarId: ROBOT_AVATARS[i % ROBOT_AVATARS.length],
+    avatarColor: ROBOT_COLORS[i % ROBOT_COLORS.length],
+  }));
+}
+
+export function isRobotId(playerId: string): boolean {
+  return /^robot-\d+$/.test(playerId);
+}

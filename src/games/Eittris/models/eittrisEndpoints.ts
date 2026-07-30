@@ -80,7 +80,11 @@ export type EittrisCommandKind =
   | "hardDrop"
   | "slamLeft"
   | "slamRight"
-  | "rotate"
+  | "rotate" // clockwise (a tap, or the CW key/button)
+  | "rotateCCW" // counter-clockwise (keyboard/controller only)
+  | "moveLeft" // one column, from a key or pad - NOT a slam
+  | "moveRight"
+  | "moveDown" // one row, the soft drop
   | "doubleTapDrop" // a double tap: undo the first tap's rotation, then drop
   | "pickTarget"
   | "useAntidote" // fire a stored antidote (cure + shield)

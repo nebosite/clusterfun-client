@@ -109,12 +109,43 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
           <div>Waiting for players to join...</div>
         )}
 
+        {/* Robot players: enough to make a game of it with one or two people.
+            They never change how many humans are needed to start. */}
+        <div className={styles.robotPicker}>
+          <span className={styles.robotLabel}>Robot players:</span>
+          {[0, 1, 2, 3, 4].map((count) => (
+            <button
+              key={count}
+              className={classNames(styles.robotButton, {
+                [styles.robotButtonOn]: appModel.robotCount === count,
+              })}
+              onClick={() => appModel.setRobotCount(count)}
+            >
+              {count}
+            </button>
+          ))}
+          {appModel.robotCount > 0 ? (
+            <span className={styles.robotNames}>
+              {appModel.robots.map((robot) => (
+                <span className={styles.nameBox} key={robot.playerId}>
+                  <PlayerAvatar
+                    avatarId={robot.avatarId}
+                    colorIndex={robot.avatarColor}
+                    size={40}
+                  />{" "}
+                  {robot.name}
+                </span>
+              ))}
+            </span>
+          ) : null}
+        </div>
+
         {appModel.canStart ? (
           <button className={styles.presenterButton} onClick={() => appModel.startGame()}>
             Click here to start!
           </button>
         ) : (
-          <div>Waiting for at least {appModel.minPlayers} player(s)...</div>
+          <div>Waiting for at least {appModel.minPlayers} player(s) to join...</div>
         )}
       </div>
     );
@@ -148,12 +179,9 @@ class BoardPanel extends React.Component<{
 }> {
   render() {
     const { appModel, board, cellPx } = this.props;
-    const player: EittrisPlayer | undefined = appModel?.players.find(
-      (p) => p.playerId === board.playerId,
-    );
-    const targetName = board.targetId
-      ? appModel?.players.find((p) => p.playerId === board.targetId)?.name
-      : undefined;
+    // identityFor covers robots as well as people - robots have no player entry
+    const who = appModel?.identityFor(board.playerId);
+    const targetName = board.targetId ? appModel?.identityFor(board.targetId).name : undefined;
     const isWinner =
       appModel?.gameState === GeneralGameState.GameOver && appModel.winnerId === board.playerId;
     const backgrounds = EittrisAssets.images.backgrounds;
@@ -162,11 +190,11 @@ class BoardPanel extends React.Component<{
       <div className={classNames(styles.boardPanel, { [styles.winnerPanel]: isWinner })}>
         <div className={styles.boardLabel} style={{ maxWidth: cellPx * 10 + 8 }}>
           <PlayerAvatar
-            avatarId={player?.avatarId ?? 0}
-            colorIndex={player?.avatarColor}
+            avatarId={who?.avatarId ?? 0}
+            colorIndex={who?.avatarColor}
             size={Math.max(18, cellPx * 2)}
           />
-          <span>{player?.name ?? "?"}</span>
+          <span>{who?.name ?? "?"}</span>
           {targetName ? <span className={styles.targetNote}>⚔ {targetName}</span> : null}
         </div>
         <div className={styles.boardHolder}>

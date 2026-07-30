@@ -1380,3 +1380,97 @@ describe("EittrisPresenterModel - announcing that an affliction let go", () => {
     expect(seen.length).toBe(0);
   });
 });
+
+describe("EittrisPresenterModel - robot players", () => {
+  it("gives every robot a board of its own, driven by the computer", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    model.setRobotCount(3);
+    model.startGame();
+
+    expect(model.boards.length).toBe(4); // one human, three robots
+    const robotBoards = model.boards.filter((b) => b.playerId.startsWith("robot-"));
+    expect(robotBoards.length).toBe(3);
+    for (const board of robotBoards) expect(board.aiControlled).toBe(true);
+  });
+
+  it("keeps robots out of the player list, so nothing tries to message them", () => {
+    // A robot in `players` would be handed real network messages by every
+    // broadcast, addressed to an id the relay has never heard of.
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    model.setRobotCount(4);
+    model.startGame();
+    expect(model.players.length).toBe(1);
+    expect(model.players.some((p) => p.playerId.startsWith("robot-"))).toBe(false);
+  });
+
+  it("still lets a game start with a single human, whatever the robot count", () => {
+    for (const robots of [0, 1, 4]) {
+      const { model } = makeModel();
+      addPlayer(model, "A", "Alice");
+      model.setRobotCount(robots);
+      expect(model.canStart).toBe(true);
+    }
+  });
+
+  it("will not start with no humans at all", () => {
+    const { model } = makeModel();
+    model.setRobotCount(4);
+    expect(model.canStart).toBe(false);
+  });
+
+  it("clamps the host's choice to the supported range", () => {
+    const { model } = makeModel();
+    model.setRobotCount(99);
+    expect(model.robotCount).toBe(4);
+    model.setRobotCount(-2);
+    expect(model.robotCount).toBe(0);
+  });
+
+  it("names robots on the host screen and in the thumbnails clients see", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    model.setRobotCount(2);
+    model.startGame();
+
+    expect(model.identityFor("robot-1").name).toBe("Robot 1");
+    expect(model.identityFor("A").name).toBe("Alice");
+    expect(model.identityFor("nobody").name).toBe("?");
+  });
+
+  it("lets a robot win, and names it", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    model.setRobotCount(1);
+    model.startGame();
+    // The human tops out; the robot is last standing
+    const human = model.boards.find((b) => b.playerId === "A")!;
+    human.alive = false;
+    (model as any).checkForGameEnd();
+    expect(model.winnerId).toBe("robot-1");
+    expect(model.winnerName).toBe("Robot 1");
+  });
+
+  it("survives a checkpoint round trip with the robot count intact", () => {
+    const sent: SentMessage[] = [];
+    const session = makeFakeSession(sent);
+    const logger = new MockTelemetryLogger("test");
+    const model = instantiateGame(
+      getPresenterTypeHelper(
+        getEittrisPresenterTypeHelper(session, { logger, storage: stubStorage } as any),
+      ),
+      logger,
+      stubStorage,
+    ) as unknown as EittrisPresenterModel;
+    model.randomDouble = () => 0;
+    addPlayer(model, "A", "Alice");
+    model.setRobotCount(3);
+
+    const serializer = model.serializer!;
+    const restored = serializer.parse<EittrisPresenterModel>(serializer.stringify(model));
+    expect(restored.robotCount).toBe(3);
+    expect(restored.robots.length).toBe(3);
+    expect(restored.identityFor("robot-2").name).toBe("Robot 2");
+  });
+});

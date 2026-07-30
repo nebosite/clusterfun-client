@@ -45,6 +45,9 @@ import {
 } from "../models/GameSettings";
 import EittrisAssets from "../assets/Assets";
 import BoardGrid from "./BoardGrid";
+import { GameInputController } from "libs";
+import { GLOBALS } from "../../../Globals";
+import { EITTRIS_BINDINGS, EITTRIS_KEY_HINTS, EittrisAction } from "../models/eittrisInput";
 
 // Board cell size in the phone's 1080x1920 virtual space.  Chosen with the
 // status strip's height so the grid's bottom edge lands exactly 15px above
@@ -52,6 +55,12 @@ import BoardGrid from "./BoardGrid";
 const CELL_PX = 64;
 // In dev the special picker takes the title's place in the top bar
 const IS_DEV = process.env.REACT_APP_DEVMODE === "development";
+// A real keyboard is worth binding; a phone's on-screen one is not.  Coarse
+// pointer + no hover is the standard "this is a touch device" signal.
+const IS_DESKTOP =
+  typeof window !== "undefined" &&
+  !GLOBALS.IsMobile &&
+  !window.matchMedia?.("(pointer: coarse)")?.matches;
 
 // One line of plain English for a special that just fired
 export function describeSpecialEvent(
@@ -423,14 +432,78 @@ class AfflictionChip extends React.Component<ChipInfo> {
 
 @inject("appModel")
 @observer
-class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
+class PlayingBoard extends React.Component<
+  { appModel?: EittrisClientModel },
+  { hasGamepad: boolean }
+> {
   boardRef = React.createRef<HTMLDivElement>();
   tracker: GestureTracker;
+  input: GameInputController;
 
   constructor(props: Readonly<{ appModel?: EittrisClientModel }>) {
     super(props);
+    this.state = { hasGamepad: false };
     this.tracker = new GestureTracker(props.appModel!);
+    // Keyboard and controller, on top of the touch gestures - a player at a PC
+    // should not have to drag a piece around with a mouse.
+    this.input = new GameInputController(EITTRIS_BINDINGS, {
+      onAction: this.handleInputAction,
+      onGamepadChange: (connected) => this.setState({ hasGamepad: connected }),
+    });
   }
+
+  componentDidMount() {
+    this.input.attach();
+  }
+
+  componentWillUnmount() {
+    this.input.detach();
+  }
+
+  // -------------------------------------------------------------------
+  // handleInputAction - one place mapping an abstract action to the model.
+  // The presenter refuses everything during the post-lock gap anyway, but
+  // there is no point sending into it.
+  // -------------------------------------------------------------------
+  private handleInputAction = (action: string) => {
+    const appModel = this.props.appModel;
+    if (!appModel) return;
+    // The antidote and target keys work even with no piece on the board;
+    // everything else needs one.
+    if (action === EittrisAction.UseAntidote) {
+      appModel.useAntidote();
+      return;
+    }
+    if (action === EittrisAction.NextTarget) {
+      appModel.cycleTarget(1);
+      return;
+    }
+    if (action === EittrisAction.PrevTarget) {
+      appModel.cycleTarget(-1);
+      return;
+    }
+    if (!appModel.piece || !appModel.alive) return;
+    switch (action) {
+      case EittrisAction.MoveLeft:
+        appModel.moveLeft();
+        break;
+      case EittrisAction.MoveRight:
+        appModel.moveRight();
+        break;
+      case EittrisAction.MoveDown:
+        appModel.moveDown();
+        break;
+      case EittrisAction.Drop:
+        appModel.hardDrop();
+        break;
+      case EittrisAction.RotateRight:
+        appModel.rotate();
+        break;
+      case EittrisAction.RotateLeft:
+        appModel.rotateLeft();
+        break;
+    }
+  };
 
   // Everything currently showing in the status strip, in a fixed order so
   // chips do not jump around as they come and go.
@@ -629,6 +702,25 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
           </div>
           <TargetList />
         </div>
+        {/* Controls, shown only where they apply: a phone with no pad attached
+            never sees them, and they cost a line on a PC where they are the
+            only way to know the keys exist. */}
+        {IS_DESKTOP || this.state.hasGamepad ? (
+          <div className={styles.keyHints}>
+            {this.state.hasGamepad ? (
+              <span className={styles.keyHint}>
+                <b>Controller ready</b> d-pad move · A/B rotate · ↑ drop · LB/RB target · X antidote
+              </span>
+            ) : null}
+            {IS_DESKTOP
+              ? EITTRIS_KEY_HINTS.map((hint) => (
+                  <span className={styles.keyHint} key={hint.action + hint.label}>
+                    <b>{hint.label}</b> {hint.keys}
+                  </span>
+                ))
+              : null}
+          </div>
+        ) : null}
       </div>
     );
   }

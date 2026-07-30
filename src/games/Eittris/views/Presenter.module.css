@@ -146,3 +146,35 @@
     }
   }
 }
+
+/* ---- Robot player picker (gathering screen) ---- */
+.robotPicker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+.robotLabel {
+  font-weight: 600;
+}
+.robotButton {
+  min-width: 56px;
+  font-size: 90%;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 3px solid #4d648a;
+  background: #1b2a42;
+  color: #e8f0fa;
+  cursor: pointer;
+}
+.robotButtonOn {
+  border-color: #48e148;
+  background: #1d6b3a;
+}
+.robotNames {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}

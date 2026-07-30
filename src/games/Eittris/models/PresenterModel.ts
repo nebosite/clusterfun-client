@@ -1,4 +1,4 @@
-import { makeObservable, observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import {
   ClusterFunPlayer,
   ISessionHelper,
@@ -62,6 +62,9 @@ import {
   BRIDGE_COLUMN_MS,
   JUMBLE_NUDGES,
   refillNextQueue,
+  MAX_ROBOTS,
+  EittrisRobot,
+  robotRoster,
   AFFLICTION_TIMERS,
   afflictionMsLeft,
   startAffliction,
@@ -188,6 +191,35 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   @observable winnerId: string | null = null;
   @observable winnerName: string | null = null;
 
+  // How many robot players the host has asked for (0-4).  Robots are boards
+  // the host simulates - deliberately NOT entries in `players`, because a
+  // player id the relay has never heard of would be handed real network
+  // messages by every broadcast.  Only their identity needs inventing, and
+  // that is derived from the index, so nothing extra has to be serialized.
+  @observable robotCount = 0;
+  setRobotCount(count: number) {
+    action(() => {
+      this.robotCount = Math.max(0, Math.min(MAX_ROBOTS, Math.floor(count)));
+    })();
+    this.saveCheckpoint();
+  }
+
+  get robots(): EittrisRobot[] {
+    return robotRoster(this.robotCount);
+  }
+
+  // Name and avatar for any board, human or robot
+  identityFor(playerId: string): { name: string; avatarId: number; avatarColor: number } {
+    const human = this.players.find((p) => p.playerId === playerId);
+    if (human) {
+      return { name: human.name, avatarId: human.avatarId, avatarColor: human.avatarColor };
+    }
+    const robot = this.robots.find((r) => r.playerId === playerId);
+    if (robot)
+      return { name: robot.name, avatarId: robot.avatarId, avatarColor: robot.avatarColor };
+    return { name: "?", avatarId: 0, avatarColor: 0 };
+  }
+
   // How many boards have died so far (for death-order ranking)
   deathCount = 0;
 
@@ -264,15 +296,21 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // -------------------------------------------------------------------
   prepareFreshRound = () => {
     const rand = () => this.randomDouble(1.0);
-    this.boards.replace(
-      this.players.map((player) => {
-        const board = makeBoard(player.playerId, rand);
-        board.aiControlled = player.aiControlled;
-        board.forcedSpecial = player.forcedSpecial;
-        if (board.forcedSpecial !== null) board.specialTimerMs = 0;
-        return board;
-      }),
-    );
+    const humanBoards = this.players.map((player) => {
+      const board = makeBoard(player.playerId, rand);
+      board.aiControlled = player.aiControlled;
+      board.forcedSpecial = player.forcedSpecial;
+      if (board.forcedSpecial !== null) board.specialTimerMs = 0;
+      return board;
+    });
+    // Robots get a board each, always computer-driven.  They fill out a game
+    // for one or two people without anyone else having to pick up a phone.
+    const robotBoards = this.robots.map((robot) => {
+      const board = makeBoard(robot.playerId, rand);
+      board.aiControlled = true;
+      return board;
+    });
+    this.boards.replace([...humanBoards, ...robotBoards]);
     initTargetRing(this.boards);
     this.winnerId = null;
     this.winnerName = null;
@@ -730,7 +768,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   }
 
   private nameFor(playerId: string): string {
-    return this.players.find((p) => p.playerId === playerId)?.name ?? "?";
+    return this.identityFor(playerId).name;
   }
 
   // -------------------------------------------------------------------
@@ -827,7 +865,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     const ranked = rankBoards(this.boards.slice());
     const winnerBoard = ranked[0];
     this.winnerId = winnerBoard?.playerId ?? null;
-    this.winnerName = this.players.find((p) => p.playerId === this.winnerId)?.name ?? null;
+    this.winnerName = this.winnerId ? this.identityFor(this.winnerId).name : null;
 
     // Push the final board state to everyone before announcing the end
     this.flushDirtyBoards();
@@ -988,10 +1026,43 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
         if (changed) this.invokeEvent(EittrisGameEvent.PieceBumped, board.playerId);
         break;
       }
-      case "rotate": {
-        const rotated = tryRotateCW(board.grid, board.piece);
+      case "rotate":
+      case "rotateCCW": {
+        // CrazyIvan inverts rotation as well as left/right, so a victim's
+        // rotate keys swap over with everything else.
+        let clockwise = message.command === "rotate";
+        if (board.crazyIvan) clockwise = !clockwise;
+        const rotated = clockwise
+          ? tryRotateCW(board.grid, board.piece)
+          : tryRotateCCW(board.grid, board.piece);
         if (rotated) {
           board.piece = rotated;
+          changed = true;
+        }
+        break;
+      }
+      // One-cell keyboard/controller steps.  Deliberately NOT dragTo: that
+      // takes an absolute column, which CrazyIvan mirrors, so a "one step
+      // left" through dragTo would fling the piece across the board.
+      case "moveLeft":
+      case "moveRight": {
+        let dx = message.command === "moveLeft" ? -1 : 1;
+        if (board.crazyIvan) dx = -dx;
+        const moved = tryMove(board.grid, board.piece, dx, 0);
+        if (moved) {
+          board.piece = moved;
+          changed = true;
+        }
+        break;
+      }
+      case "moveDown": {
+        const moved = tryMove(board.grid, board.piece, 0, 1);
+        if (moved) {
+          board.piece = moved;
+          board.score += DROP_POINTS_PER_ROW;
+          // Same courtesy the drag gets: a full beat before gravity locks it,
+          // so soft-dropping onto the stack is not an instant commitment.
+          board.dropTimerMs = 0;
           changed = true;
         }
         break;
@@ -1032,12 +1103,12 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
 
     const payload = {
       players: this.boards.map((board): EittrisThumbnailEntry => {
-        const player = this.players.find((p) => p.playerId === board.playerId);
+        const who = this.identityFor(board.playerId);
         return {
           playerId: board.playerId,
-          name: player?.name ?? "?",
-          avatarId: player?.avatarId ?? 0,
-          avatarColor: player?.avatarColor ?? 0,
+          name: who.name,
+          avatarId: who.avatarId,
+          avatarColor: who.avatarColor,
           alive: board.alive,
           thumb: encodeThumbnail(board.grid, board.piece),
         };

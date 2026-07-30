@@ -325,6 +325,44 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.sendCommand({ command: "doubleTapDrop" });
   }
 
+  // -------------------------------------------------------------------
+  // Keyboard / controller actions.  One cell at a time, unlike the phone's
+  // gestures, which are absolute drags and full-width slams.
+  // -------------------------------------------------------------------
+  moveLeft() {
+    this.sendCommand({ command: "moveLeft" });
+  }
+
+  moveRight() {
+    this.sendCommand({ command: "moveRight" });
+  }
+
+  moveDown() {
+    this.sendCommand({ command: "moveDown" });
+  }
+
+  rotateLeft() {
+    this.sendCommand({ command: "rotateCCW" });
+  }
+
+  // -------------------------------------------------------------------
+  // cycleTarget - step through the living opponents.  Wraps around, skips
+  // yourself and anyone already out, and is a no-op in a solo game.
+  // -------------------------------------------------------------------
+  cycleTarget(step: 1 | -1) {
+    const candidates = this.roster.filter((p) => p.playerId !== this.playerId && p.alive);
+    if (candidates.length === 0) return;
+    const current = candidates.findIndex((p) => p.playerId === this.targetId);
+    // Not currently on a living opponent: start at either end of the list
+    const nextIndex =
+      current < 0
+        ? step > 0
+          ? 0
+          : candidates.length - 1
+        : (current + step + candidates.length) % candidates.length;
+    this.pickTarget(candidates[nextIndex].playerId);
+  }
+
   // Fire a banked antidote.  Uses the raw send so it works during the
   // post-lock spawn gap (sendCommand requires a live piece).
   useAntidote() {

@@ -62,15 +62,42 @@ are healed by the standard invalidate → onboard resync.
 
 ## Touch controls (phone) — the input scheme is gesture-only
 
-| Gesture                             | Action                                                                                           |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
-| **Free drag** (any direction)       | The piece follows the finger horizontally AND downward at once (never up); +10 per row descended |
-| **Release after a drag**            | Locks the piece only if it is resting; an airborne piece just resumes gravity                    |
-| **Tap**                             | Rotate clockwise. Every gesture works anywhere on the grid and acts on the falling piece         |
-| **Double tap** (within 300 ms)      | Drop the piece, exactly like a downward flick. The first tap's rotation is taken back first      |
-| **Swipe left / right** (fast flick) | Slam the piece all the way left / right                                                          |
-| **Swipe down** (fast flick)         | Hard drop (slam + stick); the next piece is unaffected                                           |
-| **Swipe up** (fast flick)           | Rotate clockwise                                                                                 |
+| Gesture                        | Action                                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ |
+| **Free drag** (any direction)  | The piece follows the finger horizontally AND downward at once (never up); +10 per row descended |
+| **Release after a drag**       | Locks the piece only if it is resting; an airborne piece just resumes gravity                    |
+| **Tap**                        | Rotate clockwise. Every gesture works anywhere on the grid and acts on the falling piece         |
+| **Double tap** (within 300 ms) | Drop the piece, exactly like a downward flick. The first tap's rotation is taken back first      |
+
+### Keyboard and controller
+
+A player at a PC gets keys; anyone with a pad attached (PC or phone) gets the pad. Both go
+through the shared `libs/Input` framework, and both sit alongside the touch gestures rather
+than replacing them. Bindings live in `models/eittrisInput.ts`.
+
+| Action        | Keys                  | Controller          |
+| ------------- | --------------------- | ------------------- |
+| Move left     | ← / A / J / Num 4     | D-pad ←, left stick |
+| Move right    | → / D / L / Num 6     | D-pad →, left stick |
+| Move down one | ↓ / S / K / Num 5     | D-pad ↓, left stick |
+| Drop          | Space / Num 8         | D-pad ↑, Y          |
+| Rotate right  | ↑ / W / I / Num 3 / X | A                   |
+| Rotate left   | Z / Ctrl / Num 7      | B                   |
+| Prev target   | Q / [ / PageUp        | LB                  |
+| Next target   | E / ] / PageDown      | RB                  |
+| Use antidote  | F / Enter / Num 0     | X                   |
+
+Four keyboard clusters (arrows, WASD, IJKL, numpad) each carry left/right/down/rotate, so
+several people at one PC can each use the keys nearest their hands. Only the three movement
+actions repeat while held (170 ms, then every 50 ms).
+
+Movement from a key or pad is **one cell**, sent as `moveLeft`/`moveRight`/`moveDown` -
+deliberately not `dragTo`, which takes an absolute column and is mirrored by CrazyIvan, so a
+"one step left" routed through it would fling the piece across the board. CrazyIvan inverts
+rotation as well as left/right.
+| **Swipe left / right** (fast flick) | Slam the piece all the way left / right |
+| **Swipe down** (fast flick) | Hard drop (slam + stick); the next piece is unaffected |
+| **Swipe up** (fast flick) | Rotate clockwise |
 
 Desktop/PC uses the same pointer gestures with a mouse. Gestures are classified locally on
 the client (drag vs. flick vs. tap by duration/distance), and only discrete commands cross
@@ -225,6 +252,18 @@ structs and timers; it makes no rule decisions inline.
    - **Transparency** — the victim's settled stack drops to bare ghost outlines (the
      same brick sprite the landing shadow uses) until cured.
      Attack stencils are painted row by row (~0.1 s per row) in the attacker's color.
+
+### Robot players
+
+The host can add **0-4 robots** on the gathering screen. A robot is a board the host
+simulates with the existing computer player - it is deliberately **not** an entry in
+`players`, because a player id the relay has never heard of would be handed real network
+messages by every broadcast. Their whole identity is derived from the index (`robotRoster`),
+so the only thing that needs saving is the count.
+
+Robots never change how many humans are needed: one human is always enough to start, and
+zero humans is never enough.
+
 3. **Rounds/tourney** — 5 rounds, placement points 8/5/3/2/1/1/1/0.
 4. **Visual/audio port** — glossy brick + bevel atlas rendering, glow behind the falling
    piece, rainbow pulse on special-marked blocks, landing puff/explode/spark animations,

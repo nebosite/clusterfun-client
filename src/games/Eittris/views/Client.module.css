@@ -444,3 +444,21 @@
   background: rgba(255, 255, 255, 0.85);
   transition: width 1s linear;
 }
+
+/* ---- Keyboard / controller hints ----
+   Only rendered on a device where they apply (see IS_DESKTOP / hasGamepad),
+   so a phone never spends space on keys it does not have. */
+.gameclient .keyHints {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 18px;
+  padding: 10px 6px 0 6px;
+  font-size: 30%;
+  color: #9fb2cc;
+}
+.gameclient .keyHint b {
+  color: #dbe7f5;
+  font-weight: 700;
+  margin-right: 6px;
+}
