@@ -9,6 +9,24 @@ import {
 } from "../../libs";
 import { action, makeObservable, observable } from "mobx";
 import Logger from "js-logger";
+import { PlayerIdentityStore } from "../../libs/storage/PlayerIdentityStore";
+import { GLOBALS } from "../../Globals";
+
+// What we know about a failed join, for the player to read or send on.  Join
+// problems happen on somebody else's phone, at a party, once - so the details
+// have to be visible there and then, not only in a server log.
+export interface JoinDiagnostics {
+  when: string;
+  roomId: string;
+  playerName: string;
+  reason: string; // the server's own words, if it gave any
+  category: JoinFailureCategory;
+  status?: number;
+  url: string;
+}
+
+export type JoinFailureCategory =
+  "no_such_room" | "bad_request" | "server_error" | "offline" | "unknown";
 
 export enum LobbyMode {
   Unchosen,
@@ -62,7 +80,10 @@ export class LobbyModel {
   }
   set playerName(value: string) {
     if (value.length > 16) value = value.substring(0, 16);
-    this._playerName = value;
+    action(() => {
+      this._playerName = value;
+    })();
+    this._identity?.save({ playerName: value });
     this.saveState();
   }
 
@@ -75,6 +96,7 @@ export class LobbyModel {
       this._avatarId = value;
       this.saveState();
     })();
+    this._identity?.save({ avatarId: value });
   }
 
   @observable _avatarColor: number = 0;
@@ -86,6 +108,7 @@ export class LobbyModel {
       this._avatarColor = value;
       this.saveState();
     })();
+    this._identity?.save({ avatarColor: value });
   }
 
   playerId: string = "";
@@ -94,12 +117,13 @@ export class LobbyModel {
     return this._roomId;
   }
   set roomId(value: string) {
-    value = value.replace(/[^A-Z^0-9]/g, "");
+    value = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (value.length > 4) value = value.substring(0, 4);
     action(() => {
       this._roomId = value;
       this.saveState();
     })();
+    this._identity?.save({ roomId: value });
   }
 
   public showTags = observable<string[]>(["production", "beta", "alpha"]);
@@ -157,6 +181,23 @@ export class LobbyModel {
   private _onGameEnded: () => void;
   private _storage: IStorage;
   private _dependencies: ILobbyDependencies;
+  // Name and avatar live in localStorage, so they survive closing the browser.
+  // The rest of the lobby's state is sessionStorage on purpose - a saved game
+  // should not outlive the session.
+  private _identity: PlayerIdentityStore;
+  // Recorded in diagnostics so a report says which build it came from
+  private _version = GLOBALS.Version;
+
+  // Set when a join fails, for the diagnostics panel.  Cleared on a new attempt.
+  @observable private _joinDiagnostics: JoinDiagnostics | null = null;
+  get joinDiagnostics() {
+    return this._joinDiagnostics;
+  }
+  private setJoinDiagnostics(value: JoinDiagnostics | null) {
+    action(() => {
+      this._joinDiagnostics = value;
+    })();
+  }
 
   // -------------------------------------------------------------------
   // ctor
@@ -167,11 +208,15 @@ export class LobbyModel {
     this._rootKey = rootKey;
 
     let tempCount = this._instanceCount + 1;
-    this._playerName = sessionStorage.getItem("clusterfun_playername") ?? "";
-    this._avatarId = parseInt(sessionStorage.getItem("clusterfun_avatarid") ?? "0") || 0;
-    this._avatarColor = parseInt(sessionStorage.getItem("clusterfun_avatarcolor") ?? "0") || 0;
+    // Who you were last time.  This is why opening the lobby shows your own
+    // name, avatar and (until the game ends) room code already filled in.
+    this._identity = new PlayerIdentityStore();
+    const remembered = this._identity.load();
+    this._playerName = remembered.playerName;
+    this._avatarId = remembered.avatarId;
+    this._avatarColor = remembered.avatarColor;
     this.playerId = "";
-    this._roomId = sessionStorage.getItem("clusterfun_roomid") ?? "";
+    this._roomId = remembered.roomId;
     this.lobbyState = LobbyState.Fresh;
     this.lobbyErrorMessage = "";
 
@@ -216,8 +261,25 @@ export class LobbyModel {
     this.lobbyState = LobbyState.Fresh;
     if (this._onGameEnded) this._onGameEnded();
     this.gameProperties = null;
+    // The code is stale now - offering it again would send the player at a room
+    // that is closing.  Name and avatar stay: those are worth remembering.
+    this._identity.forgetRoom();
+    action(() => {
+      this._roomId = "";
+    })();
     this.saveState();
   };
+
+  // -------------------------------------------------------------------
+  // forgetMe - drop the remembered identity entirely
+  // -------------------------------------------------------------------
+  public forgetMe() {
+    this._identity.forgetAll();
+    this.playerName = "";
+    this.avatarId = 0;
+    this.avatarColor = 0;
+    this.roomId = "";
+  }
 
   // -------------------------------------------------------------------
   // getGameLogger
@@ -322,25 +384,113 @@ export class LobbyModel {
   // joinGame
   // -------------------------------------------------------------------
   public async joinGame() {
-    sessionStorage.setItem("clusterfun_playername", this.playerName);
-    sessionStorage.setItem("clusterfun_avatarid", this.avatarId.toString());
-    sessionStorage.setItem("clusterfun_avatarcolor", this.avatarColor.toString());
-    sessionStorage.setItem("clusterfun_roomid", this.roomId);
+    const attemptedRoom = this.roomId;
+    this._identity.save({
+      playerName: this.playerName,
+      avatarId: this.avatarId,
+      avatarColor: this.avatarColor,
+      roomId: attemptedRoom,
+    });
+    this.setJoinDiagnostics(null);
+    this._logger.logAnalyticsEvent("cf_join_attempt", {
+      game: "Lobby",
+      entity: "lobby",
+      room_id_length: attemptedRoom.length,
+    });
+
     // Note: this does not establish a web socket
     this._serverCall<GameInstanceProperties>("/api/joingame", {
-      roomId: this.roomId,
+      roomId: attemptedRoom,
       playerName: this.playerName,
     })
       .then((properties) => {
         this.gameProperties = properties;
         this.lobbyState = LobbyState.ReadyToPlay;
         this.lobbyErrorMessage = undefined;
+        this.setJoinDiagnostics(null);
         this.saveState();
       })
       .catch((e) => {
-        this.lobbyErrorMessage = "Unable to join that room code";
-        Logger.error(e);
+        this.recordJoinFailure(attemptedRoom, e);
         this.lobbyState = LobbyState.Fresh;
       });
+  }
+
+  // -------------------------------------------------------------------
+  // recordJoinFailure - a join failed on someone else's phone, at a party,
+  // once.  "Unable to join that room code" was all we used to say, and the
+  // real reason only existed in the server's log under a timecode - so this
+  // keeps the details where the player can read them out or send them on,
+  // and reports the category to analytics so failures in the wild show up
+  // without anybody having to describe them.
+  // -------------------------------------------------------------------
+  private recordJoinFailure(attemptedRoom: string, error: unknown) {
+    const raw = (error as any)?.message ? String((error as any).message) : String(error);
+    // serverCall throws "Server call failed" + the response body, which is
+    // JSON with an errorMessage for anything the server chose to explain.
+    let reason = raw;
+    let status: number | undefined;
+    const statusMatch = raw.match(/(4\d\d|5\d\d)/);
+    if (statusMatch) status = parseInt(statusMatch[1], 10);
+    const jsonStart = raw.indexOf("{");
+    if (jsonStart >= 0) {
+      try {
+        const body = JSON.parse(raw.slice(jsonStart));
+        if (body?.errorMessage) reason = String(body.errorMessage);
+      } catch {
+        /* not JSON after all - keep the raw text */
+      }
+    }
+
+    let category: JoinFailureCategory = "unknown";
+    let message: string;
+    if (/not open/i.test(reason) || /invalid room/i.test(reason)) {
+      category = "no_such_room";
+      message = reason;
+    } else if (/failed to fetch|networkerror|load failed/i.test(raw)) {
+      category = "offline";
+      message = "Could not reach the server. Check the phone's wifi or signal and try again.";
+    } else if (/server error/i.test(reason)) {
+      category = "server_error";
+      message = "The server hit a problem joining that room. The details below say where.";
+    } else if (status && status < 500) {
+      category = "bad_request";
+      message = reason;
+    } else {
+      message = "Unable to join that room code.";
+    }
+
+    this.lobbyErrorMessage = message;
+    this.setJoinDiagnostics({
+      when: new Date().toISOString(),
+      roomId: attemptedRoom,
+      playerName: this.playerName,
+      reason,
+      category,
+      status,
+      url: "/api/joingame",
+    });
+    Logger.error(`Join failed (${category}) for room '${attemptedRoom}': ${raw}`);
+    this._logger.logAnalyticsEvent("cf_join_failed", {
+      game: "Lobby",
+      entity: "lobby",
+      category,
+      status: status ?? 0,
+    });
+  }
+
+  // A single block of text the player can read out or paste into a message
+  public joinDiagnosticsText(): string {
+    const d = this._joinDiagnostics;
+    if (!d) return "";
+    return [
+      `ClusterFun join problem`,
+      `time:   ${d.when}`,
+      `room:   ${d.roomId || "(blank)"}`,
+      `name:   ${d.playerName || "(blank)"}`,
+      `kind:   ${d.category}${d.status ? ` (HTTP ${d.status})` : ""}`,
+      `server: ${d.reason}`,
+      `client: v${this._version}`,
+    ].join("\n");
   }
 }

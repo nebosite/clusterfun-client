@@ -3,6 +3,13 @@
   <head>
     <title>ClusterFun</title>
     <link rel="icon" href="/favicon.ico" />
+    <!-- Without a viewport tag phones lay the page out at ~980px and scale it
+         down, which is why focusing an input zoomed the screen and a stray
+         double-tap zoomed the layout.  maximum-scale=1 stops both. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+    />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

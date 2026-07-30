@@ -228,21 +228,44 @@ class GameClientComponent extends React.Component<
       this.props.lobbyModel?.joinGame();
     };
 
-    const code = lobbyModel.roomId;
-    const cells = [0, 1, 2, 3];
-
     return (
       <div className={classNames(styles.root, styles.client)}>
         <div className={styles.glowCyan} />
         <div className={styles.glowMagenta} />
 
         {lobbyModel.lobbyErrorMessage ? (
-          <div className={styles.errorMessage}>{lobbyModel.lobbyErrorMessage}</div>
+          <div className={styles.errorMessage}>
+            {lobbyModel.lobbyErrorMessage}
+            {/* The details behind a failed join, collapsed.  A join problem
+                happens on someone else's phone, once - so the specifics have
+                to be reachable there, not only in the server's log. */}
+            {lobbyModel.joinDiagnostics ? (
+              <details className={styles.diagnostics}>
+                <summary>What went wrong?</summary>
+                <pre className={styles.diagnosticsBody}>{lobbyModel.joinDiagnosticsText()}</pre>
+                <button
+                  className={styles.diagnosticsCopy}
+                  onClick={() => {
+                    const text = lobbyModel.joinDiagnosticsText();
+                    navigator.clipboard?.writeText(text).catch(() => {
+                      /* clipboard is blocked on some phones - the text is on
+                         screen either way, which is the point */
+                    });
+                  }}
+                >
+                  Copy details
+                </button>
+              </details>
+            ) : null}
+          </div>
         ) : null}
 
         <PartyBurstLogo size={26} fontSize={45} />
 
         <div className={styles.joinCard}>
+          {/* Room code first - it is the one thing you cannot play without */}
+          <RoomCodeField lobbyModel={lobbyModel} />
+
           {/* Your name */}
           <div className={styles.field}>
             <div className={styles.fieldHead}>
@@ -272,6 +295,7 @@ class GameClientComponent extends React.Component<
                   })}
                   onClick={() => (lobbyModel.avatarId = i)}
                   aria-label={`Avatar ${i + 1}`}
+                  aria-pressed={lobbyModel.avatarId === i}
                 >
                   <PlayerAvatar avatarId={i} colorIndex={lobbyModel.avatarColor} size={88} />
                 </button>
@@ -299,35 +323,6 @@ class GameClientComponent extends React.Component<
                   aria-label={`Color ${i + 1}`}
                 />
               ))}
-            </div>
-          </div>
-
-          {/* Game code */}
-          <div className={styles.field}>
-            <span className={styles.fieldLabel}>Game code</span>
-            <div className={styles.codeField}>
-              <div className={styles.codeCells}>
-                {cells.map((i) => (
-                  <div
-                    key={i}
-                    className={classNames(styles.codeCell, {
-                      [styles.codeCellActive]: i === code.length && code.length < 4,
-                    })}
-                  >
-                    {code[i] ?? ""}
-                  </div>
-                ))}
-              </div>
-              <input
-                className={styles.codeInput}
-                type="text"
-                inputMode="text"
-                autoCapitalize="characters"
-                maxLength={4}
-                aria-label="Game code"
-                value={code}
-                onChange={(ev) => (lobbyModel.roomId = ev.target.value.toUpperCase())}
-              />
             </div>
           </div>
 
@@ -375,6 +370,106 @@ class GameClientComponent extends React.Component<
         </div>
 
         <span className={styles.clientVersion}>v{GLOBALS.Version}</span>
+      </div>
+    );
+  }
+}
+
+// -------------------------------------------------------------------
+// RoomCodeField - four big letter boxes over one invisible input.
+//
+// Tapping ANY box focuses the input and puts the caret there, and the box
+// under the caret shows a blinking cursor - so it is obvious that typing
+// works, and where it will land.  Without that, the boxes look like
+// decoration and people do not realise the keyboard applies to them.
+// -------------------------------------------------------------------
+class RoomCodeField extends React.Component<{ lobbyModel: LobbyModel }, { caret: number }> {
+  private input = React.createRef<HTMLInputElement>();
+  state = { caret: -1 }; // -1 = not focused, so no cursor is drawn
+
+  private focusAt = (index: number) => {
+    const el = this.input.current;
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    // Never past the end of what has been typed - a caret floating in an
+    // empty box you cannot type into yet would be a lie.
+    const at = Math.min(index, this.props.lobbyModel.roomId.length);
+    try {
+      el.setSelectionRange(at, at);
+    } catch {
+      /* some mobile keyboards refuse selection ranges; the focus is enough */
+    }
+    this.setState({ caret: at });
+  };
+
+  private syncCaret = () => {
+    const el = this.input.current;
+    if (!el) return;
+    this.setState({ caret: el.selectionStart ?? this.props.lobbyModel.roomId.length });
+  };
+
+  render() {
+    const { lobbyModel } = this.props;
+    const code = lobbyModel.roomId;
+    const focused = this.state.caret >= 0;
+
+    return (
+      <div className={styles.field}>
+        <span className={styles.fieldLabel}>Room Code</span>
+        <div className={styles.codeField}>
+          {/* Taps land on the cells; the input below is only a keyboard sink */}
+          <div
+            className={styles.codeCells}
+            onPointerDown={(ev) => {
+              // A tap in the gaps between cells still opens the keyboard
+              if (ev.target === ev.currentTarget) {
+                ev.preventDefault();
+                this.focusAt(lobbyModel.roomId.length);
+              }
+            }}
+          >
+            {[0, 1, 2, 3].map((i) => {
+              const showCaret = focused && i === Math.min(this.state.caret, code.length);
+              return (
+                <div
+                  key={i}
+                  className={classNames(styles.codeCell, {
+                    [styles.codeCellActive]: showCaret,
+                  })}
+                  onPointerDown={(ev) => {
+                    // Take the tap ourselves so focus lands where they touched
+                    ev.preventDefault();
+                    this.focusAt(i);
+                  }}
+                >
+                  {code[i] ?? ""}
+                  {showCaret ? <span className={styles.codeCaret} /> : null}
+                </div>
+              );
+            })}
+          </div>
+          <input
+            ref={this.input}
+            className={styles.codeInput}
+            type="text"
+            inputMode="text"
+            autoCapitalize="characters"
+            autoComplete="off"
+            spellCheck={false}
+            maxLength={4}
+            aria-label="Room code"
+            value={code}
+            onChange={(ev) => {
+              lobbyModel.roomId = ev.target.value.toUpperCase();
+              // Let the model clamp/filter first, then read the caret back
+              setTimeout(this.syncCaret, 0);
+            }}
+            onFocus={this.syncCaret}
+            onBlur={() => this.setState({ caret: -1 })}
+            onSelect={this.syncCaret}
+            onKeyUp={this.syncCaret}
+          />
+        </div>
       </div>
     );
   }

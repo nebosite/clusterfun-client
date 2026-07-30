@@ -465,8 +465,12 @@
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  font-size: calc(18px * var(--fs));
-  color: var(--text-dim);
+  /* Up from 18px/dim: these name the fields a player has to fill in on a
+     phone, at a party, in the dark - they should not be the faintest text
+     on the screen. */
+  font-size: calc(24px * var(--fs));
+  font-weight: 700;
+  color: var(--text);
 }
 .welcomeBadge {
   font-family: var(--mono);
@@ -538,15 +542,26 @@
   border-radius: 16px;
   cursor: pointer;
   padding: 0;
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+  /* NO transition on the highlight.  With one, tapping several avatars
+     quickly leaves rings fading out on the previous ones while the new one
+     fades in - which reads as the highlight being split across avatars.
+     The ring is now instant; only the press feedback animates. */
+  transition: transform 0.08s ease;
+}
+/* Immediate feedback on touch, so a tap feels answered before the click
+   even fires */
+.avatarButton:active {
+  transform: scale(0.94);
 }
 .avatarSelected {
-  box-shadow:
-    0 0 0 2px #08080d,
-    0 0 0 4px var(--cyan);
-  transform: scale(1.05);
+  /* An outline rather than a spread box-shadow: outlines are not clipped by
+     the scroll container the picker lives in. */
+  outline: 4px solid var(--cyan);
+  outline-offset: 2px;
+  background: rgba(34, 224, 255, 0.12);
+}
+.avatarSelected:active {
+  transform: scale(0.94);
 }
 
 /* ---- Color picker ---- */
@@ -602,6 +617,14 @@
   cursor: text;
   border: none;
   background: transparent;
+  /* iOS zooms the whole page when it focuses an input whose font is under
+     16px.  This one is invisible, so the value only matters for that rule -
+     but it has to be there, in real px, not scaled units. */
+  font-size: 16px;
+  /* The input covers the cells, so without this it swallows every tap and the
+     cells can never tell WHICH letter was touched.  It is a keyboard sink
+     only; the cells do the hit-testing and focus it themselves. */
+  pointer-events: none;
 }
 
 /* ---- Join / host buttons ---- */
@@ -626,7 +649,10 @@
   transform: translateY(-2px);
 }
 .joinButton:disabled {
-  opacity: 0.4;
+  /* Desaturated, so "not yet" reads as inactive rather than as a dimmer
+     version of the same bright invitation. */
+  filter: grayscale(1);
+  opacity: 0.45;
   cursor: not-allowed;
   box-shadow: none;
 }
@@ -745,4 +771,79 @@
   .fidgetPopped {
     transform: none;
   }
+}
+
+/* ================================================================
+   Phone input polish
+   ================================================================ */
+
+/* Double-tap-to-zoom is what makes every tap wait ~300ms to see whether a
+   second one is coming.  Turning it off makes the whole lobby feel immediate
+   and stops an accidental double-tap zooming the layout. */
+.client,
+.client * {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The blinking cursor in the room-code box the caret is sitting in. */
+.codeCaret {
+  position: absolute;
+  width: 3px;
+  height: 46%;
+  background: var(--cyan);
+  border-radius: 2px;
+  animation: cf-caret-blink 1.1s step-end infinite;
+}
+.codeCell {
+  position: relative;
+}
+@keyframes cf-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* A caret in an empty cell needs the cell to look ready, not filled. */
+.codeCells {
+  cursor: text;
+}
+
+/* ---- Join failure diagnostics ---- */
+.diagnostics {
+  margin-top: 14px;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: calc(15px * var(--fs));
+}
+.diagnostics summary {
+  cursor: pointer;
+  text-decoration: underline;
+  opacity: 0.85;
+}
+.diagnosticsBody {
+  margin: 10px 0 0 0;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: calc(14px * var(--fs));
+  line-height: 1.5;
+}
+.diagnosticsCopy {
+  margin-top: 10px;
+  font-family: var(--ui);
+  font-size: calc(15px * var(--fs));
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
 }
