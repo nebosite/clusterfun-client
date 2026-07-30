@@ -31,6 +31,7 @@ import {
   SPECIAL_NAMES,
   SPECIAL_ICON_COUNT,
   MAX_ROBOTS,
+  planBoardLayout,
 } from "../models/eittrisLogic";
 import BoardGrid from "./BoardGrid";
 import RobotDemo from "./RobotDemo";
@@ -67,11 +68,11 @@ function soundForSpecial(type: number): string {
   return SPECIAL_SOUNDS[type as SpecialType] ?? EittrisAssets.sounds.speedup;
 }
 
-// Cell size that fits `count` boards across the 1920-wide presenter frame
-function presenterCellPx(count: number): number {
-  const perBoard = 1800 / Math.max(1, count);
-  return Math.max(5, Math.min(24, Math.floor(perBoard / 10)));
-}
+// The presenter frame is 1920x1080 virtual; this is what is left for the
+// boards once the header row has taken its share.
+const BOARDS_AREA_WIDTH = 1880;
+const BOARDS_AREA_HEIGHT = 940; // measured: the header takes ~129 of 1080
+const BOARDS_GAP = 10;
 
 @inject("appModel")
 @observer
@@ -345,11 +346,24 @@ class BoardsRow extends React.Component<{ appModel?: EittrisPresenterModel }> {
   render() {
     const { appModel } = this.props;
     if (!appModel) return <div>NO APP MODEL</div>;
-    const cellPx = presenterCellPx(appModel.boards.length);
+    // Fit every board on screen, in as many rows as it takes, at the biggest
+    // size that works - one wide row for a few players, a grid for twenty.
+    const layout = planBoardLayout(
+      appModel.boards.length,
+      BOARDS_AREA_WIDTH,
+      BOARDS_AREA_HEIGHT,
+      BOARDS_GAP,
+    );
     return (
-      <div className={styles.boardsRow}>
+      <div
+        className={styles.boardsRow}
+        style={{
+          gridTemplateColumns: `repeat(${layout.columns}, max-content)`,
+          gap: BOARDS_GAP,
+        }}
+      >
         {appModel.boards.map((board) => (
-          <BoardPanel key={board.playerId} board={board} cellPx={cellPx} />
+          <BoardPanel key={board.playerId} board={board} cellPx={layout.cellPx} />
         ))}
       </div>
     );

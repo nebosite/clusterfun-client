@@ -104,6 +104,7 @@ import {
 import type { EittrisSettings } from "./eittrisLogic";
 import {
   AI_MOVE_INTERVAL_MS,
+  AI_FAST_MULTIPLIER,
   LATE_JOIN_GRACE_MS,
   SPAWN_DELAY_MS,
   THUMBNAIL_INTERVAL_MS,
@@ -777,7 +778,10 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     if (!board.aiControlled) return;
     board.aiTimerMs -= dtMs;
     if (board.aiTimerMs > 0) return;
-    board.aiTimerMs = AI_MOVE_INTERVAL_MS;
+    // "Go fast" is for watching a whole game play out in seconds, and a bot
+    // still thinking twice a second is what makes that slow - so it thinks
+    // ten times as often too.
+    board.aiTimerMs = this.devFast ? AI_MOVE_INTERVAL_MS / AI_FAST_MULTIPLIER : AI_MOVE_INTERVAL_MS;
 
     // Cure first - playing well while afflicted is a losing game
     if (hasAfflictions(board) && board.antidotes > 0) {

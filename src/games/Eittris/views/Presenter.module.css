@@ -53,11 +53,14 @@
 
 /* ---- The wall of boards ---- */
 
+/* A grid rather than a row: the column count is chosen in code to fit every
+   board on screen at the biggest size that works (see planBoardLayout), and
+   the whole thing is centred so the spacing reads as even edge to edge. */
 .gamepresenter .boardsRow {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: flex-start;
-  gap: 12px;
+  display: grid;
+  justify-content: center;
+  align-content: start;
+  justify-items: center;
   overflow: hidden;
 }
 

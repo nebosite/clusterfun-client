@@ -1713,3 +1713,73 @@ export function rollAllowedSpecial(
   if (pool.includes(SpecialType.Antidote) && rand() < antidoteChance) return SpecialType.Antidote;
   return pool[Math.min(pool.length - 1, Math.floor(rand() * pool.length))];
 }
+
+// ------------------------------------------------------------------------------------------
+// Laying the host's boards out.
+//
+// One row across the screen only works up to a handful of players - past that the boards run
+// off the edge, which is exactly what the 20-robot stress test turns up.  So instead of
+// assuming a row, try every column count and keep whichever gives the BIGGEST cells: with a
+// few players that is still one wide row, and with twenty it is a grid.
+//
+// Pure arithmetic, so the choice can be checked without a browser.
+// ------------------------------------------------------------------------------------------
+
+// What a panel costs on top of its grid.  Measured from the real thing rather
+// than guessed: the horizontal cost is fixed (padding + border), but the
+// VERTICAL cost is not - the player's avatar in the label scales with the cell
+// size, so a bigger board also carries a taller header.
+export const PANEL_H_CHROME = 34;
+export const PANEL_V_BASE = 57; // padding, border, name line, score line
+export const PANEL_AVATAR_MIN = 18; // the avatar never shrinks below this
+export const BOARD_MIN_CELL_PX = 3;
+export const BOARD_MAX_CELL_PX = 24;
+
+// Total height of a panel drawn at this cell size
+export function panelHeightFor(cellPx: number): number {
+  return cellPx * BOARD_HEIGHT + PANEL_V_BASE + Math.max(PANEL_AVATAR_MIN, cellPx * 2);
+}
+
+export function panelWidthFor(cellPx: number): number {
+  return cellPx * BOARD_WIDTH + PANEL_H_CHROME;
+}
+
+export interface BoardLayout {
+  columns: number;
+  rows: number;
+  cellPx: number;
+}
+
+export function planBoardLayout(
+  count: number,
+  availableWidth: number,
+  availableHeight: number,
+  gap = 10,
+): BoardLayout {
+  if (count <= 0) return { columns: 1, rows: 1, cellPx: BOARD_MAX_CELL_PX };
+
+  let best: BoardLayout = { columns: count, rows: 1, cellPx: 0 };
+  for (let columns = 1; columns <= count; columns++) {
+    const rows = Math.ceil(count / columns);
+    // Space one panel may occupy, once the gaps between them are taken out
+    const panelWidth = (availableWidth - gap * (columns - 1)) / columns;
+    const panelHeight = (availableHeight - gap * (rows - 1)) / rows;
+    // Scan down for the biggest cell that genuinely fits.  Solving for it
+    // directly is awkward because the header's height depends on the cell
+    // size, and the range is 22 integers - so just try them.
+    for (let cellPx = BOARD_MAX_CELL_PX; cellPx >= BOARD_MIN_CELL_PX; cellPx--) {
+      if (panelWidthFor(cellPx) > panelWidth) continue;
+      if (panelHeightFor(cellPx) > panelHeight) continue;
+      if (cellPx > best.cellPx) best = { columns, rows, cellPx };
+      break;
+    }
+  }
+
+  // Nothing fit at any column count - draw them as small as allowed rather
+  // than not at all, in as square an arrangement as we can manage.
+  if (best.cellPx === 0) {
+    const columns = Math.ceil(Math.sqrt(count));
+    return { columns, rows: Math.ceil(count / columns), cellPx: BOARD_MIN_CELL_PX };
+  }
+  return best;
+}

@@ -21,6 +21,11 @@ export const THUMBNAIL_INTERVAL_MS = 1000; // how often changed boards broadcast
 
 // Computer player: one move (rotate or a single sideways step) twice a second
 export const AI_MOVE_INTERVAL_MS = 500;
+// How much quicker the computer players think while dev "Go fast" is on.  The
+// game clock speeds up in fast mode, but the bot's own move timer is in real
+// milliseconds, so without this it keeps thinking at its normal pace while
+// everything else races - and every bot board tops out.
+export const AI_FAST_MULTIPLIER = 10;
 
 // A brand new player may still join this long after the game started - a slow
 // phone or a fumbled code should not cost somebody the whole round.  Players

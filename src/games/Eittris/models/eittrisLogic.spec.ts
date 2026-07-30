@@ -104,6 +104,11 @@ import {
   lockOnly,
   MAX_ROBOTS,
   MAX_ROBOTS_STRESS,
+  planBoardLayout,
+  panelWidthFor,
+  panelHeightFor,
+  BOARD_MIN_CELL_PX,
+  BOARD_MAX_CELL_PX,
   robotRoster,
   isRobotId,
   DOUBLE_TAP_MS,
@@ -1891,5 +1896,62 @@ describe("eittrisLogic - what the computer player pays for height", () => {
 
   it("prices a gap at three rows of height near the floor", () => {
     expect(AI_GAP_PENALTY).toBe(3 * AI_HEIGHT_UNIT);
+  });
+});
+
+describe("eittrisLogic - fitting the host's boards on screen", () => {
+  const W = 1880;
+  const H = 960;
+
+  // Does the chosen layout actually fit in the space it was given?
+  function fits(layout: { columns: number; rows: number; cellPx: number }, gap = 10) {
+    const width = layout.columns * panelWidthFor(layout.cellPx) + gap * (layout.columns - 1);
+    const height = layout.rows * panelHeightFor(layout.cellPx) + gap * (layout.rows - 1);
+    return width <= W && height <= H;
+  }
+
+  it("keeps a handful of players on one row", () => {
+    for (const count of [1, 2, 3, 4]) {
+      const layout = planBoardLayout(count, W, H);
+      expect(layout.rows).toBe(1);
+      expect(layout.columns).toBe(count);
+    }
+  });
+
+  it("wraps into rows rather than running off the screen", () => {
+    // This is the bug the 20-robot stress test found: one row of 24 boards
+    // ran off the right edge and the last few could not be seen at all.
+    const layout = planBoardLayout(24, W, H);
+    expect(layout.rows).toBeGreaterThan(1);
+    expect(fits(layout)).toBe(true);
+  });
+
+  it("fits at every player count a game can reach", () => {
+    for (let count = 1; count <= 24; count++) {
+      const layout = planBoardLayout(count, W, H);
+      expect(layout.columns * layout.rows).toBeGreaterThanOrEqual(count);
+      expect(fits(layout)).toBe(true);
+    }
+  });
+
+  it("uses the space: fewer players means bigger boards", () => {
+    const sizes = [1, 4, 8, 16, 24].map((n) => planBoardLayout(n, W, H).cellPx);
+    for (let i = 1; i < sizes.length; i++) {
+      expect(sizes[i]).toBeLessThanOrEqual(sizes[i - 1]);
+    }
+    expect(sizes[0]).toBe(BOARD_MAX_CELL_PX); // a solo board is as big as allowed
+  });
+
+  it("never returns a size too small to see, or one that ignores the cap", () => {
+    for (let count = 1; count <= 40; count++) {
+      const { cellPx } = planBoardLayout(count, W, H);
+      expect(cellPx).toBeGreaterThanOrEqual(BOARD_MIN_CELL_PX);
+      expect(cellPx).toBeLessThanOrEqual(BOARD_MAX_CELL_PX);
+    }
+  });
+
+  it("copes with no boards at all", () => {
+    expect(() => planBoardLayout(0, W, H)).not.toThrow();
+    expect(planBoardLayout(0, W, H).cellPx).toBeGreaterThan(0);
   });
 });
