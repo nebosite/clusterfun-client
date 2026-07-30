@@ -1518,6 +1518,10 @@ export function swapColumn(
 // has to remember HOW MANY there are.
 // ------------------------------------------------------------------------------------------
 export const MAX_ROBOTS = 4;
+// The hard ceiling, above what the host is normally offered.  The dev-only
+// stress-test button asks for twenty boards to see what a full host screen
+// does; production only ever offers up to MAX_ROBOTS.
+export const MAX_ROBOTS_STRESS = 20;
 
 export interface EittrisRobot {
   playerId: string;
@@ -1532,7 +1536,7 @@ const ROBOT_AVATARS = [12, 19, 25, 6];
 const ROBOT_COLORS = [1, 5, 9, 3];
 
 export function robotRoster(count: number): EittrisRobot[] {
-  const wanted = Math.max(0, Math.min(MAX_ROBOTS, Math.floor(count || 0)));
+  const wanted = Math.max(0, Math.min(MAX_ROBOTS_STRESS, Math.floor(count || 0)));
   return Array.from({ length: wanted }, (_, i) => ({
     playerId: `robot-${i + 1}`,
     name: `Robot ${i + 1}`,

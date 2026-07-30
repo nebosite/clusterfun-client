@@ -73,6 +73,7 @@ import {
   collapseRows,
   lockOnly,
   MAX_ROBOTS,
+  MAX_ROBOTS_STRESS,
   EittrisRobot,
   robotRoster,
   AFFLICTION_TIMERS,
@@ -250,7 +251,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   @observable robotCount = 0;
   setRobotCount(count: number) {
     action(() => {
-      this.robotCount = Math.max(0, Math.min(MAX_ROBOTS, Math.floor(count)));
+      this.robotCount = Math.max(0, Math.min(MAX_ROBOTS_STRESS, Math.floor(count)));
     })();
     this.saveCheckpoint();
   }

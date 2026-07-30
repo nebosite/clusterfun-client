@@ -382,3 +382,85 @@
   box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.9);
   font-weight: 600;
 }
+
+/* ================================================================
+   Gathering page layout
+   The page was running off the bottom of the screen, so it is now a
+   full-height column: the join banner at the top, the setup in the
+   middle, and the title + start button anchored low over Dmitri.
+   ================================================================ */
+.gatheringLayout {
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.gatheringMain {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* The one thing a player in the room actually needs to read */
+.joinBanner {
+  font-size: 80%;
+  padding: 6px 0 10px 0;
+}
+.joinCode {
+  letter-spacing: 0.12em;
+  color: #9fe8ff;
+}
+
+.playerAreaTitle {
+  font-weight: 600;
+  margin: 0 0 6px 0;
+}
+
+/* Title and start button in the bottom-left corner, around the portrait.
+   Dmitri is 58% of the page tall and anchored to the bottom, so the title is
+   parked just above that line - above his head, not across his face. */
+.cornerStack {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  top: 0;
+  z-index: 4;
+  width: 300px;
+  pointer-events: none;
+}
+.cornerTitle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 59%;
+  margin: 0 0 10px 0;
+  text-align: center;
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.9);
+}
+/* Sits low over his portrait, which is where the eye ends up anyway */
+.startOverPortrait {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 28px;
+  white-space: nowrap;
+  pointer-events: auto;
+  margin: 0;
+  box-shadow: 0 8px 26px -6px rgba(0, 0, 0, 0.9);
+}
+
+/* A second label on the same row needs a little air, not a fixed column */
+.setupLabelInline {
+  min-width: 0;
+  margin-left: 22px;
+}
+
+/* Dmitri is anchored to the bottom of the page rather than to the content */
+.dmitri {
+  height: 58%;
+  width: auto;
+  max-width: 300px;
+  object-fit: contain;
+  object-position: bottom left;
+}

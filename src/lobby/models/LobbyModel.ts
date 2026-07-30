@@ -211,9 +211,7 @@ export class LobbyModel {
     let tempCount = this._instanceCount + 1;
     // Who you were last time.  This is why opening the lobby shows your own
     // name, avatar and (until the game ends) room code already filled in.
-    // The reconnect token is scoped to this lobby instance, so the Test
-    // Lobby's four clients on one page are four separate players.
-    this._identity = new PlayerIdentityStore(undefined, undefined, rootKey);
+    this._identity = new PlayerIdentityStore();
     const remembered = this._identity.load();
     this._playerName = remembered.playerName;
     this._avatarId = remembered.avatarId;
@@ -249,7 +247,9 @@ export class LobbyModel {
       avatarId: this.avatarId,
       avatarColor: this.avatarColor,
       // Proves this device owns its seat when reconnecting
-      playerToken: this._identity.token(),
+      // One token per player NAME, so two clients on one machine with
+      // different names are two different people
+      playerToken: this._identity.token(this.playerName),
       messageThing: this._messageThingFactory(this.gameProperties!),
       logger: this.getGameLogger(),
       storage: this._storage,

@@ -1,5 +1,5 @@
 import Logger from "js-logger";
-import { IStorageAccessor, ClientStorage, TabStorage } from "./StorageHelper";
+import { IStorageAccessor, ClientStorage } from "./StorageHelper";
 
 // ==========================================================================================
 // PlayerIdentityStore - who you are, remembered between visits.
@@ -16,18 +16,19 @@ import { IStorageAccessor, ClientStorage, TabStorage } from "./StorageHelper";
 // ==========================================================================================
 
 export const PLAYER_IDENTITY_KEY = "clusterfun_player_identity";
-// The reconnect token lives apart from the rest, in SESSION storage.
+// Reconnect tokens, one per PLAYER NAME.
 //
-// Name and avatar are long-term memory and belong in localStorage - you want
-// them back next week.  The token is the opposite: it says WHICH SEAT this
-// client holds, and localStorage is shared by every tab, so two clients opened
-// on one PC would present the same token and each be mistaken for the other.
-// sessionStorage is per-tab, so every tab is its own player.
+// A token proves a returning client really is the one that held a seat, so it
+// must be private and it must last - which rules out sessionStorage, where
+// closing the tab would lose it.  But a single token per browser would make
+// every tab on one PC the same player, which breaks the Test Lobby and anyone
+// running two clients side by side.
 //
-// The cost is that closing the tab loses the token, and a reconnect after that
-// falls back to matching on name.  That is the right trade: quitting and
-// rejoining - the case that matters - happens in the same tab.
-export const PLAYER_TOKEN_KEY = "clusterfun_player_token";
+// Keying by name gives both: the token is stable and long-lived for a given
+// player, and two differently-named players on one machine are two different
+// people.  Changing your name gets you a new token, which is correct - by
+// name, you are a different player.
+export const PLAYER_TOKENS_KEY = "clusterfun_player_tokens";
 
 export interface PlayerIdentity {
   playerName: string;
@@ -62,24 +63,14 @@ function asString(value: unknown, max: number): string {
 
 export class PlayerIdentityStore {
   private accessor: IStorageAccessor;
-  private tokenStore: IStorageAccessor;
-  private tokenKey: string;
-  private sessionToken = "";
+  // Tokens held for this page load when storage will not cooperate
+  private memoryTokens = new Map<string, string>();
   // If localStorage throws (private browsing, quota, a locked-down browser) we
   // keep the identity for this page load rather than losing the lobby.
   private fallback: PlayerIdentity | null = null;
 
-  // `accessor` holds the long-term identity (localStorage by default);
-  // `tokenStore` holds the per-tab reconnect token (sessionStorage).
-  //
-  // `tokenScope` separates tokens WITHIN a tab.  Normally there is one client
-  // per tab and it is empty - but the Test Lobby runs four clients on a single
-  // page, and without a scope they would all present the same token and be
-  // taken for the same returning player.
-  constructor(accessor?: IStorageAccessor, tokenStore?: IStorageAccessor, tokenScope = "") {
+  constructor(accessor?: IStorageAccessor) {
     this.accessor = accessor ?? new ClientStorage();
-    this.tokenStore = tokenStore ?? new TabStorage();
-    this.tokenKey = tokenScope ? `${PLAYER_TOKEN_KEY}:${tokenScope}` : PLAYER_TOKEN_KEY;
   }
 
   // -------------------------------------------------------------------
@@ -129,19 +120,42 @@ export class PlayerIdentityStore {
   // and kept from then on.  Deliberately NOT cleared with the room code: it
   // has to outlive a game for reconnecting to work at all.
   // -------------------------------------------------------------------
-  token(): string {
+  // -------------------------------------------------------------------
+  // token - the private id this player reconnects with.  One per name, so
+  // two differently-named clients on one machine are two different people,
+  // and the same name always comes back to the same seat.
+  // -------------------------------------------------------------------
+  token(playerName: string): string {
+    const key = (playerName ?? "").trim() || "(unnamed)";
     try {
-      const existing = this.tokenStore.getItem(this.tokenKey);
-      if (existing) return existing;
+      const tokens = this.readTokens();
+      if (tokens[key]) return tokens[key];
       const minted = mintToken();
-      this.tokenStore.setItem(this.tokenKey, minted);
+      tokens[key] = minted;
+      this.accessor.setItem(PLAYER_TOKENS_KEY, JSON.stringify(tokens));
       return minted;
     } catch {
-      // Storage unavailable: hold one for this page load, so reconnecting
-      // still works until the tab goes away
-      if (!this.sessionToken) this.sessionToken = mintToken();
-      return this.sessionToken;
+      // Storage unavailable (private browsing, a full quota): hold one for
+      // this page load so reconnecting still works while the tab is open
+      let held = this.memoryTokens.get(key);
+      if (!held) {
+        held = mintToken();
+        this.memoryTokens.set(key, held);
+      }
+      return held;
     }
+  }
+
+  private readTokens(): Record<string, string> {
+    const raw = this.accessor.getItem(PLAYER_TOKENS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const out: Record<string, string> = {};
+    for (const [name, token] of Object.entries(parsed)) {
+      if (typeof token === "string" && token) out[name] = token;
+    }
+    return out;
   }
 
   // -------------------------------------------------------------------
@@ -160,11 +174,11 @@ export class PlayerIdentityStore {
       /* nothing we can do, and nothing worth failing over */
     }
     try {
-      this.tokenStore.removeItem(this.tokenKey);
+      this.accessor.removeItem(PLAYER_TOKENS_KEY);
     } catch {
       /* as above */
     }
-    this.sessionToken = "";
+    this.memoryTokens.clear();
     this.fallback = null;
   }
 }

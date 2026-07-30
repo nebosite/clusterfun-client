@@ -103,6 +103,7 @@ import {
   collapseRows,
   lockOnly,
   MAX_ROBOTS,
+  MAX_ROBOTS_STRESS,
   robotRoster,
   isRobotId,
   DOUBLE_TAP_MS,
@@ -1429,7 +1430,7 @@ describe("eittrisLogic - the robot roster", () => {
   });
 
   it("never builds more than the cap, or a negative number of robots", () => {
-    expect(robotRoster(99).length).toBe(MAX_ROBOTS);
+    expect(robotRoster(99).length).toBe(MAX_ROBOTS_STRESS);
     expect(robotRoster(-4)).toEqual([]);
     expect(robotRoster(NaN)).toEqual([]);
   });
@@ -1440,6 +1441,15 @@ describe("eittrisLogic - the robot roster", () => {
     expect(new Set(roster.map((r) => r.name)).size).toBe(MAX_ROBOTS);
     expect(new Set(roster.map((r) => r.avatarId)).size).toBe(MAX_ROBOTS);
     expect(new Set(roster.map((r) => r.avatarColor)).size).toBe(MAX_ROBOTS);
+  });
+
+  it("still gives every robot a distinct id and name at stress-test scale", () => {
+    // Avatars repeat past MAX_ROBOTS - there are only so many - but the ids
+    // must stay unique or boards would collide.
+    const roster = robotRoster(MAX_ROBOTS_STRESS);
+    expect(roster.length).toBe(MAX_ROBOTS_STRESS);
+    expect(new Set(roster.map((r) => r.playerId)).size).toBe(MAX_ROBOTS_STRESS);
+    expect(new Set(roster.map((r) => r.name)).size).toBe(MAX_ROBOTS_STRESS);
   });
 
   it("is derived purely from the count, so only the count needs saving", () => {

@@ -25,6 +25,7 @@ import {
   NEXT_QUEUE_DEPTH,
   ANTIDOTE_MAX,
   IMPLEMENTED_SPECIALS,
+  MAX_ROBOTS_STRESS,
   CLEAR_EAT_MS,
   CLEAR_FALL_MS,
   EVIL_PIECE_COUNT,
@@ -1467,7 +1468,7 @@ describe("EittrisPresenterModel - robot players", () => {
   it("clamps the host's choice to the supported range", () => {
     const { model } = makeModel();
     model.setRobotCount(99);
-    expect(model.robotCount).toBe(4);
+    expect(model.robotCount).toBe(MAX_ROBOTS_STRESS); // the dev stress ceiling
     model.setRobotCount(-2);
     expect(model.robotCount).toBe(0);
   });

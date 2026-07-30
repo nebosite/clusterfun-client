@@ -30,11 +30,19 @@ import {
   IMPLEMENTED_SPECIALS,
   SPECIAL_NAMES,
   SPECIAL_ICON_COUNT,
+  MAX_ROBOTS,
 } from "../models/eittrisLogic";
 import BoardGrid from "./BoardGrid";
 import RobotDemo from "./RobotDemo";
 
 const RULES = ["Use your finger to control and place pieces"];
+
+// Robot counts the host can pick.  The last is a dev-only stress test: twenty
+// boards is far past a real party, and useful for seeing what the host screen
+// does when it is completely full.
+const IS_DEV = process.env.REACT_APP_DEVMODE === "development";
+const STRESS_TEST_ROBOTS = 20;
+const ROBOT_COUNT_CHOICES = IS_DEV ? [0, 1, 2, 3, 4, STRESS_TEST_ROBOTS] : [0, 1, 2, 3, 4];
 
 // Which of the original's sounds each special plays when it lands
 const SPECIAL_SOUNDS: Partial<Record<SpecialType, string>> = {
@@ -96,17 +104,19 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
             underneath him. */}
         <img className={styles.dmitri} src={EittrisAssets.images.dmitri} alt="" aria-hidden />
         <div className={styles.gatheringMain}>
-          <h3>Welcome to EITtris</h3>
-          <p>
-            To Join: go to http://{window.location.host} and enter this room code: {appModel.roomId}
-          </p>
+          {/* Joining instructions ride at the very top, right under the quit
+              bar - it is the one thing a player in the room needs to read. */}
+          <div className={styles.joinBanner}>
+            To join: go to <b>http://{window.location.host}</b> and enter room code{" "}
+            <b className={styles.joinCode}>{appModel.roomId}</b>
+          </div>
 
           {/* A fixed-height area either way: without it the whole setup panel
               jumps down the moment the first player joins. */}
           <div className={styles.playerArea}>
             {appModel.players.length > 0 ? (
               <div>
-                <p style={{ fontWeight: 600 }}>Players:</p>
+                <p className={styles.playerAreaTitle}>Players:</p>
                 <div className={styles.divRow}>
                   {appModel.players.map((player) => (
                     <div className={styles.nameBox} key={player.playerId}>
@@ -128,9 +138,10 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
           {/* Everything from here down is indented to clear Dmitri, who
               stands in the gutter on the left. */}
           <div className={styles.lowerSetup}>
-            {/* Game setup.  Everything here is decided before the round starts,
-            and rides the checkpoint so a refresh mid-setup loses nothing. */}
             <div className={styles.setupPanel}>
+              {/* Antidotes and the award share a row - two short controls, and
+                  splitting them wasted a whole line of a page that was
+                  running off the bottom. */}
               <div className={styles.setupRow}>
                 <span className={styles.setupLabel}>Antidotes to start:</span>
                 {[0, 1, 2, 3].map((count) => (
@@ -144,10 +155,9 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
                     {count}
                   </button>
                 ))}
-              </div>
-
-              <div className={styles.setupRow}>
-                <span className={styles.setupLabel}>Four-row award:</span>
+                <span className={classNames(styles.setupLabel, styles.setupLabelInline)}>
+                  Four-row award:
+                </span>
                 <select
                   className={styles.setupSelect}
                   value={appModel.settings.fourRowAward}
@@ -183,46 +193,56 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
                   ))}
                 </div>
               </div>
-            </div>
 
-            {/* Robot players: enough to make a game of it with one or two people.
-            They never change how many humans are needed to start. */}
-            <div className={styles.robotPicker}>
-              <span className={styles.robotLabel}>Robot players:</span>
-              {[0, 1, 2, 3, 4].map((count) => (
-                <button
-                  key={count}
-                  className={classNames(styles.robotButton, {
-                    [styles.robotButtonOn]: appModel.robotCount === count,
-                  })}
-                  onClick={() => appModel.setRobotCount(count)}
-                >
-                  {count}
-                </button>
-              ))}
-              {appModel.robotCount > 0 ? (
-                <span className={styles.robotNames}>
-                  {appModel.robots.map((robot) => (
-                    <span className={styles.nameBox} key={robot.playerId}>
-                      <PlayerAvatar
-                        avatarId={robot.avatarId}
-                        colorIndex={robot.avatarColor}
-                        size={40}
-                      />{" "}
-                      {robot.name}
-                    </span>
-                  ))}
-                </span>
-              ) : null}
+              {/* Robot players: enough to make a game of it with one or two
+                  people.  They never change how many humans are needed. */}
+              <div className={styles.setupRow}>
+                <span className={styles.setupLabel}>Robot players:</span>
+                {ROBOT_COUNT_CHOICES.map((count) => (
+                  <button
+                    key={count}
+                    className={classNames(styles.robotButton, {
+                      [styles.robotButtonOn]: appModel.robotCount === count,
+                    })}
+                    onClick={() => appModel.setRobotCount(count)}
+                    title={count > MAX_ROBOTS ? "Stress test (dev only)" : undefined}
+                  >
+                    {count}
+                  </button>
+                ))}
+                {appModel.robotCount > 0 && appModel.robotCount <= MAX_ROBOTS ? (
+                  <span className={styles.robotNames}>
+                    {appModel.robots.map((robot) => (
+                      <span className={styles.nameBox} key={robot.playerId}>
+                        <PlayerAvatar
+                          avatarId={robot.avatarId}
+                          colorIndex={robot.avatarColor}
+                          size={40}
+                        />{" "}
+                        {robot.name}
+                      </span>
+                    ))}
+                  </span>
+                ) : appModel.robotCount > MAX_ROBOTS ? (
+                  <span className={styles.robotNames}>{appModel.robotCount} robots</span>
+                ) : null}
+              </div>
             </div>
+          </div>
 
+          {/* The title sits low on the left, just above Dmitri's head, and the
+              start button lower still - over his portrait, where the eye ends
+              up anyway.  No status line: the button's presence says it all. */}
+          <div className={styles.cornerStack}>
+            <h3 className={styles.cornerTitle}>Welcome to EITtris</h3>
             {appModel.canStart ? (
-              <button className={styles.presenterButton} onClick={() => appModel.startGame()}>
-                Click here to start!
+              <button
+                className={classNames(styles.presenterButton, styles.startOverPortrait)}
+                onClick={() => appModel.startGame()}
+              >
+                Start game!
               </button>
-            ) : (
-              <div>Waiting for at least {appModel.minPlayers} player(s) to join...</div>
-            )}
+            ) : null}
           </div>
         </div>
 
