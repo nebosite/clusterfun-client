@@ -114,3 +114,5 @@ dist
 #Misc files
 ~*.xlsx
 secrets.ts
+# Editor backup files
+*~
