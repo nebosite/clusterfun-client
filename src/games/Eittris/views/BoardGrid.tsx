@@ -157,7 +157,15 @@ export class BoardGrid extends React.Component<BoardGridProps, BoardGridState> {
 
     // Marked blocks pulse (the original cycles rainbow) and wear their icon
     const specialAt = new Map<number, number>();
-    for (const m of this.props.specials ?? []) specialAt.set(m.i, m.t);
+    for (const m of this.props.specials ?? []) {
+      // A powerup is drawn ON a block.  The host prunes markers whose block has
+      // gone, but a snapshot can arrive a frame ahead of that, and an icon
+      // floating on an empty cell reads as a bug rather than as a prize.
+      const y = Math.floor(m.i / BOARD_WIDTH);
+      const x = m.i % BOARD_WIDTH;
+      if ((grid[y]?.[x] ?? EMPTY_CELL) === EMPTY_CELL) continue;
+      specialAt.set(m.i, m.t);
+    }
 
     const cells: React.ReactNode[] = [];
     for (let y = 0; y < BOARD_HEIGHT; y++) {

@@ -582,6 +582,32 @@ export function occupiedCellIndices(grid: number[][]): number[] {
   return out;
 }
 
+// ------------------------------------------------------------------------------------------
+// A powerup belongs to a BLOCK, not to a coordinate.
+//
+// Markers are stored as a cell index, and half a dozen things move the grid out from under
+// them - a row collapsing, an attack painting over the stack, a jumble shaking it apart, a
+// screen swap.  Any of those can leave a marker sitting on a cell that no longer holds a
+// block, and it would be drawn floating in mid-air and never be collectable.
+//
+// Rather than remembering to prune at each of those call sites - and forgetting at the next
+// one someone adds - the invariant is enforced centrally, every tick: a marker whose cell is
+// empty is not a powerup, it is a leftover.
+// ------------------------------------------------------------------------------------------
+export function pruneOrphanedSpecials(grid: number[][], markers: SpecialMarker[]): SpecialMarker[] {
+  return markers.filter((marker) => {
+    const y = Math.floor(marker.index / BOARD_WIDTH);
+    const x = marker.index % BOARD_WIDTH;
+    if (y < 0 || y >= BOARD_HEIGHT || x < 0 || x >= BOARD_WIDTH) return false;
+    return grid[y][x] !== EMPTY_CELL;
+  });
+}
+
+// True when every marker still has a block under it
+export function specialsAreAnchored(grid: number[][], markers: SpecialMarker[]): boolean {
+  return pruneOrphanedSpecials(grid, markers).length === markers.length;
+}
+
 // A board may carry several powerups at once, but never two close enough
 // vertically to be cleared by the same piece - landing one brick and setting
 // off two attacks at once is a lottery, not a play.
@@ -1035,16 +1061,36 @@ export function withPieceSettled(grid: number[][], piece: EittrisPiece): number[
 
 // Weights for the placement score.
 //
-// A hole used to cost 40 against a depth weight of 2 - twenty rows of height -
-// so the bot would build a tower to the ceiling rather than ever bury a
-// square.  That loses games: a hole costs you roughly one future clear, while
-// a stack near the top costs you the whole board.  A hole is now worth about
-// four rows of height, so the bot takes one when the alternative is perching a
-// piece up high, and there is an outright penalty on how tall the stack gets.
-export const AI_GAP_PENALTY = 12;
-export const AI_DEPTH_WEIGHT = 3;
+// Two deliberate choices, both learned from watching the bot lose:
+//
+// GAPS ARE A FLAT PENALTY, not a per-hole one.  A board that has been hit with
+// TowerOfEit is riddled with holes, and counting each one stymied the bot
+// completely - every legal move looked catastrophic, so it made the shortest-
+// sighted one available.  Burying a cell is a yes/no fact about a placement:
+// one hole or five, the answer is "this is not a clean placement", worth about
+// three rows of height.
+//
+// HEIGHT IS ZONED.  A row near the floor is cheap; the same row two-thirds of
+// the way up is worth double, and in the top third triple.  Stacking low is
+// mildly good, stacking high is genuinely dangerous, and a linear cost does
+// not say that.
+export const AI_HEIGHT_UNIT = 3;
+export const AI_GAP_PENALTY = 3 * AI_HEIGHT_UNIT; // any gaps at all cost this
 export const AI_CONTACT_WEIGHT = 3;
-export const AI_HEIGHT_PENALTY = 4;
+
+// 1 in the bottom third of the board, 2 in the middle, 3 up top
+export function heightZoneMultiplier(row: number): number {
+  const third = BOARD_HEIGHT / 3;
+  if (row >= BOARD_HEIGHT - third) return 1;
+  if (row >= BOARD_HEIGHT - 2 * third) return 2;
+  return 3;
+}
+
+// What it costs to leave a block sitting at this row
+export function heightCost(row: number): number {
+  const rowsAboveFloor = Math.max(0, BOARD_HEIGHT - 1 - row);
+  return rowsAboveFloor * AI_HEIGHT_UNIT * heightZoneMultiplier(row);
+}
 
 // How many rows tall the stack is (0 = empty board)
 export function stackHeight(grid: number[][]): number {
@@ -1056,13 +1102,13 @@ export function stackHeight(grid: number[][]): number {
 
 export function scorePlacement(grid: number[][], landed: EittrisPiece): number {
   const settled = withPieceSettled(grid, landed);
-  const newGaps = countCoveredGaps(settled) - countCoveredGaps(grid);
-  const lowest = Math.max(...pieceCells(landed).map((c) => c.y));
+  const madeGaps = countCoveredGaps(settled) > countCoveredGaps(grid);
+  // The piece's TOP cell is how high up this placement reaches
+  const highest = Math.min(...pieceCells(landed).map((c) => c.y));
   return (
-    -AI_GAP_PENALTY * newGaps +
-    AI_DEPTH_WEIGHT * lowest +
-    AI_CONTACT_WEIGHT * contactCount(grid, landed) -
-    AI_HEIGHT_PENALTY * stackHeight(settled)
+    -(madeGaps ? AI_GAP_PENALTY : 0) -
+    heightCost(highest) +
+    AI_CONTACT_WEIGHT * contactCount(grid, landed)
   );
 }
 

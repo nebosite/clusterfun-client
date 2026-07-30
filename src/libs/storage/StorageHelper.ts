@@ -58,6 +58,21 @@ export class ClientStorage implements IStorageAccessor {
 }
 
 // -------------------------------------------------------------------
+// TabStorage - sessionStorage, which is scoped to ONE TAB.  Two tabs of the
+// same site get separate copies, which is what lets several clients run on
+// one PC without being mistaken for each other.
+// -------------------------------------------------------------------
+export class TabStorage implements IStorageAccessor {
+  setItem = (name: string, value: string) => sessionStorage.setItem(name, value);
+  getItem = (name: string) => sessionStorage.getItem(name);
+  removeItem = (name: string) => sessionStorage.removeItem(name);
+  get length() {
+    return sessionStorage.length;
+  }
+  key = (index: number) => sessionStorage.key(index);
+}
+
+// -------------------------------------------------------------------
 // SessionStorage - partitioned Persistent storage
 // -------------------------------------------------------------------
 class SessionStorage implements IStorage {

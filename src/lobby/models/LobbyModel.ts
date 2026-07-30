@@ -211,7 +211,9 @@ export class LobbyModel {
     let tempCount = this._instanceCount + 1;
     // Who you were last time.  This is why opening the lobby shows your own
     // name, avatar and (until the game ends) room code already filled in.
-    this._identity = new PlayerIdentityStore();
+    // The reconnect token is scoped to this lobby instance, so the Test
+    // Lobby's four clients on one page are four separate players.
+    this._identity = new PlayerIdentityStore(undefined, undefined, rootKey);
     const remembered = this._identity.load();
     this._playerName = remembered.playerName;
     this._avatarId = remembered.avatarId;

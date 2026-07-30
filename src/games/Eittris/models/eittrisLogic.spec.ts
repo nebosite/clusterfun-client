@@ -47,12 +47,19 @@ import {
   IMPLEMENTED_SPECIALS,
   occupiedCellIndices,
   pickSpecialCell,
+  pruneOrphanedSpecials,
+  specialsAreAnchored,
   rollSpecialType,
   SpecialType,
   countCoveredGaps,
   contactCount,
   scorePlacement,
   stackHeight,
+  heightCost,
+  heightZoneMultiplier,
+  AI_GAP_PENALTY,
+  AI_HEIGHT_UNIT,
+  AI_CONTACT_WEIGHT,
   withPieceSettled,
   dropDestination,
   planPlacement,
@@ -815,36 +822,16 @@ describe("eittrisLogic - AI placement", () => {
     }
   });
 
-  it("never roofs a hole when a clean placement exists", () => {
-    // A deep 1-wide well at column 8: laying a piece across it would seal
-    // the well shut, which the planner must refuse.
-    const g = gridWith((grid) => {
-      for (let y = BOARD_HEIGHT - 4; y < BOARD_HEIGHT; y++) {
-        for (let x = 0; x < BOARD_WIDTH; x++) {
-          if (x !== 8) grid[y][x] = 1;
-        }
-      }
+  it("still prefers the clean placement when both sit equally low", () => {
+    // Nothing has changed about preferring not to bury cells - only about
+    // what that preference is worth against height.
+    const shallow = gridWith((grid) => {
+      for (let x = 0; x < BOARD_WIDTH; x++) if (x !== 8) grid[BOARD_HEIGHT - 1][x] = 1;
     });
-    // (S/Z pieces always leave a hole somewhere on flat ground - what
-    // matters is that nothing gets dropped across the well itself.)
-    const wellSealed = (grid: number[][]) => {
-      let roofed = false;
-      for (let y = 0; y < BOARD_HEIGHT; y++) {
-        if (grid[y][8] !== EMPTY_CELL) roofed = true;
-        else if (roofed) return true; // empty cell under something solid
-      }
-      return false;
-    };
-
-    for (let type = 0; type < PIECE_COUNT; type++) {
-      const plan = planPlacement(g, spawnPiece(type, 0))!;
-      const landed = dropDestination(g, { type, rot: plan.rot, x: plan.x, y: 0 });
-      const after = g.map((row) => row.slice());
-      for (const c of pieceCells(landed)) {
-        if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) after[c.y][c.x] = type;
-      }
-      expect(wellSealed(after)).toBe(false);
-    }
+    const O = { type: 6, rot: 0, x: 2, y: 0, evil: false };
+    const clean = dropDestination(shallow, O);
+    const overTheWell = dropDestination(shallow, { ...O, x: 7 });
+    expect(scorePlacement(shallow, clean)).toBeGreaterThan(scorePlacement(shallow, overTheWell));
   });
 
   it("takes the option with fewer covered gaps when it must choose", () => {
@@ -1775,5 +1762,124 @@ describe("eittrisLogic - the piece queue follows the piece table in use", () => 
       tickAfflictions(board, AFFLICTION_DURATION_MS, () => 0.5);
       expect(board.nextQueue.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("eittrisLogic - a powerup always sits on a block", () => {
+  function gridWithBlockAt(index: number): number[][] {
+    const grid = emptyGrid();
+    grid[Math.floor(index / BOARD_WIDTH)][index % BOARD_WIDTH] = 1;
+    return grid;
+  }
+
+  it("keeps a marker whose block is still there", () => {
+    const index = 15 * BOARD_WIDTH + 4;
+    const markers = [{ index, type: SpecialType.Antidote }];
+    expect(pruneOrphanedSpecials(gridWithBlockAt(index), markers)).toEqual(markers);
+  });
+
+  it("drops a marker whose block has gone", () => {
+    // This is the bug: something moved the grid and left the icon behind,
+    // floating in mid-air where it could never be collected.
+    const index = 15 * BOARD_WIDTH + 4;
+    const markers = [{ index, type: SpecialType.Antidote }];
+    expect(pruneOrphanedSpecials(emptyGrid(), markers)).toEqual([]);
+  });
+
+  it("drops a marker that ended up off the board entirely", () => {
+    const grid = emptyGrid();
+    for (const index of [-1, BOARD_WIDTH * BOARD_HEIGHT, 99999]) {
+      expect(pruneOrphanedSpecials(grid, [{ index, type: SpecialType.Antidote }])).toEqual([]);
+    }
+  });
+
+  it("survives every kind of grid upheaval", () => {
+    // The four things that actually move a grid under a marker
+    const index = (BOARD_HEIGHT - 1) * BOARD_WIDTH + 3;
+    const markers = [{ index, type: SpecialType.Antidote }];
+    const grid = gridWithBlockAt(index);
+
+    // A row collapsing out from under it
+    expect(specialsAreAnchored(collapseRows(grid, [BOARD_HEIGHT - 1]), markers)).toBe(false);
+    // A jumble shaking the block somewhere else
+    let jumbled = grid;
+    for (let i = 0; i < 50; i++) jumbled = jumbleOnce(jumbled, Math.random);
+    // ...either it moved (orphan, must prune) or it did not (still anchored) -
+    // what matters is that the check agrees with the grid, never guesses
+    expect(specialsAreAnchored(jumbled, markers)).toBe(
+      jumbled[Math.floor(index / BOARD_WIDTH)][index % BOARD_WIDTH] !== EMPTY_CELL,
+    );
+  });
+
+  it("keeps the ones that are fine while dropping the ones that are not", () => {
+    const kept = 10 * BOARD_WIDTH + 2;
+    const lost = 3 * BOARD_WIDTH + 7;
+    const grid = gridWithBlockAt(kept);
+    const pruned = pruneOrphanedSpecials(grid, [
+      { index: kept, type: SpecialType.Antidote },
+      { index: lost, type: SpecialType.Speedup },
+    ]);
+    expect(pruned.length).toBe(1);
+    expect(pruned[0].index).toBe(kept);
+  });
+});
+
+describe("eittrisLogic - what the computer player pays for height", () => {
+  it("charges nothing at the floor and more the higher you go", () => {
+    expect(heightCost(BOARD_HEIGHT - 1)).toBe(0);
+    expect(heightCost(BOARD_HEIGHT - 2)).toBeGreaterThan(0);
+    // Strictly increasing as the row climbs
+    for (let y = BOARD_HEIGHT - 1; y > 0; y--) {
+      expect(heightCost(y - 1)).toBeGreaterThan(heightCost(y));
+    }
+  });
+
+  it("charges double in the middle third and triple up top", () => {
+    expect(heightZoneMultiplier(BOARD_HEIGHT - 1)).toBe(1); // floor
+    expect(heightZoneMultiplier(Math.floor(BOARD_HEIGHT / 2))).toBe(2); // middle
+    expect(heightZoneMultiplier(0)).toBe(3); // ceiling
+  });
+
+  it("costs the same for one buried cell as for many", () => {
+    // The whole point: a board riddled with holes must not paralyse the bot.
+    // A three-deep well one column wide, roofed by anything, buries three.
+    const grid = emptyGrid();
+    for (let y = BOARD_HEIGHT - 3; y < BOARD_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) if (x !== 4) grid[y][x] = 1;
+    }
+
+    // Search for placements burying exactly one cell and more than one
+    const gapsFor = (landed: EittrisPiece) =>
+      countCoveredGaps(withPieceSettled(grid, landed)) - countCoveredGaps(grid);
+    const penaltyFor = (landed: EittrisPiece) => {
+      const noGapScore =
+        -heightCost(Math.min(...pieceCells(landed).map((c) => c.y))) +
+        AI_CONTACT_WEIGHT * contactCount(grid, landed);
+      return noGapScore - scorePlacement(grid, landed);
+    };
+
+    const penalties = new Set<number>();
+    let sawMany = false;
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      for (let rot = 0; rot < 4; rot++) {
+        for (let x = 0; x < BOARD_WIDTH; x++) {
+          const candidate = { type, rot, x, y: 0, evil: false };
+          if (collides(grid, pieceCells(candidate))) continue;
+          const landed = dropDestination(grid, candidate);
+          const buried = gapsFor(landed);
+          if (buried <= 0) continue;
+          if (buried > 1) sawMany = true;
+          penalties.add(penaltyFor(landed));
+        }
+      }
+    }
+
+    expect(sawMany).toBe(true); // the board really does offer a multi-gap move
+    // ...and every gap-making placement paid the same flat price
+    expect([...penalties]).toEqual([AI_GAP_PENALTY]);
+  });
+
+  it("prices a gap at three rows of height near the floor", () => {
+    expect(AI_GAP_PENALTY).toBe(3 * AI_HEIGHT_UNIT);
   });
 });

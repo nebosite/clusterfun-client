@@ -61,11 +61,26 @@
   overflow: hidden;
 }
 
+/* Each player gets their own framed panel, tinted with their avatar colour
+   (set inline from the player), so a row of six boards reads as six PEOPLE
+   rather than as one wall of tetris. */
 .gamepresenter .boardPanel {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  padding: 10px 10px 8px 10px;
+  border: 3px solid var(--playerAccent, #4d648a);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(20, 32, 52, 0.85), rgba(10, 17, 30, 0.9));
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 8px 22px -10px rgba(0, 0, 0, 0.9);
+}
+/* A dead board recedes rather than shouting for attention */
+.gamepresenter .boardPanelOut {
+  opacity: 0.55;
+  border-color: #3a4459;
 }
 
 .gamepresenter .boardLabel {
@@ -321,4 +336,49 @@
   grid-template-columns: auto auto 1fr;
   align-items: center;
   gap: 8px;
+}
+
+/* The demo caption changes as powerups land.  A fixed width and room for two
+   lines means a longer powerup name wraps instead of resizing the whole box,
+   which would make the demo jump every few seconds. */
+.demoCaption {
+  display: block;
+  width: 200px;
+  min-height: 2.6em;
+  text-align: center;
+  font-size: 45%;
+  line-height: 1.3;
+  opacity: 0.75;
+  overflow-wrap: break-word;
+}
+.demoFrame {
+  width: 236px;
+  box-sizing: border-box;
+}
+
+/* ---- Joined players: a fixed area, so the page does not jump ---- */
+.playerArea {
+  /* Reserved whether or not anybody has joined yet.  Without this the whole
+     setup panel below shifts down the moment the first player appears. */
+  min-height: 150px;
+  margin-top: 6px;
+}
+.playerAreaEmpty {
+  display: flex;
+  align-items: center;
+  opacity: 0.7;
+}
+
+/* Each player in their own frame, so a row of them reads as separate people
+   rather than as one run of text. */
+.nameBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 10px;
+  border: 3px solid #4d648a;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(45, 66, 101, 0.9), rgba(27, 42, 66, 0.9));
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.9);
+  font-weight: 600;
 }

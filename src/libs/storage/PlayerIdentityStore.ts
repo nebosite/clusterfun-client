@@ -1,5 +1,5 @@
 import Logger from "js-logger";
-import { IStorageAccessor, ClientStorage } from "./StorageHelper";
+import { IStorageAccessor, ClientStorage, TabStorage } from "./StorageHelper";
 
 // ==========================================================================================
 // PlayerIdentityStore - who you are, remembered between visits.
@@ -16,17 +16,24 @@ import { IStorageAccessor, ClientStorage } from "./StorageHelper";
 // ==========================================================================================
 
 export const PLAYER_IDENTITY_KEY = "clusterfun_player_identity";
+// The reconnect token lives apart from the rest, in SESSION storage.
+//
+// Name and avatar are long-term memory and belong in localStorage - you want
+// them back next week.  The token is the opposite: it says WHICH SEAT this
+// client holds, and localStorage is shared by every tab, so two clients opened
+// on one PC would present the same token and each be mistaken for the other.
+// sessionStorage is per-tab, so every tab is its own player.
+//
+// The cost is that closing the tab loses the token, and a reconnect after that
+// falls back to matching on name.  That is the right trade: quitting and
+// rejoining - the case that matters - happens in the same tab.
+export const PLAYER_TOKEN_KEY = "clusterfun_player_token";
 
 export interface PlayerIdentity {
   playerName: string;
   avatarId: number;
   avatarColor: number;
   roomId: string;
-  // A private, random id this browser keeps for itself.  It is what proves a
-  // reconnecting player really is who they say - unlike a name, which is on
-  // the big screen for anyone to read and type in.  Never displayed, never
-  // sent anywhere but the presenter of the game you are in.
-  playerToken: string;
 }
 
 export const BLANK_IDENTITY: PlayerIdentity = {
@@ -34,7 +41,6 @@ export const BLANK_IDENTITY: PlayerIdentity = {
   avatarId: 0,
   avatarColor: 0,
   roomId: "",
-  playerToken: "",
 };
 
 // A token is minted once per browser and then kept.  Random and meaningless:
@@ -56,12 +62,24 @@ function asString(value: unknown, max: number): string {
 
 export class PlayerIdentityStore {
   private accessor: IStorageAccessor;
+  private tokenStore: IStorageAccessor;
+  private tokenKey: string;
+  private sessionToken = "";
   // If localStorage throws (private browsing, quota, a locked-down browser) we
   // keep the identity for this page load rather than losing the lobby.
   private fallback: PlayerIdentity | null = null;
 
-  constructor(accessor?: IStorageAccessor) {
+  // `accessor` holds the long-term identity (localStorage by default);
+  // `tokenStore` holds the per-tab reconnect token (sessionStorage).
+  //
+  // `tokenScope` separates tokens WITHIN a tab.  Normally there is one client
+  // per tab and it is empty - but the Test Lobby runs four clients on a single
+  // page, and without a scope they would all present the same token and be
+  // taken for the same returning player.
+  constructor(accessor?: IStorageAccessor, tokenStore?: IStorageAccessor, tokenScope = "") {
     this.accessor = accessor ?? new ClientStorage();
+    this.tokenStore = tokenStore ?? new TabStorage();
+    this.tokenKey = tokenScope ? `${PLAYER_TOKEN_KEY}:${tokenScope}` : PLAYER_TOKEN_KEY;
   }
 
   // -------------------------------------------------------------------
@@ -85,7 +103,6 @@ export class PlayerIdentityStore {
           .toUpperCase()
           .replace(/[^A-Z0-9]/g, "")
           .slice(0, 4),
-        playerToken: asString(parsed.playerToken, 64),
       };
     } catch (err) {
       Logger.warn(`Could not read the remembered player identity: ${err}`);
@@ -113,11 +130,18 @@ export class PlayerIdentityStore {
   // has to outlive a game for reconnecting to work at all.
   // -------------------------------------------------------------------
   token(): string {
-    const current = this.load();
-    if (current.playerToken) return current.playerToken;
-    const minted = mintToken();
-    this.save({ playerToken: minted });
-    return minted;
+    try {
+      const existing = this.tokenStore.getItem(this.tokenKey);
+      if (existing) return existing;
+      const minted = mintToken();
+      this.tokenStore.setItem(this.tokenKey, minted);
+      return minted;
+    } catch {
+      // Storage unavailable: hold one for this page load, so reconnecting
+      // still works until the tab goes away
+      if (!this.sessionToken) this.sessionToken = mintToken();
+      return this.sessionToken;
+    }
   }
 
   // -------------------------------------------------------------------
@@ -135,6 +159,12 @@ export class PlayerIdentityStore {
     } catch {
       /* nothing we can do, and nothing worth failing over */
     }
+    try {
+      this.tokenStore.removeItem(this.tokenKey);
+    } catch {
+      /* as above */
+    }
+    this.sessionToken = "";
     this.fallback = null;
   }
 }

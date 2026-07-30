@@ -16,6 +16,7 @@ import {
   DevUI,
   UINormalizer,
   PlayerAvatar,
+  AVATAR_COLORS,
 } from "libs";
 import {
   EittrisPresenterModel,
@@ -100,25 +101,29 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
             To Join: go to http://{window.location.host} and enter this room code: {appModel.roomId}
           </p>
 
-          {appModel.players.length > 0 ? (
-            <div>
-              <p style={{ fontWeight: 600 }}>Players:</p>
-              <div className={styles.divRow}>
-                {appModel.players.map((player) => (
-                  <div className={styles.nameBox} key={player.playerId}>
-                    <PlayerAvatar
-                      avatarId={player.avatarId}
-                      colorIndex={player.avatarColor}
-                      size={40}
-                    />{" "}
-                    {player.name}
-                  </div>
-                ))}
+          {/* A fixed-height area either way: without it the whole setup panel
+              jumps down the moment the first player joins. */}
+          <div className={styles.playerArea}>
+            {appModel.players.length > 0 ? (
+              <div>
+                <p style={{ fontWeight: 600 }}>Players:</p>
+                <div className={styles.divRow}>
+                  {appModel.players.map((player) => (
+                    <div className={styles.nameBox} key={player.playerId}>
+                      <PlayerAvatar
+                        avatarId={player.avatarId}
+                        colorIndex={player.avatarColor}
+                        size={40}
+                      />{" "}
+                      {player.name}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : (
-            <div>Waiting for players to join...</div>
-          )}
+            ) : (
+              <div className={styles.playerAreaEmpty}>Waiting for players to join...</div>
+            )}
+          </div>
 
           {/* Everything from here down is indented to clear Dmitri, who
               stands in the gutter on the left. */}
@@ -269,7 +274,16 @@ class BoardPanel extends React.Component<{
     const backgrounds = EittrisAssets.images.backgrounds;
 
     return (
-      <div className={classNames(styles.boardPanel, { [styles.winnerPanel]: isWinner })}>
+      <div
+        className={classNames(styles.boardPanel, {
+          [styles.winnerPanel]: isWinner,
+          [styles.boardPanelOut]: !board.alive,
+        })}
+        // Their own avatar colour frames their board
+        style={{
+          ["--playerAccent" as any]: AVATAR_COLORS[(who?.avatarColor ?? 0) % AVATAR_COLORS.length],
+        }}
+      >
         <div className={styles.boardLabel} style={{ maxWidth: cellPx * 10 + 8 }}>
           <PlayerAvatar
             avatarId={who?.avatarId ?? 0}

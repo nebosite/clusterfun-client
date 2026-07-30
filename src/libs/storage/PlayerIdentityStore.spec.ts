@@ -1,4 +1,9 @@
-import { PlayerIdentityStore, PLAYER_IDENTITY_KEY, BLANK_IDENTITY } from "./PlayerIdentityStore";
+import {
+  PlayerIdentityStore,
+  PLAYER_IDENTITY_KEY,
+  PLAYER_TOKEN_KEY,
+  BLANK_IDENTITY,
+} from "./PlayerIdentityStore";
 import { IStorageAccessor } from "./StorageHelper";
 
 // This is what makes "open the browser and see your old name" work, so the
@@ -41,7 +46,6 @@ describe("PlayerIdentityStore", () => {
       avatarId: 7,
       avatarColor: 3,
       roomId: "AB12",
-      playerToken: "",
     });
   });
 
@@ -124,22 +128,37 @@ describe("PlayerIdentityStore - refusing to trust what it reads", () => {
 
 describe("PlayerIdentityStore - the reconnect token", () => {
   it("mints one on first use and keeps it", () => {
-    const store = new PlayerIdentityStore(memoryAccessor());
+    const store = new PlayerIdentityStore(memoryAccessor(), memoryAccessor());
     const first = store.token();
     expect(first).toBeTruthy();
     expect(store.token()).toBe(first);
   });
 
-  it("gives different browsers different tokens", () => {
-    expect(new PlayerIdentityStore(memoryAccessor()).token()).not.toBe(
-      new PlayerIdentityStore(memoryAccessor()).token(),
-    );
+  it("lives in the per-tab store, NOT alongside the long-term identity", () => {
+    // This is what lets two clients run on one PC: localStorage is shared by
+    // every tab, so a token kept there would make both tabs the same player.
+    const identity = memoryAccessor();
+    const tab = memoryAccessor();
+    const store = new PlayerIdentityStore(identity, tab);
+    const token = store.token();
+
+    expect(tab.getItem(PLAYER_TOKEN_KEY)).toBe(token);
+    expect(identity.getItem(PLAYER_IDENTITY_KEY) ?? "").not.toContain(token);
+  });
+
+  it("gives two tabs sharing one long-term identity different tokens", () => {
+    // Same person, same remembered name and avatar, two windows open - and
+    // they must still be two separate players.
+    const sharedIdentity = memoryAccessor();
+    const tabA = new PlayerIdentityStore(sharedIdentity, memoryAccessor());
+    const tabB = new PlayerIdentityStore(sharedIdentity, memoryAccessor());
+    expect(tabA.token()).not.toBe(tabB.token());
   });
 
   it("keeps the token when the room code is forgotten", () => {
     // The token has to outlive a game, or reconnecting after one ends - which
     // is exactly when you want to rejoin - would mint a brand new identity.
-    const store = new PlayerIdentityStore(memoryAccessor());
+    const store = new PlayerIdentityStore(memoryAccessor(), memoryAccessor());
     const token = store.token();
     store.save({ roomId: "AB12" });
     store.forgetRoom();
@@ -148,9 +167,40 @@ describe("PlayerIdentityStore - the reconnect token", () => {
   });
 
   it("survives a save of everything else", () => {
-    const store = new PlayerIdentityStore(memoryAccessor());
+    const store = new PlayerIdentityStore(memoryAccessor(), memoryAccessor());
     const token = store.token();
     store.save({ playerName: "Ann", avatarId: 4, avatarColor: 2, roomId: "WXYZ" });
-    expect(store.load().playerToken).toBe(token);
+    expect(store.token()).toBe(token);
+  });
+
+  it("still hands out a token when storage is unavailable", () => {
+    const store = new PlayerIdentityStore(brokenAccessor, brokenAccessor);
+    const token = store.token();
+    expect(token).toBeTruthy();
+    expect(store.token()).toBe(token); // stable for this page load
+  });
+});
+
+describe("PlayerIdentityStore - several clients sharing one tab", () => {
+  it("gives scoped stores different tokens even in the same tab storage", () => {
+    // The Test Lobby runs four clients on ONE page.  Without a scope they
+    // would all present the same token and be taken for the same player.
+    const sharedTab = memoryAccessor();
+    const client0 = new PlayerIdentityStore(memoryAccessor(), sharedTab, "client0");
+    const client1 = new PlayerIdentityStore(memoryAccessor(), sharedTab, "client1");
+    expect(client0.token()).not.toBe(client1.token());
+  });
+
+  it("keeps each scope's token stable across reloads", () => {
+    const sharedTab = memoryAccessor();
+    const first = new PlayerIdentityStore(memoryAccessor(), sharedTab, "client2").token();
+    const again = new PlayerIdentityStore(memoryAccessor(), sharedTab, "client2").token();
+    expect(again).toBe(first);
+  });
+
+  it("leaves an unscoped store on the plain key - one client per tab", () => {
+    const tab = memoryAccessor();
+    const token = new PlayerIdentityStore(memoryAccessor(), tab).token();
+    expect(tab.getItem(PLAYER_TOKEN_KEY)).toBe(token);
   });
 });

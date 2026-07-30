@@ -63,6 +63,7 @@ import {
   BRIDGE_COLUMN_MS,
   JUMBLE_NUDGES,
   refillNextQueue,
+  pruneOrphanedSpecials,
   defaultSettings,
   sanitizeSettings,
   rollAllowedSpecial,
@@ -481,6 +482,18 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     this.tickAi(board, dtMs);
     this.tickPsycho(board);
     this.tickAfflictionTimers(board, dtMs);
+
+    // Everything above may have moved the grid out from under a powerup: a row
+    // collapsed, an attack painted over the stack, a jumble shook it apart, a
+    // screen was swapped.  A powerup belongs to a block, so any marker left
+    // without one is dropped here rather than floating in mid-air forever.
+    if (board.specials.length > 0) {
+      const anchored = pruneOrphanedSpecials(board.grid, board.specials);
+      if (anchored.length !== board.specials.length) {
+        board.specials = anchored;
+        this.dirtyPlayerIds.add(board.playerId);
+      }
+    }
 
     // A clear is playing out: nothing falls and nothing spawns until the
     // rows have been eaten and the stack has landed.

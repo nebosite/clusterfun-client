@@ -1,10 +1,12 @@
 import React from "react";
 import BoardGrid from "./BoardGrid";
+import styles from "./Presenter.module.css";
 import EittrisAssets from "../assets/Assets";
 import {
   EittrisBoard,
   IMPLEMENTED_SPECIALS,
   SpecialType,
+  SPECIAL_NAMES,
   collapseRows,
   effectiveIntervalMs,
   gravityStep,
@@ -226,9 +228,12 @@ export class RobotDemo extends React.Component<RobotDemoProps, RobotDemoState> {
           transparency={board.transparency}
           psychoSeed={board.psychoSeed}
         />
-        <span style={{ fontSize: "45%", opacity: 0.75 }}>
-          {board.alive ? `Robot demo · ${board.rows} rows` : "Robot topped out..."}
-          {lastHit !== null && board.alive ? ` · hit by ${SpecialType[lastHit]}` : ""}
+        {/* The caption changes as powerups land, and a longer name must not
+            widen or shorten the box - the demo would visibly jump every few
+            seconds.  Fixed width, room for two lines, wrapped. */}
+        <span className={styles.demoCaption}>
+          {board.alive ? `${board.rows} rows` : "Topped out..."}
+          {lastHit !== null && board.alive ? ` · hit by ${SPECIAL_NAMES[lastHit]}` : ""}
         </span>
       </div>
     );
