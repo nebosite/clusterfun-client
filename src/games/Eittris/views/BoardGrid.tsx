@@ -8,6 +8,10 @@ import EittrisAssets from "../assets/Assets";
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
+  SPECIAL_ICON_COUNT,
+  cellsLeftInEatenRow,
+  fallProgress,
+  finalRowDrops,
   EittrisPiece,
   EMPTY_CELL,
   landingCells,
@@ -17,7 +21,6 @@ import {
 } from "../models/eittrisLogic";
 
 const FALLBACK_COLOR = "#101a2c"; // shown when no background image is supplied
-const SPECIAL_ICON_COUNT = 16; // icons in assets/images/specials.png
 const SPECIAL_BLOCK_COLOR = "#4a4a4a"; // blocks hosting a powerup
 const SHADOW_ALPHA = 0.25; // the original draws its landing ghost at 20%
 const PSYCHO_TRAIL_ALPHA = 0.4; // and its psycho background at 40%
@@ -48,9 +51,60 @@ interface BoardGridProps {
   transparency?: boolean; // Transparency: settled blocks are ghosted outlines
   psychoSeed?: number; // Psycho: non-zero means the colors are lying
   psychoOverlay?: number[][] | null; // Psycho: per-cell palette indices
+  // A row clear playing out: which rows are going, and how long each phase
+  // lasts.  The component runs its own clock from the moment it first sees a
+  // given clear, so the animation is smooth without streaming frames.
+  clearing?: { rows: number[]; elapsedMs: number; eatMs: number; fallMs: number } | null;
 }
 
-export class BoardGrid extends React.Component<BoardGridProps> {
+interface BoardGridState {
+  clearElapsedMs: number;
+}
+
+export class BoardGrid extends React.Component<BoardGridProps, BoardGridState> {
+  state: BoardGridState = { clearElapsedMs: 0 };
+  private clearFrame?: number;
+  private clearStartedAt = 0;
+  private animatingRows = "";
+
+  componentDidUpdate() {
+    this.syncClearAnimation();
+  }
+  componentDidMount() {
+    this.syncClearAnimation();
+  }
+  componentWillUnmount() {
+    if (this.clearFrame !== undefined) cancelAnimationFrame(this.clearFrame);
+  }
+
+  // Start a local clock the first time we see a particular clear, and stop it
+  // when the clear is over.  Keyed on the rows so a second clear right after
+  // the first is not mistaken for the same one still running.
+  private syncClearAnimation() {
+    const clearing = this.props.clearing;
+    const key = clearing ? clearing.rows.join(",") : "";
+    if (key === this.animatingRows) return;
+    this.animatingRows = key;
+    if (this.clearFrame !== undefined) cancelAnimationFrame(this.clearFrame);
+    this.clearFrame = undefined;
+    if (!clearing) {
+      if (this.state.clearElapsedMs !== 0) this.setState({ clearElapsedMs: 0 });
+      return;
+    }
+    // Start from wherever the host says it already is, so a late-arriving
+    // update does not restart the animation from zero.
+    this.clearStartedAt = performance.now() - clearing.elapsedMs;
+    const step = () => {
+      const elapsed = performance.now() - this.clearStartedAt;
+      this.setState({ clearElapsedMs: elapsed });
+      const total = clearing.eatMs + clearing.fallMs;
+      if (elapsed < total && this.animatingRows === key) {
+        this.clearFrame = requestAnimationFrame(step);
+      }
+    };
+    this.clearFrame = requestAnimationFrame(step);
+  }
+
   render() {
     const { grid, piece, cellPx, backgroundUrl, dimmed } = this.props;
 
@@ -86,6 +140,21 @@ export class BoardGrid extends React.Component<BoardGridProps> {
       `0 0 0 ${inner}px rgba(0, 0, 0, 0.55)`,
     ].join(", ");
 
+    // ---- Row clear ----------------------------------------------------
+    // Phase 1: the cleared rows are eaten away, left to right, while the grid
+    // still holds them.  Phase 2: they are gone, and every row that dropped
+    // into the gap is drawn back where it started, easing down under gravity.
+    const clearing = this.props.clearing;
+    const clearElapsed = this.state.clearElapsedMs;
+    const eating = !!clearing && clearElapsed < clearing.eatMs;
+    const clearedRowSet = new Set(clearing?.rows ?? []);
+    const cellsLeft = clearing ? cellsLeftInEatenRow(clearElapsed, clearing.eatMs) : BOARD_WIDTH;
+    // Indexed by FINAL row - the position we are actually drawing
+    const dropAmounts = clearing && !eating ? finalRowDrops(clearing.rows) : [];
+    const fallLeft = clearing
+      ? 1 - fallProgress(clearElapsed - clearing.eatMs, clearing.fallMs)
+      : 0;
+
     // Marked blocks pulse (the original cycles rainbow) and wear their icon
     const specialAt = new Map<number, number>();
     for (const m of this.props.specials ?? []) specialAt.set(m.i, m.t);
@@ -95,7 +164,13 @@ export class BoardGrid extends React.Component<BoardGridProps> {
       for (let x = 0; x < BOARD_WIDTH; x++) {
         const index = y * BOARD_WIDTH + x;
         const type = overlay.has(index) ? overlay.get(index)! : (grid[y]?.[x] ?? EMPTY_CELL);
-        const filled = type !== EMPTY_CELL;
+        let filled = type !== EMPTY_CELL;
+        // A row being eaten empties from the left as the animation runs
+        if (eating && clearedRowSet.has(y) && x >= cellsLeft) filled = false;
+        // ...and once the rows are gone, whatever dropped into the gap is
+        // lifted back to where it started and eased down.
+        const drop = dropAmounts[y] ?? 0;
+        const fallOffsetPx = drop > 0 ? -fallLeft * drop * cellPx : 0;
         const special = specialAt.get(index);
         // FreezeDried shrivels SETTLED blocks only - the falling piece stays
         // readable, which is what makes it so disorienting
@@ -136,6 +211,7 @@ export class BoardGrid extends React.Component<BoardGridProps> {
               width: cellPx * shrink,
               height: cellPx * shrink,
               boxSizing: "border-box",
+              transform: fallOffsetPx ? `translateY(${fallOffsetPx}px)` : undefined,
               margin: jitter ? `${jitter.y}px 0 0 ${jitter.x}px` : undefined,
               // A block carrying a powerup is recolored dark gray so the
               // icon reads and the prize is obvious

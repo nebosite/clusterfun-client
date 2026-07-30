@@ -7,6 +7,8 @@ export interface IMediaHelper {
 
 export interface SoundPlayOptions {
   volume: number;
+  // Playback speed, which also shifts the pitch.  1 is the sample as recorded.
+  rate?: number;
 }
 
 export class MediaHelper implements IMediaHelper {

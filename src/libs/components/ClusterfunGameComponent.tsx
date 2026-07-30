@@ -14,6 +14,7 @@ import {
   ITelemetryLogger,
 } from "../../libs";
 import { UIProperties } from "libs/types/UIProperties";
+import { GameEndReason } from "libs/GameModel/BaseGameModel";
 import { observer, Provider } from "mobx-react";
 import React from "react";
 import Logger from "js-logger";
@@ -30,7 +31,7 @@ export interface ClusterFunGameProps {
   messageThing: IMessageThing;
   logger: ITelemetryLogger;
   storage: IStorage;
-  onGameEnded: () => void;
+  onGameEnded: (reason?: GameEndReason) => void;
   serverCall: <T>(url: string, payload: any) => Promise<T>;
 }
 
@@ -107,7 +108,7 @@ export class ClusterfunGameComponent extends React.Component<ClusterFunGameProps
 
   componentDidMount(): void {
     this.appModel!.subscribe(GeneralGameState.Destroyed, "GameOverCleanup", () =>
-      this.props.onGameEnded(),
+      this.props.onGameEnded(this.appModel!.endReason),
     );
     this.appModel!.reconstitute();
   }

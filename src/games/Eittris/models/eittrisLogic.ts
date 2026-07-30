@@ -9,7 +9,11 @@ export const BOARD_WIDTH = 10;
 export const BOARD_HEIGHT = 21; // row 0 at top; gravity is y++
 export const SPAWN_X = 5;
 export const SPAWN_Y = 0;
-export const NEXT_PREVIEW_COUNT = 1; // the phone's tray shows exactly one piece
+export const NEXT_PREVIEW_COUNT = 1; // the phone's tray normally shows one piece
+// ...but CrystalBall shows three, so the queue always holds that many.  The
+// preview depth is a display choice; the queue depth is what makes it possible.
+export const CRYSTAL_BALL_PREVIEW = 3;
+export const NEXT_QUEUE_DEPTH = CRYSTAL_BALL_PREVIEW;
 
 export const START_INTERVAL_MS = 1000; // gravity starts at 1 row per second
 export const MIN_INTERVAL_MS = 80; // sane floor for the gravity interval
@@ -30,7 +34,7 @@ export const TOWER_CELL = 8;
 // a fired antidote shields/cures for 10s.  Players start with one.
 export const SPECIAL_INTERVAL_MS = 8000;
 export const ANTIDOTE_CHANCE = 0.5;
-export const ANTIDOTE_MAX = 4;
+export const ANTIDOTE_MAX = 3;
 export const ANTIDOTE_DURATION_MS = 10000;
 // Every affliction wears off on its own after this long.  Getting hit again
 // with the same one refreshes the clock rather than stacking a second timer.
@@ -352,7 +356,12 @@ export enum SpecialType {
   SwitchScreens = 13,
   FreezeDried = 14,
   Transparency = 15,
+  // A perk of our own, not from the original: see further down the queue
+  CrystalBall = 16,
 }
+
+// Icons in assets/images/specials.png, one per SpecialType, in enum order
+export const SPECIAL_ICON_COUNT = 17;
 
 export const SPECIAL_NAMES: string[] = [
   "Speedup",
@@ -371,6 +380,7 @@ export const SPECIAL_NAMES: string[] = [
   "SwitchScreens",
   "FreezeDried",
   "Transparency",
+  "CrystalBall",
 ];
 
 // Specials that actually DO something today.  Random rolls and the dev
@@ -392,6 +402,7 @@ export const IMPLEMENTED_SPECIALS: SpecialType[] = [
   SpecialType.Psycho,
   SpecialType.Jumble,
   SpecialType.SwitchScreens,
+  SpecialType.CrystalBall,
 ];
 
 // Specials that are fired AT your target rather than kept for yourself
@@ -571,14 +582,25 @@ export function occupiedCellIndices(grid: number[][]): number[] {
   return out;
 }
 
-// Pick a settled block to tag (never one that already carries a marker)
+// A board may carry several powerups at once, but never two close enough
+// vertically to be cleared by the same piece - landing one brick and setting
+// off two attacks at once is a lottery, not a play.
+export const SPECIAL_MIN_ROW_GAP = 4;
+
+// Pick a settled block to tag: never one that already carries a marker, and
+// never within SPECIAL_MIN_ROW_GAP rows of an existing one.
 export function pickSpecialCell(
   grid: number[][],
   markers: SpecialMarker[],
   rand: () => number,
 ): number | null {
   const taken = new Set(markers.map((m) => m.index));
-  const free = occupiedCellIndices(grid).filter((i) => !taken.has(i));
+  const busyRows = markers.map((m) => Math.floor(m.index / BOARD_WIDTH));
+  const free = occupiedCellIndices(grid).filter((i) => {
+    if (taken.has(i)) return false;
+    const row = Math.floor(i / BOARD_WIDTH);
+    return busyRows.every((busy) => Math.abs(busy - row) >= SPECIAL_MIN_ROW_GAP);
+  });
   if (free.length === 0) return null;
   return free[Math.min(free.length - 1, Math.floor(rand() * free.length))];
 }
@@ -650,7 +672,7 @@ export function spawnNextFromQueue(
       ? Math.min(EVIL_PIECE_COUNT - 1, Math.floor(rand() * EVIL_PIECE_COUNT))
       : randomPieceType(rand);
   const queue = nextQueue.slice();
-  while (queue.length < NEXT_PREVIEW_COUNT) queue.push(pick());
+  while (queue.length < NEXT_QUEUE_DEPTH) queue.push(pick());
   const type = queue.shift()!;
   queue.push(pick());
   return { piece: spawnPiece(type, Math.floor(rand() * 4), evil), queue };
@@ -661,7 +683,7 @@ export function spawnNextFromQueue(
 // refilling it would leave the phone's Next tray empty until the next spawn.
 export function refillNextQueue(rand: () => number, evil = false): number[] {
   const queue: number[] = [];
-  while (queue.length < NEXT_PREVIEW_COUNT) {
+  while (queue.length < NEXT_QUEUE_DEPTH) {
     queue.push(
       evil
         ? Math.min(EVIL_PIECE_COUNT - 1, Math.floor(rand() * EVIL_PIECE_COUNT))
@@ -693,6 +715,10 @@ export interface EittrisBoard {
   // piece they were dragging got placed, so the rest of that gesture can't
   // leak onto the next one.
   pieceSeq: number;
+  // A row clear playing out: the rows are eaten away, then the stack above
+  // falls into the gap.  While this is set the board holds the PRE-collapse
+  // grid, no piece is falling, and the spawn gap has not started yet.
+  clearing: { rows: number[]; elapsedMs: number; eatMs: number; fallMs: number } | null;
   // Milliseconds left in the post-lock gap before the next piece appears
   // (0 = not waiting).  While piece is null and this is counting down, the
   // board accepts no input at all.
@@ -708,6 +734,9 @@ export interface EittrisBoard {
   slowdownStacks: number;
   // SeeShadows: the landing ghost, on for the rest of the round once earned
   seeShadows: boolean;
+  // CrystalBall: see three pieces ahead instead of one.  A perk, like
+  // SeeShadows - yours for the round, and no antidote takes it away.
+  crystalBall: boolean;
   // EvilPieces: this board draws from the nastier table until cured
   evilPieces: boolean;
   // CrazyIvan: left/right and rotation are inverted until cured
@@ -733,6 +762,10 @@ export interface EittrisBoard {
   forcedSpecial: SpecialType | null; // dev selector: only ever spawn this
   // DEV: hand this board to the computer player
   aiControlled: boolean;
+  // A robot is standing in because the player dropped out.  Kept apart from
+  // aiControlled so that handing the seat back restores whatever the player
+  // had chosen, rather than always switching the bot off.
+  robotTakeover: boolean;
   aiTimerMs: number; // countdown to the bot's next move
   // A Bridge painting itself across the top of this board
   pendingBridge: PendingBridge | null;
@@ -768,6 +801,7 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     speedupStacks: 0,
     slowdownStacks: 0,
     seeShadows: false,
+    crystalBall: false,
     evilPieces: false,
     crazyIvan: false,
     freezeDried: false,
@@ -783,7 +817,9 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     shieldMs: 0,
     forcedSpecial: null,
     aiControlled: false,
+    robotTakeover: false,
     aiTimerMs: 0,
+    clearing: null,
     pendingStencil: null,
     pendingBridge: null,
     jumbleLeft: 0,
@@ -1351,6 +1387,8 @@ export function decodePsychoOverlay(encoded: string): number[][] {
 // ------------------------------------------------------------------------------------------
 export const JUMBLE_NUDGES = 200;
 export const JUMBLE_NUDGE_MS = 15;
+// Tinkle once every this many nudges while the stack is being shaken apart
+export const JUMBLE_TINKLE_EVERY = 8;
 
 // One nudge.  Returns the grid unchanged if the pick had nowhere to go.
 export function jumbleOnce(grid: number[][], rand: () => number): number[][] {
@@ -1443,4 +1481,169 @@ export function robotRoster(count: number): EittrisRobot[] {
 
 export function isRobotId(playerId: string): boolean {
   return /^robot-\d+$/.test(playerId);
+}
+
+// ------------------------------------------------------------------------------------------
+// Clearing rows, as an animation.
+//
+// A cleared row is eaten away over CLEAR_EAT_MS, and only then does the stack above drop into
+// the gap - falling the way a dropped thing actually falls, accelerating rather than sliding
+// at a constant rate.  The timings are anchored on a four-row drop taking CLEAR_FALL_MS: from
+// d = at^2/2, a shorter fall takes proportionally less time, which is why a single row lands
+// in half the time of four rather than a quarter of it.
+//
+// The presenter owns the clock (it owns everything), and sends the durations once rather than
+// streaming a frame at a time - each screen then animates locally off its own clock.
+// ------------------------------------------------------------------------------------------
+export const CLEAR_EAT_MS = 300;
+export const CLEAR_FALL_MS = 300; // for a four-row drop
+export const CLEAR_FALL_REFERENCE_ROWS = 4;
+
+// How long a drop of `rows` takes, under the same acceleration that puts four rows at
+// CLEAR_FALL_MS.  d = at^2/2  =>  t = sqrt(2d/a)  =>  t scales with sqrt(d).
+export function clearFallMs(rows: number): number {
+  if (rows <= 0) return 0;
+  return CLEAR_FALL_MS * Math.sqrt(rows / CLEAR_FALL_REFERENCE_ROWS);
+}
+
+// Where a falling block is at time t, as a fraction of its total drop.  Accelerating from a
+// standstill, so the fraction is t^2 - slow to start, quickest as it lands.
+export function fallProgress(elapsedMs: number, durationMs: number): number {
+  if (durationMs <= 0) return 1;
+  const t = Math.max(0, Math.min(1, elapsedMs / durationMs));
+  return t * t;
+}
+
+// How far each row of the grid falls once `clearedRows` are taken out: one row for every
+// cleared row below it.  Indexed by the row's ORIGINAL position.
+export function rowDropAmounts(clearedRows: number[]): number[] {
+  const cleared = new Set(clearedRows);
+  const drops: number[] = new Array(BOARD_HEIGHT).fill(0);
+  for (let y = 0; y < BOARD_HEIGHT; y++) {
+    if (cleared.has(y)) continue;
+    let below = 0;
+    for (const row of clearedRows) if (row > y) below++;
+    drops[y] = below;
+  }
+  return drops;
+}
+
+// How far the block now sitting at each FINAL row had to fall.  Indexed by the
+// row's position AFTER the collapse, which is what a renderer actually has -
+// it is drawing the collapsed grid and needs to know how far to lift each row
+// back up.  Rows that came from above the clear, and rows that never moved,
+// are 0.
+export function finalRowDrops(clearedRows: number[]): number[] {
+  const cleared = new Set(clearedRows);
+  const kept: number[] = [];
+  for (let y = 0; y < BOARD_HEIGHT; y++) if (!cleared.has(y)) kept.push(y);
+  const drops: number[] = new Array(BOARD_HEIGHT).fill(0);
+  // The kept rows land at the bottom, in order; the gap is refilled on top
+  const firstFinal = BOARD_HEIGHT - kept.length;
+  kept.forEach((originalRow, i) => {
+    drops[firstFinal + i] = firstFinal + i - originalRow;
+  });
+  return drops;
+}
+
+// The furthest any row has to fall - what sets the length of the animation
+export function maxRowDrop(clearedRows: number[]): number {
+  const drops = rowDropAmounts(clearedRows);
+  return drops.reduce((most, drop) => Math.max(most, drop), 0);
+}
+
+// Take the named rows out and drop everything above them down.  Deliberately removes the
+// rows we PROMISED to remove rather than re-testing for full rows: an attack landing during
+// the animation may well have filled one in, and the player was already told it was going.
+export function collapseRows(grid: number[][], clearedRows: number[]): number[][] {
+  const cleared = new Set(clearedRows);
+  const kept = grid.filter((_, y) => !cleared.has(y));
+  const added = Array.from({ length: BOARD_HEIGHT - kept.length }, () =>
+    Array(BOARD_WIDTH).fill(EMPTY_CELL),
+  );
+  return [...added, ...kept];
+}
+
+// A row being eaten away, left to right.  Returns how many cells are still there.
+export function cellsLeftInEatenRow(elapsedMs: number, eatMs: number): number {
+  if (eatMs <= 0) return 0;
+  const gone = Math.floor((Math.max(0, elapsedMs) / eatMs) * BOARD_WIDTH);
+  return Math.max(0, BOARD_WIDTH - gone);
+}
+
+// Stamp a piece into the grid without clearing anything.  Used when a clear is
+// about to be animated: the rows have to stay put while they are eaten.
+export function lockOnly(grid: number[][], piece: EittrisPiece): number[][] {
+  const locked = grid.map((row) => row.slice());
+  const color = pieceColorIndex(piece);
+  for (const c of pieceCells(piece)) {
+    if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) {
+      locked[c.y][c.x] = color;
+    }
+  }
+  return locked;
+}
+
+// ------------------------------------------------------------------------------------------
+// Host settings - what the host picks on the gathering screen before starting.
+//
+// Kept as plain data so the whole lot serializes with the presenter and survives a refresh
+// mid-setup, and so the rules can be unit-tested without a presenter at all.
+// ------------------------------------------------------------------------------------------
+export const MAX_STARTING_ANTIDOTES = ANTIDOTE_MAX;
+
+export interface EittrisSettings {
+  startingAntidotes: number;
+  // What clearing four rows at once wins you.  The original always fired a
+  // Bridge; the host can now pick anything that is switched on.
+  fourRowAward: SpecialType;
+  // Which specials may appear at all.  Anything left out never rolls.
+  allowedSpecials: SpecialType[];
+}
+
+export function defaultSettings(): EittrisSettings {
+  return {
+    startingAntidotes: ANTIDOTES_AT_START,
+    fourRowAward: SpecialType.Antidote,
+    allowedSpecials: IMPLEMENTED_SPECIALS.slice(),
+  };
+}
+
+// Fold whatever the host chose into something the game can actually run.  A
+// host who unticks everything gets antidotes rather than a game where clearing
+// rows does nothing at all - an empty pool would otherwise deadlock every roll.
+export function sanitizeSettings(settings: Partial<EittrisSettings> | null): EittrisSettings {
+  const base = defaultSettings();
+  if (!settings) return base;
+  const allowed = (settings.allowedSpecials ?? base.allowedSpecials).filter((type) =>
+    IMPLEMENTED_SPECIALS.includes(type),
+  );
+  const startingAntidotes = Math.max(
+    0,
+    Math.min(
+      MAX_STARTING_ANTIDOTES,
+      Math.floor(settings.startingAntidotes ?? base.startingAntidotes),
+    ),
+  );
+  const award = settings.fourRowAward ?? base.fourRowAward;
+  return {
+    startingAntidotes: Number.isFinite(startingAntidotes)
+      ? startingAntidotes
+      : base.startingAntidotes,
+    // The award has to be something that can actually appear
+    fourRowAward: IMPLEMENTED_SPECIALS.includes(award) ? award : base.fourRowAward,
+    allowedSpecials: allowed.length > 0 ? allowed : [SpecialType.Antidote],
+  };
+}
+
+// Roll a special from the allowed pool.  Antidotes keep their fixed share of
+// the rolls when they are switched on, exactly as the original had it.
+export function rollAllowedSpecial(
+  rand: () => number,
+  antidoteChance: number,
+  allowed: SpecialType[],
+): SpecialType {
+  const pool = allowed.length > 0 ? allowed : [SpecialType.Antidote];
+  if (pool.includes(SpecialType.Antidote) && rand() < antidoteChance) return SpecialType.Antidote;
+  return pool[Math.min(pool.length - 1, Math.floor(rand() * pool.length))];
 }

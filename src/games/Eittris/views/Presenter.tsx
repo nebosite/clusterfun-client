@@ -23,8 +23,15 @@ import {
   EittrisGameEvent,
   EittrisPlayer,
 } from "../models/PresenterModel";
-import { EittrisBoard, SpecialType } from "../models/eittrisLogic";
+import {
+  EittrisBoard,
+  SpecialType,
+  IMPLEMENTED_SPECIALS,
+  SPECIAL_NAMES,
+  SPECIAL_ICON_COUNT,
+} from "../models/eittrisLogic";
 import BoardGrid from "./BoardGrid";
+import RobotDemo from "./RobotDemo";
 
 const RULES = ["Use your finger to control and place pieces"];
 
@@ -82,71 +89,136 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
     if (!appModel) return <div>NO APP MODEL</div>;
 
     return (
-      <div>
-        <h3>Welcome to EITtris</h3>
-        <InstructionsBox />
-        <p>
-          To Join: go to http://{window.location.host} and enter this room code: {appModel.roomId}
-        </p>
+      <div className={styles.gatheringLayout}>
+        <div className={styles.gatheringMain}>
+          <h3>Welcome to EITtris</h3>
+          <InstructionsBox />
+          <p>
+            To Join: go to http://{window.location.host} and enter this room code: {appModel.roomId}
+          </p>
 
-        {appModel.players.length > 0 ? (
-          <div>
-            <p style={{ fontWeight: 600 }}>Players:</p>
-            <div className={styles.divRow}>
-              {appModel.players.map((player) => (
-                <div className={styles.nameBox} key={player.playerId}>
-                  <PlayerAvatar
-                    avatarId={player.avatarId}
-                    colorIndex={player.avatarColor}
-                    size={40}
-                  />{" "}
-                  {player.name}
-                </div>
+          {appModel.players.length > 0 ? (
+            <div>
+              <p style={{ fontWeight: 600 }}>Players:</p>
+              <div className={styles.divRow}>
+                {appModel.players.map((player) => (
+                  <div className={styles.nameBox} key={player.playerId}>
+                    <PlayerAvatar
+                      avatarId={player.avatarId}
+                      colorIndex={player.avatarColor}
+                      size={40}
+                    />{" "}
+                    {player.name}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div>Waiting for players to join...</div>
+          )}
+
+          {/* Game setup.  Everything here is decided before the round starts,
+            and rides the checkpoint so a refresh mid-setup loses nothing. */}
+          <div className={styles.setupPanel}>
+            <div className={styles.setupRow}>
+              <span className={styles.setupLabel}>Antidotes to start:</span>
+              {[0, 1, 2, 3].map((count) => (
+                <button
+                  key={count}
+                  className={classNames(styles.robotButton, {
+                    [styles.robotButtonOn]: appModel.settings.startingAntidotes === count,
+                  })}
+                  onClick={() => appModel.setStartingAntidotes(count)}
+                >
+                  {count}
+                </button>
               ))}
             </div>
-          </div>
-        ) : (
-          <div>Waiting for players to join...</div>
-        )}
 
-        {/* Robot players: enough to make a game of it with one or two people.
+            <div className={styles.setupRow}>
+              <span className={styles.setupLabel}>Four-row award:</span>
+              <select
+                className={styles.setupSelect}
+                value={appModel.settings.fourRowAward}
+                onChange={(ev) => appModel.setFourRowAward(Number(ev.target.value))}
+              >
+                {IMPLEMENTED_SPECIALS.map((type) => (
+                  <option key={type} value={type}>
+                    {SPECIAL_NAMES[type]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.setupRow}>
+              <span className={styles.setupLabel}>Powerups in play:</span>
+              <div className={styles.specialChecks}>
+                {IMPLEMENTED_SPECIALS.map((type) => (
+                  <label key={type} className={styles.specialCheck}>
+                    <input
+                      type="checkbox"
+                      checked={appModel.isSpecialAllowed(type)}
+                      onChange={() => appModel.toggleAllowedSpecial(type)}
+                    />
+                    <span
+                      className={styles.specialCheckIcon}
+                      style={{
+                        backgroundImage: `url(${EittrisAssets.images.specials})`,
+                        backgroundPosition: `${(type / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`,
+                      }}
+                    />
+                    {SPECIAL_NAMES[type]}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Robot players: enough to make a game of it with one or two people.
             They never change how many humans are needed to start. */}
-        <div className={styles.robotPicker}>
-          <span className={styles.robotLabel}>Robot players:</span>
-          {[0, 1, 2, 3, 4].map((count) => (
-            <button
-              key={count}
-              className={classNames(styles.robotButton, {
-                [styles.robotButtonOn]: appModel.robotCount === count,
-              })}
-              onClick={() => appModel.setRobotCount(count)}
-            >
-              {count}
+          <div className={styles.robotPicker}>
+            <span className={styles.robotLabel}>Robot players:</span>
+            {[0, 1, 2, 3, 4].map((count) => (
+              <button
+                key={count}
+                className={classNames(styles.robotButton, {
+                  [styles.robotButtonOn]: appModel.robotCount === count,
+                })}
+                onClick={() => appModel.setRobotCount(count)}
+              >
+                {count}
+              </button>
+            ))}
+            {appModel.robotCount > 0 ? (
+              <span className={styles.robotNames}>
+                {appModel.robots.map((robot) => (
+                  <span className={styles.nameBox} key={robot.playerId}>
+                    <PlayerAvatar
+                      avatarId={robot.avatarId}
+                      colorIndex={robot.avatarColor}
+                      size={40}
+                    />{" "}
+                    {robot.name}
+                  </span>
+                ))}
+              </span>
+            ) : null}
+          </div>
+
+          {appModel.canStart ? (
+            <button className={styles.presenterButton} onClick={() => appModel.startGame()}>
+              Click here to start!
             </button>
-          ))}
-          {appModel.robotCount > 0 ? (
-            <span className={styles.robotNames}>
-              {appModel.robots.map((robot) => (
-                <span className={styles.nameBox} key={robot.playerId}>
-                  <PlayerAvatar
-                    avatarId={robot.avatarId}
-                    colorIndex={robot.avatarColor}
-                    size={40}
-                  />{" "}
-                  {robot.name}
-                </span>
-              ))}
-            </span>
-          ) : null}
+          ) : (
+            <div>Waiting for at least {appModel.minPlayers} player(s) to join...</div>
+          )}
         </div>
 
-        {appModel.canStart ? (
-          <button className={styles.presenterButton} onClick={() => appModel.startGame()}>
-            Click here to start!
-          </button>
-        ) : (
-          <div>Waiting for at least {appModel.minPlayers} player(s) to join...</div>
-        )}
+        {/* A robot playing the game, so the big screen has something
+            happening on it while people are still typing in the room code. */}
+        <div className={styles.demoColumn}>
+          <RobotDemo cellPx={18} />
+        </div>
       </div>
     );
   }
@@ -211,6 +283,7 @@ class BoardPanel extends React.Component<{
             transparency={board.transparency}
             psychoSeed={board.psychoSeed}
             psychoOverlay={board.psychoOverlay}
+            clearing={board.clearing}
           />
           {!board.alive ? <div className={styles.toppedOut}>TOPPED OUT</div> : null}
         </div>
@@ -340,6 +413,15 @@ export default class Presenter extends React.Component<{
     // four overlapping chimes.
     appModel?.subscribe(EittrisGameEvent.AfflictionEnded, "play cured sound", () =>
       this.media.playSound(EittrisAssets.sounds.cured, { volume: 0.7 }),
+    );
+    // Blocks skittering while the randomizer shakes a stack apart.  Same
+    // short sample every time, at a different pitch each time, which is what
+    // turns a repeated click into a tinkle.
+    appModel?.subscribe(EittrisGameEvent.JumbleNudge, "play jumble tinkle", () =>
+      this.media.playSound(EittrisAssets.sounds.jumble, {
+        volume: 0.35,
+        rate: 0.75 + Math.random() * 1.1,
+      }),
     );
     appModel?.subscribe(EittrisGameEvent.PlayerDied, "play death sound", () =>
       this.media.playSound(EittrisAssets.sounds.crowdAww, { volume: 0.9 }),

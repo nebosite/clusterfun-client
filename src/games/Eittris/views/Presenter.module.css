@@ -178,3 +178,72 @@
   flex-wrap: wrap;
   gap: 10px;
 }
+
+/* ---- Gathering screen: setup on the left, a robot playing on the right ---- */
+.gatheringLayout {
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+}
+.gatheringMain {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.demoColumn {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 8px;
+}
+
+/* ---- Game setup ---- */
+.setupPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 3px solid #4d648a;
+  border-radius: 14px;
+  background: rgba(13, 22, 38, 0.6);
+}
+.setupRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.setupLabel {
+  font-weight: 600;
+  min-width: 260px;
+}
+.setupSelect {
+  font-size: 85%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 3px solid #4d648a;
+  background: #1b2a42;
+  color: #e8f0fa;
+}
+.specialChecks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  flex: 1 1 60%;
+}
+.specialCheck {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 80%;
+  cursor: pointer;
+}
+.specialCheckIcon {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  background-size: 1700% 100%;
+  background-repeat: no-repeat;
+  flex: 0 0 auto;
+}

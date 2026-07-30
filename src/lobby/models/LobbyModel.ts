@@ -11,6 +11,7 @@ import { action, makeObservable, observable } from "mobx";
 import Logger from "js-logger";
 import { PlayerIdentityStore } from "../../libs/storage/PlayerIdentityStore";
 import { GLOBALS } from "../../Globals";
+import { GameEndReason } from "../../libs/GameModel/BaseGameModel";
 
 // What we know about a failed join, for the player to read or send on.  Join
 // problems happen on somebody else's phone, at a party, once - so the details
@@ -46,7 +47,7 @@ export interface ILobbyDependencies {
   storage: IStorage;
   telemetryFactory: ITelemetryLoggerFactory;
   messageThingFactory: (this: unknown, gameProperties: GameInstanceProperties) => IMessageThing;
-  onGameEnded: () => void;
+  onGameEnded: (reason?: GameEndReason) => void;
 }
 
 export interface HealthColumn {
@@ -178,7 +179,7 @@ export class LobbyModel {
   private _logger: ITelemetryLogger;
   private _serverCall: <T>(url: string, payload: any) => Promise<T>;
   private _messageThingFactory: (gameProperties: GameInstanceProperties) => IMessageThing;
-  private _onGameEnded: () => void;
+  private _onGameEnded: (reason?: GameEndReason) => void;
   private _storage: IStorage;
   private _dependencies: ILobbyDependencies;
   // Name and avatar live in localStorage, so they survive closing the browser.
@@ -256,17 +257,21 @@ export class LobbyModel {
   // -------------------------------------------------------------------
   // onGameOver
   // -------------------------------------------------------------------
-  private onGameEnded = () => {
-    Logger.debug("Gameover signalled");
+  private onGameEnded = (reason?: GameEndReason) => {
+    Logger.debug(`Gameover signalled (${reason ?? "unknown"})`);
     this.lobbyState = LobbyState.Fresh;
-    if (this._onGameEnded) this._onGameEnded();
+    if (this._onGameEnded) this._onGameEnded(reason);
     this.gameProperties = null;
-    // The code is stale now - offering it again would send the player at a room
-    // that is closing.  Name and avatar stay: those are worth remembering.
-    this._identity.forgetRoom();
-    action(() => {
-      this._roomId = "";
-    })();
+    // Only retire the code when the HOST ended things - then it is a dead room
+    // and offering it again would send the player nowhere.  A player who taps
+    // Quit is just stepping out, and should find their lobby exactly as they
+    // left it: name, avatar and code all still filled in.
+    if (reason === "hostEnded" || reason === "terminated") {
+      this._identity.forgetRoom();
+      action(() => {
+        this._roomId = "";
+      })();
+    }
     this.saveState();
   };
 

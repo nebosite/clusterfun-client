@@ -487,8 +487,10 @@
   font-family: var(--ui);
   font-weight: 500;
   font-size: calc(30px * var(--fs));
-  color: var(--text);
-  background: var(--field);
+  /* Dark on light: the two fields you MUST fill in should look like the
+     things you type into, not like more of the dark chrome around them. */
+  color: #12131a;
+  background: #f2f5fa;
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 20px 22px;
@@ -498,7 +500,7 @@
     box-shadow 0.15s ease;
 }
 .textInput::placeholder {
-  color: var(--text-faint);
+  color: rgba(18, 19, 26, 0.45);
 }
 .textInput:focus-visible {
   border-color: var(--cyan);
@@ -599,8 +601,9 @@
   font-family: var(--mono);
   font-weight: 700;
   font-size: calc(38px * var(--fs));
-  color: var(--text);
-  background: var(--field);
+  /* Dark on light, same as the name field - these are inputs, not chrome */
+  color: #12131a;
+  background: #f2f5fa;
   border: 2px solid var(--border);
   border-radius: 16px;
 }
@@ -791,7 +794,8 @@
   position: absolute;
   width: 3px;
   height: 46%;
-  background: var(--cyan);
+  /* Dark caret now that the cells are light */
+  background: #12131a;
   border-radius: 2px;
   animation: cf-caret-blink 1.1s step-end infinite;
 }

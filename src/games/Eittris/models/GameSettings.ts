@@ -21,3 +21,8 @@ export const THUMBNAIL_INTERVAL_MS = 1000; // how often changed boards broadcast
 
 // Computer player: one move (rotate or a single sideways step) twice a second
 export const AI_MOVE_INTERVAL_MS = 500;
+
+// A brand new player may still join this long after the game started - a slow
+// phone or a fumbled code should not cost somebody the whole round.  Players
+// who are REJOINING are always let back in, however long it has been.
+export const LATE_JOIN_GRACE_MS = 15000;

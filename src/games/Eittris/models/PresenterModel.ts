@@ -39,6 +39,7 @@ import {
   lockAndClear,
   makeBoard,
   NEXT_PREVIEW_COUNT,
+  CRYSTAL_BALL_PREVIEW,
   pieceCells,
   rankBoards,
   retargetOnDeath,
@@ -62,6 +63,14 @@ import {
   BRIDGE_COLUMN_MS,
   JUMBLE_NUDGES,
   refillNextQueue,
+  defaultSettings,
+  sanitizeSettings,
+  rollAllowedSpecial,
+  CLEAR_EAT_MS,
+  clearFallMs,
+  maxRowDrop,
+  collapseRows,
+  lockOnly,
   MAX_ROBOTS,
   EittrisRobot,
   robotRoster,
@@ -76,6 +85,7 @@ import {
   stampPsychoTrail,
   xorPsychoOverlay,
   JUMBLE_NUDGE_MS,
+  JUMBLE_TINKLE_EVERY,
   jumbleOnce,
   swapColumn,
   SWAP_COLUMN_MS,
@@ -89,7 +99,13 @@ import {
   nextAiMove,
   planPlacement,
 } from "./eittrisLogic";
-import { AI_MOVE_INTERVAL_MS, SPAWN_DELAY_MS, THUMBNAIL_INTERVAL_MS } from "./GameSettings";
+import type { EittrisSettings } from "./eittrisLogic";
+import {
+  AI_MOVE_INTERVAL_MS,
+  LATE_JOIN_GRACE_MS,
+  SPAWN_DELAY_MS,
+  THUMBNAIL_INTERVAL_MS,
+} from "./GameSettings";
 
 // In the Test Lobby every player is a bot by default so a game can be
 // watched end to end without touching four phones.
@@ -122,6 +138,7 @@ export enum EittrisGameEvent {
   SpecialFired = "SpecialFired", // args: attackerId, victimId, type, repelled
   AntidoteUsed = "AntidoteUsed", // args: playerId
   AfflictionEnded = "AfflictionEnded", // args: playerId, SpecialType[] that lifted
+  JumbleNudge = "JumbleNudge", // args: playerId - a block just skittered
   PlayerDied = "PlayerDied",
   WinnerAnnounced = "WinnerAnnounced",
 }
@@ -196,6 +213,39 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // player id the relay has never heard of would be handed real network
   // messages by every broadcast.  Only their identity needs inventing, and
   // that is derived from the index, so nothing extra has to be serialized.
+  // What the host chose on the gathering screen.  Plain data, so it rides the
+  // checkpoint and survives a refresh mid-setup.
+  @observable settings: EittrisSettings = defaultSettings();
+
+  setStartingAntidotes(count: number) {
+    action(() => {
+      this.settings = sanitizeSettings({ ...this.settings, startingAntidotes: count });
+    })();
+    this.saveCheckpoint();
+  }
+
+  setFourRowAward(type: SpecialType) {
+    action(() => {
+      this.settings = sanitizeSettings({ ...this.settings, fourRowAward: type });
+    })();
+    this.saveCheckpoint();
+  }
+
+  toggleAllowedSpecial(type: SpecialType) {
+    action(() => {
+      const on = this.settings.allowedSpecials.includes(type);
+      const allowedSpecials = on
+        ? this.settings.allowedSpecials.filter((t) => t !== type)
+        : [...this.settings.allowedSpecials, type];
+      this.settings = sanitizeSettings({ ...this.settings, allowedSpecials });
+    })();
+    this.saveCheckpoint();
+  }
+
+  isSpecialAllowed(type: SpecialType) {
+    return this.settings.allowedSpecials.includes(type);
+  }
+
   @observable robotCount = 0;
   setRobotCount(count: number) {
     action(() => {
@@ -254,6 +304,9 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     this.allowedJoinStates = [PresenterGameState.Gathering];
 
     this.minPlayers = 1; // solo boards are handy for testing the mechanics
+    // Nobody else should have to sit and wait because one phone went flat.
+    // A robot takes the empty seat instead - see onPlayerExited.
+    this.pauseWhenTooFewPlayers = false;
     this.maxPlayers = 16;
 
     makeObservable(this);
@@ -280,6 +333,42 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   }
 
   // -------------------------------------------------------------------
+  // onPlayerExited / onPlayerReturned - a phone went flat, or its owner
+  // wandered off.  Rather than pausing everyone else, a robot picks up their
+  // board and plays it until they come back.
+  // -------------------------------------------------------------------
+  // Somebody who tapped join as the host tapped start should get in, not be
+  // told the room is closed.  Returning players are handled separately and are
+  // always welcome back; this is only about brand new ones.
+  protected allowsLateJoin(): boolean {
+    if (this.gameState !== EittrisGameState.Playing) return false;
+    if (!this._gameStartedAtMs) return false;
+    return Date.now() - this._gameStartedAtMs <= LATE_JOIN_GRACE_MS;
+  }
+
+  protected onPlayerExited(player: EittrisPlayer) {
+    const board = this.boards.find((b) => b.playerId === player.playerId);
+    if (!board || !board.alive) return;
+    board.robotTakeover = true;
+    board.aiControlled = true;
+    board.aiTimerMs = 0;
+    this.dirtyPlayerIds.add(board.playerId);
+    this.saveCheckpoint();
+  }
+
+  protected onPlayerReturned(player: EittrisPlayer) {
+    const board = this.boards.find((b) => b.playerId === player.playerId);
+    if (!board) return;
+    if (board.robotTakeover) {
+      board.robotTakeover = false;
+      // Back to whatever the player themselves had set, not simply "off"
+      board.aiControlled = player.aiControlled;
+      this.dirtyPlayerIds.add(board.playerId);
+      this.saveCheckpoint();
+    }
+  }
+
+  // -------------------------------------------------------------------
   // prepareFreshGame
   // -------------------------------------------------------------------
   prepareFreshGame = () => {
@@ -298,6 +387,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     const rand = () => this.randomDouble(1.0);
     const humanBoards = this.players.map((player) => {
       const board = makeBoard(player.playerId, rand);
+      board.antidotes = this.settings.startingAntidotes;
       board.aiControlled = player.aiControlled;
       board.forcedSpecial = player.forcedSpecial;
       if (board.forcedSpecial !== null) board.specialTimerMs = 0;
@@ -307,6 +397,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     // for one or two people without anyone else having to pick up a phone.
     const robotBoards = this.robots.map((robot) => {
       const board = makeBoard(robot.playerId, rand);
+      board.antidotes = this.settings.startingAntidotes;
       board.aiControlled = true;
       return board;
     });
@@ -371,15 +462,24 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     this.tickPsycho(board);
     this.tickAfflictionTimers(board, dtMs);
 
+    // A clear is playing out: nothing falls and nothing spawns until the
+    // rows have been eaten and the stack has landed.
+    if (board.clearing) {
+      this.tickClearing(board, dtMs);
+      return;
+    }
+
     // The board is in the post-lock gap: nothing falls, and no command can
     // touch anything, until the next piece appears.
     if (!board.piece) {
-      if (board.spawnDelayMs > 0) {
-        board.spawnDelayMs -= dtMs;
-        if (board.spawnDelayMs <= 0) {
-          board.spawnDelayMs = 0;
-          this.spawnNextPiece(board);
-        }
+      board.spawnDelayMs -= dtMs;
+      // No piece and no remaining delay means the gap is over.  Testing for
+      // "> 0" here instead would leave a board with a delay of exactly zero
+      // sitting empty forever - which is reachable whenever a long frame eats
+      // the whole gap.
+      if (board.spawnDelayMs <= 0) {
+        board.spawnDelayMs = 0;
+        this.spawnNextPiece(board);
       }
       return;
     }
@@ -404,6 +504,33 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       }
       this.dirtyPlayerIds.add(board.playerId);
     }
+  }
+
+  // -------------------------------------------------------------------
+  // tickClearing - run the row-clear animation.  Rows are eaten away first;
+  // when that finishes the grid really does collapse, the stack falls, and
+  // only then does the normal spawn gap begin.
+  // -------------------------------------------------------------------
+  private tickClearing(board: EittrisBoard, dtMs: number) {
+    const clearing = board.clearing!;
+    const before = clearing.elapsedMs;
+    clearing.elapsedMs += dtMs;
+
+    // The moment the eating finishes, take the rows out for real
+    if (before < clearing.eatMs && clearing.elapsedMs >= clearing.eatMs) {
+      // Collapse what is there NOW, not a snapshot taken at lock time - an
+      // attack may have landed on this board while the rows were vanishing.
+      board.grid = collapseRows(board.grid, clearing.rows);
+    }
+
+    const total = clearing.eatMs + clearing.fallMs;
+    if (clearing.elapsedMs >= total) {
+      board.clearing = null;
+      // Carry any overshoot into the spawn gap rather than throwing it away,
+      // so a long frame does not quietly add latency before the next piece.
+      board.spawnDelayMs = SPAWN_DELAY_MS - (clearing.elapsedMs - total);
+    }
+    this.dirtyPlayerIds.add(board.playerId);
   }
 
   // -------------------------------------------------------------------
@@ -448,10 +575,9 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       if (board.shieldMs === 0) this.dirtyPlayerIds.add(board.playerId);
     }
 
-    // Only ever one special on the board: while it waits to be cleared,
-    // the timer holds and nothing new appears
-    if (board.specials.length > 0) return;
-
+    // Several specials may sit on a board at once now.  pickSpecialCell keeps
+    // them SPECIAL_MIN_ROW_GAP rows apart, so a single piece can never set off
+    // two at the same time; if there is nowhere legal left, none appears.
     board.specialTimerMs -= dtMs;
     if (board.specialTimerMs > 0) return;
 
@@ -463,7 +589,9 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       board.specialTimerMs = board.forcedSpecial === null ? SPECIAL_INTERVAL_MS : 0;
       return;
     }
-    const type = board.forcedSpecial ?? rollSpecialType(rand, ANTIDOTE_CHANCE);
+    const type =
+      board.forcedSpecial ??
+      rollAllowedSpecial(rand, ANTIDOTE_CHANCE, this.settings.allowedSpecials);
     board.specials.push({ index, type });
     board.specialTimerMs = SPECIAL_INTERVAL_MS;
     this.dirtyPlayerIds.add(board.playerId);
@@ -543,6 +671,11 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       board.grid = jumbleOnce(board.grid, () => this.randomDouble(1.0));
       board.jumbleLeft--;
       board.jumbleTimerMs += JUMBLE_NUDGE_MS;
+      // Tinkle every so often rather than on every nudge - 200 nudges in three
+      // seconds would be a buzz, not a shower of blocks.
+      if (board.jumbleLeft % JUMBLE_TINKLE_EVERY === 0) {
+        this.invokeEvent(EittrisGameEvent.JumbleNudge, board.playerId);
+      }
     }
     this.dirtyPlayerIds.add(board.playerId);
     if (board.jumbleLeft <= 0) this.saveCheckpoint();
@@ -649,6 +782,11 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       } else if (type === SpecialType.SeeShadows) {
         // Earned for the rest of the round (the original never removes it)
         board.seeShadows = true;
+        this.dirtyPlayerIds.add(board.playerId);
+        this.announceSelfSpecial(board, type);
+      } else if (type === SpecialType.CrystalBall) {
+        // Yours for the rest of the round, like SeeShadows
+        board.crystalBall = true;
         this.dirtyPlayerIds.add(board.playerId);
         this.announceSelfSpecial(board, type);
       } else if (type === SpecialType.SlowDown) {
@@ -781,7 +919,10 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     lockEvent: EittrisGameEvent.PieceLocked | EittrisGameEvent.PieceBumped,
   ) {
     const result = lockAndClear(board.grid, board.piece!);
-    board.grid = result.grid;
+    // The grid keeps its cleared rows for now: they are eaten away on screen
+    // first, and only then does the stack fall.  `clearing` below drives that,
+    // and collapses the grid for real when the eating finishes.
+    board.grid = result.cleared > 0 ? lockOnly(board.grid, board.piece!) : result.grid;
     board.score += result.scoreGained;
     board.rows += result.cleared;
 
@@ -794,15 +935,31 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     if (result.cleared > 0) {
       this.invokeEvent(EittrisGameEvent.RowsCleared, board.playerId, result.cleared);
     }
-    // Clearing four rows fires a free Bridge at your target
-    if (result.cleared >= 4) this.fireAtTarget(board, SpecialType.Bridge);
+    // Clearing four rows wins whatever the host set as the award.  An
+    // offensive one flies at your target; a defensive one is yours to keep.
+    if (result.cleared >= 4) {
+      const award = this.settings.fourRowAward;
+      if (isOffensive(award)) this.fireAtTarget(board, award);
+      else this.collectSpecial(board, award);
+    }
 
     // Open the no-piece gap.  The next piece appears SPAWN_DELAY_MS later,
     // which gives any in-flight gesture nothing to act on (see DESIGN.md).
     board.piece = null;
     board.dropTimerMs = 0;
-    board.spawnDelayMs = SPAWN_DELAY_MS;
     board.pieceSeq++; // phones end any in-flight gesture on this piece
+    if (result.cleared > 0) {
+      // Run the clear animation first; the spawn gap starts when it ends.
+      board.clearing = {
+        rows: result.clearedRows.slice(),
+        elapsedMs: 0,
+        eatMs: CLEAR_EAT_MS,
+        fallMs: clearFallMs(maxRowDrop(result.clearedRows)),
+      };
+      board.spawnDelayMs = 0;
+    } else {
+      board.spawnDelayMs = SPAWN_DELAY_MS;
+    }
 
     this.dirtyPlayerIds.add(board.playerId);
     this.saveCheckpoint();
@@ -1126,7 +1283,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     return {
       grid: encodeGrid(board.grid),
       piece: board.piece ? { ...board.piece } : null,
-      next: board.nextQueue.slice(0, NEXT_PREVIEW_COUNT),
+      next: board.nextQueue.slice(0, board.crystalBall ? CRYSTAL_BALL_PREVIEW : NEXT_PREVIEW_COUNT),
       score: board.score,
       rows: board.rows,
       alive: board.alive,
@@ -1141,10 +1298,12 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       speedupStacks: board.speedupStacks,
       slowdownStacks: board.slowdownStacks,
       seeShadows: board.seeShadows,
+      crystalBall: board.crystalBall,
       evilPieces: board.evilPieces,
       crazyIvan: board.crazyIvan,
       freezeDried: board.freezeDried,
       transparency: board.transparency,
+      clearing: board.clearing ? { ...board.clearing, rows: board.clearing.rows.slice() } : null,
       psychoSeed: board.psychoSeed,
       afflictionMs: AFFLICTION_TIMERS.map((spec) =>
         Math.max(0, Math.round(afflictionMsLeft(board, spec.type))),

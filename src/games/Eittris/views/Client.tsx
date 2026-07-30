@@ -22,6 +22,7 @@ import {
   BOARD_WIDTH,
   classifyTap,
   SpecialType,
+  SPECIAL_ICON_COUNT,
   AFFLICTION_TIMERS,
   AFFLICTION_DURATION_MS,
   ANTIDOTE_DURATION_MS,
@@ -414,7 +415,7 @@ class AfflictionChip extends React.Component<ChipInfo> {
             className={styles.specialIcon}
             style={{
               backgroundImage: `url(${EittrisAssets.images.specials})`,
-              backgroundPosition: `${(iconIndex / 15) * 100}% 0%`,
+              backgroundPosition: `${(iconIndex / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`,
             }}
           />
         )}
@@ -628,7 +629,7 @@ class PlayingBoard extends React.Component<
                   className={styles.specialIcon}
                   style={{
                     backgroundImage: `url(${EittrisAssets.images.specials})`,
-                    backgroundPosition: `${(appModel.lastSpecialEvent.type / 15) * 100}% 0%`,
+                    backgroundPosition: `${(appModel.lastSpecialEvent.type / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`,
                   }}
                 />
                 {describeSpecialEvent(appModel.lastSpecialEvent, appModel.playerId)}
@@ -644,14 +645,21 @@ class PlayingBoard extends React.Component<
             disabled={appModel.antidotes < 1}
             onClick={() => appModel.useAntidote()}
           >
-            <span
-              className={styles.specialIcon}
-              style={{
-                backgroundImage: `url(${EittrisAssets.images.specials})`,
-                backgroundPosition: `${(5 / 15) * 100}% 0%`,
-              }}
-            />
-            Antidote x{appModel.antidotes}
+            {/* One icon per charge, rather than a number to read: at a glance
+                you can see how many you have without parsing text. */}
+            {Array.from({ length: Math.max(0, appModel.antidotes) }, (_, i) => (
+              <span
+                key={i}
+                className={styles.antidoteIcon}
+                style={{
+                  backgroundImage: `url(${EittrisAssets.images.specials})`,
+                  backgroundPosition: `${(SpecialType.Antidote / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`,
+                }}
+              />
+            ))}
+            {appModel.antidotes === 0 ? (
+              <span className={styles.antidoteEmpty}>Antidote</span>
+            ) : null}
           </button>
           {dead ? <span className={styles.hintRow}>Waiting for the round to end...</span> : null}
           <div className={styles.nextBox}>
@@ -697,6 +705,7 @@ class PlayingBoard extends React.Component<
               transparency={appModel.transparency}
               psychoSeed={appModel.psychoSeed}
               psychoOverlay={psychoOverlay}
+              clearing={appModel.clearing}
             />
             {dead ? <div className={styles.toppedOut}>TOPPED OUT</div> : null}
           </div>

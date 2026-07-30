@@ -64,13 +64,47 @@ describe("LobbyModel - remembering who you are", () => {
     model.avatarId = 3;
     model.roomId = "WXYZ";
 
-    (model as any).onGameEnded();
+    (model as any).onGameEnded("hostEnded");
 
     expect(model.roomId).toBe("");
     const reopened = makeLobby().model;
     expect(reopened.roomId).toBe("");
     expect(reopened.playerName).toBe("Ann");
     expect(reopened.avatarId).toBe(3);
+  });
+
+  it("keeps everything when the player quits, rather than the host ending it", () => {
+    // Tapping Quit is stepping out, not the room closing.  The lobby should
+    // come back exactly as it was left - name, avatar AND code.
+    const { model } = makeLobby();
+    model.playerName = "Ann";
+    model.avatarId = 3;
+    model.roomId = "WXYZ";
+
+    (model as any).onGameEnded("quit");
+
+    expect(model.roomId).toBe("WXYZ");
+    expect(model.playerName).toBe("Ann");
+    const reopened = makeLobby().model;
+    expect(reopened.roomId).toBe("WXYZ");
+    expect(reopened.avatarId).toBe(3);
+  });
+
+  it("also retires the code when the host terminates the room", () => {
+    const { model } = makeLobby();
+    model.roomId = "WXYZ";
+    (model as any).onGameEnded("terminated");
+    expect(model.roomId).toBe("");
+  });
+
+  it("keeps the code when the reason is unknown - the safer guess", () => {
+    // An unexplained end is more likely a disconnect than a closed room, and
+    // wrongly keeping a code costs one failed join; wrongly dropping it costs
+    // the player re-reading it off the big screen.
+    const { model } = makeLobby();
+    model.roomId = "WXYZ";
+    (model as any).onGameEnded();
+    expect(model.roomId).toBe("WXYZ");
   });
 
   it("forgetMe clears the lot", () => {

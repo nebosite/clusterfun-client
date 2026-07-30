@@ -22,6 +22,11 @@ import {
   afflictionMsLeft,
   PIECE_COUNT,
   NEXT_PREVIEW_COUNT,
+  NEXT_QUEUE_DEPTH,
+  ANTIDOTE_MAX,
+  IMPLEMENTED_SPECIALS,
+  CLEAR_EAT_MS,
+  CLEAR_FALL_MS,
   EVIL_PIECE_COUNT,
   hardDrop,
   emptyGrid,
@@ -38,7 +43,7 @@ import {
   SpecialType,
   START_INTERVAL_MS,
 } from "./eittrisLogic";
-import { AI_MOVE_INTERVAL_MS, SPAWN_DELAY_MS } from "./GameSettings";
+import { AI_MOVE_INTERVAL_MS, LATE_JOIN_GRACE_MS, SPAWN_DELAY_MS } from "./GameSettings";
 
 // -------------------------------------------------------------------
 // A light integration test that drives the real presenter model through its
@@ -120,7 +125,7 @@ describe("EittrisPresenterModel - game start", () => {
       expect(board.piece).not.toBeNull();
       expect(board.piece!.x).toBe(5); // spawn column
       expect(board.piece!.y).toBe(0);
-      expect(board.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
+      expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
       expect(board.intervalMs).toBe(START_INTERVAL_MS);
       expect(board.grid.length).toBe(BOARD_HEIGHT);
     }
@@ -406,9 +411,26 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
 
     expect(board.rows).toBe(1);
     expect(board.score).toBe(200 + 1000); // 20 dropped rows + single-row clear
-    // the cleared row leaves only the T's bump, which shifted to the bottom
-    expect(board.grid[BOARD_HEIGHT - 1][5]).toBe(0);
+
+    // The row is scored at once but does NOT vanish at once: it is eaten away
+    // on screen first, so it is still standing while `clearing` runs.
+    expect(board.clearing).not.toBeNull();
+    expect(board.clearing!.rows).toEqual([BOARD_HEIGHT - 1]);
+    expect(board.grid[BOARD_HEIGHT - 1].every((c) => c !== EMPTY_CELL)).toBe(true);
+
+    // Once the eating finishes the grid really collapses...
+    tickTo(model, CLEAR_EAT_MS + 10);
+    expect(board.grid[BOARD_HEIGHT - 1][5]).toBe(0); // the T's bump landed
     expect(board.grid[BOARD_HEIGHT - 1][4]).toBe(EMPTY_CELL);
+
+    // ...and only after the stack has fallen does the next piece come
+    expect(board.piece).toBeNull();
+    tickTo(model, CLEAR_EAT_MS + CLEAR_FALL_MS + SPAWN_DELAY_MS + 50);
+    expect(board.clearing).toBeNull();
+    // The spawn gap only starts once the clear is over, so the piece arrives
+    // on the following tick (33ms apart in a real game).
+    tickTo(model, CLEAR_EAT_MS + CLEAR_FALL_MS + SPAWN_DELAY_MS + 100);
+    expect(board.piece).not.toBeNull();
   });
 
   it("kills a board when a fresh spawn immediately collides, ending a 2-player game", () => {
@@ -923,24 +945,45 @@ describe("EittrisPresenterModel - TheWall", () => {
 });
 
 describe("EittrisPresenterModel - Bridge", () => {
-  it("is fired automatically by a four-row clear", () => {
-    const { model } = startTwoPlayerGame();
-    const attacker = model.boards.find((b) => b.playerId === "A")!;
-    const victim = model.boards.find((b) => b.playerId === "B")!;
-    // Four rows ready to go, with a vertical I about to complete them
+  // Set up a board one vertical I away from clearing four rows at once
+  function armFourRowClear(model: EittrisPresenterModel, playerId: string) {
+    const board = model.boards.find((b) => b.playerId === playerId)!;
     runInAction(() => {
       for (let y = BOARD_HEIGHT - 4; y < BOARD_HEIGHT; y++) {
         for (let x = 0; x < BOARD_WIDTH; x++) {
-          if (x !== 0) attacker.grid[y][x] = 1;
+          if (x !== 0) board.grid[y][x] = 1;
         }
       }
-      attacker.piece = { type: 1, rot: 0, x: 0, y: 1 }; // I piece over column 0
+      board.piece = { type: 1, rot: 0, x: 0, y: 1 }; // I piece over column 0
     });
+    return board;
+  }
+
+  it("is fired by a four-row clear when the host picks it as the award", () => {
+    const { model } = startTwoPlayerGame();
+    model.setFourRowAward(SpecialType.Bridge);
+    const attacker = armFourRowClear(model, "A");
+    const victim = model.boards.find((b) => b.playerId === "B")!;
 
     model.handleCommand("A", { command: "hardDrop" });
 
     expect(attacker.rows).toBe(4);
-    expect(victim.pendingBridge).not.toBeNull(); // a free Bridge for the target
+    expect(victim.pendingBridge).not.toBeNull();
+  });
+
+  it("hands out an antidote instead by default", () => {
+    // The host picks the award now, and it starts as an antidote - a reward
+    // you keep rather than an attack you send.
+    const { model } = startTwoPlayerGame();
+    const attacker = armFourRowClear(model, "A");
+    const victim = model.boards.find((b) => b.playerId === "B")!;
+    const before = attacker.antidotes;
+
+    model.handleCommand("A", { command: "hardDrop" });
+
+    expect(attacker.rows).toBe(4);
+    expect(attacker.antidotes).toBe(Math.min(ANTIDOTE_MAX, before + 1));
+    expect(victim.pendingBridge).toBeNull(); // nothing was sent at anyone
   });
 
   it("paints across the victim column by column", () => {
@@ -1300,12 +1343,13 @@ describe("EittrisPresenterModel - the Next tray is never empty", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
     for (let step = 0; step < 6; step++) {
-      expect(board.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
+      expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+      // ...but only one of them is shown, without a crystal ball
       expect(model.snapshotFor("A")!.next.length).toBe(NEXT_PREVIEW_COUNT);
       model.handleCommand("A", { command: "hardDrop" });
       // ...including right through the post-lock gap, when nothing is falling
       expect(board.piece).toBeNull();
-      expect(board.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
+      expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
       tickTo(model, (step + 1) * (SPAWN_DELAY_MS + 50));
     }
   });
@@ -1314,13 +1358,13 @@ describe("EittrisPresenterModel - the Next tray is never empty", () => {
     const { model } = startTwoPlayerGame();
     const victim = model.boards.find((b) => b.playerId === "B")!;
     model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.EvilPieces });
-    expect(victim.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
+    expect(victim.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
     expect(victim.nextQueue.every((type) => type < EVIL_PIECE_COUNT)).toBe(true);
 
     // ...and swaps it straight back when the affliction times out
     tickTo(model, AFFLICTION_DURATION_MS + 100);
     expect(victim.evilPieces).toBe(false);
-    expect(victim.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
+    expect(victim.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
   });
 
   it("keeps the preview stocked when an antidote cures EvilPieces", () => {
@@ -1329,7 +1373,7 @@ describe("EittrisPresenterModel - the Next tray is never empty", () => {
     model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.EvilPieces });
     model.handleCommand("B", { command: "useAntidote" });
     expect(victim.evilPieces).toBe(false);
-    expect(victim.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
+    expect(victim.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
   });
 });
 
@@ -1472,5 +1516,118 @@ describe("EittrisPresenterModel - robot players", () => {
     expect(restored.robotCount).toBe(3);
     expect(restored.robots.length).toBe(3);
     expect(restored.identityFor("robot-2").name).toBe("Robot 2");
+  });
+});
+
+describe("EittrisPresenterModel - a player leaving mid-game", () => {
+  it("hands their board to a robot instead of pausing everyone", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "B")!;
+    expect(board.aiControlled).toBe(false);
+
+    model.handlePlayerQuitMessage("B", {});
+
+    expect(model.gameState).toBe(EittrisGameState.Playing); // nobody else waits
+    expect(board.robotTakeover).toBe(true);
+    expect(board.aiControlled).toBe(true);
+    expect(board.alive).toBe(true); // their stack is still in the game
+  });
+
+  it("hands the board back when they return", async () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "B")!;
+    model.handlePlayerQuitMessage("B", {});
+    expect(board.aiControlled).toBe(true);
+
+    await model.handleJoinMessage("B", { playerName: "Bob" });
+
+    expect(board.robotTakeover).toBe(false);
+    expect(board.aiControlled).toBe(false);
+  });
+
+  it("does not switch the bot off for someone who had it on themselves", () => {
+    const { model } = startTwoPlayerGame();
+    const player = model.players.find((p) => p.playerId === "B")!;
+    const board = model.boards.find((b) => b.playerId === "B")!;
+    player.aiControlled = true;
+    board.aiControlled = true;
+
+    model.handlePlayerQuitMessage("B", {});
+    return model.handleJoinMessage("B", { playerName: "Bob" }).then(() => {
+      expect(board.aiControlled).toBe(true); // back to THEIR setting, not off
+    });
+  });
+
+  it("leaves a dead board alone", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "B")!;
+    board.alive = false;
+    model.handlePlayerQuitMessage("B", {});
+    expect(board.robotTakeover).toBe(false);
+  });
+});
+
+describe("EittrisPresenterModel - joining late", () => {
+  it("lets a brand new player in during the first few seconds", async () => {
+    const { model } = startTwoPlayerGame();
+    tickTo(model, 5000);
+    const ack = await model.handleJoinMessage("C", { playerName: "Cass" });
+    expect(ack.didJoin).toBe(true);
+    expect(ack.isRejoin).toBe(false);
+  });
+
+  it("turns a newcomer away once the grace period has passed", async () => {
+    const { model } = startTwoPlayerGame();
+    // The grace is measured in wall-clock from the game start
+    (model as any)._gameStartedAtMs = Date.now() - (LATE_JOIN_GRACE_MS + 1000);
+    const ack = await model.handleJoinMessage("C", { playerName: "Cass" });
+    expect(ack.didJoin).toBe(false);
+  });
+
+  it("always lets a returning player back in, however late", async () => {
+    const { model } = startTwoPlayerGame();
+    model.handlePlayerQuitMessage("B", {});
+    (model as any)._gameStartedAtMs = Date.now() - 10 * 60 * 1000; // ten minutes in
+
+    const ack = await model.handleJoinMessage("B", { playerName: "Bob" });
+    expect(ack.didJoin).toBe(true);
+    expect(ack.isRejoin).toBe(true);
+  });
+});
+
+describe("EittrisPresenterModel - host settings in play", () => {
+  it("deals every board the chosen number of antidotes", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    model.setRobotCount(1);
+    model.setStartingAntidotes(3);
+    model.startGame();
+    for (const board of model.boards) expect(board.antidotes).toBe(3);
+  });
+
+  it("can deal none at all", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    model.setStartingAntidotes(0);
+    model.startGame();
+    expect(model.boards[0].antidotes).toBe(0);
+  });
+
+  it("only ever spawns powerups the host left switched on", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    model.startGame();
+    for (const type of IMPLEMENTED_SPECIALS) {
+      if (type !== SpecialType.Speedup) model.toggleAllowedSpecial(type);
+    }
+    expect(model.settings.allowedSpecials).toEqual([SpecialType.Speedup]);
+
+    const board = model.boards[0];
+    runInAction(() => {
+      for (let x = 0; x < BOARD_WIDTH; x++) board.grid[BOARD_HEIGHT - 1][x] = 1;
+    });
+    // Run long enough for a good number of specials to be tagged
+    for (let t = 1; t <= 20; t++) tickTo(model, t * SPECIAL_INTERVAL_MS + 100);
+    for (const marker of board.specials) expect(marker.type).toBe(SpecialType.Speedup);
   });
 });

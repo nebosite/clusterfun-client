@@ -174,6 +174,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel {
   //
   // -------------------------------------------------------------------
   handleGameOverMessage = (message: unknown) => {
+    this.endReason = "hostEnded";
     this.gameState = GeneralGameState.GameOver;
     this.saveCheckpoint();
     return {};
@@ -184,6 +185,7 @@ export abstract class ClusterfunClientModel extends BaseGameModel {
   // -------------------------------------------------------------------
   handleTerminateGameMessage = (message: unknown) => {
     Logger.info("Presenter has terminated the game");
+    this.endReason = "terminated";
     this.gameTerminated = true;
     this.quitApp();
     return {};

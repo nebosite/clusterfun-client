@@ -111,6 +111,7 @@ function createSerializer(typeHelper: ITypeHelper) {
           case "_isShutdown":
           case "telemetryLogger":
           case "_analytics":
+          case "endReason":
           case "onTick":
           case "serializer":
           case "session":
@@ -131,6 +132,9 @@ function createSerializer(typeHelper: ITypeHelper) {
 // -------------------------------------------------------------------
 // Handle basic operations for any game instance, client or presenter
 // -------------------------------------------------------------------
+// How a game finished, from this device's point of view
+export type GameEndReason = "unknown" | "quit" | "hostEnded" | "terminated";
+
 export abstract class BaseGameModel {
   name: string;
   @observable private _gameTime_ms = 0;
@@ -191,6 +195,12 @@ export abstract class BaseGameModel {
       this._devFast = value;
     })();
   }
+
+  // Why the game ended.  The lobby needs to tell "I pressed Quit" apart from
+  // "the host ended the game": one should hand the player back their lobby
+  // exactly as they left it, the other should retire a room code that is now
+  // dead.  Not checkpointed - it only matters for the trip back to the lobby.
+  public endReason: GameEndReason = "unknown";
 
   public session: ISessionHelper;
   protected telemetryLogger: ITelemetryLogger;
@@ -296,6 +306,9 @@ export abstract class BaseGameModel {
   // -------------------------------------------------------------------
   quitApp = () => {
     Logger.info("Quitting the app");
+    // Only the FIRST reason sticks: handleTerminateGameMessage calls through
+    // here, and "the host closed the room" is the truer answer than "I quit".
+    if (this.endReason === "unknown") this.endReason = "quit";
     this.gameState = GeneralGameState.Destroyed;
     this.storage.remove(GAMESTATE_LABEL);
     this.shutdown();

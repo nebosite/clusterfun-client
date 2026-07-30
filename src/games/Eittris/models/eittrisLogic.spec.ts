@@ -20,6 +20,12 @@ import {
   MIN_INTERVAL_MS,
   moveTowardColumn,
   NEXT_PREVIEW_COUNT,
+  NEXT_QUEUE_DEPTH,
+  SPECIAL_MIN_ROW_GAP,
+  defaultSettings,
+  sanitizeSettings,
+  rollAllowedSpecial,
+  ANTIDOTE_MAX,
   nextLivingTarget,
   PIECE_COLORS,
   PIECE_COUNT,
@@ -77,6 +83,15 @@ import {
   decodePsychoOverlay,
   landingCells,
   classifyTap,
+  CLEAR_FALL_MS,
+  clearFallMs,
+  fallProgress,
+  rowDropAmounts,
+  finalRowDrops,
+  maxRowDrop,
+  cellsLeftInEatenRow,
+  collapseRows,
+  lockOnly,
   MAX_ROBOTS,
   robotRoster,
   isRobotId,
@@ -445,13 +460,13 @@ describe("eittrisLogic - spawning", () => {
     const first = spawnNextFromQueue([4], rand);
     expect(first.piece.type).toBe(4); // the head is what falls
     // and the tray is restocked, so the phone always has something to show
-    expect(first.queue.length).toBe(NEXT_PREVIEW_COUNT);
+    expect(first.queue.length).toBe(NEXT_QUEUE_DEPTH);
     expect(calls).toBeGreaterThan(0);
 
     // An empty queue is filled before anything is taken from it
     const fromEmpty = spawnNextFromQueue([], rand);
     expect(fromEmpty.piece).not.toBeNull();
-    expect(fromEmpty.queue.length).toBe(NEXT_PREVIEW_COUNT);
+    expect(fromEmpty.queue.length).toBe(NEXT_QUEUE_DEPTH);
   });
 
   it("a fresh spawn into a blocked spawn area collides (board death condition)", () => {
@@ -465,7 +480,7 @@ describe("eittrisLogic - spawning", () => {
     const board = makeBoard("p1", () => 0.1);
     expect(board.alive).toBe(true);
     expect(board.piece).not.toBeNull();
-    expect(board.nextQueue.length).toBe(NEXT_PREVIEW_COUNT);
+    expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
     expect(board.intervalMs).toBe(START_INTERVAL_MS);
     expect(board.grid.length).toBe(BOARD_HEIGHT);
     expect(board.grid[0].length).toBe(BOARD_WIDTH);
@@ -1447,5 +1462,215 @@ describe("eittrisLogic - the robot roster", () => {
     expect(isRobotId("A1b2C3")).toBe(false);
     expect(isRobotId("robot")).toBe(false);
     expect(isRobotId("")).toBe(false);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Clearing rows as an animation
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - the row-clear animation", () => {
+  it("puts a four-row drop at exactly the reference time", () => {
+    expect(clearFallMs(4)).toBeCloseTo(CLEAR_FALL_MS, 5);
+  });
+
+  it("makes a shorter drop take less time, but not proportionally less", () => {
+    // Falling accelerates, so one row takes HALF the time of four, not a quarter
+    expect(clearFallMs(1)).toBeCloseTo(CLEAR_FALL_MS / 2, 5);
+    expect(clearFallMs(2)).toBeCloseTo(CLEAR_FALL_MS / Math.SQRT2, 5);
+    expect(clearFallMs(0)).toBe(0);
+    expect(clearFallMs(-3)).toBe(0);
+  });
+
+  it("accelerates: the first half of the time covers a quarter of the distance", () => {
+    expect(fallProgress(0, 300)).toBe(0);
+    expect(fallProgress(150, 300)).toBeCloseTo(0.25, 5);
+    expect(fallProgress(300, 300)).toBe(1);
+    expect(fallProgress(9999, 300)).toBe(1); // never overshoots
+    expect(fallProgress(50, 0)).toBe(1); // a zero-length fall is already done
+  });
+
+  it("drops each row by the number of cleared rows beneath it", () => {
+    const drops = rowDropAmounts([18, 20]);
+    expect(drops[17]).toBe(2); // two cleared rows below it
+    expect(drops[19]).toBe(1); // only row 20 is below
+    expect(drops[18]).toBe(0); // a cleared row does not fall, it goes
+    expect(drops[20]).toBe(0);
+    expect(maxRowDrop([18, 20])).toBe(2);
+    expect(maxRowDrop([])).toBe(0);
+  });
+
+  it("eats a row away left to right over the eat time", () => {
+    expect(cellsLeftInEatenRow(0, 300)).toBe(BOARD_WIDTH);
+    expect(cellsLeftInEatenRow(150, 300)).toBe(BOARD_WIDTH / 2);
+    expect(cellsLeftInEatenRow(300, 300)).toBe(0);
+    expect(cellsLeftInEatenRow(600, 300)).toBe(0); // never negative
+  });
+
+  it("collapses exactly the rows it promised, even if one got refilled", () => {
+    // An attack can land while the rows are vanishing.  The player was already
+    // told those rows were going, so they go.
+    const grid = emptyGrid();
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      grid[20][x] = 1;
+      grid[19][x] = 2;
+    }
+    grid[18][3] = 3; // a lone block above
+
+    const collapsed = collapseRows(grid, [19, 20]);
+    expect(collapsed.length).toBe(BOARD_HEIGHT);
+    expect(collapsed[20][3]).toBe(3); // the lone block fell two rows
+    expect(collapsed[20].filter((c) => c !== EMPTY_CELL).length).toBe(1);
+    expect(collapsed[0].every((c) => c === EMPTY_CELL)).toBe(true);
+  });
+
+  it("lockOnly stamps a piece without taking any rows out", () => {
+    const grid = emptyGrid();
+    for (let x = 0; x < BOARD_WIDTH - 1; x++) grid[20][x] = 1;
+    const piece = { type: 1, rot: 1, x: BOARD_WIDTH - 1, y: 20, evil: false };
+    const locked = lockOnly(grid, piece);
+    // The row is now full, and still there - that is the point
+    expect(locked[20].every((c) => c !== EMPTY_CELL)).toBe(true);
+    expect(lockAndClear(grid, piece).grid[20].every((c) => c === EMPTY_CELL)).toBe(true);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Several powerups at once, but never two in reach of one piece
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - powerup placement", () => {
+  function fullGrid(): number[][] {
+    const grid = emptyGrid();
+    for (let y = 0; y < BOARD_HEIGHT; y++) for (let x = 0; x < BOARD_WIDTH; x++) grid[y][x] = 1;
+    return grid;
+  }
+
+  it("keeps a new powerup at least four rows from an existing one", () => {
+    const grid = fullGrid();
+    const existing = [{ index: 10 * BOARD_WIDTH + 3, type: SpecialType.Antidote }];
+    // Try every random draw - none of them may land too close
+    for (let r = 0; r < 200; r++) {
+      const index = pickSpecialCell(grid, existing, () => r / 200);
+      if (index === null) continue;
+      const row = Math.floor(index / BOARD_WIDTH);
+      expect(Math.abs(row - 10)).toBeGreaterThanOrEqual(SPECIAL_MIN_ROW_GAP);
+    }
+  });
+
+  it("still allows several at once, spread out", () => {
+    const grid = fullGrid();
+    const markers: { index: number; type: SpecialType }[] = [];
+    for (let i = 0; i < 4; i++) {
+      const index = pickSpecialCell(grid, markers, () => 0.01 + i * 0.24);
+      if (index !== null) markers.push({ index, type: SpecialType.Antidote });
+    }
+    expect(markers.length).toBeGreaterThan(1);
+    const rows = markers.map((m) => Math.floor(m.index / BOARD_WIDTH));
+    for (let i = 0; i < rows.length; i++) {
+      for (let j = i + 1; j < rows.length; j++) {
+        expect(Math.abs(rows[i] - rows[j])).toBeGreaterThanOrEqual(SPECIAL_MIN_ROW_GAP);
+      }
+    }
+  });
+
+  it("gives up rather than crowding when there is nowhere legal left", () => {
+    // A board only four rows tall in practice: one marker blocks the lot
+    const grid = emptyGrid();
+    for (let x = 0; x < BOARD_WIDTH; x++) grid[BOARD_HEIGHT - 1][x] = 1;
+    const existing = [{ index: (BOARD_HEIGHT - 1) * BOARD_WIDTH, type: SpecialType.Antidote }];
+    expect(pickSpecialCell(grid, existing, () => 0.5)).toBeNull();
+  });
+
+  it("never picks a cell that already carries a marker", () => {
+    const grid = fullGrid();
+    const taken = 5 * BOARD_WIDTH + 2;
+    const index = pickSpecialCell(grid, [{ index: taken, type: SpecialType.Antidote }], () => 0);
+    expect(index).not.toBe(taken);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Host settings
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - host settings", () => {
+  it("starts from sensible defaults", () => {
+    const settings = defaultSettings();
+    expect(settings.startingAntidotes).toBe(ANTIDOTES_AT_START);
+    expect(settings.fourRowAward).toBe(SpecialType.Antidote);
+    expect(settings.allowedSpecials).toEqual(IMPLEMENTED_SPECIALS);
+  });
+
+  it("clamps the starting antidotes to what a player can hold", () => {
+    expect(sanitizeSettings({ startingAntidotes: 99 }).startingAntidotes).toBe(ANTIDOTE_MAX);
+    expect(sanitizeSettings({ startingAntidotes: -5 }).startingAntidotes).toBe(0);
+  });
+
+  it("refuses an award that could never appear", () => {
+    expect(sanitizeSettings({ fourRowAward: 999 as SpecialType }).fourRowAward).toBe(
+      SpecialType.Antidote,
+    );
+    expect(sanitizeSettings({ fourRowAward: SpecialType.Bridge }).fourRowAward).toBe(
+      SpecialType.Bridge,
+    );
+  });
+
+  it("never leaves the pool empty, however hard the host tries", () => {
+    // An empty pool would deadlock every roll, so unticking everything falls
+    // back to antidotes rather than to a game where clearing rows does nothing.
+    expect(sanitizeSettings({ allowedSpecials: [] }).allowedSpecials).toEqual([
+      SpecialType.Antidote,
+    ]);
+    expect(sanitizeSettings({ allowedSpecials: [999 as SpecialType] }).allowedSpecials).toEqual([
+      SpecialType.Antidote,
+    ]);
+  });
+
+  it("only rolls specials the host allowed", () => {
+    const allowed = [SpecialType.Speedup, SpecialType.TheWall];
+    for (let r = 0; r < 100; r++) {
+      const rolled = rollAllowedSpecial(() => r / 100, 0.5, allowed);
+      expect(allowed).toContain(rolled);
+    }
+  });
+
+  it("keeps the antidote's share of the rolls when it is switched on", () => {
+    expect(rollAllowedSpecial(() => 0.1, 0.5, IMPLEMENTED_SPECIALS)).toBe(SpecialType.Antidote);
+  });
+
+  it("does not sneak an antidote in when the host turned it off", () => {
+    const allowed = [SpecialType.Speedup, SpecialType.TheWall];
+    for (let r = 0; r < 100; r++) {
+      expect(rollAllowedSpecial(() => r / 100, 0.9, allowed)).not.toBe(SpecialType.Antidote);
+    }
+  });
+});
+
+describe("eittrisLogic - where the fallen rows came from", () => {
+  it("says how far the row at each FINAL position fell", () => {
+    // Clearing rows 19 and 20 drops everything above by two
+    const drops = finalRowDrops([19, 20]);
+    expect(drops[BOARD_HEIGHT - 1]).toBe(2); // what was row 18 is now row 20
+    expect(drops[BOARD_HEIGHT - 2]).toBe(2);
+    expect(drops[0]).toBe(0); // the refilled rows on top did not fall
+    expect(drops[1]).toBe(0);
+  });
+
+  it("matches what collapseRows actually does", () => {
+    // The renderer lifts each row by this much; if it disagrees with the
+    // collapse, blocks slide to the wrong place.
+    const clearedRows = [15, 18, 20];
+    const grid = emptyGrid();
+    for (let y = 0; y < BOARD_HEIGHT; y++) grid[y][0] = y; // tag each row
+    const collapsed = collapseRows(grid, clearedRows);
+    const drops = finalRowDrops(clearedRows);
+    for (let y = 0; y < BOARD_HEIGHT; y++) {
+      const tag = collapsed[y][0];
+      if (tag === EMPTY_CELL) continue;
+      // The row now at y started at `tag`, and drops says how far it moved
+      expect(y - drops[y]).toBe(tag);
+    }
+  });
+
+  it("is all zeroes when nothing was cleared", () => {
+    expect(finalRowDrops([]).every((d) => d === 0)).toBe(true);
   });
 });

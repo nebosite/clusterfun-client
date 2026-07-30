@@ -70,6 +70,12 @@ export class SoundHelper {
     let sound = this.sounds.get(soundName);
     let source = this.context.createBufferSource();
     source.buffer = sound as AudioBuffer;
+    // Playback rate doubles as pitch: the same short sample played at varying
+    // rates reads as a scatter of different notes rather than one repeated
+    // click, which is what makes a tinkle out of a tick.
+    if (options.rate !== undefined) {
+      source.playbackRate.value = Math.max(0.1, Math.min(4, options.rate));
+    }
     const gainNode = this.context.createGain();
     const volume = options.volume ?? 1.0;
     gainNode.gain.value = volume * volume;

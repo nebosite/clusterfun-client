@@ -101,6 +101,23 @@ export abstract class ClusterfunPresenterModel<
     })();
   }
 
+  // When a player leaves and the game drops below minPlayers, pause and wait
+  // for them.  A game that can carry on without them - by handing their seat
+  // to a bot, say - sets this false and takes over in onPlayerExited.
+  protected pauseWhenTooFewPlayers = true;
+
+  // A game may let a brand new player in outside allowedJoinStates - joining
+  // a few seconds late is a slow phone, not a gatecrasher.  Returning players
+  // are always let back in and never reach this.
+  protected allowsLateJoin(): boolean {
+    return false;
+  }
+
+  // Hooks for a game that wants to do something about a player coming and
+  // going mid-match.  Both are no-ops by default.
+  protected onPlayerExited(_player: PlayerType) {}
+  protected onPlayerReturned(_player: PlayerType) {}
+
   // General Game Settings
   minPlayers = 3;
   maxPlayers = 8;
@@ -113,7 +130,7 @@ export abstract class ClusterfunPresenterModel<
   // Analytics bookkeeping.  Both are plain serializable fields so a host that
   // refreshes mid-game still reports an honest duration and does not
   // double-report an ending.
-  private _gameStartedAtMs = 0;
+  protected _gameStartedAtMs = 0;
   private _gameEndReported = false;
 
   protected get analyticsEntity(): AnalyticsEntity {
@@ -237,12 +254,13 @@ export abstract class ClusterfunPresenterModel<
       // whether their device remembered its id or they had to be found by
       // name, which is what a full device reboot looks like.
       this.analytics.playerRejoined(this.players.length, matchedByName ? "name" : "id");
+      this.onPlayerReturned(returningPlayer);
       this.invokeEvent(PresenterGameEvent.PlayerJoined, returningPlayer);
       return {
         didJoin: true,
         isRejoin: true,
       };
-    } else if (this.allowedJoinStates.find((s) => s === this.gameState)) {
+    } else if (this.allowedJoinStates.find((s) => s === this.gameState) || this.allowsLateJoin()) {
       Logger.info(`New Player`);
       if (this.players.length < this.maxPlayers) {
         let existingPlayer = this.players.find(
@@ -300,8 +318,10 @@ export abstract class ClusterfunPresenterModel<
     if (player) {
       this.players.remove(player);
       this._exitedPlayers.push(player);
+      this.onPlayerExited(player as unknown as PlayerType);
 
       if (
+        this.pauseWhenTooFewPlayers &&
         this.players.length < this.minPlayers &&
         this.gameState !== PresenterGameState.Gathering
       ) {

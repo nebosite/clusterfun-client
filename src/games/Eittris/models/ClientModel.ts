@@ -102,12 +102,20 @@ export class EittrisClientModel extends ClusterfunClientModel {
   @observable speedupStacks = 0;
   @observable slowdownStacks = 0;
   @observable seeShadows = false;
+  @observable crystalBall = false;
   @observable evilPieces = false;
   @observable crazyIvan = false;
   @observable freezeDried = false;
   @observable transparency = false;
   // Milliseconds left on each affliction, in AFFLICTION_TIMERS order
   @observable afflictionMs: number[] = [];
+  // A row clear in progress on my board (see BoardGrid)
+  @observable clearing: {
+    rows: number[];
+    elapsedMs: number;
+    eatMs: number;
+    fallMs: number;
+  } | null = null;
   @observable psychoSeed = 0;
   @observable psychoOverlay: string | null = null;
   @observable shieldMs = 0;
@@ -227,6 +235,10 @@ export class EittrisClientModel extends ClusterfunClientModel {
   // handleSpecialEvent - somebody's special fired; flash it briefly
   // -------------------------------------------------------------------
   protected handleSpecialEvent = (message: EittrisSpecialEventMessage) => {
+    // Only what happened TO ME.  Two other players trading powerups across the
+    // room is noise on a phone the size of a playing card, and it crowds out
+    // the one message that actually needs acting on.
+    if (message.victimId !== this.playerId) return;
     action(() => (this.lastSpecialEvent = message))();
     const mine = message.attackerId === this.playerId || message.victimId === this.playerId;
     if (mine) SafeBrowser.vibrate([40, 40, 40]);
@@ -266,11 +278,13 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.speedupStacks = snapshot.speedupStacks ?? 0;
     this.slowdownStacks = snapshot.slowdownStacks ?? 0;
     this.seeShadows = snapshot.seeShadows ?? false;
+    this.crystalBall = snapshot.crystalBall ?? false;
     this.evilPieces = snapshot.evilPieces ?? false;
     this.crazyIvan = snapshot.crazyIvan ?? false;
     this.freezeDried = snapshot.freezeDried ?? false;
     this.transparency = snapshot.transparency ?? false;
     this.afflictionMs = (snapshot.afflictionMs ?? []).slice();
+    this.clearing = snapshot.clearing ?? null;
     this.psychoSeed = snapshot.psychoSeed ?? 0;
     this.psychoOverlay = snapshot.psychoOverlay ?? null;
     this.shieldMs = snapshot.shieldMs ?? 0;

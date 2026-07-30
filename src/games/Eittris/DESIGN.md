@@ -157,6 +157,10 @@ Ported from the original's `Specials.cs`. Icons come straight from the eitrix at
   of the victim's grid, one row per 100 ms. `STENCIL_SHAPES` + `stencilShapeFor()`.
 - _Other attacks_ - Bridge (roofs the stack, column by column; also free on a 4-row clear),
   Jumble (200 single-block nudges), SwitchScreens (trade stacks a column at a time).
+  Several powerups may sit on a board at once, but never within **4 rows** of each other
+  (`SPECIAL_MIN_ROW_GAP`) - otherwise one well-placed brick could set off two attacks at once,
+  which is a lottery rather than a play. If there is nowhere legal left, none appears.
+
 - _Afflictions_ (Speedup, EvilPieces, CrazyIvan, FreezeDried, Transparency, Psycho) - each wears
   off on its own after **22 s** (`AFFLICTION_DURATION_MS`); a repeat hit refreshes that clock
   rather than stacking a second one, and an antidote still lifts them all at once. The table
@@ -239,6 +243,7 @@ structs and timers; it makes no rule decisions inline.
      new ones for 10 s. Players start with 1.
    - **TheWall** — buries the victim under 8 solid rows, each with one random gap.
    - **SeeShadows** — a faint ghost of the piece appears where it would land.
+   - **CrystalBall** — see three pieces ahead instead of one. A perk, kept for the round.
    - **Bridge** — paints 2 gapped rows directly on top of the victim's stack. Also
      auto-fires at your victim on any 4-line clear.
    - **EvilPieces** — the victim gets nothing but Z pieces, left- and right-handed,
@@ -252,6 +257,31 @@ structs and timers; it makes no rule decisions inline.
    - **Transparency** — the victim's settled stack drops to bare ghost outlines (the
      same brick sprite the landing shadow uses) until cured.
      Attack stencils are painted row by row (~0.1 s per row) in the attacker's color.
+
+### Clearing rows
+
+A clear is animated by the host and rendered identically on both screens. The rows are
+**eaten away left to right over 300 ms** while the grid still holds them; only then does the
+grid actually collapse, and the stack above is drawn back where it started and eased down
+under **acceleration** - a four-row drop takes 300 ms, and because `d = at²/2` a one-row drop
+takes half that rather than a quarter.
+
+The host sends the durations **once** (`clearing` on the board snapshot) rather than
+streaming a frame at a time; each screen runs its own clock from there. Nothing spawns until
+the animation finishes, and the collapse removes exactly the rows that were promised - an
+attack landing mid-animation may well have refilled one, but the player already watched it
+go.
+
+### Host setup
+
+Before starting, the host chooses on the gathering screen:
+
+- **Starting antidotes** (0-3, default 1)
+- **Four-row award** - what clearing four rows at once wins. Default **Antidote**; an
+  offensive pick is fired at your target instead of kept.
+- **Which powerups are in play** - anything unticked never rolls. Unticking everything falls
+  back to antidotes rather than deadlocking every roll.
+- **Robot players** (0-4), and a robot plays a demo game on the right of the screen.
 
 ### Robot players
 

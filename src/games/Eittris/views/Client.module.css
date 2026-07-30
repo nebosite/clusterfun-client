@@ -271,6 +271,9 @@
 .gameclient .antidoteButton {
   display: flex;
   align-items: center;
+  /* The charges sit centred in the button rather than ranged left, so the
+     row reads as a count instead of a label with something after it. */
+  justify-content: center;
   gap: 12px;
   font-size: 45%;
   font-weight: 800;
@@ -294,7 +297,7 @@
   display: inline-block;
   width: 44px;
   height: 44px;
-  background-size: 1600% 100%;
+  background-size: 1700% 100%;
   background-repeat: no-repeat;
   flex-shrink: 0;
 }
@@ -461,4 +464,18 @@
   color: #dbe7f5;
   font-weight: 700;
   margin-right: 6px;
+}
+
+/* Antidote charges: one icon each, centred, 30% larger than the old inline
+   icon - they are the thing you reach for under pressure. */
+.gameclient .antidoteIcon {
+  display: inline-block;
+  width: 57px;
+  height: 57px;
+  background-size: 1700% 100%;
+  background-repeat: no-repeat;
+  flex: 0 0 auto;
+}
+.gameclient .antidoteEmpty {
+  opacity: 0.5;
 }

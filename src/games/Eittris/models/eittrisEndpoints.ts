@@ -28,6 +28,7 @@ export interface EittrisBoardSnapshot {
   speedupStacks: number; // Speedup afflictions currently on this board
   slowdownStacks: number; // SlowDown self-buffs (not curable)
   seeShadows: boolean; // draw the landing ghost
+  crystalBall: boolean; // see three pieces ahead
   evilPieces: boolean; // drawing from the evil piece table
   crazyIvan: boolean; // controls are mirrored
   freezeDried: boolean; // settled blocks render tiny and jittered
@@ -35,6 +36,9 @@ export interface EittrisBoardSnapshot {
   // Milliseconds left on each affliction, in AFFLICTION_TIMERS order, so the
   // phone can draw a countdown bar on every status chip.
   afflictionMs: number[];
+  // A row clear playing out.  Sent once, with its durations, rather than a
+  // frame at a time - each screen animates locally off its own clock.
+  clearing: { rows: number[]; elapsedMs: number; eatMs: number; fallMs: number } | null;
   psychoSeed: number; // non-zero = colors are scrambled with this seed
   // Psycho's per-cell palette indices, 210 chars, one per cell.  Only sent
   // while the affliction is on - null otherwise, so it costs nothing normally.
