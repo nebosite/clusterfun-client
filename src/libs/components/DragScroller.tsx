@@ -2,14 +2,17 @@ import React from "react";
 
 // -------------------------------------------------------------------
 // DragScroller - a scroll container you can drag with a finger (or the
-// mouse) instead of hunting for a scrollbar.  Used for the avatar picker,
-// which is too long to fit on a phone.
+// mouse) instead of hunting for a scrollbar.  Used wherever a list is
+// longer than the phone it is being read on: the lobby's avatar picker,
+// EITtris' target list.
 //
 // A drag that moves more than a few pixels suppresses the click on the
-// child underneath, so scrolling past a button doesn't select it.
+// child underneath, so scrolling past a button doesn't select it - which
+// is the whole difficulty with a list of things you can also tap.
 // -------------------------------------------------------------------
 export class DragScroller extends React.Component<{
   className?: string;
+  style?: React.CSSProperties;
   children?: React.ReactNode;
 }> {
   private ref = React.createRef<HTMLDivElement>();
@@ -69,7 +72,7 @@ export class DragScroller extends React.Component<{
       <div
         ref={this.ref}
         className={this.props.className}
-        style={{ touchAction: "pan-x pan-y", cursor: "grab" }}
+        style={{ touchAction: "pan-x pan-y", cursor: "grab", ...this.props.style }}
         onPointerDown={this.onPointerDown}
         onPointerMove={this.onPointerMove}
         onPointerUp={this.endDrag}

@@ -46,7 +46,7 @@ import {
 } from "../models/GameSettings";
 import EittrisAssets from "../assets/Assets";
 import BoardGrid from "./BoardGrid";
-import { GameInputController } from "libs";
+import { DragScroller, GameInputController } from "libs";
 import { GLOBALS } from "../../../Globals";
 import { EITTRIS_BINDINGS, EITTRIS_KEY_HINTS, EittrisAction } from "../models/eittrisInput";
 
@@ -354,7 +354,10 @@ export class TargetList extends React.Component<{ appModel?: EittrisClientModel 
     if (others.length === 0) return null;
 
     return (
-      <div className={styles.targetList}>
+      // Drag to scroll: with twenty other players the list is far longer than
+      // the phone, and every entry is also a tap target - so a drag that
+      // moves must scroll rather than pick whoever was under the finger.
+      <DragScroller className={styles.targetList}>
         {others.map((p) => {
           const isTarget = p.playerId === appModel.targetId;
           return (
@@ -378,7 +381,7 @@ export class TargetList extends React.Component<{ appModel?: EittrisClientModel 
             </div>
           );
         })}
-      </div>
+      </DragScroller>
     );
   }
 }

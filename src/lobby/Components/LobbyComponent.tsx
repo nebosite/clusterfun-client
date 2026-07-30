@@ -8,6 +8,7 @@ import styles from "./LobbyComponent.module.css";
 import {
   AVATAR_COLORS,
   AVATAR_COUNT,
+  DragScroller,
   PlayerAvatar,
   SafeBrowser,
   UIProperties,
@@ -17,7 +18,6 @@ import Logger from "js-logger";
 import { GameDescriptor } from "games/lists/GameDescriptor";
 import { PartyBurstLogo } from "./PartyBurstLogo";
 import { ScaleToWidth } from "./ScaleToWidth";
-import { DragScroller } from "./DragScroller";
 import { GameThumbnail } from "./GameThumbnail";
 import { CATEGORIES, TILE_PALETTE, presentationFor, GamePresentation } from "../LobbyPresentation";
 
