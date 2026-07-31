@@ -64,6 +64,22 @@ describe("MusicLibrary", () => {
     expect(tracks[1].title).toBe("Speedrun");
   });
 
+  it("works from a same-origin path, which is how the server hosts it", async () => {
+    const { fetcher, calls } = fakeFetch(goodManifest);
+    const tracks = await new MusicLibrary("/music", fetcher).loadManifest();
+    expect(calls).toEqual(["/music/music.json"]);
+    expect(tracks[0].url).toBe("/music/tracks/eittris-main.a91f3c.m4a");
+  });
+
+  it("treats a bare / as music at the origin root, not as music turned off", async () => {
+    const { fetcher, calls } = fakeFetch(goodManifest);
+    const library = new MusicLibrary("/", fetcher);
+    expect(library.isEnabled).toBe(true);
+    const tracks = await library.loadManifest();
+    expect(calls).toEqual(["/music.json"]);
+    expect(tracks[0].url).toBe("/tracks/eittris-main.a91f3c.m4a");
+  });
+
   it("tolerates a trailing slash on the base URL", async () => {
     const { fetcher, calls } = fakeFetch(goodManifest);
     await new MusicLibrary(`${BASE}///`, fetcher).loadManifest();

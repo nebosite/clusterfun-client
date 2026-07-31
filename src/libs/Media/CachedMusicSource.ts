@@ -58,9 +58,10 @@ export interface CachedMusicSourceOptions {
 
 /**
  * The cache key deliberately is NOT the resolved URL.  The resolved URL contains the music
- * base URL, so keying on it would orphan every cached byte the day that changes - a new
- * custom domain, a test against r2.dev, a LAN box.  Track id plus content hash is
- * base-URL-independent, and this cannot be retrofitted once real users have a full cache.
+ * base path, so keying on it would orphan every cached byte the day that changes - moving
+ * music to a different route, or serving it from somewhere else entirely.  Track id plus
+ * content hash depends on neither, and this cannot be retrofitted once real users have a
+ * populated cache.
  */
 export function musicCacheKey(track: ResolvedTrack): string {
   return `https://music.clusterfun.invalid/${track.id}/${hashFromFilename(track.file)}`;

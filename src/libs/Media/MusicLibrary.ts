@@ -1,12 +1,16 @@
 import Logger from "js-logger";
 
 // ==========================================================================================
-// MusicLibrary - reads music.json from the music bucket and turns it into playable tracks.
+// MusicLibrary - reads music.json from the music folder and turns it into playable tracks.
 //
-// Music is a nicety, so nothing in here is allowed to throw into a game.  A missing bucket,
-// a CORS rejection, a 404 or a manifest somebody hand-edited into invalid JSON all end the
-// same way: one warning and an empty track list.  A silent game is a fine outcome; a game
-// that fails to start because the music server is down is not.
+// Music is served by the same server as the app, from a folder the deploy does not touch
+// (see docs/music.md), so it is same-origin and there is no CORS to get wrong.  What can
+// still go wrong is the folder simply not being there yet.
+//
+// Music is a nicety, so nothing in here is allowed to throw into a game.  A missing folder,
+// a 404 or a manifest somebody hand-edited into invalid JSON all end the same way: one
+// warning and an empty track list.  A silent game is a fine outcome; a game that fails to
+// start because somebody has not uploaded any music is not.
 //
 // The manifest is fetched exactly once.  That is what makes a track replaceable while games
 // are running - see docs/music.md.
@@ -30,21 +34,27 @@ export interface ResolvedTrack extends MusicTrack {
 
 export class MusicLibrary {
   private readonly baseUrl: string;
+  private readonly enabled: boolean;
   private readonly fetcher: typeof fetch;
 
   /** The manifest's version string, once loaded - logged so "which music is this?" is answerable. */
   version: string | undefined;
 
-  // The fetch implementation is injectable so the tests do not need a network or a
-  // jsdom fetch polyfill.
+  // The base URL is normally the same-origin path the server hosts music under ("/music"),
+  // but an absolute URL works just as well.  The fetch implementation is injectable so the
+  // tests need no network.
   constructor(baseUrl: string | undefined, fetcher?: typeof fetch) {
-    this.baseUrl = (baseUrl ?? "").trim().replace(/\/+$/, "");
+    const trimmed = (baseUrl ?? "").trim();
+    // Configured-but-trims-to-nothing ("/") means music at the origin root, which is still
+    // music.  Only a genuinely absent setting turns it off.
+    this.enabled = trimmed.length > 0;
+    this.baseUrl = trimmed.replace(/\/+$/, "");
     this.fetcher = fetcher ?? ((...args) => fetch(...args));
   }
 
   /** False when no music base URL is configured, which means "music is off", not "broken". */
   get isEnabled(): boolean {
-    return this.baseUrl.length > 0;
+    return this.enabled;
   }
 
   async loadManifest(): Promise<ResolvedTrack[]> {
@@ -68,7 +78,7 @@ export class MusicLibrary {
       );
       return tracks;
     } catch (err) {
-      // Network failure, CORS rejection and malformed JSON all land here.
+      // Network failure and malformed JSON both land here.
       Logger.warn(`MusicLibrary: could not load manifest from ${manifestUrl} - no music`, err);
       return [];
     }

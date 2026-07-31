@@ -1,20 +1,26 @@
 # Background music
 
-Music is **not in git**. Tracks live in a Cloudflare R2 bucket and are fetched at runtime, so
-adding or replacing music needs no code change, no rebuild and no deploy.
+Music is **not in git**, and it is **not on a third-party service**. Tracks sit in a folder on
+the ClusterFun server, next to the app but outside the deploy, and the relay serves them at
+`/music`. Adding or replacing music means dropping a file on the box — no rebuild, no deploy,
+no other service to depend on.
 
 Only the EITtris presenter (the shared screen) plays music today. Phones stay silent.
 
 ## Where things are
 
-| Thing          | Value                                                              |
-| -------------- | ------------------------------------------------------------------ |
-| Bucket         | `clusterfun-music` (Cloudflare R2, public-read)                    |
-| Custom domain  | `https://music.clusterfun.tv`                                      |
-| Manifest       | `https://music.clusterfun.tv/music.json` — the one mutable file    |
-| Tracks         | `https://music.clusterfun.tv/tracks/<name>.<hash>.m4a` — immutable |
-| Client env var | `REACT_APP_MUSIC_BASE_URL` (in `.env.dev` and `.env.local`)        |
-| Browser cache  | Cache API, `clusterfun-music-v1`                                   |
+| Thing            | Value                                                              |
+| ---------------- | ------------------------------------------------------------------ |
+| Folder on the Pi | `~/music` (override with `CLUSTERFUN_MUSIC_PATH`)                  |
+| Served at        | `/music` — same origin as the app, so there is no CORS to set up   |
+| Manifest         | `~/music/music.json` → `/music/music.json` — the one mutable file  |
+| Tracks           | `~/music/tracks/<name>.<hash>.m4a` — immutable                     |
+| Client env var   | `REACT_APP_MUSIC_BASE_URL=/music` (in `.env.dev` and `.env.local`) |
+| Browser cache    | Cache API, `clusterfun-music-v1`                                   |
+
+**The folder is deliberately outside the deploy folder.** `deployit.sh` deletes and recreates
+`deploy` wholesale, so music kept in there would be wiped by every deploy — the same reason
+the popularity counts live in `~/analytics`.
 
 Leave `REACT_APP_MUSIC_BASE_URL` **unset** for a build that should have no music. The code
 treats an unset base URL as "music is off": it never calls the network, logs nothing, and the
@@ -22,34 +28,36 @@ game is exactly as it was.
 
 > **Which builds get it.** Create React App auto-loads `.env.local` on top of everything, in
 > production builds as well as dev. So the variable being in `.env.local` means `npm run build`
-> — and therefore the deploy — bakes the URL in, even though `.env.production` never mentions
-> it. That is intended: the Pi will start playing music the moment the bucket exists, with no
-> rebuild. It also means turning music off locally takes commenting it out in **both**
-> `.env.dev` and `.env.local`; `.env.dev` alone is not enough.
+> — and therefore the deploy — bakes it in, even though `.env.production` never mentions it.
+> That is intended: the Pi starts playing music the moment the folder has tracks in it. It also
+> means turning music off locally takes commenting it out in **both** `.env.dev` and
+> `.env.local`; `.env.dev` alone is not enough.
 
-## One-time bucket setup
+## Setting it up on a server
 
-1. Create an R2 bucket named `clusterfun-music`, **public read**. Public-read is a
-   bucket-level property, so music gets a bucket of its own — do not put anything private in
-   it later.
-2. Put a custom domain in front of it: `music.clusterfun.tv`. The default `pub-*.r2.dev`
-   domain is rate-limited by Cloudflare and is not for production traffic.
-3. Configure CORS to allow `GET` and `HEAD` from:
-   - `https://clusterfun.tv`
-   - `http://localhost:3000` (Test Lobby)
-   - `http://localhost:8080` (locally served build)
-   - whatever LAN address you reach the presenter by, e.g. `http://192.168.86.34:8080`
+There is nothing to configure. The server serves whatever is in the folder, and 404s when it
+is not there — which the client treats as "no music".
 
-   CORS is **required**, not optional: the player fetches these files with `fetch()` so it can
-   cache the bytes, and `fetch` is CORS-governed even though a plain `<audio src>` would not
-   be. A missing CORS rule looks exactly like a missing file.
+```bash
+ssh pi@piguy
+mkdir -p ~/music/tracks
+```
 
-4. Cache headers:
-   - tracks: `Cache-Control: public, max-age=31536000, immutable`
-   - `music.json`: `Cache-Control: no-cache`
+Cache headers are set by the server, not by you: `music.json` is served `no-cache` and
+everything else `public, max-age=31536000, immutable`. That pairing is what makes live
+replacement work, and it is unit-tested in `clusterfun-server` (`helpers/musicFolder.ts`).
 
-   The track URLs carry a content hash, so caching them forever is safe. `music.json` is the
-   only mutable object and must be re-validated, or a replaced track never reaches anybody.
+### Locally
+
+Point the server at a scratch folder instead of your home directory:
+
+```bash
+CLUSTERFUN_MUSIC_PATH=C:/temp/music npm run startdev
+```
+
+In the **Test Lobby** (`npm start`, port 3000) the music path is relative, so it goes through
+CRA's dev proxy to the relay on 8080 — start the relay too if you want to hear anything. With
+no relay running the fetch fails, one warning is logged, and the game is silent.
 
 ## Encoding a track
 
@@ -100,11 +108,11 @@ shasum -a 256 track01.m4a | cut -c1-6
 (Get-FileHash track01.m4a -Algorithm SHA256).Hash.Substring(0,6).ToLower()
 ```
 
-So `eittris-main.m4a` with hash `a91f3c…` is uploaded as `tracks/eittris-main.a91f3c.m4a`.
+So `eittris-main.m4a` with hash `a91f3c…` goes in the folder as `tracks/eittris-main.a91f3c.m4a`.
 
 ## `music.json`
 
-Hand-written, uploaded to the bucket root, served `no-cache`.
+Hand-written, sits at the root of the music folder.
 
 ```json
 {
@@ -137,25 +145,30 @@ Hand-written, uploaded to the bucket root, served `no-cache`.
   swap the audio; change the filename instead.
 - `seconds` / `bytes` — informational, for the console log. Nothing depends on them.
 
-A track the presenter cannot parse, a 404, a CORS rejection or a broken manifest all end the
-same way: one warning in the console and a game with no music. Music never breaks a game.
+A track the presenter cannot parse, a 404, or a manifest hand-edited into invalid JSON all end
+the same way: one warning in the console and a game with no music. Music never breaks a game.
 
 ## Adding a track
 
 1. Encode it with the commands above.
 2. Compute the hash and rename to `<name>.<hash>.m4a`.
-3. Upload to `tracks/` with `Cache-Control: public, max-age=31536000, immutable`.
-4. Add an entry to `music.json` and upload it with `Cache-Control: no-cache`.
+3. Copy it up, and update the manifest:
 
-Any presenter started after that picks it up. Presenters already running do not.
+```bash
+scp track01.a91f3c.m4a pi@piguy:~/music/tracks/
+scp music.json pi@piguy:~/music/
+```
+
+Any presenter started after that picks it up. Presenters already running do not. No restart
+of the server is needed — it reads the folder per request.
 
 ## Replacing a track
 
 Tracks are immutable, so a replacement is a **new file with a new name** — never an overwrite.
 
-1. Encode the new audio, hash it, upload as `tracks/<name>.<newhash>.m4a`.
+1. Encode the new audio, hash it, copy it up as `tracks/<name>.<newhash>.m4a`.
 2. Edit that track's `file` in `music.json` to point at the new name. **Keep the same `id`.**
-3. Upload `music.json`.
+3. Copy `music.json` up.
 4. **Do not delete the old file yet.** A presenter that is mid-game is playing from bytes it
    already holds and will never ask for it again, but a presenter that loaded the old manifest
    seconds before you swapped it still might. A day is plenty, and old tracks are cheap to
@@ -165,20 +178,21 @@ What happens next, and why nothing breaks:
 
 - A **running game does not change**. Its manifest was fetched once at startup and it is
   playing from an object URL minted from bytes already in memory. Nothing re-reads anything.
-- The **next presenter to start** fetches the fresh `music.json` (it is `no-cache`) and gets
+- The **next presenter to start** fetches the fresh `music.json` (served `no-cache`) and gets
   the new file. Its URL is one the browser has never seen, so it downloads it.
-- The old track's cached bytes are **swept** on that next load: anything in the cache that is
-  not in the current manifest is deleted, so superseded tracks do not accumulate.
+- The old track's cached bytes are **swept** on that next load: anything in the browser cache
+  that is not in the current manifest is deleted, so superseded tracks do not accumulate.
 
 ## Troubleshooting
 
-| Symptom                                    | Likely cause                                                                |
-| ------------------------------------------ | --------------------------------------------------------------------------- |
-| Silent, no console warning at all          | `REACT_APP_MUSIC_BASE_URL` was unset in that build. Grep the bundle for it. |
-| `MusicLibrary: could not load manifest`    | 404, DNS, or the bucket is not public. `curl -I .../music.json`.            |
-| Manifest loads but tracks never play       | CORS. The manifest fetch and the track fetch are both CORS-governed.        |
-| Plays on Chrome, silent on Safari          | Format. Confirm the file is AAC in `.m4a`, not Opus.                        |
-| Music does not start until the second game | Autoplay blocking. It should start on the start-game click; see below.      |
+| Symptom                                    | Likely cause                                                                  |
+| ------------------------------------------ | ----------------------------------------------------------------------------- |
+| Silent, no console warning at all          | `REACT_APP_MUSIC_BASE_URL` was unset in that build. Grep the bundle for it.   |
+| `MusicLibrary: could not load manifest`    | No `music.json` in the folder, or the server is looking at another folder.    |
+| Silent in the Test Lobby only              | The relay on 8080 is not running, so CRA has nothing to proxy `/music` to.    |
+| Plays on Chrome, silent on Safari          | Format. Confirm the file is AAC in `.m4a`, not Opus.                          |
+| Music does not start until the second game | Autoplay blocking. It starts on the start-game click; see below.              |
+| A replaced track never appears             | The manifest got cached. Confirm the server sent `no-cache` for `music.json`. |
 
 Browsers refuse to play audio without a user gesture, so playback starts on the **start-game
 click** and never before. If it is blocked anyway the player logs a warning and retries on the
@@ -187,8 +201,8 @@ next click or keypress, so the worst case is late music, not none.
 Useful checks:
 
 ```bash
-curl -I https://music.clusterfun.tv/music.json   # expect 200 + no-cache
-curl -I https://music.clusterfun.tv/tracks/eittris-main.a91f3c.m4a  # expect 200 + immutable
+curl -I http://localhost:8080/music/music.json                       # expect 200 + no-cache
+curl -I http://localhost:8080/music/tracks/eittris-main.a91f3c.m4a   # expect 200 + immutable
 ```
 
 In DevTools: **Application → Cache Storage → clusterfun-music-v1** lists the cached tracks.

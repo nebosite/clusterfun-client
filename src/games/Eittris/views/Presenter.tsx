@@ -427,7 +427,7 @@ export default class Presenter extends React.Component<{
   uiProperties: UIProperties;
 }> {
   media: MediaHelper;
-  // Background music streams from the music bucket and is entirely optional: it lives on
+  // Background music streams from our own server and is entirely optional: it lives on
   // the view, not the model, so nothing here is serialized, checkpointed, or able to
   // affect a game.  With no REACT_APP_MUSIC_BASE_URL the whole thing is inert.
   private music: MusicPlayer;
@@ -472,7 +472,7 @@ export default class Presenter extends React.Component<{
     const library = new MusicLibrary(process.env.REACT_APP_MUSIC_BASE_URL);
     const source = new CachedMusicSource();
     this.music = new MusicPlayer(source);
-    // Fire and forget: rendering must not wait on the music bucket.  The sweep drops
+    // Fire and forget: rendering must not wait on the music folder.  The sweep drops
     // cached bytes for tracks that have since left the manifest.
     library.loadManifest().then((tracks) => {
       this.musicTracks = tracks;
