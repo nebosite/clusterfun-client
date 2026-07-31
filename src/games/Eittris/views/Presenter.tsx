@@ -17,6 +17,10 @@ import {
   UINormalizer,
   PlayerAvatar,
   AVATAR_COLORS,
+  MusicLibrary,
+  MusicPlayer,
+  CachedMusicSource,
+  ResolvedTrack,
 } from "libs";
 import {
   EittrisPresenterModel,
@@ -423,6 +427,11 @@ export default class Presenter extends React.Component<{
   uiProperties: UIProperties;
 }> {
   media: MediaHelper;
+  // Background music streams from the music bucket and is entirely optional: it lives on
+  // the view, not the model, so nothing here is serialized, checkpointed, or able to
+  // affect a game.  With no REACT_APP_MUSIC_BASE_URL the whole thing is inert.
+  private music: MusicPlayer;
+  private musicTracks: ResolvedTrack[] = [];
 
   constructor(props: Readonly<{ appModel?: EittrisPresenterModel; uiProperties: UIProperties }>) {
     super(props);
@@ -456,6 +465,28 @@ export default class Presenter extends React.Component<{
     appModel?.subscribe(EittrisGameEvent.GameStarted, "play start sound", () =>
       this.media.playSound(EittrisAssets.sounds.gameStart, { volume: 0.8 }),
     );
+
+    // Music starts here, and only here.  GameStarted is raised synchronously from the
+    // start-game click, which is what gets us past the browser's autoplay policy - the
+    // same gesture that unblocks the AudioContext the sound effects run on.
+    const library = new MusicLibrary(process.env.REACT_APP_MUSIC_BASE_URL);
+    const source = new CachedMusicSource();
+    this.music = new MusicPlayer(source);
+    // Fire and forget: rendering must not wait on the music bucket.  The sweep drops
+    // cached bytes for tracks that have since left the manifest.
+    library.loadManifest().then((tracks) => {
+      this.musicTracks = tracks;
+      if (tracks.length > 0) source.sweep(tracks);
+    });
+
+    appModel?.subscribe(EittrisGameEvent.GameStarted, "start background music", () => {
+      if (this.musicTracks.length === 0) return; // no music configured, or it failed to load
+      const track = this.musicTracks[Math.floor(Math.random() * this.musicTracks.length)];
+      this.music.play(track, { loop: true, fadeInMs: 800 });
+    });
+    appModel?.subscribe(EittrisGameEvent.WinnerAnnounced, "stop background music", () =>
+      this.music.stop(1200),
+    );
     appModel?.subscribe(EittrisGameEvent.PieceLocked, "play lock sound", () =>
       this.media.playSound(EittrisAssets.sounds.dot, { volume: 0.3 }),
     );
@@ -487,6 +518,11 @@ export default class Presenter extends React.Component<{
     appModel?.subscribe(EittrisGameEvent.WinnerAnnounced, "play winner sound", () =>
       this.media.playSound(EittrisAssets.sounds.cheer, { volume: 1.0 }),
     );
+  }
+
+  componentWillUnmount(): void {
+    // Leaving the game must not leave a track playing behind it.
+    this.music.dispose();
   }
 
   private renderSubScreen() {
