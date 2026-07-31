@@ -17,8 +17,15 @@ Only the EITtris presenter (the shared screen) plays music today. Phones stay si
 | Browser cache  | Cache API, `clusterfun-music-v1`                                   |
 
 Leave `REACT_APP_MUSIC_BASE_URL` **unset** for a build that should have no music. The code
-treats an unset base URL as "music is off" and never calls the network. It is unset in
-`.env.production` today, so production is silent until it is set there.
+treats an unset base URL as "music is off": it never calls the network, logs nothing, and the
+game is exactly as it was.
+
+> **Which builds get it.** Create React App auto-loads `.env.local` on top of everything, in
+> production builds as well as dev. So the variable being in `.env.local` means `npm run build`
+> — and therefore the deploy — bakes the URL in, even though `.env.production` never mentions
+> it. That is intended: the Pi will start playing music the moment the bucket exists, with no
+> rebuild. It also means turning music off locally takes commenting it out in **both**
+> `.env.dev` and `.env.local`; `.env.dev` alone is not enough.
 
 ## One-time bucket setup
 
@@ -167,7 +174,7 @@ What happens next, and why nothing breaks:
 
 | Symptom                                    | Likely cause                                                                |
 | ------------------------------------------ | --------------------------------------------------------------------------- |
-| Silent, no console warning at all          | `REACT_APP_MUSIC_BASE_URL` unset in that build. Check with `npm start` env. |
+| Silent, no console warning at all          | `REACT_APP_MUSIC_BASE_URL` was unset in that build. Grep the bundle for it. |
 | `MusicLibrary: could not load manifest`    | 404, DNS, or the bucket is not public. `curl -I .../music.json`.            |
 | Manifest loads but tracks never play       | CORS. The manifest fetch and the track fetch are both CORS-governed.        |
 | Plays on Chrome, silent on Safari          | Format. Confirm the file is AAC in `.m4a`, not Opus.                        |
