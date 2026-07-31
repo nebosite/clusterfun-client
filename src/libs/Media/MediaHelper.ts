@@ -3,6 +3,7 @@ import { SoundHelper } from "./SoundHelper";
 export interface IMediaHelper {
   loadSound(name: string): void;
   playSound(name: string, options?: SoundPlayOptions): void;
+  setVolume(volume: number): void;
 }
 
 export interface SoundPlayOptions {
@@ -28,5 +29,14 @@ export class MediaHelper implements IMediaHelper {
     for (let i = 0; i < count; i++) {
       setTimeout(() => this.playSound(name, options), delay_ms * i);
     }
+  }
+
+  /** Master volume for every sound effect, 0..1 - what a host's volume slider drives. */
+  setVolume(volume: number) {
+    this.soundHelper.setMasterVolume(volume);
+  }
+
+  get volume(): number {
+    return this.soundHelper.volume;
   }
 }

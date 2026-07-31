@@ -1,4 +1,4 @@
-import { MusicLibrary, hashFromFilename } from "./MusicLibrary";
+import { MusicLibrary, hashFromFilename, trackContentHash } from "./MusicLibrary";
 
 // The one rule that matters here: nothing this class does may throw into a game.  Every
 // way a manifest can go wrong is a test, because the alternative is a music server outage
@@ -143,5 +143,67 @@ describe("hashFromFilename", () => {
 
   it("falls back to the filename when a track was uploaded without a hash", () => {
     expect(hashFromFilename("tracks/plain.m4a")).toBe("plain.m4a");
+  });
+});
+
+describe("MusicLibrary - real filenames and content hashes", () => {
+  // What the server actually sends: files named by a person, each with a content hash.
+  const realManifest = {
+    schema: 1,
+    version: "7-a1b2c3d4",
+    tracks: [
+      { id: "bill-g-force", file: "Bill G Force.m4a", title: "Bill G Force", hash: "0f1e2d3c4b5a" },
+      {
+        id: "cut-and-dried",
+        file: "cut and dried.m4a",
+        title: "cut and dried",
+        hash: "aabbccddeeff",
+      },
+    ],
+  };
+
+  it("encodes spaces in filenames instead of emitting a broken URL", async () => {
+    const { fetcher } = fakeFetch(realManifest);
+    const tracks = await new MusicLibrary("/music", fetcher).loadManifest();
+    expect(tracks[0].url).toBe("/music/Bill%20G%20Force.m4a?v=0f1e2d3c4b5a");
+    expect(tracks[1].url).toBe("/music/cut%20and%20dried.m4a?v=aabbccddeeff");
+  });
+
+  it("puts the content hash in the URL, so a re-recorded track is a different URL", async () => {
+    const { fetcher } = fakeFetch(realManifest);
+    const first = (await new MusicLibrary("/music", fetcher).loadManifest())[0];
+    const changed = {
+      ...realManifest,
+      tracks: [{ ...realManifest.tracks[0], hash: "999999999999" }],
+    };
+    const second = (await new MusicLibrary("/music", fakeFetch(changed).fetcher).loadManifest())[0];
+    expect(second.url).not.toBe(first.url);
+    expect(second.file).toBe(first.file); // same file on disk, same name
+  });
+
+  it("still works for a track with no hash at all", async () => {
+    const { fetcher } = fakeFetch({
+      schema: 1,
+      tracks: [{ id: "plain", file: "plain.m4a", title: "Plain" }],
+    });
+    const track = (await new MusicLibrary("/music", fetcher).loadManifest())[0];
+    expect(track.url).toBe("/music/plain.m4a");
+    expect(track.hash).toBeUndefined();
+  });
+});
+
+describe("trackContentHash", () => {
+  const base = { id: "x", file: "tracks/main.a91f3c.m4a", title: "X", seconds: 0, bytes: 0 };
+
+  it("prefers what the server computed", () => {
+    expect(trackContentHash({ ...base, hash: "deadbeef1234" })).toBe("deadbeef1234");
+  });
+
+  it("falls back to a hash in the filename", () => {
+    expect(trackContentHash(base)).toBe("a91f3c");
+  });
+
+  it("falls back to the filename itself when there is nothing else", () => {
+    expect(trackContentHash({ ...base, file: "Bill G Force.m4a" })).toBe("Bill G Force.m4a");
   });
 });

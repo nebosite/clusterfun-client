@@ -12,6 +12,11 @@ export class SoundHelper {
 
   initialization: Promise<void>;
 
+  // One gain node every sound passes through, so the host's volume slider moves all of
+  // them at once - including sounds already ringing out - rather than only the next one.
+  private master?: GainNode;
+  private masterVolume = 1;
+
   // ----------------------------------------------------------------------------------------
   // ctor
   // ----------------------------------------------------------------------------------------
@@ -80,7 +85,30 @@ export class SoundHelper {
     const volume = options.volume ?? 1.0;
     gainNode.gain.value = volume * volume;
     source.connect(gainNode);
-    gainNode.connect(this.context.destination);
+    gainNode.connect(this.masterNode());
     source.start(0);
+  }
+
+  /** Master volume for every sound effect, 0..1.  Takes effect immediately. */
+  setMasterVolume(volume: number) {
+    this.masterVolume = Math.max(0, Math.min(1, volume));
+    // Squared, like the per-sound volume above: a linear slider on raw gain feels like it
+    // does nothing for the top half of its travel.
+    if (this.master) this.master.gain.value = this.masterVolume * this.masterVolume;
+  }
+
+  get volume(): number {
+    return this.masterVolume;
+  }
+
+  // Made on first use rather than in the constructor, because the AudioContext is not
+  // usable until the browser has seen a gesture and a node made too early is wasted.
+  private masterNode(): GainNode {
+    if (!this.master) {
+      this.master = this.context!.createGain();
+      this.master.gain.value = this.masterVolume * this.masterVolume;
+      this.master.connect(this.context!.destination);
+    }
+    return this.master;
   }
 }

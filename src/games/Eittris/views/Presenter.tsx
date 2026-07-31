@@ -21,6 +21,7 @@ import {
   MusicPlayer,
   CachedMusicSource,
   ResolvedTrack,
+  VolumePreferences,
 } from "libs";
 import {
   EittrisPresenterModel,
@@ -75,7 +76,9 @@ function soundForSpecial(type: number): string {
 // The presenter frame is 1920x1080 virtual; this is what is left for the
 // boards once the header row has taken its share.
 const BOARDS_AREA_WIDTH = 1880;
-const BOARDS_AREA_HEIGHT = 940; // measured: the header takes ~129 of 1080
+// The header takes ~129 of 1080 and the audio bar along the bottom takes ~56; boards get
+// what is left.  Getting this wrong pushes boards off the bottom of the screen.
+const BOARDS_AREA_HEIGHT = 884;
 const BOARDS_GAP = 10;
 
 @inject("appModel")
@@ -420,18 +423,29 @@ class GameOverPage extends React.Component<{ appModel?: EittrisPresenterModel }>
 // -------------------------------------------------------------------
 // Presenter Page
 // -------------------------------------------------------------------
+interface PresenterState {
+  effectsVolume: number;
+  musicVolume: number;
+  trackTitle: string | null;
+  // The manifest lands after the first render, and the audio bar has to notice - otherwise
+  // it goes on claiming there is no music long after the songs have arrived.
+  trackCount: number;
+}
+
 @inject("appModel")
 @observer
-export default class Presenter extends React.Component<{
-  appModel?: EittrisPresenterModel;
-  uiProperties: UIProperties;
-}> {
+export default class Presenter extends React.Component<
+  { appModel?: EittrisPresenterModel; uiProperties: UIProperties },
+  PresenterState
+> {
   media: MediaHelper;
   // Background music streams from our own server and is entirely optional: it lives on
   // the view, not the model, so nothing here is serialized, checkpointed, or able to
   // affect a game.  With no REACT_APP_MUSIC_BASE_URL the whole thing is inert.
   private music: MusicPlayer;
   private musicTracks: ResolvedTrack[] = [];
+  private trackIndex = -1;
+  private readonly volumePrefs = new VolumePreferences();
 
   constructor(props: Readonly<{ appModel?: EittrisPresenterModel; uiProperties: UIProperties }>) {
     super(props);
@@ -469,20 +483,29 @@ export default class Presenter extends React.Component<{
     // Music starts here, and only here.  GameStarted is raised synchronously from the
     // start-game click, which is what gets us past the browser's autoplay policy - the
     // same gesture that unblocks the AudioContext the sound effects run on.
+    const levels = this.volumePrefs.load();
+    this.state = {
+      effectsVolume: levels.effects,
+      musicVolume: levels.music,
+      trackTitle: null,
+      trackCount: 0,
+    };
+    this.media.setVolume(levels.effects);
+
     const library = new MusicLibrary(process.env.REACT_APP_MUSIC_BASE_URL);
     const source = new CachedMusicSource();
-    this.music = new MusicPlayer(source);
+    this.music = new MusicPlayer(source, { defaultVolume: levels.music });
     // Fire and forget: rendering must not wait on the music folder.  The sweep drops
     // cached bytes for tracks that have since left the manifest.
     library.loadManifest().then((tracks) => {
       this.musicTracks = tracks;
+      this.setState({ trackCount: tracks.length });
       if (tracks.length > 0) source.sweep(tracks);
     });
 
     appModel?.subscribe(EittrisGameEvent.GameStarted, "start background music", () => {
       if (this.musicTracks.length === 0) return; // no music configured, or it failed to load
-      const track = this.musicTracks[Math.floor(Math.random() * this.musicTracks.length)];
-      this.music.play(track, { loop: true, fadeInMs: 800 });
+      this.playTrack(Math.floor(Math.random() * this.musicTracks.length));
     });
     appModel?.subscribe(EittrisGameEvent.WinnerAnnounced, "stop background music", () =>
       this.music.stop(1200),
@@ -523,6 +546,89 @@ export default class Presenter extends React.Component<{
   componentWillUnmount(): void {
     // Leaving the game must not leave a track playing behind it.
     this.music.dispose();
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // Audio the host can reach: which song, and how loud each layer is.
+  // ---------------------------------------------------------------------------------------
+  private playTrack(index: number, fadeInMs = 800) {
+    const count = this.musicTracks.length;
+    if (count === 0) return;
+    this.trackIndex = ((index % count) + count) % count; // wraps in both directions
+    const track = this.musicTracks[this.trackIndex];
+    this.music.play(track, { loop: true, fadeInMs });
+    this.setState({ trackTitle: track.title });
+  }
+
+  // Straight to the next song, no fade - the host pressed the button because they want a
+  // different song now, and a long crossfade just reads as the button not working.
+  private nextTrack = () => {
+    if (this.musicTracks.length === 0) return;
+    this.playTrack(this.trackIndex + 1, 150);
+  };
+
+  private setEffectsVolume = (value: number) => {
+    this.media.setVolume(value);
+    this.setState({ effectsVolume: value });
+    this.volumePrefs.save({ effects: value, music: this.state.musicVolume });
+  };
+
+  private setMusicVolume = (value: number) => {
+    this.music.setVolume(value);
+    this.setState({ musicVolume: value });
+    this.volumePrefs.save({ effects: this.state.effectsVolume, music: value });
+  };
+
+  // A strip along the bottom of the shared screen.  It is deliberately always present -
+  // the moment somebody says "turn it down" you do not want to be hunting for a menu.
+  private renderAudioBar() {
+    const { effectsVolume, musicVolume, trackTitle, trackCount } = this.state;
+    const haveMusic = trackCount > 0;
+    return (
+      <div className={styles.audioBar}>
+        <label className={styles.audioControl}>
+          <span className={styles.audioLabel}>Sound FX</span>
+          <input
+            type="range"
+            className={styles.audioSlider}
+            min={0}
+            max={1}
+            step={0.05}
+            value={effectsVolume}
+            aria-label="Sound effects volume"
+            onChange={(ev) => this.setEffectsVolume(Number(ev.target.value))}
+          />
+          <span className={styles.audioValue}>{Math.round(effectsVolume * 100)}%</span>
+        </label>
+
+        <label className={styles.audioControl}>
+          <span className={styles.audioLabel}>Music</span>
+          <input
+            type="range"
+            className={styles.audioSlider}
+            min={0}
+            max={1}
+            step={0.05}
+            value={musicVolume}
+            aria-label="Music volume"
+            onChange={(ev) => this.setMusicVolume(Number(ev.target.value))}
+          />
+          <span className={styles.audioValue}>{Math.round(musicVolume * 100)}%</span>
+        </label>
+
+        <button
+          className={styles.audioNext}
+          onClick={this.nextTrack}
+          disabled={!haveMusic}
+          aria-label="Next song"
+        >
+          Next song ⏭
+        </button>
+        <span className={styles.audioTrack}>
+          {haveMusic ? (trackTitle ?? "No song playing") : "No music installed"}
+        </span>
+      </div>
+    );
   }
 
   private renderSubScreen() {
@@ -580,6 +686,7 @@ export default class Presenter extends React.Component<{
       >
         {this.renderFrame()}
         <div style={{ margin: "30px" }}>{this.renderSubScreen()}</div>
+        {this.renderAudioBar()}
       </UINormalizer>
     );
   }

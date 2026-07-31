@@ -467,3 +467,74 @@
   object-fit: contain;
   object-position: bottom left;
 }
+
+/* ---- The audio bar ---- */
+
+/* A strip pinned along the bottom of the shared screen, present in every game
+   state.  Volume is the one thing somebody in the room asks for out loud, so it
+   is always reachable rather than tucked behind a menu.  Its height is baked
+   into BOARDS_AREA_HEIGHT - change one and change the other. */
+.gamepresenter .audioBar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  padding: 0 24px;
+  background: rgba(19, 30, 48, 0.92);
+  border-top: 1px solid #4d648a;
+  font-size: 22px;
+}
+
+.gamepresenter .audioControl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gamepresenter .audioLabel {
+  color: #b9c9e4;
+  letter-spacing: 0.5px;
+}
+
+.gamepresenter .audioSlider {
+  width: 220px;
+  accent-color: #7fb2ff;
+  cursor: pointer;
+}
+
+/* Fixed width, tabular figures: without it the whole row shuffles sideways as
+   the number goes 5% -> 100% while you are dragging. */
+.gamepresenter .audioValue {
+  width: 62px;
+  color: #eeeeee;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.gamepresenter .audioNext {
+  font-size: 20px;
+  padding: 6px 16px;
+}
+
+.gamepresenter .audioNext:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* The song title can be anything anyone named a file, so it gets whatever room
+   is left and an ellipsis rather than being allowed to push the controls off. */
+.gamepresenter .audioTrack {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #9fb4d4;
+  font-size: 20px;
+  font-style: italic;
+}

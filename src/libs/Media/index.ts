@@ -5,3 +5,4 @@ export * from "./MusicLibrary";
 export * from "./MusicPlayer";
 export * from "./DirectMusicSource";
 export * from "./CachedMusicSource";
+export * from "./VolumePreferences";

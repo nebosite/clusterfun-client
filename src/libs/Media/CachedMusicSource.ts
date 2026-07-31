@@ -1,6 +1,6 @@
 import Logger from "js-logger";
 import { IMusicSource } from "./IMusicSource";
-import { ResolvedTrack, hashFromFilename } from "./MusicLibrary";
+import { ResolvedTrack, trackContentHash } from "./MusicLibrary";
 
 // ==========================================================================================
 // CachedMusicSource - keep track bytes in the Cache API so a reload costs no network.
@@ -64,7 +64,7 @@ export interface CachedMusicSourceOptions {
  * populated cache.
  */
 export function musicCacheKey(track: ResolvedTrack): string {
-  return `https://music.clusterfun.invalid/${track.id}/${hashFromFilename(track.file)}`;
+  return `https://music.clusterfun.invalid/${encodeURIComponent(track.id)}/${trackContentHash(track)}`;
 }
 
 export class CachedMusicSource implements IMusicSource {

@@ -25,6 +25,8 @@ export interface MusicTrack {
   title: string;
   seconds: number;
   bytes: number;
+  /** Content hash of the audio, when the server knows it.  See trackContentHash. */
+  hash?: string;
 }
 
 export interface ResolvedTrack extends MusicTrack {
@@ -97,15 +99,40 @@ export class MusicLibrary {
 
     return body.tracks
       .filter((t: any) => t && typeof t.id === "string" && typeof t.file === "string")
-      .map((t: any) => ({
-        id: t.id,
-        file: t.file,
-        title: typeof t.title === "string" ? t.title : t.id,
-        seconds: typeof t.seconds === "number" ? t.seconds : 0,
-        bytes: typeof t.bytes === "number" ? t.bytes : 0,
-        url: `${this.baseUrl}/${String(t.file).replace(/^\/+/, "")}`,
-      }));
+      .map((t: any) => {
+        const hash = typeof t.hash === "string" && t.hash.length > 0 ? t.hash : undefined;
+        return {
+          id: t.id,
+          file: t.file,
+          title: typeof t.title === "string" ? t.title : t.id,
+          seconds: typeof t.seconds === "number" ? t.seconds : 0,
+          bytes: typeof t.bytes === "number" ? t.bytes : 0,
+          hash,
+          url: this.resolveUrl(String(t.file), hash),
+        };
+      });
   }
+
+  // Real track files are named by a person, so they contain spaces and the odd apostrophe -
+  // each path segment has to be encoded or the URL is wrong the moment somebody names a
+  // song sensibly.  The content hash rides along as ?v=, which is what makes a file that
+  // keeps its name still cache-bustable when its contents change.
+  private resolveUrl(file: string, hash: string | undefined): string {
+    const encoded = file
+      .replace(/^\/+/, "")
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    return `${this.baseUrl}/${encoded}${hash ? `?v=${encodeURIComponent(hash)}` : ""}`;
+  }
+}
+
+/**
+ * The identity of a track's *bytes*: the server's content hash when there is one, otherwise
+ * a hash lifted out of the filename.  This, not the URL, is what the byte cache keys on.
+ */
+export function trackContentHash(track: MusicTrack): string {
+  return track.hash ?? hashFromFilename(track.file);
 }
 
 /**
