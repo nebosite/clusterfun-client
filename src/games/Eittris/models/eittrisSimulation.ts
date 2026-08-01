@@ -4,7 +4,9 @@ import {
   ANTIDOTE_CHANCE,
   ANTIDOTE_MAX,
   ANTIDOTE_DURATION_MS,
+  BOARD_HEIGHT,
   BOARD_WIDTH,
+  DROP_POINTS_PER_ROW,
   BRIDGE_COLUMN_MS,
   CLEAR_EAT_MS,
   EittrisBoard,
@@ -25,10 +27,13 @@ import {
   collapseRows,
   collectAndShiftMarkers,
   collides,
+  dragTowards,
   effectiveIntervalMs,
   emptyPsychoOverlay,
   gravityStep,
+  hardDrop,
   hasAfflictions,
+  isResting,
   isOffensive,
   jumbleOnce,
   liftPieceClear,
@@ -45,6 +50,7 @@ import {
   pruneOrphanedSpecials,
   refillNextQueue,
   rollAllowedSpecial,
+  slamHorizontal,
   spawnNextFromQueue,
   stampPsychoTrail,
   startAffliction,
@@ -53,10 +59,12 @@ import {
   swapColumn,
   tickAfflictions,
   tryMove,
+  tryRotateCCW,
   tryRotateCW,
   xorPsychoOverlay,
 } from "./eittrisLogic";
 import { AI_FAST_MULTIPLIER, AI_MOVE_INTERVAL_MS, SPAWN_DELAY_MS } from "./GameSettings";
+import { EittrisCommandMessage } from "./eittrisEndpoints";
 
 // ==========================================================================================
 // The EITtris board simulation, with no framework attached to it.
@@ -98,6 +106,8 @@ export interface SimulationEvents {
   afflictionEnded(board: EittrisBoard, types: SpecialType[]): void;
   antidoteUsed(board: EittrisBoard): void;
   jumbleNudge(board: EittrisBoard): void;
+  /** A piece was slammed sideways into a wall or a stack - a thump, but not a lock. */
+  slammed(board: EittrisBoard): void;
   /** Topped out.  The host decides what that means for the game; the board is already dead. */
   died(board: EittrisBoard): void;
   /** A good moment to save state, if whoever owns this board saves state. */
@@ -116,6 +126,7 @@ export const NO_EVENTS: SimulationEvents = {
   afflictionEnded: () => {},
   antidoteUsed: () => {},
   jumbleNudge: () => {},
+  slammed: () => {},
   died: () => {},
   persist: () => {},
 };
@@ -639,4 +650,131 @@ export function spendAntidote(board: EittrisBoard, ctx: SimulationContext) {
   if (ended.length > 0) ctx.events.afflictionEnded(board, ended);
   ctx.events.changed(board);
   ctx.events.persist();
+}
+
+// ------------------------------------------------------------------------------------------
+// Player input.
+//
+// This is the part that used to be worth a round trip to the host and back, which is
+// exactly why the game felt heavy: a piece could not move until the network agreed.  It
+// runs wherever the board lives - on the phone for a player, on the host for a robot being
+// driven by a dev control - and returns whether anything actually changed.
+//
+// Target picking and the dev preferences are NOT here: they need to know who else is in the
+// game, which is the one thing a single board cannot see.
+// ------------------------------------------------------------------------------------------
+export function applyCommand(
+  board: EittrisBoard,
+  message: EittrisCommandMessage,
+  ctx: SimulationContext,
+): boolean {
+  if (!board.alive) return false;
+
+  // These do not touch the falling piece, so they work even in the post-lock gap
+  if (message.command === "useAntidote") {
+    spendAntidote(board, ctx);
+    return true;
+  }
+  // DEV: behave exactly as if this special had just been cleared
+  if (message.command === "fireSpecial") {
+    const wanted = message.specialType ?? board.forcedSpecial;
+    if (wanted !== null && wanted !== undefined) collectSpecial(board, wanted as SpecialType, ctx);
+    return true;
+  }
+  // Everything else needs a live piece.  During the spawn gap there is none, so stray
+  // commands from a finished gesture simply evaporate.
+  if (!board.piece) return false;
+
+  let changed = false;
+  switch (message.command) {
+    // CrazyIvan mirrors sideways movement and reverses rotation
+    case "dragTo": {
+      // Free 2D drag: toward the column AND down toward the row at once.  Drag contact
+      // NEVER locks - `release` (or natural gravity) does that.
+      if (message.column === undefined) break;
+      let wanted = Math.floor(message.column);
+      if (board.crazyIvan) wanted = BOARD_WIDTH - 1 - wanted; // mirrored
+      const targetX = Math.max(0, Math.min(BOARD_WIDTH - 1, wanted));
+      const targetY = Math.min(BOARD_HEIGHT - 1, Math.floor(message.row ?? board.piece.y));
+      const dragged = dragTowards(board.grid, board.piece, targetX, targetY);
+      changed = dragged.piece.x !== board.piece.x || dragged.piece.y !== board.piece.y;
+      if (dragged.rowsDescended > 0) {
+        board.score += dragged.rowsDescended * DROP_POINTS_PER_ROW;
+        board.dropTimerMs = 0; // give the player a full beat before gravity locks it
+      }
+      board.piece = dragged.piece;
+      break;
+    }
+    case "release": {
+      // Pointer-up after a drag: lock only if the piece is resting; an airborne piece
+      // just resumes normal gravity
+      if (isResting(board.grid, board.piece)) {
+        lockCurrentPiece(board, false, ctx);
+        changed = true;
+      }
+      break;
+    }
+    case "hardDrop": {
+      const dropped = hardDrop(board.grid, board.piece);
+      board.piece = dropped.piece;
+      board.score += dropped.rowsDropped * DROP_POINTS_PER_ROW;
+      lockCurrentPiece(board, true, ctx);
+      changed = true;
+      break;
+    }
+    case "slamLeft":
+    case "slamRight": {
+      let dir: -1 | 1 = message.command === "slamLeft" ? -1 : 1;
+      if (board.crazyIvan) dir = dir === -1 ? 1 : -1;
+      const slammed = slamHorizontal(board.grid, board.piece, dir);
+      changed = slammed.x !== board.piece.x;
+      board.piece = slammed;
+      if (changed) ctx.events.slammed(board);
+      break;
+    }
+    case "rotate":
+    case "rotateCCW": {
+      // CrazyIvan inverts rotation as well as left/right, so a victim's rotate keys swap
+      // over with everything else.
+      let clockwise = message.command === "rotate";
+      if (board.crazyIvan) clockwise = !clockwise;
+      const rotated = clockwise
+        ? tryRotateCW(board.grid, board.piece)
+        : tryRotateCCW(board.grid, board.piece);
+      if (rotated) {
+        board.piece = rotated;
+        changed = true;
+      }
+      break;
+    }
+    // One-cell keyboard/controller steps.  Deliberately NOT dragTo: that takes an absolute
+    // column, which CrazyIvan mirrors, so a "one step left" through dragTo would fling the
+    // piece across the board.
+    case "moveLeft":
+    case "moveRight": {
+      let dx = message.command === "moveLeft" ? -1 : 1;
+      if (board.crazyIvan) dx = -dx;
+      const moved = tryMove(board.grid, board.piece, dx, 0);
+      if (moved) {
+        board.piece = moved;
+        changed = true;
+      }
+      break;
+    }
+    case "moveDown": {
+      const moved = tryMove(board.grid, board.piece, 0, 1);
+      if (moved) {
+        board.piece = moved;
+        board.score += DROP_POINTS_PER_ROW;
+        // Same courtesy the drag gets: a full beat before gravity locks it, so
+        // soft-dropping onto the stack is not an instant commitment.
+        board.dropTimerMs = 0;
+        changed = true;
+      }
+      break;
+    }
+  }
+
+  if (changed) ctx.events.changed(board);
+  return changed;
 }

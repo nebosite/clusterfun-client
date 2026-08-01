@@ -15,9 +15,8 @@ import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicE
 import {
   SimulationContext,
   SimulationEvents,
+  applyCommand,
   applyIncomingSpecial,
-  collectSpecial,
-  lockCurrentPiece,
   spendAntidote,
   stepBoard,
 } from "./eittrisSimulation";
@@ -35,24 +34,15 @@ import {
   EittrisThumbnailsEndpoint,
 } from "./eittrisEndpoints";
 import {
-  BOARD_HEIGHT,
-  BOARD_WIDTH,
-  dragTowards,
-  DROP_POINTS_PER_ROW,
   EittrisBoard,
   encodeGrid,
   encodeThumbnail,
-  hardDrop,
   initTargetRing,
-  isResting,
   makeBoard,
   NEXT_PREVIEW_COUNT,
   CRYSTAL_BALL_PREVIEW,
   rankBoards,
   retargetOnDeath,
-  slamHorizontal,
-  tryMove,
-  tryRotateCW,
   effectiveIntervalMs,
   SpecialType,
   defaultSettings,
@@ -64,7 +54,6 @@ import {
   robotRoster,
   AFFLICTION_TIMERS,
   afflictionMsLeft,
-  tryRotateCCW,
   encodePsychoOverlay,
 } from "./eittrisLogic";
 import type { EittrisSettings } from "./eittrisLogic";
@@ -485,6 +474,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
         this.invokeEvent(EittrisGameEvent.AfflictionEnded, board.playerId, types),
       antidoteUsed: (board) => this.invokeEvent(EittrisGameEvent.AntidoteUsed, board.playerId),
       jumbleNudge: (board) => this.invokeEvent(EittrisGameEvent.JumbleNudge, board.playerId),
+      slammed: (board) => this.invokeEvent(EittrisGameEvent.PieceBumped, board.playerId),
       died: (board) => this.onBoardDied(board),
       persist: () => this.saveCheckpoint(),
     };
@@ -663,113 +653,9 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       }
       return;
     }
-    if (message.command === "useAntidote") {
-      this.useAntidote(board);
-      return;
-    }
-    // DEV: behave exactly as if this special had just been cleared
-    if (message.command === "fireSpecial") {
-      const wanted = message.specialType ?? board.forcedSpecial;
-      if (wanted !== null && wanted !== undefined) {
-        collectSpecial(board, wanted as SpecialType, this.simContext);
-      }
-      return;
-    }
-    // Everything else needs a live piece.  During the spawn gap there is
-    // none, so stray commands from a finished gesture simply evaporate.
-    if (!board.piece) return;
-
-    let changed = false;
-    switch (message.command) {
-      // CrazyIvan mirrors sideways movement and reverses rotation
-      case "dragTo": {
-        // Free 2D drag: toward the column AND down toward the row at once.
-        // Drag contact NEVER locks - `release` (or natural gravity) does that.
-        if (message.column === undefined) break;
-        let wanted = Math.floor(message.column);
-        if (board.crazyIvan) wanted = BOARD_WIDTH - 1 - wanted; // mirrored
-        const targetX = Math.max(0, Math.min(BOARD_WIDTH - 1, wanted));
-        const targetY = Math.min(BOARD_HEIGHT - 1, Math.floor(message.row ?? board.piece.y));
-        const dragged = dragTowards(board.grid, board.piece, targetX, targetY);
-        changed = dragged.piece.x !== board.piece.x || dragged.piece.y !== board.piece.y;
-        if (dragged.rowsDescended > 0) {
-          board.score += dragged.rowsDescended * DROP_POINTS_PER_ROW;
-          board.dropTimerMs = 0; // give the player a full beat before gravity locks it
-        }
-        board.piece = dragged.piece;
-        break;
-      }
-      case "release": {
-        // Pointer-up after a drag: lock only if the piece is resting;
-        // an airborne piece just resumes normal gravity
-        if (isResting(board.grid, board.piece)) {
-          lockCurrentPiece(board, false, this.simContext);
-          changed = true;
-        }
-        break;
-      }
-      case "hardDrop": {
-        const dropped = hardDrop(board.grid, board.piece);
-        board.piece = dropped.piece;
-        board.score += dropped.rowsDropped * DROP_POINTS_PER_ROW;
-        lockCurrentPiece(board, true, this.simContext);
-        changed = true;
-        break;
-      }
-      case "slamLeft":
-      case "slamRight": {
-        let dir: -1 | 1 = message.command === "slamLeft" ? -1 : 1;
-        if (board.crazyIvan) dir = dir === -1 ? 1 : -1;
-        const slammed = slamHorizontal(board.grid, board.piece, dir);
-        changed = slammed.x !== board.piece.x;
-        board.piece = slammed;
-        if (changed) this.invokeEvent(EittrisGameEvent.PieceBumped, board.playerId);
-        break;
-      }
-      case "rotate":
-      case "rotateCCW": {
-        // CrazyIvan inverts rotation as well as left/right, so a victim's
-        // rotate keys swap over with everything else.
-        let clockwise = message.command === "rotate";
-        if (board.crazyIvan) clockwise = !clockwise;
-        const rotated = clockwise
-          ? tryRotateCW(board.grid, board.piece)
-          : tryRotateCCW(board.grid, board.piece);
-        if (rotated) {
-          board.piece = rotated;
-          changed = true;
-        }
-        break;
-      }
-      // One-cell keyboard/controller steps.  Deliberately NOT dragTo: that
-      // takes an absolute column, which CrazyIvan mirrors, so a "one step
-      // left" through dragTo would fling the piece across the board.
-      case "moveLeft":
-      case "moveRight": {
-        let dx = message.command === "moveLeft" ? -1 : 1;
-        if (board.crazyIvan) dx = -dx;
-        const moved = tryMove(board.grid, board.piece, dx, 0);
-        if (moved) {
-          board.piece = moved;
-          changed = true;
-        }
-        break;
-      }
-      case "moveDown": {
-        const moved = tryMove(board.grid, board.piece, 0, 1);
-        if (moved) {
-          board.piece = moved;
-          board.score += DROP_POINTS_PER_ROW;
-          // Same courtesy the drag gets: a full beat before gravity locks it,
-          // so soft-dropping onto the stack is not an instant commitment.
-          board.dropTimerMs = 0;
-          changed = true;
-        }
-        break;
-      }
-    }
-
-    if (changed) this.dirtyPlayerIds.add(board.playerId);
+    // Everything that only touches this one board is the simulator's job - the same code
+    // a phone runs on its own board, with no round trip in the way.
+    applyCommand(board, message, this.simContext);
   };
 
   // -------------------------------------------------------------------
