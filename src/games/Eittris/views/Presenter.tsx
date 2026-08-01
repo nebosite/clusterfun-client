@@ -36,6 +36,7 @@ import {
   SPECIAL_NAMES,
   SPECIAL_ICON_COUNT,
   MAX_ROBOTS,
+  SPEED_CHOICES,
   planBoardLayout,
 } from "../models/eittrisLogic";
 import BoardGrid from "./BoardGrid";
@@ -150,6 +151,21 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
               {/* Antidotes and the award share a row - two short controls, and
                   splitting them wasted a whole line of a page that was
                   running off the bottom. */}
+              <div className={styles.setupRow}>
+                <span className={styles.setupLabel}>Game speed:</span>
+                {SPEED_CHOICES.map((speed) => (
+                  <button
+                    key={speed}
+                    className={classNames(styles.robotButton, styles.speedButton, {
+                      [styles.robotButtonOn]: appModel.settings.speed === speed,
+                    })}
+                    onClick={() => appModel.setSpeed(speed)}
+                  >
+                    {speed}
+                  </button>
+                ))}
+              </div>
+
               <div className={styles.setupRow}>
                 <span className={styles.setupLabel}>Antidotes to start:</span>
                 {[0, 1, 2, 3].map((count) => (

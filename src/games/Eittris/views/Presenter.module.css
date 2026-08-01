@@ -538,3 +538,11 @@
   font-size: 20px;
   font-style: italic;
 }
+
+/* Speed is a word, not a digit, so it needs more room than the number buttons
+   it sits beside - and a fixed width so the row does not shuffle as the
+   selection moves between "slow" and "medium". */
+.gamepresenter .speedButton {
+  width: 130px;
+  text-transform: capitalize;
+}

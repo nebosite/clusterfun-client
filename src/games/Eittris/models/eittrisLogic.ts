@@ -669,12 +669,12 @@ export function collectAndShiftMarkers(
 // Gravity - eitrix's continuous curve in per-second form: exponential decay
 // above the knee, a linear floor below it, clamped to a sane minimum.
 // ------------------------------------------------------------------------------------------
-export function gravityStep(intervalMs: number, dtSeconds: number): number {
+export function gravityStep(intervalMs: number, dtSeconds: number, speedUp = 1): number {
   let next: number;
   if (intervalMs < LINEAR_KNEE_MS) {
-    next = intervalMs - LINEAR_DECAY_MS_PER_SEC * dtSeconds;
+    next = intervalMs - LINEAR_DECAY_MS_PER_SEC * speedUp * dtSeconds;
   } else {
-    next = intervalMs * Math.exp(-EXP_DECAY_PER_SEC * dtSeconds);
+    next = intervalMs * Math.exp(-EXP_DECAY_PER_SEC * speedUp * dtSeconds);
   }
   return Math.max(MIN_INTERVAL_MS, next);
 }
@@ -809,7 +809,11 @@ export interface EittrisBoard {
   pendingStencil: PendingStencil | null;
 }
 
-export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
+export function makeBoard(
+  playerId: string,
+  rand: () => number,
+  speed: EittrisSpeed = "slow",
+): EittrisBoard {
   const spawned = spawnNextFromQueue([], rand);
   return {
     playerId,
@@ -819,7 +823,7 @@ export function makeBoard(playerId: string, rand: () => number): EittrisBoard {
     score: 0,
     rows: 0,
     alive: true,
-    intervalMs: START_INTERVAL_MS,
+    intervalMs: startIntervalFor(speed),
     dropTimerMs: 0,
     deathOrder: 0,
     backgroundIndex: Math.min(BACKGROUND_COUNT - 1, Math.floor(rand() * BACKGROUND_COUNT)),
@@ -1657,8 +1661,29 @@ export function lockOnly(grid: number[][], piece: EittrisPiece): number[][] {
 // ------------------------------------------------------------------------------------------
 export const MAX_STARTING_ANTIDOTES = ANTIDOTE_MAX;
 
+/** How brisk the game is.  Slow is the tuned default; the others scale gravity up. */
+export type EittrisSpeed = "slow" | "medium" | "fast";
+
+// Speed is a multiplier on how fast pieces fall AND on how quickly that builds.  Interval
+// is the reciprocal of speed, so double speed is half the interval.
+export const SPEED_MULTIPLIERS: Record<EittrisSpeed, number> = {
+  slow: 1,
+  medium: 2,
+  fast: 3,
+};
+
+export const SPEED_CHOICES: EittrisSpeed[] = ["slow", "medium", "fast"];
+
+/** The gravity interval a board starts at, for a given speed. */
+export function startIntervalFor(speed: EittrisSpeed): number {
+  return Math.max(MIN_INTERVAL_MS, START_INTERVAL_MS / (SPEED_MULTIPLIERS[speed] ?? 1));
+}
+
 export interface EittrisSettings {
   startingAntidotes: number;
+  // How fast the game plays.  Slow is the default because pieces used to land faster
+  // than people could think about them; medium and fast are for rooms that want it.
+  speed: EittrisSpeed;
   // What clearing four rows at once wins you.  The original always fired a
   // Bridge; the host can now pick anything that is switched on.
   fourRowAward: SpecialType;
@@ -1669,6 +1694,7 @@ export interface EittrisSettings {
 export function defaultSettings(): EittrisSettings {
   return {
     startingAntidotes: ANTIDOTES_AT_START,
+    speed: "slow",
     fourRowAward: SpecialType.Antidote,
     allowedSpecials: IMPLEMENTED_SPECIALS.slice(),
   };
@@ -1691,10 +1717,12 @@ export function sanitizeSettings(settings: Partial<EittrisSettings> | null): Eit
     ),
   );
   const award = settings.fourRowAward ?? base.fourRowAward;
+  const speed = settings.speed ?? base.speed;
   return {
     startingAntidotes: Number.isFinite(startingAntidotes)
       ? startingAntidotes
       : base.startingAntidotes,
+    speed: SPEED_CHOICES.includes(speed) ? speed : base.speed,
     // The award has to be something that can actually appear
     fourRowAward: IMPLEMENTED_SPECIALS.includes(award) ? award : base.fourRowAward,
     allowedSpecials: allowed.length > 0 ? allowed : [SpecialType.Antidote],

@@ -41,6 +41,8 @@ import {
   spawnNextFromQueue,
   spawnPiece,
   START_INTERVAL_MS,
+  SPEED_CHOICES,
+  startIntervalFor,
   EXP_DECAY_PER_SEC,
   LINEAR_DECAY_MS_PER_SEC,
   tryMove,
@@ -1972,5 +1974,42 @@ describe("eittrisLogic - fitting the host's boards on screen", () => {
   it("copes with no boards at all", () => {
     expect(() => planBoardLayout(0, W, H)).not.toThrow();
     expect(planBoardLayout(0, W, H).cellPx).toBeGreaterThan(0);
+  });
+});
+
+describe("eittrisLogic - game speed", () => {
+  it("defaults to slow, which is the tuning the game was balanced at", () => {
+    expect(defaultSettings().speed).toBe("slow");
+    expect(startIntervalFor("slow")).toBe(START_INTERVAL_MS);
+  });
+
+  it("doubles for medium and triples for fast", () => {
+    // Speed is the reciprocal of the interval: twice as fast is half the wait.
+    expect(startIntervalFor("medium")).toBeCloseTo(START_INTERVAL_MS / 2, 6);
+    expect(startIntervalFor("fast")).toBeCloseTo(START_INTERVAL_MS / 3, 6);
+  });
+
+  it("scales how quickly it speeds up, not just where it starts", () => {
+    const oneSecond = (speedUp: number) => gravityStep(1000, 1, speedUp);
+    const slowDrop = 1000 - oneSecond(1);
+    expect(1000 - oneSecond(2)).toBeGreaterThan(slowDrop * 1.9);
+    expect(1000 - oneSecond(3)).toBeGreaterThan(slowDrop * 2.8);
+  });
+
+  it("never starts below the hard floor", () => {
+    for (const speed of SPEED_CHOICES) {
+      expect(startIntervalFor(speed)).toBeGreaterThanOrEqual(MIN_INTERVAL_MS);
+    }
+  });
+
+  it("keeps a sane speed when the host sends nonsense", () => {
+    expect(sanitizeSettings({ speed: "ludicrous" as any }).speed).toBe("slow");
+    expect(sanitizeSettings({}).speed).toBe("slow");
+    expect(sanitizeSettings({ speed: "fast" }).speed).toBe("fast");
+  });
+
+  it("starts a board at the speed the host picked", () => {
+    expect(makeBoard("p", () => 0.5, "fast").intervalMs).toBe(startIntervalFor("fast"));
+    expect(makeBoard("p", () => 0.5).intervalMs).toBe(startIntervalFor("slow"));
   });
 });

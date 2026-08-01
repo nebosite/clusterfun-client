@@ -75,6 +75,9 @@ import {
   collapseRows,
   lockOnly,
   MAX_ROBOTS,
+  SPEED_MULTIPLIERS,
+  SPEED_CHOICES,
+  EittrisSpeed,
   MAX_ROBOTS_STRESS,
   EittrisRobot,
   robotRoster,
@@ -227,6 +230,13 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // What the host chose on the gathering screen.  Plain data, so it rides the
   // checkpoint and survives a refresh mid-setup.
   @observable settings: EittrisSettings = defaultSettings();
+
+  setSpeed(speed: EittrisSpeed) {
+    if (!SPEED_CHOICES.includes(speed)) return;
+    this.settings = sanitizeSettings({ ...this.settings, speed });
+    this.saveCheckpoint();
+    this.sendToEveryone(InvalidateStateEndpoint, () => ({}));
+  }
 
   setStartingAntidotes(count: number) {
     action(() => {
@@ -430,7 +440,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   prepareFreshRound = () => {
     const rand = () => this.randomDouble(1.0);
     const humanBoards = this.players.map((player) => {
-      const board = makeBoard(player.playerId, rand);
+      const board = makeBoard(player.playerId, rand, this.settings.speed);
       board.antidotes = this.settings.startingAntidotes;
       board.aiControlled = player.aiControlled;
       board.forcedSpecial = player.forcedSpecial;
@@ -440,7 +450,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     // Robots get a board each, always computer-driven.  They fill out a game
     // for one or two people without anyone else having to pick up a phone.
     const robotBoards = this.robots.map((robot) => {
-      const board = makeBoard(robot.playerId, rand);
+      const board = makeBoard(robot.playerId, rand, this.settings.speed);
       board.antidotes = this.settings.startingAntidotes;
       board.aiControlled = true;
       return board;
@@ -540,7 +550,11 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       return;
     }
 
-    board.intervalMs = gravityStep(board.intervalMs, dtMs / 1000);
+    board.intervalMs = gravityStep(
+      board.intervalMs,
+      dtMs / 1000,
+      SPEED_MULTIPLIERS[this.settings.speed] ?? 1,
+    );
     board.dropTimerMs += dtMs;
     for (;;) {
       // Afflictions (Speedup) squeeze the natural curve without changing it
