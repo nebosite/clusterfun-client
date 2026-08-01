@@ -585,8 +585,14 @@ export class EittrisClientModel extends ClusterfunClientModel {
   protected handleStartPlaying = (message: EittrisStartPlayingMessage) => {
     runInAction(() => {
       this.settings = sanitizeSettings(message.settings);
-      const board = makeBoard(this.playerId, Math.random, this.settings.speed);
+      // A board in the message means this seat is being handed back - somebody rejoining
+      // and taking over from the robot that kept it warm.  Adopt it exactly as it stands,
+      // rather than starting them again from an empty grid.
+      const board = message.board ?? makeBoard(this.playerId, Math.random, this.settings.speed);
+      board.playerId = this.playerId;
       board.targetId = message.targetId;
+      // A handed-back board may still be flagged for the robot that was playing it
+      board.robotTakeover = false;
       board.aiControlled = this.aiControlled;
       board.forcedSpecial = this.forcedSpecial;
       this.board = board;

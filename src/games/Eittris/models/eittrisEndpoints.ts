@@ -1,5 +1,5 @@
 import MessageEndpoint from "libs/messaging/MessageEndpoint";
-import { EittrisPiece, EittrisSettings } from "./eittrisLogic";
+import { EittrisBoard, EittrisPiece, EittrisSettings } from "./eittrisLogic";
 
 // ==========================================================================================
 // The wire API between phones and the presenter for EITtris.  See DESIGN.md for
@@ -245,6 +245,13 @@ export interface EittrisStartPlayingMessage {
   settings: EittrisSettings;
   /** Who this phone is aiming at to begin with, if anyone. */
   targetId: string | null;
+  /**
+   * A board already in progress, handed back.  Absent at the start of a game, when the
+   * phone makes its own; present when somebody rejoins and takes their seat back from the
+   * robot that was keeping it warm.  Without it the returning player would own a board
+   * they had never been given, and nothing would move.
+   */
+  board?: EittrisBoard;
 }
 
 export const EittrisStartPlayingEndpoint: MessageEndpoint<EittrisStartPlayingMessage, void> = {

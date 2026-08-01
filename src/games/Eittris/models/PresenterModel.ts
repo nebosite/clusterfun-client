@@ -368,7 +368,32 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       }
     })();
     this.dirtyPlayerIds.add(board.playerId);
+    // Hand the board itself back.  From the moment they are a player again the host stops
+    // simulating their board - so if the phone is not given one to run, nobody runs it and
+    // the game sits frozen in front of them.
+    this.handOverBoard(board);
     this.saveCheckpoint();
+  }
+
+  // -------------------------------------------------------------------
+  // handOverBoard - give a board to the phone that owns it, in whatever state it is in.
+  //
+  // Used whenever a board changes hands mid-game: somebody rejoining and taking their
+  // seat back from a robot, or a late joiner picking up a board the host made for them.
+  // -------------------------------------------------------------------
+  private handOverBoard(board: EittrisBoard) {
+    if (this.gameState !== EittrisGameState.Playing) return;
+    this.sendToEveryone(EittrisStartPlayingEndpoint, (player) =>
+      player.playerId === board.playerId
+        ? {
+            settings: this.settings,
+            targetId: board.targetId,
+            // A copy, not the live object: what goes on the wire must not be something
+            // the host is still mutating.
+            board: JSON.parse(JSON.stringify(board)) as EittrisBoard,
+          }
+        : undefined,
+    );
   }
 
   // -------------------------------------------------------------------

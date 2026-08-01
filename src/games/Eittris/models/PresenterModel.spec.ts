@@ -1883,3 +1883,65 @@ describe("EittrisPresenterModel - a reconnected player can actually play", () =>
     expect(bobBoard.targetId).toBe("A-new");
   });
 });
+
+describe("EittrisPresenterModel - leaving and coming back", () => {
+  it("lets a robot keep the seat warm while its player is away", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    const player = model.players.find((p) => p.playerId === "A")!;
+
+    (model as any).onPlayerExited(player);
+    expect(board.robotTakeover).toBe(true);
+    expect(board.aiControlled).toBe(true);
+  });
+
+  it("hands the board back when its player returns", () => {
+    // The regression this exists to stop: once somebody is a player again the host stops
+    // simulating their board, so if the phone is not handed one, NOBODY simulates it and
+    // the game sits frozen in front of them.
+    const { model, sent } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    const player = model.players.find((p) => p.playerId === "A")!;
+    (model as any).onPlayerExited(player);
+    tickTo(model, 500); // the robot plays a little
+    sent.length = 0;
+
+    (model as any).onPlayerReturned(player, "A");
+
+    const handovers = sent.filter((m) => String(m.route).includes("start-playing"));
+    expect(handovers.length).toBe(1);
+    expect(handovers[0].receiverId).toBe("A");
+    // ...carrying the board as it stands, not a fresh one
+    expect(handovers[0].message.board).toBeTruthy();
+    expect(handovers[0].message.board.playerId).toBe("A");
+    expect(handovers[0].message.board.score).toBe(board.score);
+    // ...and the robot has let go of it
+    expect(board.robotTakeover).toBe(false);
+  });
+
+  it("hands the board back to the NEW id when a reconnect brings one", () => {
+    // A reconnect arrives on a brand new player id; the board moves across to it, and the
+    // handover has to follow it there or it reaches nobody.
+    const { model, sent } = startTwoPlayerGame();
+    const player = model.players.find((p) => p.playerId === "A")!;
+    (model as any).onPlayerExited(player);
+    sent.length = 0;
+    runInAction(() => (player.playerId = "A2"));
+
+    (model as any).onPlayerReturned(player, "A");
+
+    const handovers = sent.filter((m) => String(m.route).includes("start-playing"));
+    expect(handovers.length).toBe(1);
+    expect(handovers[0].receiverId).toBe("A2");
+    expect(handovers[0].message.board.playerId).toBe("A2");
+  });
+
+  it("says nothing when nobody is playing yet", () => {
+    const { model, sent } = makeModel();
+    addPlayer(model, "A", "Alice");
+    sent.length = 0;
+    const player = model.players.find((p) => p.playerId === "A")!;
+    (model as any).onPlayerReturned(player, "A");
+    expect(sent.filter((m) => String(m.route).includes("start-playing")).length).toBe(0);
+  });
+});
