@@ -12,7 +12,11 @@ import { EittrisPiece } from "./eittrisLogic";
 // and the per-player board-update push
 // ------------------------------------------------------------------------------------------
 export interface EittrisBoardSnapshot {
-  grid: string; // 210-char encoded settled grid
+  // The 210-char encoded settled grid.  Sent only when it has actually changed - most
+  // updates are just the falling piece moving, and the settled stack only changes when
+  // a piece locks or an attack lands.  Omitted means "the same as last time", so a
+  // phone must keep the last one it was given.
+  grid?: string;
   piece: EittrisPiece | null; // the falling piece (null once dead)
   next: number[]; // the next 2 piece types
   score: number;
@@ -53,6 +57,9 @@ export interface EittrisBoardSnapshot {
 // ------------------------------------------------------------------------------------------
 export interface EittrisOnboardClientMessage {
   gameState: string;
+  // The full line-up, so a phone that joins or reconnects mid-game can make sense of
+  // the indexes in every thumbnail broadcast that follows.
+  roster: EittrisRosterEntry[];
   board: EittrisBoardSnapshot | null; // null while gathering (no board yet)
   // Dev preferences live on the player, so they are reported even before a
   // board exists (i.e. while waiting for the game to start)
@@ -89,7 +96,6 @@ export type EittrisCommandKind =
   | "moveLeft" // one column, from a key or pad - NOT a slam
   | "moveRight"
   | "moveDown" // one row, the soft drop
-  | "doubleTapDrop" // a double tap: undo the first tap's rotation, then drop
   | "pickTarget"
   | "useAntidote" // fire a stored antidote (cure + shield)
   | "setForcedSpecial" // DEV ONLY: pin which special spawns
@@ -122,17 +128,34 @@ export const EittrisBoardUpdateEndpoint: MessageEndpoint<EittrisBoardSnapshot, v
 // Thumbnails - presenter -> everyone, one SHARED payload every ~1s (only when
 // something changed): a 1-bit snapshot of every board for the phone target list.
 // ------------------------------------------------------------------------------------------
-export interface EittrisThumbnailEntry {
+// Who is playing.  None of this changes while a game runs, so it is sent when the
+// line-up changes and not once a second forever - it was more than half the cost of
+// the thumbnail broadcast, which is the heaviest thing EITtris puts on the wire.
+export interface EittrisRosterEntry {
   playerId: string;
   name: string;
   avatarId: number;
   avatarColor: number;
+}
+
+// What one board looks like now.  `i` indexes the roster.
+export interface EittrisThumbnailEntry {
+  i: number;
   alive: boolean;
   thumb: string; // 36-char base64 of 210 packed bits (see eittrisLogic)
 }
 
+/** Identity and board state merged back together - what a phone actually draws. */
+export interface EittrisRosterView extends EittrisRosterEntry {
+  alive: boolean;
+  thumb: string;
+}
+
 export interface EittrisThumbnailsMessage {
-  players: EittrisThumbnailEntry[];
+  // Present only when the line-up changed; otherwise the phone keeps the one it has.
+  roster?: EittrisRosterEntry[];
+  // Only the boards that actually changed since the last broadcast.
+  boards: EittrisThumbnailEntry[];
 }
 
 export const EittrisThumbnailsEndpoint: MessageEndpoint<EittrisThumbnailsMessage, void> = {

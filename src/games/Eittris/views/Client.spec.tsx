@@ -13,7 +13,6 @@ import { encodeThumbnail, BOARD_HEIGHT, BOARD_WIDTH } from "../models/eittrisLog
 
 const blankThumb = encodeThumbnail(
   Array.from({ length: BOARD_HEIGHT }, () => new Array(BOARD_WIDTH).fill(-1)),
-  null,
 );
 
 function fakeModel(overrides: Partial<EittrisClientModel> = {}): EittrisClientModel {

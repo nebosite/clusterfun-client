@@ -15,11 +15,14 @@ export const NEXT_PREVIEW_COUNT = 1; // the phone's tray normally shows one piec
 export const CRYSTAL_BALL_PREVIEW = 3;
 export const NEXT_QUEUE_DEPTH = CRYSTAL_BALL_PREVIEW;
 
-export const START_INTERVAL_MS = 1000; // gravity starts at 1 row per second
+// Gravity, tuned down from the original: the game was landing pieces faster than
+// people could think about them.  Both the starting speed and the rate it speeds up
+// are 60% lower - the interval is the reciprocal of speed, hence 1000/0.4 = 2500.
+export const START_INTERVAL_MS = 2500; // gravity starts at one row per 2.5 seconds
 export const MIN_INTERVAL_MS = 80; // sane floor for the gravity interval
-export const EXP_DECAY_PER_SEC = 0.006; // interval *= exp(-0.006 * dt) above the knee
+export const EXP_DECAY_PER_SEC = 0.0024; // interval *= exp(-0.0024 * dt) above the knee
 export const LINEAR_KNEE_MS = 500; // below this the decay goes linear
-export const LINEAR_DECAY_MS_PER_SEC = 3; // interval -= 3ms per elapsed second
+export const LINEAR_DECAY_MS_PER_SEC = 1.2; // interval -= 1.2ms per elapsed second
 
 export const DROP_POINTS_PER_ROW = 10; // hard/soft dropped rows: +10 points per row
 // Garbage painted into a board by an attack.  Not a playable piece type -
@@ -898,13 +901,18 @@ export function retargetOnDeath(boards: EittrisBoard[], deadId: string): string[
 }
 
 // ------------------------------------------------------------------------------------------
-// 1-bit board thumbnails - one bit per cell (settled OR current-piece cell),
-// 210 bits packed MSB-first into 27 bytes, base64'd to a 36-char string.
-// Broadcast to every phone for the target list.
+// 1-bit board thumbnails - one bit per SETTLED cell, 210 bits packed MSB-first
+// into 27 bytes, base64'd to a 36-char string.  Broadcast to every phone for the
+// target list.
+//
+// The falling piece is deliberately left out.  Including it changed the thumbnail
+// every time gravity moved a piece one row, which meant every board's thumbnail
+// differed on every broadcast and none of them could ever be skipped - the piece
+// was costing far more in bandwidth than four moving dots are worth at this size.
 // ------------------------------------------------------------------------------------------
 const B64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-export function encodeThumbnail(grid: number[][], piece: EittrisPiece | null): string {
+export function encodeThumbnail(grid: number[][]): string {
   const bytes = new Uint8Array(27); // 216 bits; the last 6 stay zero
   const setBit = (index: number) => {
     bytes[index >> 3] |= 0x80 >> (index & 7);
@@ -912,13 +920,6 @@ export function encodeThumbnail(grid: number[][], piece: EittrisPiece | null): s
   for (let y = 0; y < BOARD_HEIGHT; y++) {
     for (let x = 0; x < BOARD_WIDTH; x++) {
       if (grid[y][x] !== EMPTY_CELL) setBit(y * BOARD_WIDTH + x);
-    }
-  }
-  if (piece) {
-    for (const c of pieceCells(piece)) {
-      if (c.y >= 0 && c.y < BOARD_HEIGHT && c.x >= 0 && c.x < BOARD_WIDTH) {
-        setBit(c.y * BOARD_WIDTH + c.x);
-      }
     }
   }
   // 27 bytes = 9 groups of 3 = exactly 36 base64 chars, no padding needed
@@ -1345,21 +1346,17 @@ export function landingCells(grid: number[][], piece: EittrisPiece | null): Set<
 
 // ------------------------------------------------------------------------------------------
 // What a tap means.  Every gesture works anywhere on the grid and always acts
-// on the falling piece - you never have to hit the piece itself, which would
-// be hopeless on a phone.  A single tap rotates; a second tap inside
-// DOUBLE_TAP_MS drops the piece as though it had been flicked down.  The
-// first tap of a pair has already rotated it, so the drop takes that rotation
-// back first - a double tap lands the piece the way it looked when you
-// started tapping, exactly like a downward flick would.
+// on the falling piece - you never have to hit the piece itself, which would be
+// hopeless on a phone.
+//
+// A tap rotates, and that is all it does.  Two quick taps used to drop the piece,
+// which made every deliberate second rotation a gamble; taps are now simply
+// independent of one another.  Dropping is a downward flick.
 // ------------------------------------------------------------------------------------------
-export const DOUBLE_TAP_MS = 300;
+export type TapAction = "rotate" | "none";
 
-export type TapAction = "rotate" | "drop" | "none";
-
-export function classifyTap(hasPiece: boolean, msSinceLastTap: number | null): TapAction {
-  if (!hasPiece) return "none";
-  if (msSinceLastTap !== null && msSinceLastTap <= DOUBLE_TAP_MS) return "drop";
-  return "rotate";
+export function classifyTap(hasPiece: boolean): TapAction {
+  return hasPiece ? "rotate" : "none";
 }
 
 // ------------------------------------------------------------------------------------------

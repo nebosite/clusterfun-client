@@ -40,6 +40,8 @@ import {
   spawnNextFromQueue,
   spawnPiece,
   START_INTERVAL_MS,
+  EXP_DECAY_PER_SEC,
+  LINEAR_DECAY_MS_PER_SEC,
   tryMove,
   tryRotateCW,
   ANTIDOTES_AT_START,
@@ -111,7 +113,6 @@ import {
   BOARD_MAX_CELL_PX,
   robotRoster,
   isRobotId,
-  DOUBLE_TAP_MS,
   tryRotateCCW,
   AFFLICTION_DURATION_MS,
   AFFLICTION_TIMERS,
@@ -414,18 +415,18 @@ describe("eittrisLogic - lock + clear + score", () => {
 describe("eittrisLogic - gravity curve", () => {
   it("decays exponentially above the knee", () => {
     const next = gravityStep(1000, 1);
-    expect(next).toBeCloseTo(1000 * Math.exp(-0.006), 6);
+    expect(next).toBeCloseTo(1000 * Math.exp(-EXP_DECAY_PER_SEC), 6);
   });
 
-  it("decays linearly (3 ms per second) below the knee", () => {
-    expect(gravityStep(400, 2)).toBeCloseTo(400 - 6, 6);
+  it("decays linearly below the knee", () => {
+    expect(gravityStep(400, 2)).toBeCloseTo(400 - 2 * LINEAR_DECAY_MS_PER_SEC, 6);
   });
 
   it("is monotonically decreasing over a long simulated game", () => {
     let interval = START_INTERVAL_MS;
     let previous = interval;
-    for (let t = 0; t < 1000; t++) {
-      // 1000 seconds in 1s steps - well past the clamp
+    for (let t = 0; t < 5000; t++) {
+      // Long enough to reach the clamp even at the slower decay
       interval = gravityStep(interval, 1);
       expect(interval).toBeLessThanOrEqual(previous);
       previous = interval;
@@ -438,15 +439,22 @@ describe("eittrisLogic - gravity curve", () => {
     expect(gravityStep(81, 100)).toBe(MIN_INTERVAL_MS);
   });
 
-  it("reaches ~0.5s from 1.0s in about two minutes (design ballpark)", () => {
+  it("takes several minutes to halve, which is the point of the slower tuning", () => {
+    // The game used to reach half its starting interval in about two minutes; it was
+    // landing pieces faster than people could think about them.  Both the start speed
+    // and the acceleration were cut by 60%, so this should now take far longer.
     let interval = START_INTERVAL_MS;
     let seconds = 0;
-    while (interval > 500 && seconds < 500) {
+    while (interval > START_INTERVAL_MS / 2 && seconds < 3000) {
       interval = gravityStep(interval, 1);
       seconds++;
     }
-    expect(seconds).toBeGreaterThan(90);
-    expect(seconds).toBeLessThan(140);
+    expect(seconds).toBeGreaterThan(240);
+  });
+
+  it("starts slow enough to think about", () => {
+    // One row every two and a half seconds at the start, not one per second
+    expect(START_INTERVAL_MS).toBe(2500);
   });
 });
 
@@ -645,27 +653,38 @@ describe("eittrisLogic - thumbnails", () => {
     grid[20][0] = 1;
     grid[20][9] = 2;
     grid[10][5] = 3;
-    const piece = pieceAt(0, 0, 5, 5); // adds (4,5)(5,5)(6,5)(5,4)
 
-    const thumb = encodeThumbnail(grid, piece);
+    const thumb = encodeThumbnail(grid);
     expect(thumb.length).toBe(36);
     expect(thumb).toMatch(/^[A-Za-z0-9+/]+$/);
 
     const cells = decodeThumbnail(thumb);
     expect(cells.length).toBe(BOARD_WIDTH * BOARD_HEIGHT);
     const on = (x: number, y: number) => cells[y * BOARD_WIDTH + x];
-    expect(on(0, 20)).toBe(true); // settled cells
+    expect(on(0, 20)).toBe(true);
     expect(on(9, 20)).toBe(true);
     expect(on(5, 10)).toBe(true);
-    expect(on(4, 5)).toBe(true); // current-piece cells
-    expect(on(5, 5)).toBe(true);
-    expect(on(6, 5)).toBe(true);
-    expect(on(5, 4)).toBe(true);
-    expect(cells.filter(Boolean).length).toBe(7);
+    expect(cells.filter(Boolean).length).toBe(3);
+  });
+
+  it("ignores the falling piece, so a board only changes when a piece settles", () => {
+    // This is what lets an unchanged board be left out of the broadcast entirely.
+    const grid = emptyGrid();
+    grid[20][0] = 1;
+    const before = encodeThumbnail(grid);
+
+    // A piece hanging in mid-air over that same grid must encode identically
+    const piece = pieceAt(0, 0, 5, 5);
+    expect(piece).toBeTruthy();
+    expect(encodeThumbnail(grid)).toBe(before);
+
+    // Settling it is what changes the picture
+    grid[5][5] = 1;
+    expect(encodeThumbnail(grid)).not.toBe(before);
   });
 
   it("an empty board with no piece is all zeros", () => {
-    const thumb = encodeThumbnail(emptyGrid(), null);
+    const thumb = encodeThumbnail(emptyGrid());
     expect(thumb).toBe("A".repeat(36)); // base64 'A' = 000000
     expect(decodeThumbnail(thumb).every((cell) => !cell)).toBe(true);
   });
@@ -1303,20 +1322,19 @@ describe("eittrisLogic - the landing ghost", () => {
 });
 
 describe("eittrisLogic - taps", () => {
-  it("rotates on a single tap, wherever it landed", () => {
-    expect(classifyTap(true, null)).toBe("rotate");
-    expect(classifyTap(true, 5000)).toBe("rotate");
+  it("rotates on a tap, wherever it landed", () => {
+    expect(classifyTap(true)).toBe("rotate");
   });
 
-  it("drops on a second tap inside the double-tap window", () => {
-    expect(classifyTap(true, 0)).toBe("drop");
-    expect(classifyTap(true, DOUBLE_TAP_MS)).toBe("drop");
-    expect(classifyTap(true, DOUBLE_TAP_MS + 1)).toBe("rotate");
+  it("treats every tap independently - two taps are two rotations, never a drop", () => {
+    // Taps used to pair up into a drop, which made a deliberate second rotation a
+    // gamble.  Nothing about one tap may depend on the one before it.
+    expect(classifyTap(true)).toBe("rotate");
+    expect(classifyTap(true)).toBe("rotate");
   });
 
   it("does nothing at all during the spawn gap", () => {
-    expect(classifyTap(false, null)).toBe("none");
-    expect(classifyTap(false, 10)).toBe("none");
+    expect(classifyTap(false)).toBe("none");
   });
 });
 

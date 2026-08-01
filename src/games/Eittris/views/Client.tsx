@@ -90,8 +90,8 @@ const THUMB_CELL_PX = 3; // target-list thumbnail cell size
 //   pointer-up after a drag -> release (locks only if the piece is resting)
 //   fast flick   -> slamLeft/slamRight/hardDrop/rotate by direction
 //   tap          -> rotate (anywhere on the grid - it always acts on the
-//                   falling piece, so you never have to hit the piece itself)
-//   double tap   -> drop the piece, exactly as a downward flick would
+//                   falling piece, so you never have to hit the piece itself).
+//                   Taps are independent: two in a row are just two rotations.
 // Mouse and touch both arrive as pointer events.
 // -------------------------------------------------------------------
 class GestureTracker {
@@ -114,8 +114,6 @@ class GestureTracker {
   private lastSentRow: number | null = null;
   private cellWidthPx = CELL_PX;
   private cellHeightPx = CELL_PX;
-  // When the last tap landed, so the next one can be read as a double tap
-  private lastTapTime: number | null = null;
   // Pointer-move events seen on the board since the last flick.  Flicks stay
   // disarmed until this reaches FLICK_REARM_MOVES, which kills the phantom
   // repeat you get when a flick's pointer-up lands off-screen.
@@ -229,25 +227,12 @@ class GestureTracker {
       return;
     }
 
-    // A quick touch that barely moved is a tap.  It works anywhere on the
-    // grid and always acts on the falling piece; a second one close behind it
-    // is a double tap, which drops.
+    // A quick touch that barely moved is a tap.  It works anywhere on the grid and
+    // always acts on the falling piece, and it only ever rotates.
     if (duration < TAP_MAX_DURATION_MS && distance < TAP_MAX_DISTANCE_PX) {
-      const now = performance.now();
-      const sinceLastTap = this.lastTapTime === null ? null : now - this.lastTapTime;
-      const action = classifyTap(!!this.model.piece, sinceLastTap);
-      if (action === "drop") {
-        // Consumed - a third tap starts a fresh pair rather than dropping again
-        this.lastTapTime = null;
-        this.model.doubleTapDrop();
-      } else if (action === "rotate") {
-        this.lastTapTime = now;
-        this.model.rotate();
-      }
+      if (classifyTap(!!this.model.piece) === "rotate") this.model.rotate();
       return;
     }
-    // Anything that was not a tap breaks up a would-be double tap
-    this.lastTapTime = null;
 
     // Otherwise end the drag: lock if resting, else resume gravity
     if (dragSent) this.model.release();

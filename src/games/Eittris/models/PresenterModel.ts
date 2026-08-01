@@ -21,6 +21,8 @@ import {
   EittrisBoardUpdateEndpoint,
   EittrisSpecialEventEndpoint,
   EittrisThumbnailEntry,
+  EittrisThumbnailsMessage,
+  EittrisRosterEntry,
   EittrisThumbnailsEndpoint,
 } from "./eittrisEndpoints";
 import {
@@ -108,6 +110,7 @@ import {
   LATE_JOIN_GRACE_MS,
   SPAWN_DELAY_MS,
   THUMBNAIL_INTERVAL_MS,
+  GRID_MIN_INTERVAL_MS,
 } from "./GameSettings";
 
 // In the Test Lobby every player is a bot by default so a game can be
@@ -181,6 +184,10 @@ export const getEittrisPresenterTypeHelper = (
           case "_lastSimTime_ms":
           case "_lastThumbTime_ms":
           case "_thumbsChanged":
+          case "_lastThumbs":
+          case "_lastRosterKey":
+          case "_lastGridSent":
+          case "_gridPending":
             return false;
         }
       }
@@ -286,6 +293,14 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // Thumbnail broadcast throttle: last push time and whether anything changed
   private _lastThumbTime_ms = -1;
   private _thumbsChanged = false;
+  // What each phone was last told each board looks like, so an unchanged board can be
+  // left out.  Rebuilt after a restore, which just costs one full broadcast.
+  private _lastThumbs = new Map<string, { thumb: string; alive: boolean }>();
+  private _lastRosterKey = "";
+  // What settled grid each phone was last sent, and when.  Rebuilt after a restore,
+  // which costs one extra grid per player and nothing else.
+  private _lastGridSent = new Map<string, { grid: string; atMs: number }>();
+  private _gridPending = new Set<string>();
 
   get aliveBoards(): EittrisBoard[] {
     return this.boards.filter((b) => b.alive);
@@ -1196,15 +1211,8 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
         }
         break;
       }
-      // A double tap: the first tap of the pair already rotated the piece, so
-      // put that back (when it still fits) and then drop it like a flick.
-      case "doubleTapDrop":
       case "hardDrop": {
-        let falling = board.piece;
-        if (message.command === "doubleTapDrop") {
-          falling = tryRotateCCW(board.grid, falling) ?? falling;
-        }
-        const dropped = hardDrop(board.grid, falling);
+        const dropped = hardDrop(board.grid, board.piece);
         board.piece = dropped.piece;
         board.score += dropped.rowsDropped * DROP_POINTS_PER_ROW;
         this.lockCurrentPiece(board, EittrisGameEvent.PieceBumped);
@@ -1271,6 +1279,15 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // flushDirtyBoards - push each changed board to ITS player only
   // -------------------------------------------------------------------
   private flushDirtyBoards() {
+    // A grid change held back by the rate cap goes out as soon as the cap allows, even
+    // if nothing else about that board has changed since - otherwise a board that goes
+    // quiet right after an attack would sit there showing the old stack.
+    for (const playerId of this._gridPending) {
+      const last = this._lastGridSent.get(playerId);
+      if (!last || this.gameTime_ms - last.atMs >= GRID_MIN_INTERVAL_MS) {
+        this.dirtyPlayerIds.add(playerId);
+      }
+    }
     if (this.dirtyPlayerIds.size === 0) return;
     const dirty = this.dirtyPlayerIds;
     this.dirtyPlayerIds = new Set<string>();
@@ -1296,30 +1313,95 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     this._lastThumbTime_ms = this.gameTime_ms;
     this._thumbsChanged = false;
 
-    const payload = {
-      players: this.boards.map((board): EittrisThumbnailEntry => {
-        const who = this.identityFor(board.playerId);
-        return {
-          playerId: board.playerId,
-          name: who.name,
-          avatarId: who.avatarId,
-          avatarColor: who.avatarColor,
-          alive: board.alive,
-          thumb: encodeThumbnail(board.grid, board.piece),
-        };
-      }),
-    };
+    // Identity first: names, avatars and ids never change mid-game, so they go out
+    // when the line-up does and not once a second forever.
+    const roster: EittrisRosterEntry[] = this.boards.map((board) => {
+      const who = this.identityFor(board.playerId);
+      return {
+        playerId: board.playerId,
+        name: who.name,
+        avatarId: who.avatarId,
+        avatarColor: who.avatarColor,
+      };
+    });
+    const rosterKey = roster.map((r) => `${r.playerId}:${r.name}:${r.avatarId}`).join("|");
+    const rosterChanged = rosterKey !== this._lastRosterKey;
+
+    // Then only the boards that actually look different.  With the falling piece out
+    // of the thumbnail, a board that is merely dropping a piece has nothing to say.
+    const boards: EittrisThumbnailEntry[] = [];
+    for (let i = 0; i < this.boards.length; i++) {
+      const board = this.boards[i];
+      const thumb = encodeThumbnail(board.grid);
+      const previous = this._lastThumbs.get(board.playerId);
+      if (
+        !rosterChanged &&
+        previous &&
+        previous.thumb === thumb &&
+        previous.alive === board.alive
+      ) {
+        continue;
+      }
+      this._lastThumbs.set(board.playerId, { thumb, alive: board.alive });
+      boards.push({ i, alive: board.alive, thumb });
+    }
+    if (!rosterChanged && boards.length === 0) return; // nothing to say at all
+
+    this._lastRosterKey = rosterKey;
+    const payload: EittrisThumbnailsMessage = rosterChanged ? { roster, boards } : { boards };
     this.sendToEveryone(EittrisThumbnailsEndpoint, () => payload);
+  }
+
+  // The line-up, for the onboard response - a phone that joins or reconnects
+  // mid-game needs it before the index-based thumbnail broadcasts mean anything.
+  rosterSnapshot(): EittrisRosterEntry[] {
+    return this.boards.map((board) => {
+      const who = this.identityFor(board.playerId);
+      return {
+        playerId: board.playerId,
+        name: who.name,
+        avatarId: who.avatarId,
+        avatarColor: who.avatarColor,
+      };
+    });
+  }
+
+  // -------------------------------------------------------------------
+  // gridForWire - the settled grid, but only when it is worth the bytes.
+  //
+  // It is by far the biggest field in a snapshot and by far the least likely to have
+  // changed: most updates are the falling piece moving a row.  So it goes out only when
+  // it differs from what this phone was last told, and never more often than
+  // GRID_MIN_INTERVAL_MS.  A change suppressed by that cap is remembered and sent the
+  // moment the cap expires - see flushDirtyBoards - so a board can never be left
+  // showing a stale stack.
+  // -------------------------------------------------------------------
+  private gridForWire(board: EittrisBoard, force: boolean): string | undefined {
+    const grid = encodeGrid(board.grid);
+    const last = this._lastGridSent.get(board.playerId);
+    const changed = !last || last.grid !== grid;
+    if (!changed) {
+      this._gridPending.delete(board.playerId);
+      return undefined;
+    }
+    const cooledDown = !last || this.gameTime_ms - last.atMs >= GRID_MIN_INTERVAL_MS;
+    if (!force && !cooledDown) {
+      this._gridPending.add(board.playerId);
+      return undefined;
+    }
+    this._gridPending.delete(board.playerId);
+    this._lastGridSent.set(board.playerId, { grid, atMs: this.gameTime_ms });
+    return grid;
   }
 
   // -------------------------------------------------------------------
   // snapshotFor - one player's compact board state for the wire
   // -------------------------------------------------------------------
-  snapshotFor(playerId: string): EittrisBoardSnapshot | undefined {
+  snapshotFor(playerId: string, opts?: { forceGrid?: boolean }): EittrisBoardSnapshot | undefined {
     const board = this.boards.find((b) => b.playerId === playerId);
     if (!board) return undefined;
     return {
-      grid: encodeGrid(board.grid),
+      grid: this.gridForWire(board, opts?.forceGrid ?? false),
       piece: board.piece ? { ...board.piece } : null,
       next: board.nextQueue.slice(0, board.crystalBall ? CRYSTAL_BALL_PREVIEW : NEXT_PREVIEW_COUNT),
       score: board.score,
@@ -1361,7 +1443,8 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     const player = this.players.find((p) => p.playerId === sender);
     return {
       gameState: this.gameState,
-      board: this.snapshotFor(sender) ?? null,
+      roster: this.rosterSnapshot(),
+      board: this.snapshotFor(sender, { forceGrid: true }) ?? null,
       aiControlled: player?.aiControlled ?? false,
       forcedSpecial: player?.forcedSpecial ?? null,
       winnerName: this.winnerName,

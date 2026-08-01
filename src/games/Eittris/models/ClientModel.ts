@@ -20,7 +20,8 @@ import {
   EittrisOnboardClientEndpoint,
   EittrisSpecialEventEndpoint,
   EittrisSpecialEventMessage,
-  EittrisThumbnailEntry,
+  EittrisRosterEntry,
+  EittrisRosterView,
   EittrisThumbnailsEndpoint,
   EittrisThumbnailsMessage,
 } from "./eittrisEndpoints";
@@ -134,8 +135,20 @@ export class EittrisClientModel extends ClusterfunClientModel {
   @observable winnerName: string | null = null;
   @observable youWon = false;
 
-  // The latest 1-bit snapshot of every board (for the target list)
-  @observable roster: EittrisThumbnailEntry[] = [];
+  // The target list, kept in two halves because they change at completely different
+  // rates: who is playing (fixed for the game) and what their board looks like now.
+  // The presenter sends identity once and thereafter only the boards that changed.
+  @observable private identities: EittrisRosterEntry[] = [];
+  @observable private boardStates: { alive: boolean; thumb: string }[] = [];
+
+  /** The two halves put back together, which is what the target list draws. */
+  get roster(): EittrisRosterView[] {
+    return this.identities.map((who, i) => ({
+      ...who,
+      alive: this.boardStates[i]?.alive ?? true,
+      thumb: this.boardStates[i]?.thumb ?? "",
+    }));
+  }
 
   // -------------------------------------------------------------------
   // ctor
@@ -173,6 +186,9 @@ export class EittrisClientModel extends ClusterfunClientModel {
       if (this.gameState === GeneralClientGameState.JoinError) return;
       // A resync means a new game/round or a rejoin - drop any stale banner
       this.lastSpecialEvent = null;
+      // The line-up comes with every onboard, so a phone that just joined or
+      // reconnected can read the indexes in the thumbnail broadcasts that follow.
+      if (response.roster) this.applyRoster(response.roster);
       if (response.board) this.applySnapshot(response.board);
       this.winnerName = response.winnerName;
       this.youWon = response.youWon;
@@ -235,9 +251,28 @@ export class EittrisClientModel extends ClusterfunClientModel {
   // -------------------------------------------------------------------
   protected handleThumbnails = (message: EittrisThumbnailsMessage) => {
     action(() => {
-      this.roster = message.players.slice();
+      if (message.roster) this.applyRoster(message.roster);
+      for (const entry of message.boards) {
+        // An index with no identity behind it means this phone missed the roster it
+        // belongs to.  Ignore it rather than drawing a nameless board; the next
+        // line-up change - or a reconnect - brings the roster along with it.
+        if (entry.i < 0 || entry.i >= this.identities.length) continue;
+        this.boardStates[entry.i] = { alive: entry.alive, thumb: entry.thumb };
+      }
     })();
   };
+
+  // Replacing the line-up keeps each board's last known picture where the player is
+  // still in the game, so nobody's thumbnail blinks out when somebody else joins.
+  private applyRoster(roster: EittrisRosterEntry[]) {
+    const previous = new Map(
+      this.identities.map((who, i) => [who.playerId, this.boardStates[i]] as const),
+    );
+    this.identities = roster.slice();
+    this.boardStates = roster.map(
+      (who) => previous.get(who.playerId) ?? { alive: true, thumb: "" },
+    );
+  }
 
   // -------------------------------------------------------------------
   // handleSpecialEvent - somebody's special fired; flash it briefly
@@ -277,7 +312,10 @@ export class EittrisClientModel extends ClusterfunClientModel {
   }
 
   private applySnapshot(snapshot: EittrisBoardSnapshot) {
-    this.gridString = snapshot.grid;
+    // An absent grid means "unchanged since the last one you were sent" - the settled
+    // stack is the biggest thing on the wire and it only changes when a piece locks,
+    // so the presenter leaves it out of the updates in between.
+    if (snapshot.grid !== undefined) this.gridString = snapshot.grid;
     this.piece = snapshot.piece;
     this.nextTypes = snapshot.next.slice();
     this.score = snapshot.score;
@@ -357,10 +395,6 @@ export class EittrisClientModel extends ClusterfunClientModel {
 
   // A double tap lands the piece the way a downward flick would - the
   // presenter takes back the first tap's rotation before dropping it.
-  doubleTapDrop() {
-    this.sendCommand({ command: "doubleTapDrop" });
-  }
-
   // -------------------------------------------------------------------
   // Keyboard / controller actions.  One cell at a time, unlike the phone's
   // gestures, which are absolute drags and full-width slams.

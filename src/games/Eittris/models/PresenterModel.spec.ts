@@ -338,7 +338,7 @@ describe("EittrisPresenterModel - target targeting", () => {
 });
 
 describe("EittrisPresenterModel - thumbnail broadcasts", () => {
-  it("broadcasts one shared roster to every player soon after start", () => {
+  it("sends the line-up once, with the boards indexed into it", () => {
     const { model, sent } = startTwoPlayerGame();
     sent.length = 0;
     tickTo(model, 5); // seeded as changed at start -> first push immediately
@@ -346,30 +346,115 @@ describe("EittrisPresenterModel - thumbnail broadcasts", () => {
     const thumbs = sent.filter((s) => s.route.includes("thumbnails"));
     expect(thumbs.map((s) => s.receiverId).sort()).toEqual(["A", "B"]);
     const payload = thumbs[0].message;
-    expect(payload.players.length).toBe(2);
-    for (const entry of payload.players) {
+    expect(payload.roster.map((r: any) => r.name).sort()).toEqual(["Alice", "Bob"]);
+    expect(payload.boards.length).toBe(2);
+    for (const entry of payload.boards) {
       expect(entry.thumb.length).toBe(36);
       expect(entry.alive).toBe(true);
-      expect(["Alice", "Bob"]).toContain(entry.name);
+      expect(payload.roster[entry.i]).toBeTruthy();
     }
     // both receivers share the exact same payload object
     expect(thumbs[1].message).toBe(payload);
   });
 
-  it("throttles to the thumbnail interval and only sends when boards changed", () => {
+  it("stops repeating names and avatars once the line-up is known", () => {
+    // Identity is immutable for the life of a game; re-sending it every second was
+    // more than half the cost of the heaviest broadcast in the game.
     const { model, sent } = startTwoPlayerGame();
-    tickTo(model, 5); // consumes the seeded push
+    tickTo(model, 5);
     sent.length = 0;
 
-    tickTo(model, 50); // nothing changed since -> silence
-    expect(sent.filter((s) => s.route.includes("thumbnails")).length).toBe(0);
+    // Settle a piece so the boards genuinely change, forcing a second broadcast
+    model.handleCommand("A", { command: "hardDrop" });
+    tickTo(model, 1200);
+
+    const thumbs = sent.filter((s) => s.route.includes("thumbnails"));
+    expect(thumbs.length).toBeGreaterThan(0);
+    expect(thumbs[0].message.roster).toBeUndefined();
+    expect(JSON.stringify(thumbs[0].message)).not.toContain("Alice");
+  });
+
+  it("leaves out a board that has not changed", () => {
+    const { model, sent } = startTwoPlayerGame();
+    tickTo(model, 5);
+    sent.length = 0;
+
+    // Only A's stack changes; B's is untouched, so B has nothing to say
+    model.handleCommand("A", { command: "hardDrop" });
+    tickTo(model, 1200);
+
+    const payload = sent.filter((s) => s.route.includes("thumbnails"))[0].message;
+    expect(payload.boards.length).toBe(1);
+    expect(payload.roster).toBeUndefined();
+  });
+
+  it("says nothing at all when a piece is merely falling", () => {
+    // The falling piece is not in the thumbnail, so gravity alone is not news.
+    const { model, sent } = startTwoPlayerGame();
+    tickTo(model, 5);
+    sent.length = 0;
 
     model.handleCommand("A", { command: "rotate" });
-    tickTo(model, 200); // changed, but within the 1s throttle window
+    tickTo(model, 3000);
+    expect(sent.filter((s) => s.route.includes("thumbnails")).length).toBe(0);
+  });
+
+  it("throttles to the thumbnail interval", () => {
+    const { model, sent } = startTwoPlayerGame();
+    tickTo(model, 5);
+    sent.length = 0;
+
+    model.handleCommand("A", { command: "hardDrop" });
+    tickTo(model, 200); // changed, but inside the 1s throttle window
     expect(sent.filter((s) => s.route.includes("thumbnails")).length).toBe(0);
 
-    tickTo(model, 1100); // window elapsed -> one push to each player
+    tickTo(model, 1200); // window elapsed -> one push to each player
     expect(sent.filter((s) => s.route.includes("thumbnails")).length).toBe(2);
+  });
+});
+
+describe("EittrisPresenterModel - the settled grid on the wire", () => {
+  // Scoped to one player: every phone's FIRST update has to carry a grid, so a test
+  // about later updates has to be about a single phone.
+  const boardUpdates = (sent: any[], who = "A") =>
+    sent.filter((s) => s.route.includes("board-update") && s.receiverId === who);
+
+  it("leaves the grid out while the piece is only falling", () => {
+    const { model, sent } = startTwoPlayerGame();
+    // The very first update a phone gets has to carry the grid - it has never seen one.
+    model.handleCommand("A", { command: "rotate" });
+    tickTo(model, 100);
+    expect(boardUpdates(sent).some((u) => u.message.grid !== undefined)).toBe(true);
+    sent.length = 0;
+
+    // From here on the stack is untouched, so no update should mention it again
+    model.handleCommand("A", { command: "rotate" });
+    tickTo(model, 4000);
+
+    const updates = boardUpdates(sent);
+    expect(updates.length).toBeGreaterThan(0);
+    // The settled stack never changed, so not one update needs to carry it
+    expect(updates.every((u) => u.message.grid === undefined)).toBe(true);
+  });
+
+  it("sends the grid once the stack actually changes", () => {
+    const { model, sent } = startTwoPlayerGame();
+    tickTo(model, 2000); // put the rate cap well behind us
+    sent.length = 0;
+
+    model.handleCommand("A", { command: "hardDrop" });
+    tickTo(model, 2050);
+
+    const withGrid = boardUpdates(sent).filter((u) => u.message.grid !== undefined);
+    expect(withGrid.length).toBe(1);
+    expect(withGrid[0].message.grid.length).toBe(210);
+  });
+
+  it("a full rebuild always carries the grid", () => {
+    // Onboarding is how a phone recovers, so it can never be given a partial board.
+    const { model } = startTwoPlayerGame();
+    const onboard = model.handleOnboardClient("A", {});
+    expect(onboard.board?.grid?.length).toBe(210);
   });
 });
 
@@ -378,8 +463,8 @@ describe("EittrisPresenterModel - gravity ticks", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
     tickTo(model, 500);
-    expect(board.piece!.y).toBe(0); // not due yet
-    tickTo(model, 1100);
+    expect(board.piece!.y).toBe(0); // not due yet - gravity starts at 2.5s per row
+    tickTo(model, 2600);
     expect(board.piece!.y).toBe(1); // one gravity step
     expect(board.intervalMs).toBeLessThan(START_INTERVAL_MS); // and it sped up
   });
@@ -1311,30 +1396,26 @@ describe("EittrisPresenterModel - afflictions wear off", () => {
   });
 });
 
-describe("EittrisPresenterModel - the double-tap drop", () => {
-  it("takes back the first tap's rotation, then drops like a flick", () => {
+describe("EittrisPresenterModel - taps do not pair up", () => {
+  it("rotates twice for two taps, and never drops", () => {
+    // The double-tap drop is gone: a second quick tap is just another rotation.
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
     const startRot = board.piece!.rot;
+    const startY = board.piece!.y;
 
-    model.handleCommand("A", { command: "rotate" }); // the first tap of the pair
-    expect(board.piece!.rot).toBe((startRot + 1) % 4);
+    model.handleCommand("A", { command: "rotate" });
+    model.handleCommand("A", { command: "rotate" });
 
-    model.handleCommand("A", { command: "doubleTapDrop" });
-
-    // The piece locked at the bottom wearing its ORIGINAL rotation
-    const settled = board.grid.flat().filter((c) => c !== EMPTY_CELL).length;
-    expect(settled).toBe(4);
-    const landed = hardDrop(emptyGrid(), { type: 0, rot: startRot, x: SPAWN_X, y: 0 }).piece;
-    for (const c of pieceCells(landed)) expect(board.grid[c.y][c.x]).not.toBe(EMPTY_CELL);
+    expect(board.piece!.rot).toBe((startRot + 2) % 4);
+    expect(board.piece!.y).toBe(startY); // still where it was - nothing dropped
+    expect(board.grid.flat().filter((c) => c !== EMPTY_CELL).length).toBe(0);
   });
 
-  it("drops as-is when the rotation cannot be taken back", () => {
+  it("still drops on an explicit hard drop", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
-    // An I piece lying flat on the floor has no room to stand up again
-    board.piece = { type: 1, rot: 1, x: 5, y: BOARD_HEIGHT - 1, evil: false };
-    expect(() => model.handleCommand("A", { command: "doubleTapDrop" })).not.toThrow();
+    model.handleCommand("A", { command: "hardDrop" });
     expect(board.grid.flat().filter((c) => c !== EMPTY_CELL).length).toBe(4);
   });
 });
