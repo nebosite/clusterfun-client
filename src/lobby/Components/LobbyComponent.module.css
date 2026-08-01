@@ -472,16 +472,6 @@
   font-weight: 700;
   color: var(--text);
 }
-.welcomeBadge {
-  font-family: var(--mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: calc(14px * var(--fs));
-  color: #08080d;
-  background: var(--lime);
-  border-radius: 999px;
-  padding: 4px 12px;
-}
 .textInput {
   width: 100%;
   font-family: var(--ui);
@@ -730,21 +720,67 @@
   gap: 14px;
   width: 100%;
 }
+/* The dome shading itself is inline (domeStyle in the component) because it is built
+   from each bubble's own colour.  What stays here is the shape and the movement: a
+   pressed bubble sits a little smaller and lower, like something actually pushed in. */
 .fidgetBubble {
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   border: none;
   cursor: pointer;
   padding: 0;
-  box-shadow: 0 0 18px -4px currentColor;
   transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    background 0.12s ease;
+}
+.fidgetBubble:active {
+  transform: scale(0.94);
 }
 .fidgetPopped {
-  transform: scale(0.72);
-  box-shadow: inset 0 6px 14px rgba(0, 0, 0, 0.55);
-  filter: brightness(0.5);
+  transform: scale(0.9) translateY(1px);
+}
+
+/* Unselected avatars and colours sit back by 35%, so the one you have chosen is the
+   thing your eye lands on rather than one of thirteen equally bright options. */
+.pickerDimmed {
+  opacity: 0.65;
+  transition: opacity 0.12s ease;
+}
+.pickerDimmed:hover {
+  opacity: 0.85;
+}
+
+/* The hint that the game grid keeps going below the fold. */
+.scrollHint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 0 2px;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: calc(15px * var(--fs));
+  color: var(--text-faint);
+}
+.scrollHintArrow {
+  display: inline-block;
+  animation: scrollNudge 1.6s ease-in-out infinite;
+}
+@keyframes scrollNudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scrollHintArrow {
+    animation: none;
+  }
 }
 
 .clientVersion {

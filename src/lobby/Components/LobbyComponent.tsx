@@ -33,6 +33,50 @@ interface DecoratedGame {
 // PresenterComponent — the shared "big screen" (wide viewport):
 // logo + a gallery of games to choose from.
 // -------------------------------------------------------------------
+// A different game gets to be at the top for each person who opens the lobby, so the
+// running order is not a permanent advantage for whatever sorted first.  Seeded rather
+// than plain Math.random so a re-render does not reorder the list mid-scroll.
+// The fields you type into stay light with dark text - that is what makes them read as
+// inputs rather than more dark chrome.  The tint just pulls that light down a shade and
+// ties it to the avatar colour the player picked, without touching legibility.
+export function tintFor(color: string): string {
+  return `color-mix(in srgb, ${color} 18%, #e4e9f2)`;
+}
+
+// What makes a flat circle read as a physical bubble: a highlight up where the light is,
+// a shadow opposite it, and a soft drop shadow underneath.  Pressed, every one of those
+// flips - the highlight moves to the bottom, the shadow goes inside, and the drop shadow
+// becomes an inset - which is exactly how a popper button looks from the other side.
+function domeStyle(color: string, pressed: boolean): React.CSSProperties {
+  if (pressed) {
+    return {
+      background: `radial-gradient(circle at 50% 78%, color-mix(in srgb, ${color} 70%, white) 0%, ${color} 45%, color-mix(in srgb, ${color} 55%, black) 100%)`,
+      boxShadow: `inset 0 6px 12px rgba(0, 0, 0, 0.55), inset 0 -3px 6px color-mix(in srgb, ${color} 60%, white), 0 1px 1px rgba(255, 255, 255, 0.06)`,
+    };
+  }
+  return {
+    background: `radial-gradient(circle at 34% 26%, color-mix(in srgb, ${color} 45%, white) 0%, ${color} 42%, color-mix(in srgb, ${color} 62%, black) 100%)`,
+    boxShadow: `inset 0 -6px 12px color-mix(in srgb, ${color} 55%, black), inset 0 4px 8px rgba(255, 255, 255, 0.28), 0 6px 12px -4px rgba(0, 0, 0, 0.7)`,
+  };
+}
+
+function shuffled<T>(items: T[], seed: number): T[] {
+  const out = items.slice();
+  let state = seed || 1;
+  const next = () => {
+    // xorshift32: tiny, deterministic, and plenty random for putting five games in an order
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return Math.abs(state) / 0x7fffffff;
+  };
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1)) % (i + 1);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 @inject("lobbyModel")
 @observer
 class PresenterComponent extends React.Component<
@@ -43,6 +87,9 @@ class PresenterComponent extends React.Component<
   { activeCategory: string }
 > {
   private _urlParams: URLSearchParams = new URLSearchParams(window.location.search);
+  // Fixed for the life of this page, so the order is different for each person who opens
+  // the lobby but does not reshuffle under their finger every time the view re-renders.
+  private readonly shuffleSeed = Math.floor(Math.random() * 0xffffffff);
 
   constructor(props: { lobbyModel?: LobbyModel; games: GameDescriptor[] }) {
     super(props);
@@ -67,12 +114,15 @@ class PresenterComponent extends React.Component<
 
     // Keep the existing tag-based visibility filter (hides debug/beta games
     // unless enabled), then decorate each survivor with presentation data.
-    const visible: DecoratedGame[] = games
-      .map((game, index) => ({ game, pres: presentationFor(game, index) }))
-      .filter(({ game }) => {
-        if (game.tags.length === 0) return true;
-        return game.tags.some((tag) => lobbyModel.showTags.find((t) => t === tag));
-      });
+    const visible: DecoratedGame[] = shuffled(
+      games
+        .map((game, index) => ({ game, pres: presentationFor(game, index) }))
+        .filter(({ game }) => {
+          if (game.tags.length === 0) return true;
+          return game.tags.some((tag) => lobbyModel.showTags.find((t) => t === tag));
+        }),
+      this.shuffleSeed,
+    );
 
     const featured = visible[0];
     const { activeCategory } = this.state;
@@ -185,6 +235,16 @@ class PresenterComponent extends React.Component<
           ))}
         </ul>
 
+        {/* Nothing about a grid that runs off the bottom of the screen says so - the
+            cards are all the same height, so the last visible row looks like the end of
+            the list.  A small arrow says otherwise, and goes away once you are there. */}
+        {gridGames.length > 2 ? (
+          <div className={styles.scrollHint} aria-hidden>
+            <span className={styles.scrollHintArrow}>▾</span>
+            <span>more games below</span>
+          </div>
+        ) : null}
+
         {/* Footer */}
         <div className={styles.presenterFooter}>
           <button
@@ -208,14 +268,11 @@ class PresenterComponent extends React.Component<
 @observer
 class GameClientComponent extends React.Component<
   { lobbyModel?: LobbyModel },
-  { nameRemembered: boolean; popped: boolean[] }
+  { popped: boolean[] }
 > {
   constructor(props: { lobbyModel?: LobbyModel }) {
     super(props);
-    this.state = {
-      nameRemembered: !!props.lobbyModel?.playerName?.trim(),
-      popped: new Array(12).fill(false),
-    };
+    this.state = { popped: new Array(12).fill(false) };
   }
 
   render() {
@@ -270,14 +327,14 @@ class GameClientComponent extends React.Component<
           <div className={styles.field}>
             <div className={styles.fieldHead}>
               <span className={styles.fieldLabel}>Your name</span>
-              {this.state.nameRemembered ? (
-                <span className={styles.welcomeBadge}>welcome back</span>
-              ) : null}
             </div>
             <input
               placeholder="Nickname"
               type="text"
               className={styles.textInput}
+              // The chosen colour, heavily diluted: enough to tie the fields to the
+              // player's pick, dark enough to keep the typing legible.
+              style={{ background: tintFor(AVATAR_COLORS[lobbyModel.avatarColor]) }}
               value={lobbyModel.playerName}
               onChange={(ev) => (lobbyModel.playerName = ev.target.value)}
             />
@@ -292,6 +349,7 @@ class GameClientComponent extends React.Component<
                   key={i}
                   className={classNames(styles.avatarButton, {
                     [styles.avatarSelected]: lobbyModel.avatarId === i,
+                    [styles.pickerDimmed]: lobbyModel.avatarId !== i,
                   })}
                   onClick={() => (lobbyModel.avatarId = i)}
                   aria-label={`Avatar ${i + 1}`}
@@ -309,7 +367,9 @@ class GameClientComponent extends React.Component<
               {AVATAR_COLORS.map((color, i) => (
                 <button
                   key={color}
-                  className={styles.colorSwatch}
+                  className={classNames(styles.colorSwatch, {
+                    [styles.pickerDimmed]: lobbyModel.avatarColor !== i,
+                  })}
                   style={{
                     background: color,
                     ...(lobbyModel.avatarColor === i
@@ -354,7 +414,7 @@ class GameClientComponent extends React.Component<
                 className={classNames(styles.fidgetBubble, {
                   [styles.fidgetPopped]: isPopped,
                 })}
-                style={{ background: TILE_PALETTE[i % TILE_PALETTE.length] }}
+                style={domeStyle(TILE_PALETTE[i % TILE_PALETTE.length], isPopped)}
                 onClick={() => {
                   SafeBrowser.vibrate([12]); // tiny pop
                   this.setState((s) => {
@@ -482,6 +542,9 @@ class RoomCodeField extends React.Component<{ lobbyModel: LobbyModel }, { caret:
                   className={classNames(styles.codeCell, {
                     [styles.codeCellActive]: showCaret,
                   })}
+                  // Tinted with the player's colour, like the name field - the two
+                  // things you have to fill in should look like a matching pair.
+                  style={{ background: tintFor(AVATAR_COLORS[this.props.lobbyModel.avatarColor]) }}
                   onPointerDown={(ev) => {
                     // Take the tap ourselves so focus lands where they touched
                     ev.preventDefault();
