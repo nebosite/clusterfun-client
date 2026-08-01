@@ -40,7 +40,7 @@ interface DecoratedGame {
 // inputs rather than more dark chrome.  The tint just pulls that light down a shade and
 // ties it to the avatar colour the player picked, without touching legibility.
 export function tintFor(color: string): string {
-  return `color-mix(in srgb, ${color} 18%, #e4e9f2)`;
+  return `color-mix(in srgb, ${color} 36%, #e4e9f2)`;
 }
 
 // What makes a flat circle read as a physical bubble: a highlight up where the light is,
@@ -268,11 +268,11 @@ class PresenterComponent extends React.Component<
 @observer
 class GameClientComponent extends React.Component<
   { lobbyModel?: LobbyModel },
-  { popped: boolean[] }
+  { popped: boolean[]; avatarsAtEnd: boolean }
 > {
   constructor(props: { lobbyModel?: LobbyModel }) {
     super(props);
-    this.state = { popped: new Array(12).fill(false) };
+    this.state = { popped: new Array(12).fill(false), avatarsAtEnd: false };
   }
 
   render() {
@@ -343,22 +343,37 @@ class GameClientComponent extends React.Component<
           {/* Avatar */}
           <div className={styles.field}>
             <span className={styles.fieldLabel}>Pick your avatar</span>
-            <DragScroller className={styles.avatarGrid}>
-              {AVATAR_IDS.map((i) => (
-                <button
-                  key={i}
-                  className={classNames(styles.avatarButton, {
-                    [styles.avatarSelected]: lobbyModel.avatarId === i,
-                    [styles.pickerDimmed]: lobbyModel.avatarId !== i,
-                  })}
-                  onClick={() => (lobbyModel.avatarId = i)}
-                  aria-label={`Avatar ${i + 1}`}
-                  aria-pressed={lobbyModel.avatarId === i}
-                >
-                  <PlayerAvatar avatarId={i} colorIndex={lobbyModel.avatarColor} size={88} />
-                </button>
-              ))}
-            </DragScroller>
+            {/* The row scrolls sideways and there is no scrollbar on a phone, so the
+                avatars past the edge are invisible unless something says so.  The arrow
+                sits over the right edge and goes away once you have reached the end. */}
+            <div className={styles.avatarRow}>
+              <DragScroller
+                className={styles.avatarGrid}
+                onScroll={({ atEnd }) => {
+                  if (atEnd !== this.state.avatarsAtEnd) this.setState({ avatarsAtEnd: atEnd });
+                }}
+              >
+                {AVATAR_IDS.map((i) => (
+                  <button
+                    key={i}
+                    className={classNames(styles.avatarButton, {
+                      [styles.avatarSelected]: lobbyModel.avatarId === i,
+                      [styles.pickerDimmed]: lobbyModel.avatarId !== i,
+                    })}
+                    onClick={() => (lobbyModel.avatarId = i)}
+                    aria-label={`Avatar ${i + 1}`}
+                    aria-pressed={lobbyModel.avatarId === i}
+                  >
+                    <PlayerAvatar avatarId={i} colorIndex={lobbyModel.avatarColor} size={88} />
+                  </button>
+                ))}
+              </DragScroller>
+              {this.state.avatarsAtEnd ? null : (
+                <span className={styles.avatarMore} aria-hidden>
+                  ›
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Color */}

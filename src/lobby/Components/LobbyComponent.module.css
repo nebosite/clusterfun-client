@@ -744,11 +744,54 @@
 /* Unselected avatars and colours sit back by 35%, so the one you have chosen is the
    thing your eye lands on rather than one of thirteen equally bright options. */
 .pickerDimmed {
-  opacity: 0.65;
+  opacity: 0.5;
   transition: opacity 0.12s ease;
 }
 .pickerDimmed:hover {
-  opacity: 0.85;
+  opacity: 0.75;
+}
+
+/* The avatar row scrolls sideways past the edge of the phone.  The arrow rides on top of
+   that edge, over a short fade so the avatars slide out from under it rather than being
+   cut off dead - which is what makes it read as "more this way" and not as a button. */
+.avatarRow {
+  position: relative;
+}
+.avatarMore {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  pointer-events: none;
+  font-family: var(--mono);
+  font-size: calc(46px * var(--fs));
+  font-weight: 700;
+  line-height: 1;
+  /* Bright, not faint: the whole problem was that there was nothing to see. */
+  color: var(--text);
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
+  background: linear-gradient(to right, rgba(13, 15, 22, 0), rgba(13, 15, 22, 0.96) 55%);
+  border-radius: 0 16px 16px 0;
+  animation: nudgeRight 1.6s ease-in-out infinite;
+}
+@keyframes nudgeRight {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .avatarMore {
+    animation: none;
+  }
 }
 
 /* The hint that the game grid keeps going below the fold. */

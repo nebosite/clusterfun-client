@@ -14,6 +14,8 @@ export class DragScroller extends React.Component<{
   className?: string;
   style?: React.CSSProperties;
   children?: React.ReactNode;
+  /** Fires whenever the scroll position changes, including from a drag. */
+  onScroll?: (position: { scrollLeft: number; scrollTop: number; atEnd: boolean }) => void;
 }> {
   private ref = React.createRef<HTMLDivElement>();
   private dragging = false;
@@ -51,7 +53,32 @@ export class DragScroller extends React.Component<{
     if (this.moved) {
       el.scrollLeft = this.startLeft - dx;
       el.scrollTop = this.startTop - dy;
+      this.report();
     }
+  };
+
+  componentDidMount() {
+    // Report once on mount so an indicator knows whether there is anything to scroll to
+    // before the user has touched it.
+    this.report();
+  }
+
+  componentDidUpdate() {
+    this.report();
+  }
+
+  // A drag moves scrollLeft/scrollTop directly, which fires no scroll event in some
+  // browsers, so the position is reported from here as well as from onScroll.
+  private report = () => {
+    const el = this.ref.current;
+    if (!el || !this.props.onScroll) return;
+    const overflowX = el.scrollWidth - el.clientWidth;
+    const overflowY = el.scrollHeight - el.clientHeight;
+    // One pixel of slack: fractional layout means an exact equality never quite holds.
+    const atEnd =
+      (overflowX <= 1 || el.scrollLeft >= overflowX - 1) &&
+      (overflowY <= 1 || el.scrollTop >= overflowY - 1);
+    this.props.onScroll({ scrollLeft: el.scrollLeft, scrollTop: el.scrollTop, atEnd });
   };
 
   private endDrag = () => {
@@ -78,6 +105,7 @@ export class DragScroller extends React.Component<{
         onPointerUp={this.endDrag}
         onPointerCancel={this.endDrag}
         onClickCapture={this.onClickCapture}
+        onScroll={this.report}
       >
         {this.props.children}
       </div>
