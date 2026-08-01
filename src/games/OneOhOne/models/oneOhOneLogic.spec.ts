@@ -11,6 +11,9 @@ import {
   resolveRound,
   totalPieceCount,
   WIN_POSITION,
+  bustLimitFor,
+  MIN_WIN_POSITION,
+  sanitizeWinPosition,
 } from "./oneOhOneLogic";
 
 const move = (moves: ReturnType<typeof resolveRound>, id: string) => {
@@ -234,5 +237,44 @@ describe("piece allotment", () => {
 
   it("computes total board occupancy", () => {
     expect(totalPieceCount(3, 2, 4)).toBe(10);
+  });
+});
+
+describe("oneOhOneLogic - a host-chosen target", () => {
+  it("defaults to the game's namesake", () => {
+    expect(sanitizeWinPosition(undefined)).toBe(WIN_POSITION);
+    expect(WIN_POSITION).toBe(101);
+  });
+
+  it("keeps the host inside 11..101", () => {
+    expect(sanitizeWinPosition(5)).toBe(MIN_WIN_POSITION);
+    expect(sanitizeWinPosition(11)).toBe(11);
+    expect(sanitizeWinPosition(50)).toBe(50);
+    expect(sanitizeWinPosition(500)).toBe(WIN_POSITION);
+    expect(sanitizeWinPosition(NaN)).toBe(WIN_POSITION);
+    expect(sanitizeWinPosition(20.6)).toBe(21);
+  });
+
+  it("keeps the overshoot risk one full guess past the target, whatever it is", () => {
+    expect(bustLimitFor(101)).toBe(BUST_LIMIT);
+    expect(bustLimitFor(11)).toBe(21);
+  });
+
+  it("wins on the chosen target, not on 101", () => {
+    const moves = resolveRound([{ pieceId: "a", position: 25, guess: 5 }], 30);
+    expect(move(moves, "a")).toMatchObject({ newPosition: 30, won: true });
+  });
+
+  it("does not win by reaching 101 when the target is shorter", () => {
+    const moves = resolveRound([{ pieceId: "a", position: 96, guess: 5 }], 30);
+    expect(move(moves, "a")!.won).toBe(false);
+  });
+
+  it("busts one guess past the chosen target", () => {
+    // Target 30 means the track runs to 40; 41 is over the edge
+    const safe = resolveRound([{ pieceId: "a", position: 35, guess: 5 }], 30);
+    expect(move(safe, "a")).toMatchObject({ newPosition: 40, busted: false });
+    const bust = resolveRound([{ pieceId: "a", position: 36, guess: 5 }], 30);
+    expect(move(bust, "a")).toMatchObject({ newPosition: 0, busted: true });
   });
 });

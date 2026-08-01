@@ -25,7 +25,7 @@ import { MAX_GUESS, MIN_GUESS } from "../models/oneOhOneLogic";
 // Short summary of what happened to a piece last round
 function describeLastMove(move: OneOhOneMoveSummary | PieceSnapshot["lastMove"]): string {
   if (!move) return "";
-  if (move.won) return `🏆 Landed on 101!`;
+  if (move.won) return `🏆 Landed on ${move.newPosition}!`;
   if (move.busted) return `Busted past 111 — back to 0!`;
   if (move.collidedCount > 0) return `Collision on ${move.guess} — went back ${-move.delta}`;
   return `Moved forward ${move.delta}`;
@@ -185,7 +185,10 @@ export default class Client extends React.Component<{
               <p>Each round, pick a number from 1-10 for every piece you control, then confirm.</p>
               <p>Unique number? Move forward that many spaces.</p>
               <p>Picked the same as someone else? Everyone who matched goes backward!</p>
-              <p>Land exactly on 101 to win — but overshoot past 111 and you restart at 0.</p>
+              <p>
+                Land exactly on {appModel!.winPosition} to win — but overshoot past{" "}
+                {appModel!.bustLimit} and you restart at 0.
+              </p>
             </div>
           </div>
         );

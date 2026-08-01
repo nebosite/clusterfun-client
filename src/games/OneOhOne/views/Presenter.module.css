@@ -178,3 +178,20 @@
   font-weight: 700;
   padding: 10px 0 20px 0;
 }
+
+/* The host's target picker.  A slider rather than buttons because the range is
+   ninety-one numbers wide, and the value gets a fixed, tabular slot so the row
+   does not jitter as it is dragged. */
+.gamepresenter .targetSlider {
+  width: 340px;
+  accent-color: #7fb2ff;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.gamepresenter .targetValue {
+  display: inline-block;
+  min-width: 3ch;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

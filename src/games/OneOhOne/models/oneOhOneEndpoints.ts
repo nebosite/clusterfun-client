@@ -36,6 +36,8 @@ export interface OneOhOneMoveSummary extends PieceMove {
 // ------------------------------------------------------------------------------------------
 export interface OneOhOneOnboardClientMessage {
   gameState: string;
+  // The host picks how far the track runs, so the phone cannot assume 101.
+  winPosition: number;
   roundNumber: number;
   phase: OneOhOneRoundPhase;
   secondsLeft: number;

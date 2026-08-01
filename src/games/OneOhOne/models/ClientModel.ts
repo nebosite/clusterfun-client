@@ -11,6 +11,7 @@ import {
 } from "libs";
 import { action, makeObservable, observable } from "mobx";
 import { OneOhOneGameState } from "./PresenterModel";
+import { WIN_POSITION, bustLimitFor } from "./oneOhOneLogic";
 import {
   OneOhOneMoveSummary,
   OneOhOneOnboardClientEndpoint,
@@ -84,6 +85,13 @@ export class OneOhOneClientModel extends ClusterfunClientModel {
   allResults = observable<OneOhOneMoveSummary>([]);
   winnerIds = observable<string>([]);
   winnerNames = observable<string>([]);
+  // How far the track runs this game - the host picks it, so nothing on the phone may
+  // assume the game's namesake 101.
+  @observable winPosition = WIN_POSITION;
+  get bustLimit() {
+    return bustLimitFor(this.winPosition);
+  }
+
   @observable phase: OneOhOneRoundPhase = OneOhOneRoundPhase.Collecting;
   @observable secondsLeft = 0;
 
@@ -133,6 +141,7 @@ export class OneOhOneClientModel extends ClusterfunClientModel {
   async requestGameStateFromPresenter(): Promise<void> {
     const response = await this.session.requestPresenter(OneOhOneOnboardClientEndpoint, {});
     this.roundNumber = response.roundNumber;
+    this.winPosition = response.winPosition ?? WIN_POSITION;
     this.phase = response.phase;
     this._pickDeadline_ms = this.gameTime_ms + response.secondsLeft * 1000;
     this.myPieces.replace(response.myPieces);

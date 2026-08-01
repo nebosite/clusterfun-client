@@ -31,14 +31,15 @@ import { OneOhOneMoveSummary, OneOhOneRoundPhase } from "../models/oneOhOneEndpo
 import {
   animationPathForMove,
   BotAttitude,
-  BUST_LIMIT,
+  MIN_WIN_POSITION,
   GamePiece,
   MAX_PIECES,
   WIN_POSITION,
 } from "../models/oneOhOneLogic";
 
 // Percent position along the track for a given board position
-const pct = (position: number) => `${((position / BUST_LIMIT) * 100).toFixed(2)}%`;
+const pct = (position: number, bustLimit: number) =>
+  `${((position / bustLimit) * 100).toFixed(2)}%`;
 
 // Human-readable summary of a piece's last move
 export function describeMove(piece: GamePiece): string {
@@ -208,6 +209,21 @@ class GatheringPlayersPage extends React.Component<{ appModel?: OneOhOnePresente
         </div>
 
         <div className={styles.setupRow}>
+          <span>Race to:</span>
+          <input
+            type="range"
+            className={styles.targetSlider}
+            min={MIN_WIN_POSITION}
+            max={WIN_POSITION}
+            step={1}
+            value={appModel.winPosition}
+            aria-label="Target number"
+            onChange={(ev) => (appModel.winPosition = Number(ev.target.value))}
+          />
+          <span className={styles.targetValue}>{appModel.winPosition}</span>
+        </div>
+
+        <div className={styles.setupRow}>
           <span>Add a bot:</span>
           {[BotAttitude.Aggressive, BotAttitude.Moderate, BotAttitude.Cautious].map((attitude) => (
             <button
@@ -291,7 +307,7 @@ class RaceTrack extends React.Component<{
           <div
             className={classNames(styles.lane, {
               [styles.activeLane]: animator.activePieceId === piece.pieceId,
-              [styles.winnerLane]: isGameOver && piece.position === WIN_POSITION,
+              [styles.winnerLane]: isGameOver && piece.position === appModel.winPosition,
             })}
             key={piece.pieceId}
           >
@@ -302,12 +318,18 @@ class RaceTrack extends React.Component<{
             <div className={styles.laneTrack}>
               <div
                 className={styles.dangerZone}
-                style={{ left: pct(WIN_POSITION), width: pct(BUST_LIMIT - WIN_POSITION) }}
+                style={{
+                  left: pct(appModel.winPosition, appModel.bustLimit),
+                  width: pct(appModel.bustLimit - appModel.winPosition, appModel.bustLimit),
+                }}
               />
-              <div className={styles.finishLine} style={{ left: pct(WIN_POSITION) }} />
+              <div
+                className={styles.finishLine}
+                style={{ left: pct(appModel.winPosition, appModel.bustLimit) }}
+              />
               <div
                 className={styles.pieceMarker}
-                style={{ left: pct(animator.positionFor(piece)) }}
+                style={{ left: pct(animator.positionFor(piece), appModel.bustLimit) }}
               >
                 <PlayerAvatar avatarId={piece.avatarId} colorIndex={piece.avatarColor} size={30} />
               </div>

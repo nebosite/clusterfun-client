@@ -6,8 +6,22 @@
 
 export const MIN_GUESS = 1;
 export const MAX_GUESS = 10;
-export const WIN_POSITION = 101;
+export const WIN_POSITION = 101; // the default target, and the game's namesake
+export const MIN_WIN_POSITION = 11; // the shortest track worth playing
 export const BUST_LIMIT = 111; // moving past this resets the piece to 0
+
+// The track always runs one maximum guess past the target, so overshooting is a real
+// risk right up to the finish however long the host makes the game.
+export function bustLimitFor(winPosition: number): number {
+  return winPosition + MAX_GUESS;
+}
+
+/** Keep a host-chosen target inside the range the board and the rules can carry. */
+export function sanitizeWinPosition(value: number | undefined | null): number {
+  const n = Math.round(Number(value));
+  if (!isFinite(n)) return WIN_POSITION;
+  return Math.max(MIN_WIN_POSITION, Math.min(WIN_POSITION, n));
+}
 export const MAX_PIECES = 16;
 
 export enum BotAttitude {
@@ -47,7 +61,7 @@ export interface PieceMove {
   newPosition: number;
   collidedCount: number; // 0 = unique guess; k>=2 = k pieces picked this number
   busted: boolean; // went past BUST_LIMIT and reset to 0
-  won: boolean; // landed exactly on WIN_POSITION
+  won: boolean; // landed exactly on the target
 }
 
 // ------------------------------------------------------------------------------------------
@@ -57,7 +71,11 @@ export interface PieceMove {
 //   land exactly on 101   -> win (from either direction)
 //   move past 111         -> bust: reset to 0
 // ------------------------------------------------------------------------------------------
-export function resolveRound(entries: RoundEntry[]): PieceMove[] {
+export function resolveRound(
+  entries: RoundEntry[],
+  winPosition: number = WIN_POSITION,
+): PieceMove[] {
+  const bustLimit = bustLimitFor(winPosition);
   const pickCounts = new Map<number, number>();
   for (const e of entries) {
     pickCounts.set(e.guess, (pickCounts.get(e.guess) ?? 0) + 1);
@@ -70,7 +88,7 @@ export function resolveRound(entries: RoundEntry[]): PieceMove[] {
 
     if (count === 1) {
       newPosition = e.position + e.guess;
-      if (newPosition > BUST_LIMIT) {
+      if (newPosition > bustLimit) {
         newPosition = 0;
         busted = true;
       }
@@ -85,7 +103,7 @@ export function resolveRound(entries: RoundEntry[]): PieceMove[] {
       newPosition,
       collidedCount: count === 1 ? 0 : count,
       busted,
-      won: newPosition === WIN_POSITION,
+      won: newPosition === winPosition,
     };
   });
 }

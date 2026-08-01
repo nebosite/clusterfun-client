@@ -44,6 +44,8 @@ import {
   resolveRound,
   totalPieceCount,
   WIN_POSITION,
+  sanitizeWinPosition,
+  bustLimitFor,
 } from "./oneOhOneLogic";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
 
@@ -118,6 +120,21 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
   // Bot lineup configured in the gathering screen (one piece each)
   bots = observable<BotAttitude>([]);
 
+  // How far the track runs.  The game is called 101, but a shorter target makes a
+  // quicker round, and the host sets it before starting.
+  @observable private _winPosition = WIN_POSITION;
+  get winPosition() {
+    return this._winPosition;
+  }
+  set winPosition(value: number) {
+    this._winPosition = sanitizeWinPosition(value);
+    this.saveCheckpoint();
+    this.sendToEveryone(InvalidateStateEndpoint, () => ({}));
+  }
+  get bustLimit() {
+    return bustLimitFor(this._winPosition);
+  }
+
   @observable private _piecesPerHuman = 1;
   get piecesPerHuman() {
     return this._piecesPerHuman;
@@ -134,7 +151,7 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
   lastResults: OneOhOneMoveSummary[] = [];
 
   get winners(): GamePiece[] {
-    return this.pieces.filter((p) => p.position === WIN_POSITION);
+    return this.pieces.filter((p) => p.position === this.winPosition);
   }
 
   get totalPlannedPieces() {
@@ -329,6 +346,7 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
 
     const moves = resolveRound(
       this.pieces.map((p) => ({ pieceId: p.pieceId, position: p.position, guess: p.guess! })),
+      this.winPosition,
     );
 
     const moveById = new Map<string, PieceMove>(moves.map((m) => [m.pieceId, m]));
@@ -396,6 +414,7 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
 
     return {
       gameState: this.gameState,
+      winPosition: this.winPosition,
       roundNumber: this.currentRound,
       phase: this.roundPhase,
       secondsLeft: Math.max(0, this.secondsLeftInStage),
