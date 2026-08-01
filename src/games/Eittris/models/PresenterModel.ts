@@ -188,6 +188,7 @@ export const getEittrisPresenterTypeHelper = (
           case "_lastRosterKey":
           case "_lastGridSent":
           case "_gridPending":
+          case "_gridUrgent":
             return false;
         }
       }
@@ -301,6 +302,11 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // which costs one extra grid per player and nothing else.
   private _lastGridSent = new Map<string, { grid: string; atMs: number }>();
   private _gridPending = new Set<string>();
+  // Boards whose grid must go out NOW, cap or no cap.  The row-clear animation runs off
+  // its own clock on each phone against the grid it holds, so a grid that arrives late
+  // makes the phone animate the wrong thing - the cleared row reappears during the fall
+  // and then snaps away.  Correctness beats the byte budget for these.
+  private _gridUrgent = new Set<string>();
 
   get aliveBoards(): EittrisBoard[] {
     return this.boards.filter((b) => b.alive);
@@ -566,11 +572,14 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     const before = clearing.elapsedMs;
     clearing.elapsedMs += dtMs;
 
-    // The moment the eating finishes, take the rows out for real
+    // The moment the eating finishes, take the rows out for real - BEFORE the fall
+    // animation starts, so the phone is animating a grid the rows have already left.
     if (before < clearing.eatMs && clearing.elapsedMs >= clearing.eatMs) {
       // Collapse what is there NOW, not a snapshot taken at lock time - an
       // attack may have landed on this board while the rows were vanishing.
       board.grid = collapseRows(board.grid, clearing.rows);
+      // This one cannot wait for the rate cap: the fall animation is drawn against it.
+      this._gridUrgent.add(board.playerId);
     }
 
     const total = clearing.eatMs + clearing.fallMs;
@@ -1002,6 +1011,9 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     board.dropTimerMs = 0;
     board.pieceSeq++; // phones end any in-flight gesture on this piece
     if (result.cleared > 0) {
+      // The locked grid, rows still in place, has to reach the phone before it starts
+      // eating them - it animates against the grid it holds, not one it is sent later.
+      this._gridUrgent.add(board.playerId);
       // Run the clear animation first; the spawn gap starts when it ends.
       board.clearing = {
         rows: result.clearedRows.slice(),
@@ -1382,10 +1394,12 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     const changed = !last || last.grid !== grid;
     if (!changed) {
       this._gridPending.delete(board.playerId);
+      this._gridUrgent.delete(board.playerId);
       return undefined;
     }
+    const urgent = this._gridUrgent.delete(board.playerId);
     const cooledDown = !last || this.gameTime_ms - last.atMs >= GRID_MIN_INTERVAL_MS;
-    if (!force && !cooledDown) {
+    if (!force && !urgent && !cooledDown) {
       this._gridPending.add(board.playerId);
       return undefined;
     }

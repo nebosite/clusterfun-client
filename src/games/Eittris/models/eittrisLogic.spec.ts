@@ -37,6 +37,7 @@ import {
   scoreForClear,
   slamHorizontal,
   SPAWN_X,
+  SPAWN_Y,
   spawnNextFromQueue,
   spawnPiece,
   START_INTERVAL_MS,
@@ -462,10 +463,10 @@ describe("eittrisLogic - gravity curve", () => {
 // Spawning + queue
 // ------------------------------------------------------------------------------------------
 describe("eittrisLogic - spawning", () => {
-  it("spawns at column 5, row 0, with the requested rotation normalized", () => {
+  it("spawns at the spawn point with the requested rotation normalized", () => {
     const piece = spawnPiece(3, 5);
     expect(piece.x).toBe(SPAWN_X);
-    expect(piece.y).toBe(0);
+    expect(piece.y).toBe(SPAWN_Y);
     expect(piece.rot).toBe(1);
   });
 

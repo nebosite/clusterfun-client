@@ -8,7 +8,9 @@
 export const BOARD_WIDTH = 10;
 export const BOARD_HEIGHT = 21; // row 0 at top; gravity is y++
 export const SPAWN_X = 5;
-export const SPAWN_Y = 0;
+// One row down from the very top: at row 0 a piece is half off the board on spawn,
+// which reads as a glitch rather than as a piece arriving.
+export const SPAWN_Y = 1;
 export const NEXT_PREVIEW_COUNT = 1; // the phone's tray normally shows one piece
 // ...but CrystalBall shows three, so the queue always holds that many.  The
 // preview depth is a display choice; the queue depth is what makes it possible.

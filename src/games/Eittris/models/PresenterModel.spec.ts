@@ -27,11 +27,13 @@ import {
   IMPLEMENTED_SPECIALS,
   MAX_ROBOTS_STRESS,
   CLEAR_EAT_MS,
+  encodeGrid,
   CLEAR_FALL_MS,
   EVIL_PIECE_COUNT,
   hardDrop,
   emptyGrid,
   SPAWN_X,
+  SPAWN_Y,
   decodePsychoOverlay,
   STENCIL_ROW_MS,
   SWAP_COLUMN_MS,
@@ -125,7 +127,7 @@ describe("EittrisPresenterModel - game start", () => {
       expect(board.alive).toBe(true);
       expect(board.piece).not.toBeNull();
       expect(board.piece!.x).toBe(5); // spawn column
-      expect(board.piece!.y).toBe(0);
+      expect(board.piece!.y).toBe(SPAWN_Y);
       expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
       expect(board.intervalMs).toBe(START_INTERVAL_MS);
       expect(board.grid.length).toBe(BOARD_HEIGHT);
@@ -147,7 +149,7 @@ describe("EittrisPresenterModel - commands", () => {
     model.handleCommand("A", { command: "dragTo", column: 8, row: 3 });
     expect(board.piece!.x).toBe(8);
     expect(board.piece!.y).toBe(3);
-    expect(board.score).toBe(30); // 3 dragged rows
+    expect(board.score).toBe((3 - SPAWN_Y) * 10); // rows dragged, at 10 a row
     // B's board is untouched
     expect(model.boards.find((b) => b.playerId === "B")!.piece!.x).toBe(5);
   });
@@ -164,7 +166,7 @@ describe("EittrisPresenterModel - commands", () => {
     // ...and the board sits empty through the spawn gap (no input possible)
     expect(board.piece).toBeNull();
     tickTo(model, SPAWN_DELAY_MS + 20);
-    expect(board.piece!.y).toBe(0); // then a fresh piece appears at the top
+    expect(board.piece!.y).toBe(SPAWN_Y); // then a fresh piece appears at the top
   });
 
   it("release on an airborne piece does nothing (gravity just resumes)", () => {
@@ -173,7 +175,7 @@ describe("EittrisPresenterModel - commands", () => {
     model.handleCommand("A", { command: "dragTo", column: 7, row: 0 });
     model.handleCommand("A", { command: "release" });
     expect(board.piece!.x).toBe(7); // same piece, still falling
-    expect(board.piece!.y).toBe(0);
+    expect(board.piece!.y).toBe(SPAWN_Y);
     expect(board.grid.every((row) => row.every((cell) => cell === EMPTY_CELL))).toBe(true);
   });
 
@@ -197,8 +199,8 @@ describe("EittrisPresenterModel - commands", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
     model.handleCommand("A", { command: "hardDrop" });
-    // T dropped 20 rows and locked flat on the bottom row
-    expect(board.score).toBe(200);
+    // T dropped from the spawn row to the floor, at 10 points a row
+    expect(board.score).toBe((BOARD_HEIGHT - 1 - SPAWN_Y) * 10);
     expect(board.grid[BOARD_HEIGHT - 1][4]).toBe(0);
     expect(board.grid[BOARD_HEIGHT - 1][5]).toBe(0);
     expect(board.grid[BOARD_HEIGHT - 1][6]).toBe(0);
@@ -206,7 +208,7 @@ describe("EittrisPresenterModel - commands", () => {
     // the board is empty during the spawn gap, then a fresh piece appears
     expect(board.piece).toBeNull();
     tickTo(model, SPAWN_DELAY_MS + 20);
-    expect(board.piece!.y).toBe(0);
+    expect(board.piece!.y).toBe(SPAWN_Y);
     expect(board.alive).toBe(true);
   });
 
@@ -229,7 +231,7 @@ describe("EittrisPresenterModel - commands", () => {
     // After the gap the new piece is untouched at its spawn spot
     tickTo(model, SPAWN_DELAY_MS + 20);
     expect(board.piece!.x).toBe(5);
-    expect(board.piece!.y).toBe(0);
+    expect(board.piece!.y).toBe(SPAWN_Y);
   });
 
   it("bumps pieceSeq on every spawn so phones can end a stale gesture", () => {
@@ -275,13 +277,13 @@ describe("EittrisPresenterModel - hard drop leaves the next piece alone", () => 
 
     model.handleCommand("A", { command: "hardDrop" });
     tickTo(model, SPAWN_DELAY_MS + 20); // wait out the spawn gap
-    expect(boardA.piece!.y).toBe(0); // fresh piece at the top
+    expect(boardA.piece!.y).toBe(SPAWN_Y); // fresh piece at the top
 
     // Well under one gravity interval later, NEITHER board has stepped -
     // the hard drop must not accelerate the next piece
     tickTo(model, 240);
     expect(boardA.piece!.y).toBe(boardB.piece!.y);
-    expect(boardA.piece!.y).toBe(0);
+    expect(boardA.piece!.y).toBe(SPAWN_Y);
   });
 });
 
@@ -450,6 +452,36 @@ describe("EittrisPresenterModel - the settled grid on the wire", () => {
     expect(withGrid[0].message.grid.length).toBe(210);
   });
 
+  it("rushes the grid through the rate cap for a row clear", () => {
+    // The phone animates a clear against the grid it is holding.  If the collapsed grid
+    // is delayed by the once-a-second cap, the cleared row reappears during the fall and
+    // then snaps away - which is exactly the artefact this exists to prevent.
+    const { model, sent } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    tickTo(model, 100);
+
+    // Leave exactly the gap the spawned T fills when it hits the floor
+    runInAction(() => {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        if (x < 4 || x > 6) board.grid[BOARD_HEIGHT - 1][x] = 1;
+      }
+    });
+    sent.length = 0;
+
+    model.handleCommand("A", { command: "hardDrop" });
+    tickTo(model, 150); // well inside the 1s cap
+    expect(board.clearing).toBeTruthy();
+    const atLock = boardUpdates(sent).filter((u) => u.message.grid !== undefined);
+    expect(atLock.length).toBeGreaterThan(0); // the locked grid went out anyway
+
+    // ...and so does the collapsed one, the instant the eating finishes
+    sent.length = 0;
+    tickTo(model, 150 + CLEAR_EAT_MS + 10);
+    const atCollapse = boardUpdates(sent).filter((u) => u.message.grid !== undefined);
+    expect(atCollapse.length).toBeGreaterThan(0);
+    expect(atCollapse[0].message.grid).toBe(encodeGrid(board.grid));
+  });
+
   it("a full rebuild always carries the grid", () => {
     // Onboarding is how a phone recovers, so it can never be given a partial board.
     const { model } = startTwoPlayerGame();
@@ -463,9 +495,9 @@ describe("EittrisPresenterModel - gravity ticks", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
     tickTo(model, 500);
-    expect(board.piece!.y).toBe(0); // not due yet - gravity starts at 2.5s per row
+    expect(board.piece!.y).toBe(SPAWN_Y); // not due yet - gravity starts at 2.5s per row
     tickTo(model, 2600);
-    expect(board.piece!.y).toBe(1); // one gravity step
+    expect(board.piece!.y).toBe(SPAWN_Y + 1); // one gravity step
     expect(board.intervalMs).toBeLessThan(START_INTERVAL_MS); // and it sped up
   });
 
@@ -496,7 +528,8 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
     model.handleCommand("A", { command: "hardDrop" }); // T fills 4..6 on the bottom row
 
     expect(board.rows).toBe(1);
-    expect(board.score).toBe(200 + 1000); // 20 dropped rows + single-row clear
+    // dropped rows at 10 each, plus 1000 for the single-row clear
+    expect(board.score).toBe((BOARD_HEIGHT - 1 - SPAWN_Y) * 10 + 1000);
 
     // The row is scored at once but does NOT vanish at once: it is eaten away
     // on screen first, so it is still standing while `clearing` runs.
@@ -627,7 +660,7 @@ describe("EittrisPresenterModel - checkpoint serialization", () => {
 
     const boardA = back.boards.find((b) => b.playerId === "A")!;
     const boardB = back.boards.find((b) => b.playerId === "B")!;
-    expect(boardA.score).toBe(200); // the hard drop's points survived
+    expect(boardA.score).toBe((BOARD_HEIGHT - 1 - SPAWN_Y) * 10); // hard drop points survived
     expect(boardA.grid[BOARD_HEIGHT - 1][7]).toBe(0); // and the locked cells
     expect(boardA.targetId).toBe("B"); // the target ring survives a refresh
     expect(boardB.piece!.rot).toBe(1); // B's rotated falling piece survived
