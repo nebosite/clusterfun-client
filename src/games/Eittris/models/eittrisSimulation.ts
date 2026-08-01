@@ -400,7 +400,7 @@ function tickAi(board: EittrisBoard, dtMs: number, ctx: SimulationContext) {
 
   // Cure first - playing well while afflicted is a losing game
   if (hasAfflictions(board) && board.antidotes > 0) {
-    useAntidote(board, ctx);
+    spendAntidote(board, ctx);
     return;
   }
 
@@ -624,8 +624,10 @@ export function applyIncomingSpecial(
   return false;
 }
 
-/** Spend a charge: cures everything on this board and repels incoming attacks for a while. */
-export function useAntidote(board: EittrisBoard, ctx: SimulationContext) {
+/** Spend a charge: cures everything on this board and repels incoming attacks for a while.
+ *  Named "spend" rather than "use" on purpose - eslint's rules-of-hooks treats any function
+ *  called useSomething as a React hook and fails the production build over it. */
+export function spendAntidote(board: EittrisBoard, ctx: SimulationContext) {
   if (board.antidotes <= 0) return;
   board.antidotes--;
   // Wash off everything already applied, then shield against new hits.  cureAfflictions

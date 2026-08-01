@@ -18,8 +18,8 @@ import {
   applyIncomingSpecial,
   collectSpecial,
   lockCurrentPiece,
+  spendAntidote,
   stepBoard,
-  useAntidote,
 } from "./eittrisSimulation";
 import {
   EittrisBoardSnapshot,
@@ -37,54 +37,26 @@ import {
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
-  collides,
   dragTowards,
   DROP_POINTS_PER_ROW,
   EittrisBoard,
   encodeGrid,
   encodeThumbnail,
-  gravityStep,
   hardDrop,
   initTargetRing,
   isResting,
-  lockAndClear,
   makeBoard,
   NEXT_PREVIEW_COUNT,
   CRYSTAL_BALL_PREVIEW,
-  pieceCells,
   rankBoards,
   retargetOnDeath,
   slamHorizontal,
-  spawnNextFromQueue,
   tryMove,
   tryRotateCW,
-  ANTIDOTE_CHANCE,
-  ANTIDOTE_DURATION_MS,
-  ANTIDOTE_MAX,
-  cureAfflictions,
   effectiveIntervalMs,
-  isOffensive,
-  collectAndShiftMarkers,
-  pickSpecialCell,
-  rollSpecialType,
-  SPECIAL_INTERVAL_MS,
   SpecialType,
-  EittrisPiece,
-  liftPieceClear,
-  BRIDGE_COLUMN_MS,
-  JUMBLE_NUDGES,
-  refillNextQueue,
-  pruneOrphanedSpecials,
   defaultSettings,
   sanitizeSettings,
-  rollAllowedSpecial,
-  CLEAR_EAT_MS,
-  clearFallMs,
-  maxRowDrop,
-  collapseRows,
-  lockOnly,
-  MAX_ROBOTS,
-  SPEED_MULTIPLIERS,
   SPEED_CHOICES,
   EittrisSpeed,
   MAX_ROBOTS_STRESS,
@@ -92,38 +64,11 @@ import {
   robotRoster,
   AFFLICTION_TIMERS,
   afflictionMsLeft,
-  startAffliction,
-  tickAfflictions,
   tryRotateCCW,
-  PSYCHO_COLOR_COUNT,
-  emptyPsychoOverlay,
   encodePsychoOverlay,
-  stampPsychoTrail,
-  xorPsychoOverlay,
-  JUMBLE_NUDGE_MS,
-  JUMBLE_TINKLE_EVERY,
-  jumbleOnce,
-  swapColumn,
-  SWAP_COLUMN_MS,
-  makeBridgePlan,
-  paintBridgeColumn,
-  stencilCellFor,
-  stencilShapeFor,
-  paintStencilRow,
-  STENCIL_ROW_MS,
-  hasAfflictions,
-  nextAiMove,
-  planPlacement,
 } from "./eittrisLogic";
 import type { EittrisSettings } from "./eittrisLogic";
-import {
-  AI_MOVE_INTERVAL_MS,
-  AI_FAST_MULTIPLIER,
-  LATE_JOIN_GRACE_MS,
-  SPAWN_DELAY_MS,
-  THUMBNAIL_INTERVAL_MS,
-  GRID_MIN_INTERVAL_MS,
-} from "./GameSettings";
+import { LATE_JOIN_GRACE_MS, THUMBNAIL_INTERVAL_MS, GRID_MIN_INTERVAL_MS } from "./GameSettings";
 
 // In the Test Lobby every player is a bot by default so a game can be
 // watched end to end without touching four phones.
@@ -659,7 +604,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // needs to know that the board changed.
   // -------------------------------------------------------------------
   private useAntidote(board: EittrisBoard) {
-    useAntidote(board, this.simContext);
+    spendAntidote(board, this.simContext);
   }
 
   // -------------------------------------------------------------------
