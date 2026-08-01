@@ -24,6 +24,12 @@ export const THUMBNAIL_INTERVAL_MS = 1000; // how often changed boards broadcast
 // cooldown is held and sent the moment it expires, so nothing is ever dropped.
 export const GRID_MIN_INTERVAL_MS = 1000;
 
+// How often a phone tells the host about its own board.  The phone plays at full speed
+// regardless - this is only the reporting rate - so the cost of a slower number is that the
+// shared screen shows a piece stepping four times a second rather than gliding, not that
+// anybody's game feels heavy.
+export const REPORT_INTERVAL_MS = 250;
+
 // Computer player: one move (rotate or a single sideways step) twice a second
 export const AI_MOVE_INTERVAL_MS = 500;
 // How much quicker the computer players think while dev "Go fast" is on.  The

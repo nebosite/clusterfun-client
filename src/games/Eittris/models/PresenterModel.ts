@@ -1,4 +1,4 @@
-import { action, makeObservable, observable } from "mobx";
+import { action, makeObservable, observable, runInAction } from "mobx";
 import {
   ClusterFunPlayer,
   ISessionHelper,
@@ -17,6 +17,7 @@ import {
   SimulationEvents,
   applyCommand,
   applyIncomingSpecial,
+  applyReportToBoard,
   spendAntidote,
   stepBoard,
 } from "./eittrisSimulation";
@@ -27,6 +28,10 @@ import {
   EittrisOnboardClientEndpoint,
   EittrisOnboardClientMessage,
   EittrisBoardUpdateEndpoint,
+  EittrisBoardReportEndpoint,
+  EittrisBoardReportMessage,
+  EittrisDeliverSpecialEndpoint,
+  EittrisStartPlayingEndpoint,
   EittrisSpecialEventEndpoint,
   EittrisThumbnailEntry,
   EittrisThumbnailsMessage,
@@ -296,6 +301,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     super.reconstitute();
     this.listenToEndpoint(EittrisOnboardClientEndpoint, this.handleOnboardClient);
     this.listenToEndpoint(EittrisCommandEndpoint, this.handleCommand);
+    this.listenToEndpoint(EittrisBoardReportEndpoint, this.handleBoardReport);
   }
 
   // -------------------------------------------------------------------
@@ -418,7 +424,13 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       this.gameState = EittrisGameState.Playing;
     }
     this.invokeEvent(EittrisGameEvent.GameStarted);
-    // Make every phone onboard so it learns its fresh board
+    // Hand every phone its own board: here are the rules, off you go.  From this point a
+    // player's board is simulated on their phone and the host only watches it.
+    this.sendToEveryone(EittrisStartPlayingEndpoint, (player) => {
+      const board = this.boards.find((b) => b.playerId === player.playerId);
+      return { settings: this.settings, targetId: board?.targetId ?? null };
+    });
+    // Make every phone onboard so it learns the line-up
     this.sendToEveryone(InvalidateStateEndpoint, () => ({}));
     this.saveCheckpoint();
   };
@@ -437,7 +449,10 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     this._lastSimTime_ms = this.gameTime_ms;
     if (dtMs <= 0) return;
 
+    // Only the robots.  A player's board is simulated on their own phone and arrives
+    // here as a report - the host is a viewer of it, not its author.
     for (const board of this.boards) {
+      if (this.isOwnedByAPhone(board)) continue;
       stepBoard(board, dtMs, this.simContext);
     }
     this.flushDirtyBoards();
@@ -488,6 +503,135 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       devFast: this.devFast,
       events: this.simEvents,
     };
+  }
+
+  // -------------------------------------------------------------------
+  // A board belongs to a phone if a real player is behind it.  Robots have nobody to
+  // run them, so the host does.
+  // -------------------------------------------------------------------
+  private isOwnedByAPhone(board: EittrisBoard): boolean {
+    return this.players.some((p) => p.playerId === board.playerId);
+  }
+
+  // -------------------------------------------------------------------
+  // handleBoardReport - a phone's account of its own board.
+  //
+  // The host does not second-guess it.  It copies the board in so the shared screen is
+  // right, plays the sounds for what happened, and passes any attack along to whoever
+  // has to live with it.
+  // -------------------------------------------------------------------
+  handleBoardReport = (sender: string, message: EittrisBoardReportMessage): void => {
+    if (this.gameState !== EittrisGameState.Playing) return;
+    const board = this.boards.find((b) => b.playerId === sender);
+    if (!board) return;
+
+    runInAction(() => applyReportToBoard(board, message.board));
+    this.dirtyPlayerIds.add(sender);
+
+    for (const event of message.events ?? []) {
+      switch (event.kind) {
+        case "locked":
+          this.invokeEvent(
+            event.bumped ? EittrisGameEvent.PieceBumped : EittrisGameEvent.PieceLocked,
+            sender,
+          );
+          break;
+        case "slammed":
+          this.invokeEvent(EittrisGameEvent.PieceBumped, sender);
+          break;
+        case "rowsCleared":
+          this.invokeEvent(EittrisGameEvent.RowsCleared, sender, event.count);
+          break;
+        case "collected":
+          this.invokeEvent(EittrisGameEvent.SpecialCollected, sender, event.special);
+          break;
+        case "selfSpecial":
+          this.announceSelfSpecial(board, event.special as SpecialType);
+          break;
+        case "fire":
+          this.relayAttack(board, event.special as SpecialType, event.targetId);
+          break;
+        case "hit":
+          // The victim has already applied it - this is the room being told.
+          this.announceAttack(
+            event.attackerId,
+            sender,
+            event.special as SpecialType,
+            event.repelled,
+          );
+          break;
+        case "afflictionEnded":
+          this.invokeEvent(EittrisGameEvent.AfflictionEnded, sender, event.types ?? []);
+          break;
+        case "antidoteUsed":
+          this.invokeEvent(EittrisGameEvent.AntidoteUsed, sender);
+          break;
+        case "jumbleNudge":
+          this.invokeEvent(EittrisGameEvent.JumbleNudge, sender);
+          break;
+        case "died":
+          if (board.alive) {
+            board.alive = false;
+            this.onBoardDied(board);
+          }
+          break;
+      }
+    }
+    this.saveCheckpoint();
+  };
+
+  // -------------------------------------------------------------------
+  // relayAttack - a phone set off an offensive powerup.  Getting it to its victim is the
+  // one thing a phone cannot do for itself: it cannot see anybody else's board.
+  //
+  // A robot victim is hit here and now.  A human victim is TOLD, and applies it the moment
+  // it arrives - the host does not wait for permission or hold the attack up.
+  // -------------------------------------------------------------------
+  private relayAttack(attacker: EittrisBoard, type: SpecialType, targetId: string | null) {
+    const victim = this.boards.find((b) => b.playerId === (targetId ?? attacker.targetId));
+    if (!victim || !victim.alive) return; // nobody to hit (solo game, or the target died)
+
+    if (!this.isOwnedByAPhone(victim)) {
+      const repelled = applyIncomingSpecial(victim, type, this.simContext, attacker);
+      this.dirtyPlayerIds.add(victim.playerId);
+      this.announceAttack(attacker.playerId, victim.playerId, type, repelled);
+      return;
+    }
+
+    // SwitchScreens trades two boards, so it has to be run where both are visible.
+    if (type === SpecialType.SwitchScreens) {
+      applyIncomingSpecial(victim, type, this.simContext, attacker);
+      this.dirtyPlayerIds.add(victim.playerId);
+    }
+
+    this.sendToEveryone(EittrisDeliverSpecialEndpoint, (player) =>
+      player.playerId === victim.playerId
+        ? {
+            special: type,
+            attackerId: attacker.playerId,
+            attackerName: this.nameFor(attacker.playerId),
+          }
+        : undefined,
+    );
+  }
+
+  // Tell the room what just happened to whom.
+  private announceAttack(
+    attackerId: string,
+    victimId: string,
+    type: SpecialType,
+    repelled: boolean,
+  ) {
+    this.invokeEvent(EittrisGameEvent.SpecialFired, attackerId, victimId, type, repelled);
+    const payload = {
+      type,
+      attackerId,
+      attackerName: this.nameFor(attackerId),
+      victimId,
+      victimName: this.nameFor(victimId),
+      repelled,
+    };
+    this.sendToEveryone(EittrisSpecialEventEndpoint, () => payload);
   }
 
   // -------------------------------------------------------------------
@@ -675,9 +819,18 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     const dirty = this.dirtyPlayerIds;
     this.dirtyPlayerIds = new Set<string>();
     this._thumbsChanged = true;
-    this.sendToEveryone(EittrisBoardUpdateEndpoint, (player) =>
-      dirty.has(player.playerId) ? this.snapshotFor(player.playerId) : undefined,
-    );
+    // Only to phones that do NOT own their board.  Pushing a board back at the phone that
+    // is simulating it would be the host arguing with the authority - a stale mirror
+    // overwriting a live game.  In practice that means nobody once a game is running, and
+    // it stays here for the states where the host still owns everything.
+    this.sendToEveryone(EittrisBoardUpdateEndpoint, (player) => {
+      if (!dirty.has(player.playerId)) return undefined;
+      const board = this.boards.find((b) => b.playerId === player.playerId);
+      if (board && this.isOwnedByAPhone(board) && this.gameState === EittrisGameState.Playing) {
+        return undefined;
+      }
+      return this.snapshotFor(player.playerId);
+    });
   }
 
   // -------------------------------------------------------------------

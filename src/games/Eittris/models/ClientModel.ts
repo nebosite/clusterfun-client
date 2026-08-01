@@ -10,13 +10,19 @@ import {
   ITypeHelper,
   SafeBrowser,
 } from "libs";
-import { action, makeObservable, observable } from "mobx";
+import { action, makeObservable, observable, runInAction } from "mobx";
 import { EittrisGameState } from "./PresenterModel";
 import {
+  EittrisBoardReportEndpoint,
   EittrisBoardSnapshot,
   EittrisBoardUpdateEndpoint,
-  EittrisCommandEndpoint,
   EittrisCommandMessage,
+  EittrisDeliverSpecialEndpoint,
+  EittrisDeliverSpecialMessage,
+  EittrisCommandEndpoint,
+  EittrisReportEvent,
+  EittrisStartPlayingEndpoint,
+  EittrisStartPlayingMessage,
   EittrisOnboardClientEndpoint,
   EittrisSpecialEventEndpoint,
   EittrisSpecialEventMessage,
@@ -26,17 +32,36 @@ import {
   EittrisThumbnailsMessage,
 } from "./eittrisEndpoints";
 import {
+  AFFLICTION_TIMERS,
   BOARD_HEIGHT,
   BOARD_WIDTH,
+  CRYSTAL_BALL_PREVIEW,
+  EittrisBoard,
   EittrisPiece,
-  encodeGrid,
-  emptyGrid,
+  EittrisSettings,
+  NEXT_PREVIEW_COUNT,
+  SpecialType,
   START_INTERVAL_MS,
+  afflictionMsLeft,
+  defaultSettings,
+  effectiveIntervalMs,
+  emptyGrid,
+  encodeGrid,
+  encodePsychoOverlay,
+  makeBoard,
+  sanitizeSettings,
 } from "./eittrisLogic";
 import {
-  VIBRATE_CLEAR,
-  VIBRATE_BIG_CLEAR,
+  SimulationContext,
+  applyCommand,
+  applyIncomingSpecial,
+  stepBoard,
+} from "./eittrisSimulation";
+import {
+  REPORT_INTERVAL_MS,
   VIBRATE_ATTACKED,
+  VIBRATE_BIG_CLEAR,
+  VIBRATE_CLEAR,
   VIBRATE_SHIELDED,
 } from "./GameSettings";
 
@@ -86,9 +111,18 @@ export enum EittrisClientState {
 }
 
 // -------------------------------------------------------------------
-// Client data and logic - the phone is a thin controller: it mirrors its
-// own board from presenter pushes and translates gestures into commands.
-// NO game rules live here.
+// Client data and logic.
+//
+// The phone SIMULATES ITS OWN BOARD.  It used to be a thin controller that sent every
+// gesture to the host and waited to be told what happened, which put a round trip in
+// front of every movement - unplayable on a real network.  Now the rules run here, at
+// full speed, and the host is told what happened afterwards.
+//
+// The rules themselves are not written here: they are the shared simulator, the same code
+// the host runs for robot boards, so the two cannot drift apart.
+//
+// Everything the view reads is still a plain observable field, mirrored off the board
+// after each step - so the views did not have to change at all.
 // -------------------------------------------------------------------
 export class EittrisClientModel extends ClusterfunClientModel {
   @observable gridString: string = encodeGrid(emptyGrid());
@@ -135,6 +169,18 @@ export class EittrisClientModel extends ClusterfunClientModel {
   @observable winnerName: string | null = null;
   @observable youWon = false;
 
+  // ---- the board this phone owns ----
+  // Not observable: it is stepped many times a second and the view reads the mirrored
+  // fields above, so making it deeply observable would cost a great deal for nothing.
+  board: EittrisBoard | null = null;
+  settings: EittrisSettings = defaultSettings();
+  private _lastTickTime_ms = -1;
+  // What the host has been told, and when
+  private _lastReportTime_ms = -1;
+  private _lastReportedGrid = "";
+  private _pendingEvents: EittrisReportEvent[] = [];
+  private _reportDue = false;
+
   // The target list, kept in two halves because they change at completely different
   // rates: who is playing (fixed for the game) and what their board looks like now.
   // The presenter sends identity once and thereafter only the boards that changed.
@@ -168,6 +214,10 @@ export class EittrisClientModel extends ClusterfunClientModel {
   // -------------------------------------------------------------------
   reconstitute() {
     super.reconstitute();
+    // The board runs on this phone's own clock.  Nothing in here waits for the network.
+    this.onTick.subscribe("EittrisClientSim", () => this.simulate());
+    this.listenToEndpointFromPresenter(EittrisStartPlayingEndpoint, this.handleStartPlaying);
+    this.listenToEndpointFromPresenter(EittrisDeliverSpecialEndpoint, this.handleDeliverSpecial);
     this.listenToEndpointFromPresenter(EittrisBoardUpdateEndpoint, this.handleBoardUpdate);
     this.listenToEndpointFromPresenter(EittrisThumbnailsEndpoint, this.handleThumbnails);
     this.listenToEndpointFromPresenter(EittrisSpecialEventEndpoint, this.handleSpecialEvent);
@@ -234,6 +284,10 @@ export class EittrisClientModel extends ClusterfunClientModel {
   // handleBoardUpdate - the presenter pushed this phone's own board
   // -------------------------------------------------------------------
   protected handleBoardUpdate = (message: EittrisBoardSnapshot) => {
+    // Once this phone is simulating its own board, a pushed board is out of date by
+    // definition - it is the host's mirror of what we told it a moment ago.  Taking it
+    // would undo whatever the player has done since.
+    if (this.board) return;
     action(() => {
       this.applySnapshot(message);
       if (this.gameState === GeneralClientGameState.WaitingToStart) {
@@ -358,9 +412,223 @@ export class EittrisClientModel extends ClusterfunClientModel {
   // -------------------------------------------------------------------
   // Gesture commands - fire-and-forget; the presenter is authoritative
   // -------------------------------------------------------------------
+  // -------------------------------------------------------------------
+  // The simulation this phone owns
+  // -------------------------------------------------------------------
+  private get simContext(): SimulationContext {
+    return {
+      settings: this.settings,
+      random: () => Math.random(),
+      // A phone can only see its own board.  SwitchScreens needs both boards, so it is
+      // the one attack that stays with the host.
+      boards: () => (this.board ? [this.board] : []),
+      devFast: this.devFast,
+      events: {
+        changed: () => this.markReportDue(),
+        locked: (_b, bumped) => {
+          this.report({ kind: "locked", bumped });
+          // A lock is felt through the phone; a slam gets the firmer buzz.
+          SafeBrowser.vibrate(bumped ? VIBRATE_CLEAR : VIBRATE_CLEAR);
+        },
+        rowsCleared: (_b, count) => {
+          this.report({ kind: "rowsCleared", count });
+          SafeBrowser.vibrate(count >= 4 ? VIBRATE_BIG_CLEAR : VIBRATE_CLEAR);
+        },
+        clearCollapsed: () => this.markReportDue(),
+        specialCollected: (_b, special) => this.report({ kind: "collected", special }),
+        // Offensive powerups have to travel: this phone cannot reach its victim, so the
+        // host is told who to hit and passes it along.
+        fireSpecial: (b, special) =>
+          this.report({ kind: "fire", special, targetId: b.targetId ?? null }),
+        selfSpecial: (_b, special) => this.report({ kind: "selfSpecial", special }),
+        afflictionEnded: (_b, types) => this.report({ kind: "afflictionEnded", types }),
+        antidoteUsed: () => this.report({ kind: "antidoteUsed" }),
+        jumbleNudge: () => this.report({ kind: "jumbleNudge" }),
+        slammed: () => this.report({ kind: "slammed" }),
+        died: () => {
+          this.report({ kind: "died" });
+          runInAction(() => (this.gameState = EittrisClientState.Dead));
+        },
+        persist: () => this.saveCheckpoint(),
+      },
+    };
+  }
+
+  // Called from the game clock.  Steps the board, mirrors it into the observables the
+  // view reads, and tells the host what happened - at most once every REPORT_INTERVAL_MS.
+  private simulate() {
+    const board = this.board;
+    if (!board) return;
+
+    if (this._lastTickTime_ms < 0 || this._lastTickTime_ms > this.gameTime_ms) {
+      this._lastTickTime_ms = this.gameTime_ms;
+    }
+    const dtMs = this.gameTime_ms - this._lastTickTime_ms;
+    this._lastTickTime_ms = this.gameTime_ms;
+    if (dtMs > 0 && board.alive) stepBoard(board, dtMs, this.simContext);
+
+    this.mirrorBoard();
+    this.maybeReport();
+  }
+
+  private markReportDue() {
+    this._reportDue = true;
+  }
+
+  private report(event: EittrisReportEvent) {
+    this._pendingEvents.push(event);
+    this._reportDue = true;
+  }
+
+  // One message, no more often than REPORT_INTERVAL_MS, carrying the board and everything
+  // that has happened since the last one.  The phone never waits for this.
+  private maybeReport() {
+    if (!this._reportDue || !this.board) return;
+    if (
+      this._lastReportTime_ms >= 0 &&
+      this.gameTime_ms - this._lastReportTime_ms < REPORT_INTERVAL_MS
+    ) {
+      return;
+    }
+    this._lastReportTime_ms = this.gameTime_ms;
+    this._reportDue = false;
+    const events = this._pendingEvents;
+    this._pendingEvents = [];
+
+    const grid = encodeGrid(this.board.grid);
+    const gridChanged = grid !== this._lastReportedGrid;
+    if (gridChanged) this._lastReportedGrid = grid;
+
+    this.session.sendMessageToPresenter(EittrisBoardReportEndpoint, {
+      board: this.snapshotOfOwnBoard(gridChanged ? grid : undefined),
+      events,
+    });
+  }
+
+  // What the host needs to draw this board.  Deliberately the same shape the host used to
+  // send the other way, so it can draw a reported board with the code it already had.
+  private snapshotOfOwnBoard(grid: string | undefined): EittrisBoardSnapshot {
+    const b = this.board!;
+    return {
+      grid,
+      piece: b.piece ? { ...b.piece } : null,
+      next: b.nextQueue.slice(0, b.crystalBall ? CRYSTAL_BALL_PREVIEW : NEXT_PREVIEW_COUNT),
+      score: b.score,
+      rows: b.rows,
+      alive: b.alive,
+      intervalMs: Math.round(effectiveIntervalMs(b.intervalMs, b.speedupStacks, b.slowdownStacks)),
+      backgroundIndex: b.backgroundIndex,
+      targetId: b.targetId,
+      pieceSeq: b.pieceSeq,
+      specials: b.specials.map((m) => ({ i: m.index, t: m.type })),
+      antidotes: b.antidotes,
+      speedupStacks: b.speedupStacks,
+      slowdownStacks: b.slowdownStacks,
+      seeShadows: b.seeShadows,
+      crystalBall: b.crystalBall,
+      evilPieces: b.evilPieces,
+      crazyIvan: b.crazyIvan,
+      freezeDried: b.freezeDried,
+      transparency: b.transparency,
+      afflictionMs: AFFLICTION_TIMERS.map((spec) => afflictionMsLeft(b, spec.type)),
+      clearing: b.clearing ? { ...b.clearing, rows: b.clearing.rows.slice() } : null,
+      psychoSeed: b.psychoSeed,
+      psychoOverlay: b.psychoOverlay ? encodePsychoOverlay(b.psychoOverlay) : null,
+      shieldMs: b.shieldMs,
+      forcedSpecial: b.forcedSpecial,
+      aiControlled: b.aiControlled,
+    };
+  }
+
+  // Copy the board into the observables the view reads.  One place, so nothing on screen
+  // can quietly disagree with the board it is drawn from.
+  private mirrorBoard() {
+    const b = this.board;
+    if (!b) return;
+    runInAction(() => {
+      this.gridString = encodeGrid(b.grid);
+      this.piece = b.piece;
+      this.nextTypes = b.nextQueue.slice(
+        0,
+        b.crystalBall ? CRYSTAL_BALL_PREVIEW : NEXT_PREVIEW_COUNT,
+      );
+      this.score = b.score;
+      this.rows = b.rows;
+      this.alive = b.alive;
+      this.intervalMs = effectiveIntervalMs(b.intervalMs, b.speedupStacks, b.slowdownStacks);
+      this.backgroundIndex = b.backgroundIndex;
+      this.pieceSeq = b.pieceSeq;
+      this.targetId = b.targetId;
+      this.specials = b.specials.map((m) => ({ i: m.index, t: m.type }));
+      this.antidotes = b.antidotes;
+      this.speedupStacks = b.speedupStacks;
+      this.slowdownStacks = b.slowdownStacks;
+      this.seeShadows = b.seeShadows;
+      this.crystalBall = b.crystalBall;
+      this.evilPieces = b.evilPieces;
+      this.crazyIvan = b.crazyIvan;
+      this.freezeDried = b.freezeDried;
+      this.transparency = b.transparency;
+      this.afflictionMs = AFFLICTION_TIMERS.map((spec) => afflictionMsLeft(b, spec.type));
+      this.clearing = b.clearing ? { ...b.clearing, rows: b.clearing.rows.slice() } : null;
+      this.psychoSeed = b.psychoSeed;
+      this.psychoOverlay = b.psychoOverlay ? encodePsychoOverlay(b.psychoOverlay) : null;
+      this.shieldMs = b.shieldMs;
+      this.forcedSpecial = b.forcedSpecial;
+      this.aiControlled = b.aiControlled;
+    });
+  }
+
+  // -------------------------------------------------------------------
+  // handleStartPlaying - the host says go.  From here the board is this phone's.
+  // -------------------------------------------------------------------
+  protected handleStartPlaying = (message: EittrisStartPlayingMessage) => {
+    runInAction(() => {
+      this.settings = sanitizeSettings(message.settings);
+      const board = makeBoard(this.playerId, Math.random, this.settings.speed);
+      board.targetId = message.targetId;
+      board.aiControlled = this.aiControlled;
+      board.forcedSpecial = this.forcedSpecial;
+      this.board = board;
+      this._lastTickTime_ms = this.gameTime_ms;
+      this._lastReportTime_ms = -1;
+      this._lastReportedGrid = "";
+      this._pendingEvents = [];
+      this.gameState = EittrisClientState.Playing;
+      this.lastSpecialEvent = null;
+      this.winnerName = null;
+      this.youWon = false;
+    });
+    this.mirrorBoard();
+    this.markReportDue();
+    this.saveCheckpoint();
+  };
+
+  // -------------------------------------------------------------------
+  // handleDeliverSpecial - an attack arrived.  It is applied THE MOMENT it lands: the
+  // host is telling us, not asking us.  Whether our shield ate it goes back in the next
+  // report, which is what the room gets told.
+  // -------------------------------------------------------------------
+  protected handleDeliverSpecial = (message: EittrisDeliverSpecialMessage) => {
+    const board = this.board;
+    if (!board || !board.alive) return;
+    const repelled = applyIncomingSpecial(board, message.special as SpecialType, this.simContext);
+    this.report({
+      kind: "hit",
+      special: message.special,
+      attackerId: message.attackerId,
+      repelled,
+    });
+    this.mirrorBoard();
+    this.saveCheckpoint();
+  };
+
+  // Apply a gesture to my own board, right now, with no network in the way.  This is the
+  // whole point of the refactor: the piece moves on the frame the finger moved.
   private sendCommand(message: EittrisCommandMessage) {
-    if (this.gameState !== EittrisClientState.Playing) return;
-    this.session.sendMessageToPresenter(EittrisCommandEndpoint, message);
+    if (this.gameState !== EittrisClientState.Playing || !this.board) return;
+    applyCommand(this.board, message, this.simContext);
+    this.mirrorBoard();
   }
 
   // Free 2D drag: aim the piece at a board cell (never up; presenter clamps)

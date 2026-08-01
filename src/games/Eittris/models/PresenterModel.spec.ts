@@ -1,4 +1,12 @@
 import { runInAction } from "mobx";
+import { EittrisCommandMessage } from "./eittrisEndpoints";
+import {
+  NO_EVENTS,
+  SimulationContext,
+  applyCommand,
+  applyIncomingSpecial,
+  stepBoard,
+} from "./eittrisSimulation";
 import { ISessionHelper, instantiateGame, getPresenterTypeHelper } from "libs";
 import { MockTelemetryLogger } from "libs/telemetry/MockTelemetryLogger";
 import { PresenterGameState, GeneralGameState } from "libs";
@@ -93,6 +101,7 @@ function makeModel() {
   const model = new EittrisPresenterModel(session, logger, stubStorage);
   // Deterministic "randomness": every spawn is a T piece (type 0) at rotation 0
   model.randomDouble = () => 0;
+  sentFor.set(model, sent);
   return { model, sent };
 }
 
@@ -102,10 +111,98 @@ function addPlayer(model: EittrisPresenterModel, id: string, name: string): Eitt
   return p;
 }
 
-// Advance the game clock and run one tick
+// A player's board is simulated on their PHONE now, not on the host.  These tests stand in
+// for the phone: same simulator, same context, driven in process - so what they exercise is
+// the real arrangement, with the presenter watching rather than authoring.
+const lastPhoneTick = new WeakMap<EittrisPresenterModel, number>();
+const sentFor = new WeakMap<EittrisPresenterModel, any[]>();
+
+/**
+ * Play the victim's phone.
+ *
+ * An attack no longer lands on the victim inside the host: the host DELIVERS it, and the
+ * phone that owns that board applies it the moment it arrives, then tells the host whether
+ * its shield ate it.  The harness closes that loop so a test can still say "A hits B" in
+ * one line.
+ */
+function pumpDeliveries(model: EittrisPresenterModel) {
+  const sent = sentFor.get(model);
+  if (!sent) return;
+  for (let i = sent.length - 1; i >= 0; i--) {
+    const message = sent[i];
+    if (!String(message.route).includes("deliver-special")) continue;
+    sent.splice(i, 1);
+    const victim = model.boards.find((b) => b.playerId === message.receiverId);
+    if (!victim || !victim.alive) continue;
+    const repelled = applyIncomingSpecial(victim, message.message.special, phoneContext(model));
+    (model as any).dirtyPlayerIds.add(victim.playerId);
+    (model as any).announceAttack(
+      message.message.attackerId,
+      victim.playerId,
+      message.message.special,
+      repelled,
+    );
+  }
+}
+
+function phoneContext(model: EittrisPresenterModel): SimulationContext {
+  return {
+    settings: model.settings,
+    random: () => model.randomDouble(1.0),
+    boards: () => model.boards.slice(),
+    devFast: false,
+    events: {
+      ...NO_EVENTS,
+      // A report arriving is what tells the host a board moved.  The harness stands in for
+      // that, so the host's thumbnails and pushes behave as they do in a real game.
+      changed: (board) => (model as any).dirtyPlayerIds.add(board.playerId),
+      // The phone reports these; the host turns them into the room's sounds and banners.
+      afflictionEnded: (board, types) =>
+        model.invokeEvent(EittrisGameEvent.AfflictionEnded, board.playerId, types),
+      antidoteUsed: (board) => model.invokeEvent(EittrisGameEvent.AntidoteUsed, board.playerId),
+      rowsCleared: (board, count) =>
+        model.invokeEvent(EittrisGameEvent.RowsCleared, board.playerId, count),
+      specialCollected: (board, type) =>
+        model.invokeEvent(EittrisGameEvent.SpecialCollected, board.playerId, type),
+      selfSpecial: (board, type) => (model as any).announceSelfSpecial(board, type),
+      // An attack cannot be delivered by the phone that fired it - it can only see its own
+      // board - so the host relays it, exactly as it does in a real game.
+      fireSpecial: (board, type) => (model as any).relayAttack(board, type, board.targetId ?? null),
+      died: (board) => (model as any).onBoardDied(board),
+    },
+  };
+}
+
+/** Every board a player owns, stepped the way that player's phone would step it. */
+function stepPhones(model: EittrisPresenterModel, dtMs: number) {
+  if (dtMs <= 0) return;
+  const ctx = phoneContext(model);
+  for (const board of model.boards) {
+    if (!model.players.some((p) => p.playerId === board.playerId)) continue; // a robot
+    if (board.alive) stepBoard(board, dtMs, ctx);
+  }
+}
+
+/** Send a command to a board the way its own phone does: straight onto the board. */
+function phoneCommand(
+  model: EittrisPresenterModel,
+  playerId: string,
+  message: EittrisCommandMessage,
+) {
+  const board = model.boards.find((b) => b.playerId === playerId);
+  if (!board) return;
+  applyCommand(board, message, phoneContext(model));
+  pumpDeliveries(model);
+}
+
+// Advance the game clock, run one host tick, and step the phones over the same slice
 function tickTo(model: EittrisPresenterModel, time_ms: number) {
+  const previous = lastPhoneTick.get(model) ?? 0;
   model.gameTime_ms = time_ms;
   model.handleTick();
+  stepPhones(model, time_ms - previous);
+  pumpDeliveries(model);
+  lastPhoneTick.set(model, time_ms);
 }
 
 function startTwoPlayerGame() {
@@ -146,7 +243,7 @@ describe("EittrisPresenterModel - commands", () => {
   it("dragTo walks the piece toward the target column AND down, paying +10 per row", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
-    model.handleCommand("A", { command: "dragTo", column: 8, row: 3 });
+    phoneCommand(model, "A", { command: "dragTo", column: 8, row: 3 });
     expect(board.piece!.x).toBe(8);
     expect(board.piece!.y).toBe(3);
     expect(board.score).toBe((3 - SPAWN_Y) * 10); // rows dragged, at 10 a row
@@ -157,11 +254,11 @@ describe("EittrisPresenterModel - commands", () => {
   it("dragTo onto the floor does NOT lock; release locks the resting piece", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
-    model.handleCommand("A", { command: "dragTo", column: 5, row: 20 });
+    phoneCommand(model, "A", { command: "dragTo", column: 5, row: 20 });
     expect(board.piece!.y).toBe(BOARD_HEIGHT - 1); // resting on the floor...
     expect(board.grid[BOARD_HEIGHT - 1][5]).toBe(EMPTY_CELL); // ...but NOT locked
 
-    model.handleCommand("A", { command: "release" });
+    phoneCommand(model, "A", { command: "release" });
     expect(board.grid[BOARD_HEIGHT - 1][5]).toBe(0); // now it's settled
     // ...and the board sits empty through the spawn gap (no input possible)
     expect(board.piece).toBeNull();
@@ -172,8 +269,8 @@ describe("EittrisPresenterModel - commands", () => {
   it("release on an airborne piece does nothing (gravity just resumes)", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
-    model.handleCommand("A", { command: "dragTo", column: 7, row: 0 });
-    model.handleCommand("A", { command: "release" });
+    phoneCommand(model, "A", { command: "dragTo", column: 7, row: 0 });
+    phoneCommand(model, "A", { command: "release" });
     expect(board.piece!.x).toBe(7); // same piece, still falling
     expect(board.piece!.y).toBe(SPAWN_Y);
     expect(board.grid.every((row) => row.every((cell) => cell === EMPTY_CELL))).toBe(true);
@@ -182,23 +279,23 @@ describe("EittrisPresenterModel - commands", () => {
   it("slamLeft/slamRight run the piece to the walls", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
-    model.handleCommand("A", { command: "slamLeft" });
+    phoneCommand(model, "A", { command: "slamLeft" });
     expect(board.piece!.x).toBe(1); // T occupies x-1..x+1
-    model.handleCommand("A", { command: "slamRight" });
+    phoneCommand(model, "A", { command: "slamRight" });
     expect(board.piece!.x).toBe(8);
   });
 
   it("rotate spins the piece clockwise", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
-    model.handleCommand("A", { command: "rotate" });
+    phoneCommand(model, "A", { command: "rotate" });
     expect(board.piece!.rot).toBe(1);
   });
 
   it("hardDrop slams to the floor, pays +10 per row, and locks", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
     // T dropped from the spawn row to the floor, at 10 points a row
     expect(board.score).toBe((BOARD_HEIGHT - 1 - SPAWN_Y) * 10);
     expect(board.grid[BOARD_HEIGHT - 1][4]).toBe(0);
@@ -215,15 +312,15 @@ describe("EittrisPresenterModel - commands", () => {
   it("accepts no piece commands during the post-lock spawn gap", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
     const gridAfterLock = JSON.stringify(board.grid);
     const scoreAfterLock = board.score;
 
     // A stray gesture arriving in the gap must do nothing at all
-    model.handleCommand("A", { command: "hardDrop" });
-    model.handleCommand("A", { command: "dragTo", column: 0, row: 20 });
-    model.handleCommand("A", { command: "rotate" });
-    model.handleCommand("A", { command: "release" });
+    phoneCommand(model, "A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "dragTo", column: 0, row: 20 });
+    phoneCommand(model, "A", { command: "rotate" });
+    phoneCommand(model, "A", { command: "release" });
     expect(board.piece).toBeNull();
     expect(JSON.stringify(board.grid)).toBe(gridAfterLock);
     expect(board.score).toBe(scoreAfterLock);
@@ -240,16 +337,16 @@ describe("EittrisPresenterModel - commands", () => {
     const seqAtStart = board.pieceSeq;
 
     // Moving the piece around does NOT change the sequence
-    model.handleCommand("A", { command: "dragTo", column: 3, row: 4 });
-    model.handleCommand("A", { command: "rotate" });
+    phoneCommand(model, "A", { command: "dragTo", column: 3, row: 4 });
+    phoneCommand(model, "A", { command: "rotate" });
     expect(board.pieceSeq).toBe(seqAtStart);
 
     // Placing it spawns the next piece and bumps the sequence
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
     expect(board.pieceSeq).toBe(seqAtStart + 1);
 
     // A gravity lock bumps it too
-    model.handleCommand("A", { command: "dragTo", column: 3, row: BOARD_HEIGHT });
+    phoneCommand(model, "A", { command: "dragTo", column: 3, row: BOARD_HEIGHT });
     const seqBeforeGravityLock = board.pieceSeq;
     tickTo(model, 60_000); // long enough for the resting piece to lock
     expect(board.pieceSeq).toBeGreaterThan(seqBeforeGravityLock);
@@ -259,7 +356,7 @@ describe("EittrisPresenterModel - commands", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
     expect(model.snapshotFor("A")!.pieceSeq).toBe(board.pieceSeq);
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
     expect(model.snapshotFor("A")!.pieceSeq).toBe(board.pieceSeq);
   });
 
@@ -275,7 +372,7 @@ describe("EittrisPresenterModel - hard drop leaves the next piece alone", () => 
     const boardA = model.boards.find((b) => b.playerId === "A")!;
     const boardB = model.boards.find((b) => b.playerId === "B")!;
 
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
     tickTo(model, SPAWN_DELAY_MS + 20); // wait out the spawn gap
     expect(boardA.piece!.y).toBe(SPAWN_Y); // fresh piece at the top
 
@@ -367,7 +464,7 @@ describe("EittrisPresenterModel - thumbnail broadcasts", () => {
     sent.length = 0;
 
     // Settle a piece so the boards genuinely change, forcing a second broadcast
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
     tickTo(model, 1200);
 
     const thumbs = sent.filter((s) => s.route.includes("thumbnails"));
@@ -382,7 +479,7 @@ describe("EittrisPresenterModel - thumbnail broadcasts", () => {
     sent.length = 0;
 
     // Only A's stack changes; B's is untouched, so B has nothing to say
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
     tickTo(model, 1200);
 
     const payload = sent.filter((s) => s.route.includes("thumbnails"))[0].message;
@@ -396,7 +493,7 @@ describe("EittrisPresenterModel - thumbnail broadcasts", () => {
     tickTo(model, 5);
     sent.length = 0;
 
-    model.handleCommand("A", { command: "rotate" });
+    phoneCommand(model, "A", { command: "rotate" });
     tickTo(model, 3000);
     expect(sent.filter((s) => s.route.includes("thumbnails")).length).toBe(0);
   });
@@ -406,87 +503,12 @@ describe("EittrisPresenterModel - thumbnail broadcasts", () => {
     tickTo(model, 5);
     sent.length = 0;
 
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
     tickTo(model, 200); // changed, but inside the 1s throttle window
     expect(sent.filter((s) => s.route.includes("thumbnails")).length).toBe(0);
 
     tickTo(model, 1200); // window elapsed -> one push to each player
     expect(sent.filter((s) => s.route.includes("thumbnails")).length).toBe(2);
-  });
-});
-
-describe("EittrisPresenterModel - the settled grid on the wire", () => {
-  // Scoped to one player: every phone's FIRST update has to carry a grid, so a test
-  // about later updates has to be about a single phone.
-  const boardUpdates = (sent: any[], who = "A") =>
-    sent.filter((s) => s.route.includes("board-update") && s.receiverId === who);
-
-  it("leaves the grid out while the piece is only falling", () => {
-    const { model, sent } = startTwoPlayerGame();
-    // The very first update a phone gets has to carry the grid - it has never seen one.
-    model.handleCommand("A", { command: "rotate" });
-    tickTo(model, 100);
-    expect(boardUpdates(sent).some((u) => u.message.grid !== undefined)).toBe(true);
-    sent.length = 0;
-
-    // From here on the stack is untouched, so no update should mention it again
-    model.handleCommand("A", { command: "rotate" });
-    tickTo(model, 4000);
-
-    const updates = boardUpdates(sent);
-    expect(updates.length).toBeGreaterThan(0);
-    // The settled stack never changed, so not one update needs to carry it
-    expect(updates.every((u) => u.message.grid === undefined)).toBe(true);
-  });
-
-  it("sends the grid once the stack actually changes", () => {
-    const { model, sent } = startTwoPlayerGame();
-    tickTo(model, 2000); // put the rate cap well behind us
-    sent.length = 0;
-
-    model.handleCommand("A", { command: "hardDrop" });
-    tickTo(model, 2050);
-
-    const withGrid = boardUpdates(sent).filter((u) => u.message.grid !== undefined);
-    expect(withGrid.length).toBe(1);
-    expect(withGrid[0].message.grid.length).toBe(210);
-  });
-
-  it("rushes the grid through the rate cap for a row clear", () => {
-    // The phone animates a clear against the grid it is holding.  If the collapsed grid
-    // is delayed by the once-a-second cap, the cleared row reappears during the fall and
-    // then snaps away - which is exactly the artefact this exists to prevent.
-    const { model, sent } = startTwoPlayerGame();
-    const board = model.boards.find((b) => b.playerId === "A")!;
-    tickTo(model, 100);
-
-    // Leave exactly the gap the spawned T fills when it hits the floor
-    runInAction(() => {
-      for (let x = 0; x < BOARD_WIDTH; x++) {
-        if (x < 4 || x > 6) board.grid[BOARD_HEIGHT - 1][x] = 1;
-      }
-    });
-    sent.length = 0;
-
-    model.handleCommand("A", { command: "hardDrop" });
-    tickTo(model, 150); // well inside the 1s cap
-    expect(board.clearing).toBeTruthy();
-    const atLock = boardUpdates(sent).filter((u) => u.message.grid !== undefined);
-    expect(atLock.length).toBeGreaterThan(0); // the locked grid went out anyway
-
-    // ...and so does the collapsed one, the instant the eating finishes
-    sent.length = 0;
-    tickTo(model, 150 + CLEAR_EAT_MS + 10);
-    const atCollapse = boardUpdates(sent).filter((u) => u.message.grid !== undefined);
-    expect(atCollapse.length).toBeGreaterThan(0);
-    expect(atCollapse[0].message.grid).toBe(encodeGrid(board.grid));
-  });
-
-  it("a full rebuild always carries the grid", () => {
-    // Onboarding is how a phone recovers, so it can never be given a partial board.
-    const { model } = startTwoPlayerGame();
-    const onboard = model.handleOnboardClient("A", {});
-    expect(onboard.board?.grid?.length).toBe(210);
   });
 });
 
@@ -501,17 +523,21 @@ describe("EittrisPresenterModel - gravity ticks", () => {
     expect(board.intervalMs).toBeLessThan(START_INTERVAL_MS); // and it sped up
   });
 
-  it("pushes a board update only to the player whose board changed", () => {
+  it("keeps its own mirror of a board that a phone is playing", () => {
+    // The host does not push a player's board back at them any more - the phone owns it.
+    // What the host must still do is keep a mirror good enough to draw the shared screen.
     const { model, sent } = startTwoPlayerGame();
+    tickTo(model, 5);
     sent.length = 0;
-    model.handleCommand("A", { command: "rotate" }); // only A's board is dirty
-    tickTo(model, 10); // too soon for gravity - just flushes dirt
-    const updates = sent.filter((s) => s.route.includes("board-update"));
-    expect(updates.length).toBe(1);
-    expect(updates[0].receiverId).toBe("A");
-    expect(updates[0].message.piece.rot).toBe(1);
-    expect(typeof updates[0].message.grid).toBe("string");
-    expect(updates[0].message.grid.length).toBe(BOARD_WIDTH * BOARD_HEIGHT);
+
+    phoneCommand(model, "A", { command: "hardDrop" });
+    tickTo(model, 100);
+
+    const boardA = model.boards.find((b) => b.playerId === "A")!;
+    expect(boardA.grid.flat().filter((c) => c !== EMPTY_CELL).length).toBe(4);
+    // ...and nothing was pushed back at the phone that is playing it
+    const pushes = sent.filter((m) => m.route.includes("board-update") && m.receiverId === "A");
+    expect(pushes.length).toBe(0);
   });
 });
 
@@ -525,7 +551,7 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
       }
     });
 
-    model.handleCommand("A", { command: "hardDrop" }); // T fills 4..6 on the bottom row
+    phoneCommand(model, "A", { command: "hardDrop" }); // T fills 4..6 on the bottom row
 
     expect(board.rows).toBe(1);
     // dropped rows at 10 each, plus 1000 for the single-row clear
@@ -559,7 +585,7 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
       boardA.grid[0][5] = 3; // blocks the next spawn at (5,0)
     });
 
-    model.handleCommand("A", { command: "hardDrop" }); // locks...
+    phoneCommand(model, "A", { command: "hardDrop" }); // locks...
     tickTo(model, SPAWN_DELAY_MS + 20); // ...and the delayed spawn collides
 
     expect(boardA.alive).toBe(false);
@@ -571,10 +597,8 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
     expect(model.winnerId).toBe("B");
     expect(model.winnerName).toBe("Bob");
 
-    // The dead player's final board state was pushed before the announcement
-    const updatesToA = sent.filter((s) => s.route.includes("board-update") && s.receiverId === "A");
-    expect(updatesToA.length).toBeGreaterThan(0);
-    expect(updatesToA[updatesToA.length - 1].message.alive).toBe(false);
+    // The host's own mirror knows they are out - that is what the shared screen draws
+    expect(model.boards.find((b) => b.playerId === "A")!.alive).toBe(false);
   });
 
   it("a solo game plays until the lone board dies", () => {
@@ -584,14 +608,14 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
     tickTo(model, 0);
     const board = model.boards[0];
 
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
     tickTo(model, SPAWN_DELAY_MS + 20);
     expect(model.gameState).toBe(EittrisGameState.Playing); // still alive, still playing
 
     runInAction(() => {
       board.grid[0][5] = 3;
     });
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
     // tickTo takes an ABSOLUTE game time - push past the second gap
     tickTo(model, 2 * SPAWN_DELAY_MS + 60); // the fatal spawn lands after the gap
     expect(model.gameState).toBe(GeneralGameState.GameOver);
@@ -600,7 +624,7 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
 
   it("onboard hands a phone its own board (with target + background) and the outcome", () => {
     const { model } = startTwoPlayerGame();
-    model.handleCommand("A", { command: "dragTo", column: 2, row: 0 });
+    phoneCommand(model, "A", { command: "dragTo", column: 2, row: 0 });
 
     const info = model.handleOnboardClient("A", {});
     expect(info.gameState).toBe(EittrisGameState.Playing);
@@ -643,9 +667,9 @@ describe("EittrisPresenterModel - checkpoint serialization", () => {
     model.startGame();
     model.gameTime_ms = 0;
     model.handleTick();
-    model.handleCommand("A", { command: "dragTo", column: 7, row: 0 });
-    model.handleCommand("A", { command: "hardDrop" });
-    model.handleCommand("B", { command: "rotate" });
+    phoneCommand(model, "A", { command: "dragTo", column: 7, row: 0 });
+    phoneCommand(model, "A", { command: "hardDrop" });
+    phoneCommand(model, "B", { command: "rotate" });
 
     const serializer = model.serializer!;
     let json = "";
@@ -731,7 +755,7 @@ describe("EittrisPresenterModel - specials", () => {
     });
     const antidotesBefore = board.antidotes;
 
-    model.handleCommand("A", { command: "hardDrop" }); // completes the row
+    phoneCommand(model, "A", { command: "hardDrop" }); // completes the row
 
     expect(board.rows).toBe(1);
     expect(board.antidotes).toBe(antidotesBefore + 1); // collected
@@ -742,12 +766,12 @@ describe("EittrisPresenterModel - specials", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
     expect(board.antidotes).toBe(1); // everyone starts with one
-    model.handleCommand("A", { command: "useAntidote" });
+    phoneCommand(model, "A", { command: "useAntidote" });
     expect(board.antidotes).toBe(0);
     expect(board.shieldMs).toBe(ANTIDOTE_DURATION_MS);
 
     // With none banked, a second press does nothing
-    model.handleCommand("A", { command: "useAntidote" });
+    phoneCommand(model, "A", { command: "useAntidote" });
     expect(board.antidotes).toBe(0);
 
     // The shield runs down on the clock
@@ -777,7 +801,7 @@ describe("EittrisPresenterModel - Speedup", () => {
     const beforeA = boardA.intervalMs;
     const beforeB = boardB.intervalMs;
 
-    model.handleCommand("A", { command: "hardDrop" }); // clears the marked row
+    phoneCommand(model, "A", { command: "hardDrop" }); // clears the marked row
 
     // The natural curve is untouched; the affliction rides on top of it
     expect(boardB.speedupStacks).toBe(1);
@@ -794,7 +818,7 @@ describe("EittrisPresenterModel - Speedup", () => {
     const { model, sent } = startTwoPlayerGame();
     armSpeedup(model);
     sent.length = 0;
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
 
     const events = sent.filter((s) => s.route.includes("special-event"));
     expect(events.length).toBe(2); // one per player
@@ -810,11 +834,11 @@ describe("EittrisPresenterModel - Speedup", () => {
     const { model, sent } = startTwoPlayerGame();
     armSpeedup(model);
     const boardB = model.boards.find((b) => b.playerId === "B")!;
-    model.handleCommand("B", { command: "useAntidote" }); // B raises the shield
+    phoneCommand(model, "B", { command: "useAntidote" }); // B raises the shield
     const beforeB = boardB.intervalMs;
     sent.length = 0;
 
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
 
     expect(boardB.speedupStacks).toBe(0); // shield ate it
     expect(boardB.intervalMs).toBe(beforeB);
@@ -835,7 +859,7 @@ describe("EittrisPresenterModel - Speedup", () => {
       }
       board.specials.push({ index: (BOARD_HEIGHT - 1) * BOARD_WIDTH, type: SpecialType.Speedup });
     });
-    expect(() => model.handleCommand("A", { command: "hardDrop" })).not.toThrow();
+    expect(() => phoneCommand(model, "A", { command: "hardDrop" })).not.toThrow();
     expect(board.specials.length).toBe(0);
   });
 });
@@ -852,7 +876,7 @@ describe("EittrisPresenterModel - the antidote cures afflictions", () => {
       naturalInterval,
     );
 
-    model.handleCommand("B", { command: "useAntidote" });
+    phoneCommand(model, "B", { command: "useAntidote" });
 
     expect(boardB.speedupStacks).toBe(0);
     expect(effectiveIntervalMs(boardB.intervalMs, boardB.speedupStacks)).toBe(naturalInterval);
@@ -997,7 +1021,7 @@ describe("EittrisPresenterModel - TheWall", () => {
     const victim = model.boards.find((b) => b.playerId === "B")!;
     expect(victim.pendingStencil).toBeNull();
 
-    model.handleCommand("A", { command: "hardDrop" }); // collects and fires
+    phoneCommand(model, "A", { command: "hardDrop" }); // collects and fires
     expect(victim.pendingStencil).not.toBeNull();
     expect(victim.pendingStencil!.shape.length).toBe(WALL_ROWS);
 
@@ -1026,7 +1050,7 @@ describe("EittrisPresenterModel - TheWall", () => {
   it("leaves the attacker's own board alone", () => {
     const { model } = startTwoPlayerGame();
     const attacker = armWall(model);
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
     expect(attacker.pendingStencil).toBeNull();
   });
 
@@ -1034,9 +1058,9 @@ describe("EittrisPresenterModel - TheWall", () => {
     const { model } = startTwoPlayerGame();
     armWall(model);
     const victim = model.boards.find((b) => b.playerId === "B")!;
-    model.handleCommand("B", { command: "useAntidote" });
+    phoneCommand(model, "B", { command: "useAntidote" });
 
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
 
     expect(victim.pendingStencil).toBeNull();
     tickTo(model, STENCIL_ROW_MS * 4);
@@ -1051,7 +1075,7 @@ describe("EittrisPresenterModel - TheWall", () => {
       victim.piece = { type: 6, rot: 0, x: 4, y: BOARD_HEIGHT - 2 }; // low on the board
     });
 
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
     let time = 0;
     for (let i = 0; i < WALL_ROWS + 2; i++) {
       time += STENCIL_ROW_MS + 5;
@@ -1084,7 +1108,7 @@ describe("EittrisPresenterModel - Bridge", () => {
     const attacker = armFourRowClear(model, "A");
     const victim = model.boards.find((b) => b.playerId === "B")!;
 
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
 
     expect(attacker.rows).toBe(4);
     expect(victim.pendingBridge).not.toBeNull();
@@ -1098,7 +1122,7 @@ describe("EittrisPresenterModel - Bridge", () => {
     const victim = model.boards.find((b) => b.playerId === "B")!;
     const before = attacker.antidotes;
 
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
 
     expect(attacker.rows).toBe(4);
     expect(attacker.antidotes).toBe(Math.min(ANTIDOTE_MAX, before + 1));
@@ -1146,14 +1170,14 @@ describe("EittrisPresenterModel - SeeShadows", () => {
         type: SpecialType.SeeShadows,
       });
     });
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
 
     expect(board.seeShadows).toBe(true); // kept by the collector...
     expect(victim.seeShadows).toBe(false); // ...not inflicted on the target
     expect(model.snapshotFor("A")!.seeShadows).toBe(true);
 
     // and an antidote does not take your own perk away
-    model.handleCommand("A", { command: "useAntidote" });
+    phoneCommand(model, "A", { command: "useAntidote" });
     expect(board.seeShadows).toBe(true);
   });
 });
@@ -1164,16 +1188,16 @@ describe("EittrisPresenterModel - CrazyIvan", () => {
     const board = model.boards.find((b) => b.playerId === "A")!;
 
     // Sane controls first
-    model.handleCommand("A", { command: "slamLeft" });
+    phoneCommand(model, "A", { command: "slamLeft" });
     expect(board.piece!.x).toBe(1); // T occupies x-1..x+1
 
     runInAction(() => {
       board.crazyIvan = true;
     });
     // Now "left" goes right
-    model.handleCommand("A", { command: "slamLeft" });
+    phoneCommand(model, "A", { command: "slamLeft" });
     expect(board.piece!.x).toBe(8);
-    model.handleCommand("A", { command: "slamRight" });
+    phoneCommand(model, "A", { command: "slamRight" });
     expect(board.piece!.x).toBe(1);
   });
 
@@ -1184,7 +1208,7 @@ describe("EittrisPresenterModel - CrazyIvan", () => {
       board.crazyIvan = true;
     });
     // asking for column 1 lands on the mirrored column 8
-    model.handleCommand("A", { command: "dragTo", column: 1, row: 0 });
+    phoneCommand(model, "A", { command: "dragTo", column: 1, row: 0 });
     expect(board.piece!.x).toBe(8);
   });
 
@@ -1194,9 +1218,9 @@ describe("EittrisPresenterModel - CrazyIvan", () => {
     runInAction(() => {
       board.crazyIvan = true;
     });
-    model.handleCommand("A", { command: "useAntidote" });
+    phoneCommand(model, "A", { command: "useAntidote" });
     expect(board.crazyIvan).toBe(false);
-    model.handleCommand("A", { command: "slamLeft" });
+    phoneCommand(model, "A", { command: "slamLeft" });
     expect(board.piece!.x).toBe(1); // sane again
   });
 });
@@ -1210,7 +1234,7 @@ describe("EittrisPresenterModel - FreezeDried", () => {
     });
     expect(model.snapshotFor("A")!.freezeDried).toBe(true);
 
-    model.handleCommand("A", { command: "useAntidote" });
+    phoneCommand(model, "A", { command: "useAntidote" });
     expect(board.freezeDried).toBe(false);
     expect(model.snapshotFor("A")!.freezeDried).toBe(false);
   });
@@ -1226,7 +1250,7 @@ describe("EittrisPresenterModel - Transparency", () => {
     expect(model.snapshotFor("A")!.transparency).toBe(true);
     expect(hasAfflictions(board)).toBe(true);
 
-    model.handleCommand("A", { command: "useAntidote" });
+    phoneCommand(model, "A", { command: "useAntidote" });
     expect(board.transparency).toBe(false);
   });
 
@@ -1296,7 +1320,7 @@ describe("EittrisPresenterModel - the dev Attack button", () => {
     model.handleCommand("A", { command: "setForcedSpecial", specialType: SpecialType.Speedup });
     expect(victim.speedupStacks).toBe(0);
 
-    model.handleCommand("A", { command: "fireSpecial" });
+    phoneCommand(model, "A", { command: "fireSpecial" });
 
     expect(victim.speedupStacks).toBe(1); // delivered to the target
     expect(attacker.speedupStacks).toBe(0);
@@ -1306,14 +1330,14 @@ describe("EittrisPresenterModel - the dev Attack button", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
     const before = board.antidotes;
-    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.Antidote });
+    phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.Antidote });
     expect(board.antidotes).toBe(before + 1);
   });
 
   it("does nothing when no special is selected", () => {
     const { model } = startTwoPlayerGame();
     const victim = model.boards.find((b) => b.playerId === "B")!;
-    expect(() => model.handleCommand("A", { command: "fireSpecial" })).not.toThrow();
+    expect(() => phoneCommand(model, "A", { command: "fireSpecial" })).not.toThrow();
     expect(victim.speedupStacks).toBe(0);
     expect(victim.pendingStencil).toBeNull();
   });
@@ -1322,10 +1346,10 @@ describe("EittrisPresenterModel - the dev Attack button", () => {
     const { model } = startTwoPlayerGame();
     const attacker = model.boards.find((b) => b.playerId === "A")!;
     const victim = model.boards.find((b) => b.playerId === "B")!;
-    model.handleCommand("A", { command: "hardDrop" }); // opens the spawn gap
+    phoneCommand(model, "A", { command: "hardDrop" }); // opens the spawn gap
     expect(attacker.piece).toBeNull();
 
-    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.TheWall });
+    phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.TheWall });
     expect(victim.pendingStencil).not.toBeNull();
   });
 });
@@ -1336,7 +1360,7 @@ describe("EittrisPresenterModel - Psycho", () => {
     const victim = model.boards.find((b) => b.playerId === "B")!;
     expect(victim.psychoOverlay).toBeNull();
 
-    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.Psycho });
+    phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.Psycho });
 
     expect(victim.psychoSeed).toBeGreaterThan(0);
     expect(victim.psychoOverlay).not.toBeNull();
@@ -1346,7 +1370,7 @@ describe("EittrisPresenterModel - Psycho", () => {
   it("smears a trail under the falling piece as it goes", () => {
     const { model } = startTwoPlayerGame();
     const victim = model.boards.find((b) => b.playerId === "B")!;
-    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.Psycho });
+    phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.Psycho });
 
     tickTo(model, 50);
     const under = pieceCells(victim.piece!).filter((c) => c.y >= 0);
@@ -1358,7 +1382,7 @@ describe("EittrisPresenterModel - Psycho", () => {
   it("keeps the palette but flips the background when a new piece arrives", () => {
     const { model } = startTwoPlayerGame();
     const victim = model.boards.find((b) => b.playerId === "B")!;
-    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.Psycho });
+    phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.Psycho });
     // A non-zero skew, so the XOR is observable
     model.randomDouble = () => 0.5;
 
@@ -1366,7 +1390,7 @@ describe("EittrisPresenterModel - Psycho", () => {
     const seedBefore = victim.psychoSeed;
     const cornerBefore = victim.psychoOverlay![BOARD_HEIGHT - 1][0];
 
-    model.handleCommand("B", { command: "hardDrop" });
+    phoneCommand(model, "B", { command: "hardDrop" });
     tickTo(model, 50 + SPAWN_DELAY_MS + 20); // through the gap into the next piece
 
     // The palette must not move, or the trails already drawn would change color
@@ -1377,7 +1401,7 @@ describe("EittrisPresenterModel - Psycho", () => {
   it("rides the wire as an encoded string and comes off it unchanged", () => {
     const { model } = startTwoPlayerGame();
     const victim = model.boards.find((b) => b.playerId === "B")!;
-    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.Psycho });
+    phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.Psycho });
     tickTo(model, 50);
 
     const snapshot = model.snapshotFor("B")!;
@@ -1393,7 +1417,7 @@ describe("EittrisPresenterModel - afflictions wear off", () => {
   it("clears an affliction 22 seconds after it lands", () => {
     const { model } = startTwoPlayerGame();
     const victim = model.boards.find((b) => b.playerId === "B")!;
-    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.CrazyIvan });
+    phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.CrazyIvan });
     expect(victim.crazyIvan).toBe(true);
 
     tickTo(model, AFFLICTION_DURATION_MS - 100);
@@ -1406,7 +1430,7 @@ describe("EittrisPresenterModel - afflictions wear off", () => {
 
   it("puts the remaining time on the wire for the phone's countdown bar", () => {
     const { model } = startTwoPlayerGame();
-    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.FreezeDried });
+    phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.FreezeDried });
 
     const snapshot = model.snapshotFor("B")!;
     expect(snapshot.afflictionMs.length).toBe(AFFLICTION_TIMERS.length);
@@ -1419,7 +1443,7 @@ describe("EittrisPresenterModel - afflictions wear off", () => {
   it("hands EvilPieces victims normal pieces again once it expires", () => {
     const { model } = startTwoPlayerGame();
     const victim = model.boards.find((b) => b.playerId === "B")!;
-    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.EvilPieces });
+    phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.EvilPieces });
     expect(victim.evilPieces).toBe(true);
 
     tickTo(model, AFFLICTION_DURATION_MS + 100);
@@ -1437,8 +1461,8 @@ describe("EittrisPresenterModel - taps do not pair up", () => {
     const startRot = board.piece!.rot;
     const startY = board.piece!.y;
 
-    model.handleCommand("A", { command: "rotate" });
-    model.handleCommand("A", { command: "rotate" });
+    phoneCommand(model, "A", { command: "rotate" });
+    phoneCommand(model, "A", { command: "rotate" });
 
     expect(board.piece!.rot).toBe((startRot + 2) % 4);
     expect(board.piece!.y).toBe(startY); // still where it was - nothing dropped
@@ -1448,7 +1472,7 @@ describe("EittrisPresenterModel - taps do not pair up", () => {
   it("still drops on an explicit hard drop", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
-    model.handleCommand("A", { command: "hardDrop" });
+    phoneCommand(model, "A", { command: "hardDrop" });
     expect(board.grid.flat().filter((c) => c !== EMPTY_CELL).length).toBe(4);
   });
 });
@@ -1461,7 +1485,7 @@ describe("EittrisPresenterModel - the Next tray is never empty", () => {
       expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
       // ...but only one of them is shown, without a crystal ball
       expect(model.snapshotFor("A")!.next.length).toBe(NEXT_PREVIEW_COUNT);
-      model.handleCommand("A", { command: "hardDrop" });
+      phoneCommand(model, "A", { command: "hardDrop" });
       // ...including right through the post-lock gap, when nothing is falling
       expect(board.piece).toBeNull();
       expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
@@ -1472,7 +1496,7 @@ describe("EittrisPresenterModel - the Next tray is never empty", () => {
   it("swaps the preview for evil pieces without ever emptying it", () => {
     const { model } = startTwoPlayerGame();
     const victim = model.boards.find((b) => b.playerId === "B")!;
-    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.EvilPieces });
+    phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.EvilPieces });
     expect(victim.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
     expect(victim.nextQueue.every((type) => type < EVIL_PIECE_COUNT)).toBe(true);
 
@@ -1485,8 +1509,8 @@ describe("EittrisPresenterModel - the Next tray is never empty", () => {
   it("keeps the preview stocked when an antidote cures EvilPieces", () => {
     const { model } = startTwoPlayerGame();
     const victim = model.boards.find((b) => b.playerId === "B")!;
-    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.EvilPieces });
-    model.handleCommand("B", { command: "useAntidote" });
+    phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.EvilPieces });
+    phoneCommand(model, "B", { command: "useAntidote" });
     expect(victim.evilPieces).toBe(false);
     expect(victim.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
   });
@@ -1507,7 +1531,7 @@ describe("EittrisPresenterModel - announcing that an affliction let go", () => {
   it("fires when an affliction times out", async () => {
     const { model } = startTwoPlayerGame();
     const seen = listenForEnded(model);
-    model.handleCommand("A", { command: "fireSpecial", specialType: SpecialType.Transparency });
+    phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.Transparency });
     await settle();
     expect(seen.length).toBe(0);
 
@@ -1522,9 +1546,9 @@ describe("EittrisPresenterModel - announcing that an affliction let go", () => {
     const { model } = startTwoPlayerGame();
     const seen = listenForEnded(model);
     for (const type of [SpecialType.Speedup, SpecialType.CrazyIvan, SpecialType.FreezeDried]) {
-      model.handleCommand("A", { command: "fireSpecial", specialType: type });
+      phoneCommand(model, "A", { command: "fireSpecial", specialType: type });
     }
-    model.handleCommand("B", { command: "useAntidote" });
+    phoneCommand(model, "B", { command: "useAntidote" });
     await settle();
 
     expect(seen.length).toBe(1); // one chime, not three
@@ -1534,7 +1558,7 @@ describe("EittrisPresenterModel - announcing that an affliction let go", () => {
   it("stays quiet when an antidote is spent on a clean board", async () => {
     const { model } = startTwoPlayerGame();
     const seen = listenForEnded(model);
-    model.handleCommand("A", { command: "useAntidote" });
+    phoneCommand(model, "A", { command: "useAntidote" });
     await settle();
     expect(seen.length).toBe(0);
   });

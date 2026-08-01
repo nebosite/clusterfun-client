@@ -27,6 +27,8 @@ import {
   collapseRows,
   collectAndShiftMarkers,
   collides,
+  decodeGrid,
+  decodePsychoOverlay,
   dragTowards,
   effectiveIntervalMs,
   emptyPsychoOverlay,
@@ -64,7 +66,7 @@ import {
   xorPsychoOverlay,
 } from "./eittrisLogic";
 import { AI_FAST_MULTIPLIER, AI_MOVE_INTERVAL_MS, SPAWN_DELAY_MS } from "./GameSettings";
-import { EittrisCommandMessage } from "./eittrisEndpoints";
+import { EittrisBoardSnapshot, EittrisCommandMessage } from "./eittrisEndpoints";
 
 // ==========================================================================================
 // The EITtris board simulation, with no framework attached to it.
@@ -777,4 +779,42 @@ export function applyCommand(
 
   if (changed) ctx.events.changed(board);
   return changed;
+}
+
+// ------------------------------------------------------------------------------------------
+// Copy a phone's report onto the host's mirror of that board.
+//
+// The host does not simulate a player's board, so this is how its copy stays right.  Only
+// what the report actually carries is taken: an absent grid means "unchanged since the last
+// one you were sent", which is most reports, because the settled stack only moves when a
+// piece locks.
+// ------------------------------------------------------------------------------------------
+export function applyReportToBoard(board: EittrisBoard, snapshot: EittrisBoardSnapshot) {
+  if (snapshot.grid !== undefined) board.grid = decodeGrid(snapshot.grid);
+  board.piece = snapshot.piece;
+  board.nextQueue = snapshot.next.slice();
+  board.score = snapshot.score;
+  board.rows = snapshot.rows;
+  board.alive = snapshot.alive;
+  board.intervalMs = snapshot.intervalMs;
+  board.backgroundIndex = snapshot.backgroundIndex;
+  board.targetId = snapshot.targetId;
+  board.pieceSeq = snapshot.pieceSeq;
+  board.specials = (snapshot.specials ?? []).map((m) => ({ index: m.i, type: m.t }));
+  board.antidotes = snapshot.antidotes ?? 0;
+  board.speedupStacks = snapshot.speedupStacks ?? 0;
+  board.slowdownStacks = snapshot.slowdownStacks ?? 0;
+  board.seeShadows = !!snapshot.seeShadows;
+  board.crystalBall = !!snapshot.crystalBall;
+  board.evilPieces = !!snapshot.evilPieces;
+  board.crazyIvan = !!snapshot.crazyIvan;
+  board.freezeDried = !!snapshot.freezeDried;
+  board.transparency = !!snapshot.transparency;
+  board.clearing = snapshot.clearing
+    ? { ...snapshot.clearing, rows: snapshot.clearing.rows.slice() }
+    : null;
+  board.psychoSeed = snapshot.psychoSeed ?? 0;
+  board.psychoOverlay = snapshot.psychoOverlay ? decodePsychoOverlay(snapshot.psychoOverlay) : null;
+  board.shieldMs = snapshot.shieldMs ?? 0;
+  board.aiControlled = !!snapshot.aiControlled;
 }

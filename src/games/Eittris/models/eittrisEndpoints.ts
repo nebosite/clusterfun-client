@@ -1,5 +1,5 @@
 import MessageEndpoint from "libs/messaging/MessageEndpoint";
-import { EittrisPiece } from "./eittrisLogic";
+import { EittrisPiece, EittrisSettings } from "./eittrisLogic";
 
 // ==========================================================================================
 // The wire API between phones and the presenter for EITtris.  See DESIGN.md for
@@ -177,4 +177,76 @@ export interface EittrisSpecialEventMessage {
 
 export const EittrisSpecialEventEndpoint: MessageEndpoint<EittrisSpecialEventMessage, void> = {
   route: "/games/eittris/gameplay/special-event",
+};
+
+// ==========================================================================================
+// The phone owns its own board
+//
+// A player's inputs used to travel to the host and back before their piece moved, which is
+// unplayable on anything but a perfect network.  Each phone now simulates its own board and
+// tells the host what happened, rather than asking the host what happens.
+//
+// The host is still the one screen everybody watches, so it needs enough to draw every
+// board and play the sounds - but it is a viewer of a player's board now, not its author.
+// ==========================================================================================
+
+/** Something worth a sound, a flash, or the host's attention, as it happened on a phone. */
+export type EittrisReportEvent =
+  | { kind: "locked"; bumped: boolean }
+  | { kind: "rowsCleared"; count: number }
+  | { kind: "collected"; special: number }
+  | { kind: "selfSpecial"; special: number }
+  /** An offensive powerup this player just set off, aimed at `targetId`. */
+  | { kind: "fire"; special: number; targetId: string | null }
+  /** An attack that arrived and was applied - or bounced off an antidote shield. */
+  | { kind: "hit"; special: number; attackerId: string; repelled: boolean }
+  | { kind: "afflictionEnded"; types: number[] }
+  | { kind: "antidoteUsed" }
+  | { kind: "jumbleNudge" }
+  | { kind: "slammed" }
+  | { kind: "died" };
+
+/**
+ * One phone's account of its own board.  `board` is exactly the snapshot the host used to
+ * send the other way, so the host can draw it with the same code it already had.
+ *
+ * Sent no more often than REPORT_INTERVAL_MS, with everything that happened since the last
+ * one batched into `events` - so a burst of activity costs one message, not ten.
+ */
+export interface EittrisBoardReportMessage {
+  board: EittrisBoardSnapshot;
+  events: EittrisReportEvent[];
+}
+
+export const EittrisBoardReportEndpoint: MessageEndpoint<EittrisBoardReportMessage, void> = {
+  route: "/games/eittris/actions/board-report",
+};
+
+/**
+ * An attack on its way to the player who has to live with it.  The victim applies it the
+ * moment it arrives - nothing waits for the host to agree - and says in its next report
+ * whether its antidote shield ate it.
+ */
+export interface EittrisDeliverSpecialMessage {
+  special: number;
+  attackerId: string;
+  attackerName: string;
+}
+
+export const EittrisDeliverSpecialEndpoint: MessageEndpoint<EittrisDeliverSpecialMessage, void> = {
+  route: "/games/eittris/lifecycle/deliver-special",
+};
+
+/**
+ * The host telling a phone to start playing its own board: here are the rules, off you go.
+ * Sent when a game starts, and again on a restart into the same room.
+ */
+export interface EittrisStartPlayingMessage {
+  settings: EittrisSettings;
+  /** Who this phone is aiming at to begin with, if anyone. */
+  targetId: string | null;
+}
+
+export const EittrisStartPlayingEndpoint: MessageEndpoint<EittrisStartPlayingMessage, void> = {
+  route: "/games/eittris/lifecycle/start-playing",
 };
