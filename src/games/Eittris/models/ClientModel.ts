@@ -180,6 +180,8 @@ export class EittrisClientModel extends ClusterfunClientModel {
   private _lastReportedGrid = "";
   private _pendingEvents: EittrisReportEvent[] = [];
   private _reportDue = false;
+  // Which round the board in hand belongs to.  -1 means there is no board yet.
+  private _round = -1;
 
   // The target list, kept in two halves because they change at completely different
   // rates: who is playing (fixed for the game) and what their board looks like now.
@@ -583,8 +585,16 @@ export class EittrisClientModel extends ClusterfunClientModel {
   // handleStartPlaying - the host says go.  From here the board is this phone's.
   // -------------------------------------------------------------------
   protected handleStartPlaying = (message: EittrisStartPlayingMessage) => {
+    // A board in hand for THIS round is the real thing and must not be thrown away.  A
+    // start-playing with no board means "make a fresh one", which is right at the start of
+    // a round and catastrophic in the middle of one: the phone would start playing an
+    // empty board and then report it upward, blanking the host's copy as well.  The round
+    // number is what tells the two apart.
+    if (!message.board && this.board && message.round === this._round) return;
+
     runInAction(() => {
       this.settings = sanitizeSettings(message.settings);
+      this._round = message.round ?? this._round;
       // A board in the message means this seat is being handed back - somebody rejoining
       // and taking over from the robot that kept it warm.  Adopt it exactly as it stands,
       // rather than starting them again from an empty grid.

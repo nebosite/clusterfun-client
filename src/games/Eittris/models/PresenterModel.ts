@@ -387,6 +387,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       player.playerId === board.playerId
         ? {
             settings: this.settings,
+            round: this.currentRound,
             targetId: board.targetId,
             // A copy, not the live object: what goes on the wire must not be something
             // the host is still mutating.
@@ -453,7 +454,11 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     // player's board is simulated on their phone and the host only watches it.
     this.sendToEveryone(EittrisStartPlayingEndpoint, (player) => {
       const board = this.boards.find((b) => b.playerId === player.playerId);
-      return { settings: this.settings, targetId: board?.targetId ?? null };
+      return {
+        settings: this.settings,
+        round: this.currentRound,
+        targetId: board?.targetId ?? null,
+      };
     });
     // Make every phone onboard so it learns the line-up
     this.sendToEveryone(InvalidateStateEndpoint, () => ({}));

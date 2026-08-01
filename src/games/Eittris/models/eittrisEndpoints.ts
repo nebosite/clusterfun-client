@@ -243,6 +243,13 @@ export const EittrisDeliverSpecialEndpoint: MessageEndpoint<EittrisDeliverSpecia
  */
 export interface EittrisStartPlayingMessage {
   settings: EittrisSettings;
+  /**
+   * Which round this is for.  A phone only throws its board away and starts a fresh one
+   * when the round number moves on.  Without that, any stray or repeated start-playing
+   * would hand a live game an empty board - and the phone would then report that empty
+   * board upward, wiping the host's copy too.
+   */
+  round: number;
   /** Who this phone is aiming at to begin with, if anyone. */
   targetId: string | null;
   /**

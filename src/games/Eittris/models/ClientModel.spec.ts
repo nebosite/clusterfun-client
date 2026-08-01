@@ -2,7 +2,15 @@ import { ISessionHelper, instantiateGame, getClientTypeHelper } from "libs";
 import { MockTelemetryLogger } from "libs/telemetry/MockTelemetryLogger";
 import { EittrisClientModel, getEittrisClientTypeHelper } from "./ClientModel";
 import { EittrisBoardSnapshot } from "./eittrisEndpoints";
-import { BOARD_HEIGHT, BOARD_WIDTH, emptyGrid, encodeGrid, SpecialType } from "./eittrisLogic";
+import {
+  BOARD_HEIGHT,
+  BOARD_WIDTH,
+  defaultSettings,
+  emptyGrid,
+  encodeGrid,
+  makeBoard,
+  SpecialType,
+} from "./eittrisLogic";
 
 // -------------------------------------------------------------------
 // The phone model is a thin mirror, but it IS checkpointed - and a restored
@@ -157,5 +165,72 @@ describe("EittrisClientModel - the hit banner does not linger", () => {
     const serializer = (model as any).serializer!;
     const restored: EittrisClientModel = serializer.parse(serializer.stringify(model));
     expect(restored.lastSpecialEvent).toBeNull();
+  });
+});
+
+describe("EittrisClientModel - a live board is not thrown away", () => {
+  // The phone owns its board.  A start-playing with no board means "make a fresh one",
+  // which is right at the start of a round and catastrophic in the middle of one: the
+  // phone would begin playing an empty board and then report it upward, blanking the
+  // host's copy too.  The round number is what tells those two cases apart.
+  function playingModel() {
+    const model = makeClient();
+    (model as any).handleStartPlaying({
+      settings: defaultSettings(),
+      round: 1,
+      targetId: null,
+    });
+    return model;
+  }
+
+  it("starts a board when the host says go", () => {
+    const model = playingModel();
+    expect((model as any).board).toBeTruthy();
+    expect((model as any).board.playerId).toBe(model.playerId);
+  });
+
+  it("ignores a repeat for the same round, keeping the board it is playing", () => {
+    const model = playingModel();
+    const board = (model as any).board;
+    board.score = 4321; // something only THIS board has
+
+    (model as any).handleStartPlaying({
+      settings: defaultSettings(),
+      round: 1,
+      targetId: null,
+    });
+
+    expect((model as any).board).toBe(board);
+    expect((model as any).board.score).toBe(4321);
+  });
+
+  it("does start fresh when the round moves on", () => {
+    const model = playingModel();
+    (model as any).board.score = 4321;
+
+    (model as any).handleStartPlaying({
+      settings: defaultSettings(),
+      round: 2,
+      targetId: null,
+    });
+
+    expect((model as any).board.score).toBe(0);
+  });
+
+  it("takes a handed-back board even within the same round", () => {
+    // This is a rejoin: the host is giving the seat back, and what it sends wins.
+    const model = playingModel();
+    const handedBack = makeBoard("someone-else", () => 0.5);
+    handedBack.score = 999;
+
+    (model as any).handleStartPlaying({
+      settings: defaultSettings(),
+      round: 1,
+      targetId: null,
+      board: handedBack,
+    });
+
+    expect((model as any).board.score).toBe(999);
+    expect((model as any).board.playerId).toBe(model.playerId);
   });
 });
