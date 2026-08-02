@@ -169,6 +169,7 @@
 }
 
 .gameclient .targetEntry {
+  position: relative;
   display: flex;
   align-items: center;
   /* Keep their height so the list SCROLLS rather than squashing everyone
@@ -182,6 +183,37 @@
   padding: 8px 10px;
   cursor: pointer;
   min-width: 0;
+}
+
+/* A hit lands on somebody: the whole entry flares and fades.  Loud on purpose - it is
+   the only feedback a player gets that the powerup they aimed went where they aimed it,
+   and it is being read out of the corner of an eye. */
+.gameclient .hitFlash {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  pointer-events: none;
+  background: #ff4d4d;
+  box-shadow: 0 0 24px 6px rgba(255, 77, 77, 0.9) inset;
+  animation: eittrisHitFlash 750ms ease-out forwards;
+}
+
+/* A shield ate it: green, so "I hit them" and "they shrugged it off" do not look alike */
+.gameclient .hitFlashRepelled {
+  background: #48e148;
+  box-shadow: 0 0 24px 6px rgba(72, 225, 72, 0.9) inset;
+}
+
+@keyframes eittrisHitFlash {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 .gameclient .targetCurrent {

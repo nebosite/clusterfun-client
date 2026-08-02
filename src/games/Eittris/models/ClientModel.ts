@@ -98,6 +98,8 @@ export const getEittrisClientTypeHelper = (
       // The event banner is a momentary flash - checkpointing it made it
       // reappear after a refresh and linger into the next game
       if (propertyName === "lastSpecialEvent") return false;
+      // Likewise the target-list flashes: a refresh should not replay a hit
+      if (propertyName === "hitPulses") return false;
       return true;
     },
     reconstitute(typeName: string, propertyName: string, rehydratedObject: any) {
@@ -167,6 +169,11 @@ export class EittrisClientModel extends ClusterfunClientModel {
   @observable aiControlled = false;
   // The most recent special that fired anywhere, for a brief phone banner
   @observable lastSpecialEvent: EittrisSpecialEventMessage | null = null;
+  // Who has just been hit, so the target list can flash them.  The number changes on every
+  // hit rather than counting anything: it is what lets the view restart its animation when
+  // the same player is hit twice in a row.
+  @observable hitPulses = new Map<string, { seq: number; repelled: boolean }>();
+  private _hitSeq = 0;
   @observable winnerName: string | null = null;
   @observable youWon = false;
 
@@ -237,8 +244,9 @@ export class EittrisClientModel extends ClusterfunClientModel {
     const response = await this.session.requestPresenter(EittrisOnboardClientEndpoint, {});
     action(() => {
       if (this.gameState === GeneralClientGameState.JoinError) return;
-      // A resync means a new game/round or a rejoin - drop any stale banner
+      // A resync means a new game/round or a rejoin - drop any stale banner or flash
       this.lastSpecialEvent = null;
+      this.hitPulses.clear();
       // The line-up comes with every onboard, so a phone that just joined or
       // reconnected can read the indexes in the thumbnail broadcasts that follow.
       if (response.roster) this.applyRoster(response.roster);
@@ -302,6 +310,12 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.saveCheckpoint();
   };
 
+  /** Mark a player as just-hit.  The seq is what makes a repeat hit a NEW flash. */
+  private noteHit(victimId: string, repelled: boolean) {
+    this._hitSeq++;
+    runInAction(() => this.hitPulses.set(victimId, { seq: this._hitSeq, repelled }));
+  }
+
   // -------------------------------------------------------------------
   // handleThumbnails - the shared everyone's-boards snapshot for the
   // target list (arrives ~1/s while boards change)
@@ -335,9 +349,16 @@ export class EittrisClientModel extends ClusterfunClientModel {
   // handleSpecialEvent - somebody's special fired; flash it briefly
   // -------------------------------------------------------------------
   protected handleSpecialEvent = (message: EittrisSpecialEventMessage) => {
-    // Only what happened TO ME.  Two other players trading powerups across the
-    // room is noise on a phone the size of a playing card, and it crowds out
-    // the one message that actually needs acting on.
+    // Everybody's hits flash on the target list, not just mine: watching your attack land
+    // on the player you aimed at is most of the reason to aim at anybody.  A special
+    // somebody kept for themselves is not an attack, so it does not flash.
+    if (message.attackerId !== message.victimId) {
+      this.noteHit(message.victimId, message.repelled);
+    }
+
+    // The BANNER, though, is only what happened TO ME.  Two other players trading powerups
+    // across the room is noise on a phone the size of a playing card, and it crowds out the
+    // one message that actually needs acting on.
     if (message.victimId !== this.playerId) return;
     // Getting hit is the loudest thing that happens to you, so it gets the
     // loudest buzz - and a shielded hit gets a lighter one, since the news is
@@ -619,6 +640,7 @@ export class EittrisClientModel extends ClusterfunClientModel {
       this._pendingEvents = [];
       this.gameState = EittrisClientState.Playing;
       this.lastSpecialEvent = null;
+      this.hitPulses.clear();
       this.winnerName = null;
       this.youWon = false;
     });

@@ -21,6 +21,7 @@ function fakeModel(overrides: Partial<EittrisClientModel> = {}): EittrisClientMo
     playerId: "ME",
     targetId: "B",
     pickTarget: () => {},
+    hitPulses: new Map(),
     roster: [
       { playerId: "ME", name: "Me", alive: true, thumb: blankThumb, avatarId: 1, avatarColor: 0 },
       { playerId: "B", name: "Bob", alive: true, thumb: blankThumb, avatarId: 2, avatarColor: 1 },
@@ -125,5 +126,26 @@ describe("EITtris control guide data", () => {
       const section = EITTRIS_CONTROL_GUIDE.find((s) => s.id === id)!;
       expect(section.entries.some((e) => /antidote/i.test(e.detail))).toBe(true);
     }
+  });
+});
+
+describe("EITtris TargetList - showing a hit", () => {
+  it("flares the entry of whoever just took one", () => {
+    const { container } = renderList(
+      fakeModel({ hitPulses: new Map([["B", { seq: 3, repelled: false }]]) } as any),
+    );
+    expect(container.querySelectorAll('[class*="hitFlash"]').length).toBe(1);
+  });
+
+  it("marks a shielded hit apart from one that landed", () => {
+    const { container } = renderList(
+      fakeModel({ hitPulses: new Map([["B", { seq: 4, repelled: true }]]) } as any),
+    );
+    expect(container.querySelectorAll('[class*="hitFlashRepelled"]').length).toBe(1);
+  });
+
+  it("shows nothing when nobody has been hit", () => {
+    const { container } = renderList(fakeModel());
+    expect(container.querySelectorAll('[class*="hitFlash"]').length).toBe(0);
   });
 });

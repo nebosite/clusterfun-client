@@ -2,7 +2,7 @@ import { runInAction } from "mobx";
 import { ISessionHelper, instantiateGame, getClientTypeHelper, GeneralGameState } from "libs";
 import { MockTelemetryLogger } from "libs/telemetry/MockTelemetryLogger";
 import { EittrisClientModel, EittrisClientState, getEittrisClientTypeHelper } from "./ClientModel";
-import { EittrisBoardSnapshot } from "./eittrisEndpoints";
+import { EittrisBoardSnapshot, EittrisSpecialEventMessage } from "./eittrisEndpoints";
 import { applyIncomingSpecial } from "./eittrisSimulation";
 import {
   BOARD_HEIGHT,
@@ -428,5 +428,66 @@ describe("EittrisClientModel - a second game", () => {
 
     expect((model as any).board).toBe(board);
     expect(model.gameState).toBe(EittrisClientState.Dead);
+  });
+});
+
+describe("EittrisClientModel - noticing who got hit", () => {
+  // The target list flashes whoever just took an attack.  The phone therefore has to keep
+  // hold of hits aimed at OTHER people, which it used to throw away - only what happened
+  // to me got past the door.
+  function hit(overrides: Partial<EittrisSpecialEventMessage> = {}): EittrisSpecialEventMessage {
+    return {
+      type: SpecialType.Speedup,
+      attackerId: "A",
+      attackerName: "Alice",
+      victimId: "B",
+      victimName: "Bob",
+      repelled: false,
+      ...overrides,
+    };
+  }
+
+  it("remembers a hit on somebody else", () => {
+    const model = makeClient();
+    (model as any).handleSpecialEvent(hit());
+    expect(model.hitPulses.get("B")).toBeDefined();
+    expect(model.hitPulses.get("B")!.repelled).toBe(false);
+  });
+
+  it("marks a shielded hit differently, so the two do not look alike", () => {
+    const model = makeClient();
+    (model as any).handleSpecialEvent(hit({ repelled: true }));
+    expect(model.hitPulses.get("B")!.repelled).toBe(true);
+  });
+
+  it("gives a repeat hit a new number, so the flash plays again", () => {
+    const model = makeClient();
+    (model as any).handleSpecialEvent(hit());
+    const first = model.hitPulses.get("B")!.seq;
+    (model as any).handleSpecialEvent(hit());
+    expect(model.hitPulses.get("B")!.seq).toBeGreaterThan(first);
+  });
+
+  it("does not flash a powerup somebody kept for themselves", () => {
+    // Attacker and victim are the same player - that is a defensive pickup, not an attack
+    const model = makeClient();
+    (model as any).handleSpecialEvent(hit({ attackerId: "B", attackerName: "Bob" }));
+    expect(model.hitPulses.get("B")).toBeUndefined();
+  });
+
+  it("still banners only what happened to me", () => {
+    const model = makeClient();
+    (model as any).handleSpecialEvent(hit());
+    expect(model.lastSpecialEvent).toBeNull();
+
+    (model as any).handleSpecialEvent(hit({ victimId: model.playerId }));
+    expect(model.lastSpecialEvent).not.toBeNull();
+  });
+
+  it("forgets the flashes when a new round starts", () => {
+    const model = makeClient();
+    (model as any).handleSpecialEvent(hit());
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 7, targetId: null });
+    expect(model.hitPulses.size).toBe(0);
   });
 });

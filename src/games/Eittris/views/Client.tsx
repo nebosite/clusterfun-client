@@ -384,6 +384,7 @@ export class TargetList extends React.Component<{ appModel?: EittrisClientModel 
       <DragScroller className={styles.targetList}>
         {others.map((p) => {
           const isTarget = p.playerId === appModel.targetId;
+          const pulse = appModel.hitPulses.get(p.playerId);
           return (
             <div
               key={p.playerId}
@@ -395,6 +396,17 @@ export class TargetList extends React.Component<{ appModel?: EittrisClientModel 
                 if (p.alive) appModel.pickTarget(p.playerId);
               }}
             >
+              {/* A hit lights the whole entry up for a moment.  Keyed on the pulse so
+                  React remounts it and the animation starts again - hit the same player
+                  twice in a row and you see two flashes, not one that never restarts. */}
+              {pulse ? (
+                <span
+                  key={pulse.seq}
+                  className={classNames(styles.hitFlash, {
+                    [styles.hitFlashRepelled]: pulse.repelled,
+                  })}
+                />
+              ) : null}
               <ThumbnailView thumb={p.thumb} />
               <div className={styles.targetInfo}>
                 <PlayerAvatar avatarId={p.avatarId} colorIndex={p.avatarColor} size={30} />
