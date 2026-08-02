@@ -1941,3 +1941,96 @@ describe("EittrisPresenterModel - leaving and coming back", () => {
     expect(sent.filter((m) => String(m.route).includes("start-playing")).length).toBe(0);
   });
 });
+
+describe("EittrisPresenterModel - a death reported by a phone", () => {
+  // These go through handleBoardReport with a real wire message, which is the ONLY way a
+  // human player dies now.  The rest of the file drives boards in process, which is why the
+  // game-end tests above kept passing while nobody could win a real game: the report carries
+  // alive=false, so the host's copy was already dead before it read the "died" event beside
+  // it, and the guard on that event threw the death away.
+  function reportDeath(
+    model: EittrisPresenterModel,
+    playerId: string,
+    events: any[] = [{ kind: "died" }],
+  ) {
+    const board = model.snapshotFor(playerId, { forceGrid: true })!;
+    board.alive = false;
+    board.piece = null;
+    model.handleBoardReport(playerId, { board, events });
+  }
+
+  it("ends the game and names the last one standing", () => {
+    const { model } = startTwoPlayerGame();
+
+    reportDeath(model, "A");
+
+    expect(model.boards.find((b) => b.playerId === "A")!.alive).toBe(false);
+    expect(model.boards.find((b) => b.playerId === "A")!.deathOrder).toBe(1);
+    expect(model.gameState).toBe(GeneralGameState.GameOver);
+    expect(model.winnerId).toBe("B");
+    expect(model.winnerName).toBe("Bob");
+  });
+
+  it("ends the game even if the died event never arrives", () => {
+    // The board itself says so.  A death must not hang on one event surviving the trip.
+    const { model } = startTwoPlayerGame();
+
+    reportDeath(model, "A", []);
+
+    expect(model.gameState).toBe(GeneralGameState.GameOver);
+    expect(model.winnerId).toBe("B");
+  });
+
+  it("keeps the order people went out in", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    addPlayer(model, "B", "Bob");
+    addPlayer(model, "C", "Cass");
+    model.startGame();
+    tickTo(model, 0);
+
+    reportDeath(model, "B");
+    expect(model.gameState).toBe(EittrisGameState.Playing); // two left
+    reportDeath(model, "A");
+
+    expect(model.boards.find((b) => b.playerId === "B")!.deathOrder).toBe(1);
+    expect(model.boards.find((b) => b.playerId === "A")!.deathOrder).toBe(2);
+    expect(model.winnerId).toBe("C");
+  });
+
+  it("counts a death once, however many reports follow it", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    addPlayer(model, "B", "Bob");
+    addPlayer(model, "C", "Cass");
+    model.startGame();
+    tickTo(model, 0);
+
+    reportDeath(model, "A");
+    reportDeath(model, "A"); // a dead phone keeps reporting its board
+    reportDeath(model, "A");
+
+    expect(model.boards.find((b) => b.playerId === "A")!.deathOrder).toBe(1);
+    expect(model.gameState).toBe(EittrisGameState.Playing); // B and C are still playing
+  });
+
+  it("re-aims anyone who was shooting at the player who died", () => {
+    const { model } = makeModel();
+    addPlayer(model, "A", "Alice");
+    addPlayer(model, "B", "Bob");
+    addPlayer(model, "C", "Cass");
+    model.startGame();
+    tickTo(model, 0);
+
+    const shooters = model.boards.filter((b) => b.targetId === "B").map((b) => b.playerId);
+    expect(shooters.length).toBeGreaterThan(0);
+
+    reportDeath(model, "B");
+
+    for (const id of shooters) {
+      const board = model.boards.find((b) => b.playerId === id)!;
+      expect(board.targetId).not.toBe("B");
+      expect(model.boards.find((b) => b.playerId === board.targetId)!.alive).toBe(true);
+    }
+  });
+});

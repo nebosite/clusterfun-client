@@ -555,6 +555,11 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     const board = this.boards.find((b) => b.playerId === sender);
     if (!board) return;
 
+    // Remember this BEFORE the report lands: the snapshot carries alive=false, so by the
+    // time the events below are read the board already looks dead and any test of
+    // board.alive says nothing about whether the death has been dealt with yet.
+    const wasAlive = board.alive;
+
     runInAction(() => applyReportToBoard(board, message.board));
     this.dirtyPlayerIds.add(sender);
 
@@ -600,13 +605,18 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
           this.invokeEvent(EittrisGameEvent.JumbleNudge, sender);
           break;
         case "died":
-          if (board.alive) {
-            board.alive = false;
-            this.onBoardDied(board);
-          }
+          // Nothing to do here - the death is noticed below, from the board itself.
           break;
       }
     }
+
+    // A death is the one thing that must not depend on an event surviving the trip: it
+    // ends the round.  The snapshot says so plainly, so take it from there and treat the
+    // event as no more than a hint.  This is also the LAST thing done with the report,
+    // because finishGame pushes the final boards out and announces a winner - anything
+    // still queued behind it would arrive after the game was over.
+    if (wasAlive && !board.alive) this.onBoardDied(board);
+
     this.saveCheckpoint();
   };
 
