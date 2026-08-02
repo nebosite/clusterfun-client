@@ -210,6 +210,18 @@ function startTwoPlayerGame() {
   return { model, sent };
 }
 
+/** Kill a board the way a real phone does: a board report that says it is dead. */
+function reportedDeath(
+  model: EittrisPresenterModel,
+  playerId: string,
+  events: any[] = [{ kind: "died" }],
+) {
+  const board = model.snapshotFor(playerId, { forceGrid: true })!;
+  board.alive = false;
+  board.piece = null;
+  model.handleBoardReport(playerId, { board, events });
+}
+
 describe("EittrisPresenterModel - game start", () => {
   it("builds one live board with a spawned piece for every player", () => {
     const { model } = startTwoPlayerGame();
@@ -1948,16 +1960,7 @@ describe("EittrisPresenterModel - a death reported by a phone", () => {
   // game-end tests above kept passing while nobody could win a real game: the report carries
   // alive=false, so the host's copy was already dead before it read the "died" event beside
   // it, and the guard on that event threw the death away.
-  function reportDeath(
-    model: EittrisPresenterModel,
-    playerId: string,
-    events: any[] = [{ kind: "died" }],
-  ) {
-    const board = model.snapshotFor(playerId, { forceGrid: true })!;
-    board.alive = false;
-    board.piece = null;
-    model.handleBoardReport(playerId, { board, events });
-  }
+  const reportDeath = reportedDeath;
 
   it("ends the game and names the last one standing", () => {
     const { model } = startTwoPlayerGame();
@@ -2032,5 +2035,52 @@ describe("EittrisPresenterModel - a death reported by a phone", () => {
       expect(board.targetId).not.toBe("B");
       expect(model.boards.find((b) => b.playerId === board.targetId)!.alive).toBe(true);
     }
+  });
+});
+
+describe("EittrisPresenterModel - starting a second game", () => {
+  it("keeps counting rounds up, so phones can tell the new game from the old one", () => {
+    // A phone throws away a start-playing whose round number it has already seen.  Rewinding
+    // the counter between games therefore left every phone playing its finished board.
+    const { model } = startTwoPlayerGame();
+    const firstRound = model.currentRound;
+
+    reportedDeath(model, "A"); // Bob wins
+    expect(model.gameState).toBe(GeneralGameState.GameOver);
+
+    model.playAgain(false);
+
+    expect(model.gameState).toBe(EittrisGameState.Playing);
+    expect(model.currentRound).toBeGreaterThan(firstRound);
+  });
+
+  it("tells the phones to start, with the new number", () => {
+    const { model, sent } = startTwoPlayerGame();
+    reportedDeath(model, "A");
+
+    sent.length = 0;
+    model.playAgain(false);
+
+    const starts = sent.filter((m) => String(m.route).includes("start-playing"));
+    expect(starts.length).toBe(2);
+    for (const start of starts) {
+      expect(start.message.round).toBe(model.currentRound);
+      expect(start.message.board).toBeUndefined(); // "build a fresh one"
+    }
+  });
+
+  it("gives everybody a live, empty board again", () => {
+    const { model } = startTwoPlayerGame();
+    const scored = model.boards.find((b) => b.playerId === "B")!;
+    runInAction(() => (scored.score = 5000));
+    reportedDeath(model, "A");
+
+    model.playAgain(false);
+
+    expect(model.boards.length).toBe(2);
+    expect(model.boards.every((b) => b.alive)).toBe(true);
+    expect(model.boards.every((b) => b.score === 0)).toBe(true);
+    expect(model.boards.every((b) => b.deathOrder === 0)).toBe(true);
+    expect(model.winnerId).toBeNull();
   });
 });

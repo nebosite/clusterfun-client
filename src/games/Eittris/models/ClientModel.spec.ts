@@ -1,6 +1,7 @@
-import { ISessionHelper, instantiateGame, getClientTypeHelper } from "libs";
+import { runInAction } from "mobx";
+import { ISessionHelper, instantiateGame, getClientTypeHelper, GeneralGameState } from "libs";
 import { MockTelemetryLogger } from "libs/telemetry/MockTelemetryLogger";
-import { EittrisClientModel, getEittrisClientTypeHelper } from "./ClientModel";
+import { EittrisClientModel, EittrisClientState, getEittrisClientTypeHelper } from "./ClientModel";
 import { EittrisBoardSnapshot } from "./eittrisEndpoints";
 import { applyIncomingSpecial } from "./eittrisSimulation";
 import {
@@ -359,5 +360,73 @@ describe("EittrisClientModel - antidotes", () => {
     board.freezeDried = true;
     model.useAntidote();
     expect(board.freezeDried).toBe(true);
+  });
+});
+
+describe("EittrisClientModel - a second game", () => {
+  // The phone ignores a start-playing for a round it is already playing, so a stray repeat
+  // cannot blank a live board.  A FINISHED game is not a live board, and refusing to start
+  // over is how everybody ended up replaying the game they had just lost.
+  function finishedGame() {
+    const model = makeClient();
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+    const board = (model as any).board;
+    board.score = 4200;
+    board.grid[BOARD_HEIGHT - 1][0] = 1;
+    (model as any).mirrorBoard();
+    runInAction(() => {
+      model.gameState = GeneralGameState.GameOver;
+      model.winnerName = "Bob";
+    });
+    return { model, oldBoard: board };
+  }
+
+  it("starts fresh when the host starts another game", () => {
+    const { model, oldBoard } = finishedGame();
+
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 2, targetId: "B" });
+
+    expect((model as any).board).not.toBe(oldBoard);
+    expect(model.score).toBe(0);
+    expect(model.gameState).toBe(EittrisClientState.Playing);
+    expect(model.winnerName).toBeNull();
+    expect(model.youWon).toBe(false);
+    expect(model.targetId).toBe("B");
+  });
+
+  it("starts fresh even if the round number comes round again", () => {
+    // A host restarted from nothing counts from one again.  After a game over there is
+    // nothing to protect, so the number does not get to veto a new game.
+    const { model, oldBoard } = finishedGame();
+
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+
+    expect((model as any).board).not.toBe(oldBoard);
+    expect(model.score).toBe(0);
+    expect(model.gameState).toBe(EittrisClientState.Playing);
+  });
+
+  it("still refuses to rebuild a round it is in the middle of", () => {
+    const model = makeClient();
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+    const board = (model as any).board;
+    board.score = 900;
+
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+
+    expect((model as any).board).toBe(board);
+    expect(board.score).toBe(900);
+  });
+
+  it("does not rebuild under a dead player waiting out the round", () => {
+    const model = makeClient();
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+    const board = (model as any).board;
+    runInAction(() => (model.gameState = EittrisClientState.Dead));
+
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+
+    expect((model as any).board).toBe(board);
+    expect(model.gameState).toBe(EittrisClientState.Dead);
   });
 });

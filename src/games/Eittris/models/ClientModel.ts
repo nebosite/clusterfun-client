@@ -591,7 +591,13 @@ export class EittrisClientModel extends ClusterfunClientModel {
     // a round and catastrophic in the middle of one: the phone would start playing an
     // empty board and then report it upward, blanking the host's copy as well.  The round
     // number is what tells the two apart.
-    if (!message.board && this.board && message.round === this._round) return;
+    //
+    // Only a round actually IN PROGRESS is worth protecting, though.  Sitting on a finished
+    // game there is nothing to lose and a new game to join, so the guard stands down - which
+    // is also the belt-and-braces against ever being handed a repeated round number.
+    const midRound =
+      this.gameState === EittrisClientState.Playing || this.gameState === EittrisClientState.Dead;
+    if (midRound && !message.board && this.board && message.round === this._round) return;
 
     runInAction(() => {
       this.settings = sanitizeSettings(message.settings);

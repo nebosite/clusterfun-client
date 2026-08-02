@@ -402,7 +402,6 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   // -------------------------------------------------------------------
   prepareFreshGame = () => {
     this.gameState = PresenterGameState.Gathering;
-    this.currentRound = 0;
     this.boards.clear();
     this.winnerId = null;
     this.winnerName = null;
@@ -435,13 +434,18 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     this.winnerId = null;
     this.winnerName = null;
     this.deathCount = 0;
-    this.currentRound = 0;
   };
 
   // -------------------------------------------------------------------
   // startNextRound - increment 1 has a single continuous round
   // -------------------------------------------------------------------
   startNextRound = () => {
+    // The round number is the token a phone uses to tell "here is a new round, build a
+    // board" from a stray repeat of the round it is already playing.  It therefore has to
+    // keep counting UP for as long as this presenter lives: rewinding it to zero between
+    // games meant the second game announced round 1 to phones that had just finished
+    // round 1, so every phone decided it had already been told and carried on with its
+    // finished board.  Nothing here counts rounds for the game's own sake.
     this.currentRound++;
     this._lastSimTime_ms = -1;
     this._lastThumbTime_ms = -1;
