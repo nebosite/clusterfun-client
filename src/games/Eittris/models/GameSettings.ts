@@ -7,6 +7,12 @@ export const FLICK_MIN_DISTANCE_PX = 40; // shorter than this is a drag/tap, not
 export const DRAG_ACTIVATION_PX = 12; // movement needed before drag commands start
 export const TAP_MAX_DURATION_MS = 250; // down->up faster than this ...
 export const TAP_MAX_DISTANCE_PX = 10; // ... with less movement than this = tap (rotate)
+// A gesture this much steeper than it is wide is a downward one, and downward gestures do
+// not carry the piece sideways.  Swiping to drop used to nudge the piece across by whatever
+// wobble the thumb had on the way down - which is the worst possible moment for it, because
+// the swipe is what plants the piece where it lands.  Diagonal drags are unaffected: the
+// lock only takes hold once the finger is going much more down than across.
+export const DROP_AXIS_RATIO = 2;
 // After a flick fires, this many pointer-move events must land on the board
 // before another flick is allowed.  A real second flick easily clears it;
 // a phantom repeat (e.g. a flick that ended off-screen) never does.
