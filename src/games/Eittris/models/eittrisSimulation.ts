@@ -2,6 +2,7 @@ import Logger from "js-logger";
 import {
   AFFLICTION_TIMERS,
   ANTIDOTE_MAX,
+  EARTHQUAKE_EVERY_ROWS,
   EARTHQUAKE_MAX,
   EARTHQUAKE_SHAKE_MS,
   ANTIDOTE_DURATION_MS,
@@ -470,6 +471,7 @@ export function lockCurrentPiece(board: EittrisBoard, bumped: boolean, ctx: Simu
   // then does the stack fall.  `clearing` below drives that.
   board.grid = result.cleared > 0 ? lockOnly(board.grid, board.piece!) : result.grid;
   board.rows += result.cleared;
+  awardEarthquakeForRows(board, ctx);
 
   // Cleared rows hand over any specials sitting on them; markers above ride down with
   // their blocks
@@ -519,6 +521,25 @@ export function bankEarthquake(board: EittrisBoard) {
   board.earthquakes = Math.min(EARTHQUAKE_MAX, board.earthquakes + 1);
 }
 
+/**
+ * Clearing rows earns earthquakes: one every EARTHQUAKE_EVERY_ROWS, for as long as the
+ * round lasts.  It is the only powerup you can count on - everything else depends on one
+ * landing on your stack and on you clearing the row it landed on - which makes it worth
+ * playing towards rather than waiting for.
+ *
+ * Counted off a mark rather than off `rows % 22`, because a single clear can be four rows
+ * and would step straight over the boundary.  The mark is on the board, so a checkpoint or
+ * a rejoin cannot pay somebody twice.
+ */
+export function awardEarthquakeForRows(board: EittrisBoard, ctx: SimulationContext) {
+  while (board.rows - board.quakeRowMark >= EARTHQUAKE_EVERY_ROWS) {
+    board.quakeRowMark += EARTHQUAKE_EVERY_ROWS;
+    bankEarthquake(board);
+    ctx.events.specialCollected(board, SpecialType.Earthquake);
+    ctx.events.selfSpecial(board, SpecialType.Earthquake);
+  }
+}
+
 /** Spend a charge and start the board shaking.  Nothing moves until it stops. */
 export function triggerEarthquake(board: EittrisBoard, ctx: SimulationContext): boolean {
   if (!board.alive || board.earthquakes <= 0 || board.quakeMs > 0 || board.clearing) return false;
@@ -551,6 +572,7 @@ export function settleEarthquake(board: EittrisBoard, ctx: SimulationContext) {
     board.grid = collapseRows(board.grid, rows);
     board.specials = harvest.markers;
     board.rows += rows.length;
+    awardEarthquakeForRows(board, ctx);
     ctx.events.rowsCleared(board, rows.length);
     for (const type of harvest.collected) collectSpecial(board, type, ctx);
     ctx.events.clearCollapsed(board);

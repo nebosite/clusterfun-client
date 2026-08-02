@@ -142,7 +142,10 @@ export const EITTRIS_CONTROL_GUIDE: ControlGuideSection[] = [
       { label: "Flick left / right", detail: "Slam the piece to that wall" },
       { label: "Lift your finger", detail: "Place the piece if it is resting, else keep falling" },
       { label: "Tap a player", detail: "Aim your next attack at them" },
-      { label: "Quake button", detail: "Shake the stack down, closing the holes in it" },
+      {
+        label: "Quake button",
+        detail: "Shake the stack down to close its holes - one per 22 rows you clear",
+      },
     ],
   },
   {

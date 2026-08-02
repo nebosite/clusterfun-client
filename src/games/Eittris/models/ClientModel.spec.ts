@@ -3,10 +3,12 @@ import { ISessionHelper, instantiateGame, getClientTypeHelper, GeneralGameState 
 import { MockTelemetryLogger } from "libs/telemetry/MockTelemetryLogger";
 import { EittrisClientModel, EittrisClientState, getEittrisClientTypeHelper } from "./ClientModel";
 import { EittrisBoardSnapshot, EittrisSpecialEventMessage } from "./eittrisEndpoints";
-import { applyIncomingSpecial, stepBoard } from "./eittrisSimulation";
+import { applyIncomingSpecial, awardEarthquakeForRows, stepBoard } from "./eittrisSimulation";
 import {
   AFFLICTION_TIMERS,
   BOARD_HEIGHT,
+  EARTHQUAKE_EVERY_ROWS,
+  EARTHQUAKE_MAX,
   EARTHQUAKE_SHAKE_MS,
   EMPTY_CELL,
   BOARD_WIDTH,
@@ -614,5 +616,70 @@ describe("EittrisClientModel - the earthquake", () => {
     model.useEarthquake();
     model.useEarthquake();
     expect(board.earthquakes).toBe(1); // only the first one was spent
+  });
+});
+
+describe("EittrisClientModel - earning earthquakes by clearing rows", () => {
+  // The only powerup a player can play towards.  Everything else waits on one landing on
+  // your stack and on you clearing the row it landed on.
+  function boardOf() {
+    const model = makeClient();
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+    return { model, board: (model as any).board, ctx: (model as any).simContext };
+  }
+
+  it("pays out on the twenty-second row", () => {
+    const { board, ctx } = boardOf();
+    board.rows = EARTHQUAKE_EVERY_ROWS - 1;
+    awardEarthquakeForRows(board, ctx);
+    expect(board.earthquakes).toBe(0);
+
+    board.rows = EARTHQUAKE_EVERY_ROWS;
+    awardEarthquakeForRows(board, ctx);
+    expect(board.earthquakes).toBe(1);
+  });
+
+  it("does not pay twice for the same rows", () => {
+    const { board, ctx } = boardOf();
+    board.rows = EARTHQUAKE_EVERY_ROWS + 3;
+    awardEarthquakeForRows(board, ctx);
+    awardEarthquakeForRows(board, ctx);
+    awardEarthquakeForRows(board, ctx);
+    expect(board.earthquakes).toBe(1);
+  });
+
+  it("pays for every boundary a big clear steps over", () => {
+    // A four-row clear can land straight past the mark, and can cross two of them if the
+    // player was already sitting on one.
+    const { board, ctx } = boardOf();
+    board.rows = 3 * EARTHQUAKE_EVERY_ROWS;
+    awardEarthquakeForRows(board, ctx);
+    expect(board.earthquakes).toBe(3);
+  });
+
+  it("keeps counting after the bank is full", () => {
+    // The cap costs you the surplus, exactly as it does with antidotes - it does not stop
+    // the count, or the next award would come 22 rows after you spent one.
+    const { board, ctx } = boardOf();
+    board.rows = 10 * EARTHQUAKE_EVERY_ROWS;
+    awardEarthquakeForRows(board, ctx);
+    expect(board.earthquakes).toBe(EARTHQUAKE_MAX);
+    expect(board.quakeRowMark).toBe(10 * EARTHQUAKE_EVERY_ROWS);
+  });
+
+  it("is earned by clearing rows for real", () => {
+    const { model, board, ctx } = boardOf();
+    board.rows = EARTHQUAKE_EVERY_ROWS - 1;
+    // One row away, and a collapse that completes a row
+    for (let x = 0; x < BOARD_WIDTH - 1; x++) board.grid[BOARD_HEIGHT - 1][x] = 1;
+    board.grid[BOARD_HEIGHT - 3][BOARD_WIDTH - 1] = 1;
+    board.piece = null;
+    board.earthquakes = 1;
+
+    model.useEarthquake();
+    stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, ctx);
+
+    expect(board.rows).toBe(EARTHQUAKE_EVERY_ROWS);
+    expect(board.earthquakes).toBe(1); // spent one, earned one
   });
 });
