@@ -149,7 +149,7 @@ class PresenterComponent extends React.Component<
             <span className={styles.liveBadge}>
               <span className={styles.liveDot} /> live
             </span>
-            <span className={styles.dropsNote}>{visible.length} games · new drops weekly</span>
+            <span className={styles.dropsNote}>{visible.length} games</span>
           </div>
         </div>
 
