@@ -33,6 +33,7 @@ export interface EittrisBoardSnapshot {
   speedupStacks: number; // Speedup afflictions currently on this board
   slowdownStacks: number; // SlowDown self-buffs (not curable)
   seeShadows: boolean; // draw the landing ghost
+  seeShadowsMs: number; // ...for this much longer
   crystalBall: boolean; // see three pieces ahead
   evilPieces: boolean; // drawing from the evil piece table
   crazyIvan: boolean; // controls are mirrored

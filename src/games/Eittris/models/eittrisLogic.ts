@@ -43,6 +43,11 @@ export const ANTIDOTE_MAX = 3;
 // stack drops.  The shake is not decoration - it is the beat that says "something is about
 // to happen to your board", which is the difference between a satisfying powerup and the
 // grid mysteriously rearranging itself.
+// SeeShadows runs out.  It used to be yours for the rest of the round, which made the
+// board strictly easier to read from the moment you picked one up and never again harder -
+// a powerup you collect once and then stop thinking about.  Half a minute is long enough to
+// dig yourself out of trouble with and short enough to want another one.
+export const SEE_SHADOWS_DURATION_MS = 30000;
 export const EARTHQUAKE_MAX = 3;
 export const EARTHQUAKE_SHAKE_MS = 700;
 // Every this many rows cleared earns one, on top of any that are collected
@@ -965,6 +970,7 @@ export interface EittrisBoard {
   slowdownStacks: number;
   // SeeShadows: the landing ghost, on for the rest of the round once earned
   seeShadows: boolean;
+  seeShadowsMs: number; // 0 when it is off
   // CrystalBall: see three pieces ahead instead of one.  A perk, like
   // SeeShadows - yours for the round, and no antidote takes it away.
   crystalBall: boolean;
@@ -1038,6 +1044,7 @@ export function makeBoard(
     speedupStacks: 0,
     slowdownStacks: 0,
     seeShadows: false,
+    seeShadowsMs: 0,
     crystalBall: false,
     evilPieces: false,
     crazyIvan: false,

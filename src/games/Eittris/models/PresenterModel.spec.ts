@@ -5,6 +5,7 @@ import {
   SimulationContext,
   applyCommand,
   applyIncomingSpecial,
+  collectSpecial,
   stepBoard,
 } from "./eittrisSimulation";
 import { ISessionHelper, instantiateGame, getPresenterTypeHelper, getClientTypeHelper } from "libs";
@@ -39,6 +40,7 @@ import {
   CLEAR_FALL_MS,
   EVIL_PIECE_COUNT,
   SPAWN_X,
+  SEE_SHADOWS_DURATION_MS,
   SPAWN_Y,
   decodePsychoOverlay,
   STENCIL_ROW_MS,
@@ -1162,7 +1164,7 @@ describe("EittrisPresenterModel - Bridge", () => {
 });
 
 describe("EittrisPresenterModel - SeeShadows", () => {
-  it("switches the landing ghost on for the collector, permanently", () => {
+  it("switches the landing ghost on for the collector, for half a minute", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
     const victim = model.boards.find((b) => b.playerId === "B")!;
@@ -1183,9 +1185,54 @@ describe("EittrisPresenterModel - SeeShadows", () => {
     expect(victim.seeShadows).toBe(false); // ...not inflicted on the target
     expect(model.snapshotFor("A")!.seeShadows).toBe(true);
 
+    expect(board.seeShadowsMs).toBe(SEE_SHADOWS_DURATION_MS);
+
     // and an antidote does not take your own perk away
     phoneCommand(model, "A", { command: "useAntidote" });
     expect(board.seeShadows).toBe(true);
+  });
+
+  it("runs out after thirty seconds", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    runInAction(() => {
+      board.seeShadows = true;
+      board.seeShadowsMs = SEE_SHADOWS_DURATION_MS;
+    });
+
+    tickTo(model, SEE_SHADOWS_DURATION_MS - 2000);
+    expect(board.seeShadows).toBe(true);
+
+    tickTo(model, SEE_SHADOWS_DURATION_MS + 100);
+    expect(board.seeShadows).toBe(false);
+    expect(board.seeShadowsMs).toBe(0);
+  });
+
+  it("starts the half minute again rather than adding to it", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    runInAction(() => {
+      board.seeShadows = true;
+      board.seeShadowsMs = 4000;
+    });
+
+    collectSpecial(board, SpecialType.SeeShadows, phoneContext(model));
+
+    expect(board.seeShadowsMs).toBe(SEE_SHADOWS_DURATION_MS);
+  });
+
+  it("is not an affliction: the phone does not go red and a cure leaves it alone", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    runInAction(() => {
+      board.seeShadows = true;
+      board.seeShadowsMs = SEE_SHADOWS_DURATION_MS;
+    });
+    expect(hasAfflictions(board)).toBe(false);
+
+    phoneCommand(model, "A", { command: "useAntidote" });
+    expect(board.seeShadows).toBe(true);
+    expect(board.seeShadowsMs).toBeGreaterThan(0);
   });
 });
 

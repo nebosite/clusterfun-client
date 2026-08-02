@@ -1003,6 +1003,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       speedupStacks: board.speedupStacks,
       slowdownStacks: board.slowdownStacks,
       seeShadows: board.seeShadows,
+      seeShadowsMs: Math.round(board.seeShadowsMs),
       crystalBall: board.crystalBall,
       evilPieces: board.evilPieces,
       crazyIvan: board.crazyIvan,

@@ -33,6 +33,7 @@ import {
   pieceCells,
   pieceColorIndex,
   spawnPiece,
+  SEE_SHADOWS_DURATION_MS,
   SPECIAL_NAMES,
 } from "../models/eittrisLogic";
 import {
@@ -691,7 +692,13 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
       });
     }
     if (appModel.seeShadows) {
-      chips.push({ label: "SHADOWS", tone: "good", iconIndex: SpecialType.SeeShadows });
+      chips.push({
+        label: "SHADOWS",
+        tone: "good",
+        iconIndex: SpecialType.SeeShadows,
+        msLeft: appModel.seeShadowsMs,
+        totalMs: SEE_SHADOWS_DURATION_MS,
+      });
     }
     if (appModel.shieldMs > 0) {
       chips.push({

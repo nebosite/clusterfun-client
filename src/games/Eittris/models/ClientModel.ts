@@ -149,6 +149,7 @@ export class EittrisClientModel extends ClusterfunClientModel {
   @observable speedupStacks = 0;
   @observable slowdownStacks = 0;
   @observable seeShadows = false;
+  @observable seeShadowsMs = 0;
   @observable crystalBall = false;
   // Which clear we last buzzed for, so one clear buzzes once
   private _lastClearBuzz = "";
@@ -425,6 +426,7 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.speedupStacks = snapshot.speedupStacks ?? 0;
     this.slowdownStacks = snapshot.slowdownStacks ?? 0;
     this.seeShadows = snapshot.seeShadows ?? false;
+    this.seeShadowsMs = snapshot.seeShadowsMs ?? 0;
     this.crystalBall = snapshot.crystalBall ?? false;
     this.evilPieces = snapshot.evilPieces ?? false;
     this.crazyIvan = snapshot.crazyIvan ?? false;
@@ -570,6 +572,7 @@ export class EittrisClientModel extends ClusterfunClientModel {
       speedupStacks: b.speedupStacks,
       slowdownStacks: b.slowdownStacks,
       seeShadows: b.seeShadows,
+      seeShadowsMs: Math.round(b.seeShadowsMs),
       crystalBall: b.crystalBall,
       evilPieces: b.evilPieces,
       crazyIvan: b.crazyIvan,
@@ -610,6 +613,7 @@ export class EittrisClientModel extends ClusterfunClientModel {
       this.speedupStacks = b.speedupStacks;
       this.slowdownStacks = b.slowdownStacks;
       this.seeShadows = b.seeShadows;
+      this.seeShadowsMs = b.seeShadowsMs;
       this.crystalBall = b.crystalBall;
       this.evilPieces = b.evilPieces;
       this.crazyIvan = b.crazyIvan;

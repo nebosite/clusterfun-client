@@ -17,6 +17,7 @@ import {
   JUMBLE_NUDGE_MS,
   JUMBLE_TINKLE_EVERY,
   PSYCHO_COLOR_COUNT,
+  SEE_SHADOWS_DURATION_MS,
   SPECIAL_INTERVAL_MS,
   SPEED_MULTIPLIERS,
   STENCIL_ROW_MS,
@@ -165,6 +166,7 @@ export function stepBoard(board: EittrisBoard, dtMs: number, ctx: SimulationCont
   tickJumble(board, dtMs, ctx);
   tickSwap(board, dtMs, ctx);
   tickAi(board, dtMs, ctx);
+  tickSeeShadows(board, dtMs, ctx);
   tickPsycho(board, ctx);
   tickAfflictionTimers(board, dtMs, ctx);
 
@@ -280,6 +282,23 @@ function tickAfflictionTimers(board: EittrisBoard, dtMs: number, ctx: Simulation
   );
   if (ended.length > 0 || changed) ctx.events.changed(board);
   if (ended.length > 0) ctx.events.afflictionEnded(board, ended);
+}
+
+// SeeShadows is a gift rather than an affliction, so it is not in AFFLICTION_TIMERS: an
+// antidote must not cure it, hasAfflictions must not count it, and the phone must not turn
+// red while it is running.  It still runs out, and it has its own clock for exactly that.
+function tickSeeShadows(board: EittrisBoard, dtMs: number, ctx: SimulationContext) {
+  if (!board.seeShadows) return;
+  const before = Math.ceil(board.seeShadowsMs / 1000);
+  board.seeShadowsMs -= dtMs;
+  if (board.seeShadowsMs <= 0) {
+    board.seeShadowsMs = 0;
+    board.seeShadows = false;
+    ctx.events.changed(board);
+    return;
+  }
+  // Only when the second on the countdown changes - a report every frame is not worth it
+  if (Math.ceil(board.seeShadowsMs / 1000) !== before) ctx.events.changed(board);
 }
 
 // The falling piece smears its colour into the overlay as it travels, so an afflicted board
@@ -639,6 +658,8 @@ export function collectSpecial(board: EittrisBoard, type: SpecialType, ctx: Simu
     case SpecialType.SeeShadows:
       // Earned for the rest of the round (the original never removes it)
       board.seeShadows = true;
+      // Picking up another one starts the half minute again rather than adding to it
+      board.seeShadowsMs = SEE_SHADOWS_DURATION_MS;
       ctx.events.changed(board);
       ctx.events.selfSpecial(board, type);
       break;
@@ -911,6 +932,7 @@ export function applyReportToBoard(board: EittrisBoard, snapshot: EittrisBoardSn
   board.speedupStacks = snapshot.speedupStacks ?? 0;
   board.slowdownStacks = snapshot.slowdownStacks ?? 0;
   board.seeShadows = !!snapshot.seeShadows;
+  board.seeShadowsMs = snapshot.seeShadowsMs ?? 0;
   board.crystalBall = !!snapshot.crystalBall;
   board.evilPieces = !!snapshot.evilPieces;
   board.crazyIvan = !!snapshot.crazyIvan;
