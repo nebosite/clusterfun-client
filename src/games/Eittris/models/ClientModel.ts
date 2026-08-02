@@ -61,6 +61,8 @@ import {
   stepBoard,
 } from "./eittrisSimulation";
 import {
+  BANNER_MAX_MS,
+  BANNER_MS,
   REPORT_INTERVAL_MS,
   VIBRATE_ATTACKED,
   VIBRATE_BIG_CLEAR,
@@ -178,6 +180,12 @@ export class EittrisClientModel extends ClusterfunClientModel {
   // the same player is hit twice in a row.
   @observable hitPulses = new Map<string, { seq: number; repelled: boolean }>();
   private _hitSeq = 0;
+  // The affliction the banner is describing, if it is describing a lasting one, and whether
+  // that affliction has actually turned up yet.  The announcement and the attack itself
+  // arrive separately, so without the second flag a banner could clear before its own
+  // affliction landed.
+  private _bannerAffliction: SpecialType | null = null;
+  private _bannerSeen = false;
   @observable winnerName: string | null = null;
   @observable youWon = false;
 
@@ -326,6 +334,12 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.saveCheckpoint();
   };
 
+  private clearBanner() {
+    this.lastSpecialEvent = null;
+    this._bannerAffliction = null;
+    this._bannerSeen = false;
+  }
+
   /** Mark a player as just-hit.  The seq is what makes a repeat hit a NEW flash. */
   private noteHit(victimId: string, repelled: boolean) {
     this._hitSeq++;
@@ -386,12 +400,22 @@ export class EittrisClientModel extends ClusterfunClientModel {
     // good.  Phones stay silent otherwise: the shared screen has the speakers.
     SafeBrowser.vibrate(message.repelled ? VIBRATE_SHIELDED : VIBRATE_ATTACKED);
     action(() => (this.lastSpecialEvent = message))();
+
+    // A message about something that is STILL HAPPENING to you stays up for as long as it
+    // is still happening: being told you have been frozen is only useful while you are
+    // frozen, and it used to vanish twenty seconds before the freeze did.  A one-off - a
+    // wall, a jumble, a hit a shield ate - has nothing to outlive, so it keeps its three
+    // seconds.  Either way a timer is the backstop, so nothing can stick forever.
+    const lasting =
+      !message.repelled && AFFLICTION_TIMERS.some((spec) => spec.type === message.type);
+    this._bannerAffliction = lasting ? (message.type as SpecialType) : null;
+    this._bannerSeen = false;
     setTimeout(
       () =>
         action(() => {
-          if (this.lastSpecialEvent === message) this.lastSpecialEvent = null;
+          if (this.lastSpecialEvent === message) this.clearBanner();
         })(),
-      3000,
+      lasting ? BANNER_MAX_MS : BANNER_MS,
     );
   };
 
@@ -620,6 +644,13 @@ export class EittrisClientModel extends ClusterfunClientModel {
       this.freezeDried = b.freezeDried;
       this.transparency = b.transparency;
       this.afflictionMs = AFFLICTION_TIMERS.map((spec) => afflictionMsLeft(b, spec.type));
+      // The banner goes when the thing it is telling you about goes.  Waiting to SEE the
+      // affliction first matters: the room's announcement and the attack itself arrive
+      // separately, and a banner that read the timer a frame too early would clear at once.
+      if (this._bannerAffliction !== null && this.lastSpecialEvent) {
+        if (afflictionMsLeft(b, this._bannerAffliction) > 0) this._bannerSeen = true;
+        else if (this._bannerSeen) this.clearBanner();
+      }
       this.clearing = b.clearing ? { ...b.clearing, rows: b.clearing.rows.slice() } : null;
       this.psychoSeed = b.psychoSeed;
       this.psychoOverlay = b.psychoOverlay ? encodePsychoOverlay(b.psychoOverlay) : null;

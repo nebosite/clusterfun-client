@@ -36,6 +36,13 @@ export const GRID_MIN_INTERVAL_MS = 1000;
 // anybody's game feels heavy.
 export const REPORT_INTERVAL_MS = 250;
 
+// How long the "so-and-so hit you" banner stays up when there is nothing to outlive it -
+// a wall, a jumble, or a hit a shield ate.  A banner about a lasting affliction ignores
+// this and goes when the affliction does.
+export const BANNER_MS = 3000;
+// ...with a backstop, in case the affliction it is waiting on never arrives at all
+export const BANNER_MAX_MS = 30000;
+
 // Computer player: one move (rotate or a single sideways step) twice a second
 export const AI_MOVE_INTERVAL_MS = 500;
 // How much quicker the computer players think while dev "Go fast" is on.  The

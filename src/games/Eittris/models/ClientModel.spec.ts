@@ -5,6 +5,7 @@ import { EittrisClientModel, EittrisClientState, getEittrisClientTypeHelper } fr
 import { EittrisBoardSnapshot, EittrisSpecialEventMessage } from "./eittrisEndpoints";
 import { applyIncomingSpecial, awardEarthquakeForRows, stepBoard } from "./eittrisSimulation";
 import {
+  AFFLICTION_DURATION_MS,
   AFFLICTION_TIMERS,
   BOARD_HEIGHT,
   EARTHQUAKE_EVERY_ROWS,
@@ -756,5 +757,92 @@ describe("EittrisClientModel - a powerup you set off on yourself", () => {
     );
     expect(model.lastSpecialEvent).not.toBeNull();
     expect(model.lastSpecialEvent!.attackerId).toBe("A");
+  });
+});
+
+describe("EittrisClientModel - how long the hit message stays up", () => {
+  function playing() {
+    const model = makeClient();
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+    return { model, board: (model as any).board, ctx: (model as any).simContext };
+  }
+
+  function hitBy(model: EittrisClientModel, type: SpecialType, repelled = false) {
+    (model as any).handleSpecialEvent({
+      type,
+      attackerId: "A",
+      attackerName: "Alice",
+      victimId: model.playerId,
+      victimName: "Me",
+      repelled,
+    });
+  }
+
+  it("stays up while the affliction is still on you", () => {
+    // Being told you are frozen is only useful while you are frozen; it used to vanish
+    // twenty seconds before the freeze did.
+    const { model, board, ctx } = playing();
+    applyIncomingSpecial(board, SpecialType.FreezeDried, ctx);
+    hitBy(model, SpecialType.FreezeDried);
+    (model as any).mirrorBoard();
+    expect(model.lastSpecialEvent).not.toBeNull();
+
+    stepBoard(board, AFFLICTION_DURATION_MS / 2, ctx);
+    (model as any).mirrorBoard();
+    expect(model.lastSpecialEvent).not.toBeNull();
+  });
+
+  it("goes when the affliction goes", () => {
+    const { model, board, ctx } = playing();
+    applyIncomingSpecial(board, SpecialType.FreezeDried, ctx);
+    hitBy(model, SpecialType.FreezeDried);
+    (model as any).mirrorBoard();
+
+    stepBoard(board, AFFLICTION_DURATION_MS + 100, ctx);
+    (model as any).mirrorBoard();
+
+    expect(board.freezeDried).toBe(false);
+    expect(model.lastSpecialEvent).toBeNull();
+  });
+
+  it("goes the moment an antidote cures it", () => {
+    const { model, board, ctx } = playing();
+    board.antidotes = 1;
+    applyIncomingSpecial(board, SpecialType.CrazyIvan, ctx);
+    hitBy(model, SpecialType.CrazyIvan);
+    (model as any).mirrorBoard();
+    expect(model.lastSpecialEvent).not.toBeNull();
+
+    model.useAntidote();
+
+    expect(model.lastSpecialEvent).toBeNull();
+  });
+
+  it("does not clear before its own affliction has landed", () => {
+    // The announcement and the attack arrive as separate messages, in either order
+    const { model, board, ctx } = playing();
+    hitBy(model, SpecialType.FreezeDried); // told first...
+    (model as any).mirrorBoard();
+    expect(model.lastSpecialEvent).not.toBeNull();
+
+    applyIncomingSpecial(board, SpecialType.FreezeDried, ctx); // ...hit after
+    (model as any).mirrorBoard();
+    expect(model.lastSpecialEvent).not.toBeNull();
+  });
+
+  it("leaves a one-off message alone - there is nothing for it to outlive", () => {
+    const { model } = playing();
+    hitBy(model, SpecialType.TheWall);
+    (model as any).mirrorBoard();
+    (model as any).mirrorBoard();
+    expect(model.lastSpecialEvent).not.toBeNull();
+  });
+
+  it("treats a shielded hit as a one-off, however lasting the attack was", () => {
+    const { model } = playing();
+    hitBy(model, SpecialType.FreezeDried, true);
+    (model as any).mirrorBoard();
+    expect(model.lastSpecialEvent).not.toBeNull();
+    expect((model as any)._bannerAffliction).toBeNull();
   });
 });
