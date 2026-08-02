@@ -234,3 +234,51 @@ describe("EittrisClientModel - a live board is not thrown away", () => {
     expect((model as any).board.playerId).toBe(model.playerId);
   });
 });
+
+describe("EittrisClientModel - choosing a target", () => {
+  // The phone owns its board, so aiming has to happen on the phone.  Sending it as a
+  // command put it on the host's copy, which this phone's next report then overwrote -
+  // so the target list looked completely dead.
+  function playingWithRoster() {
+    const model = makeClient();
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+    (model as any).applyRoster([
+      { playerId: model.playerId, name: "Me", avatarId: 0, avatarColor: 0 },
+      { playerId: "B", name: "Bob", avatarId: 1, avatarColor: 1 },
+      { playerId: "C", name: "Cid", avatarId: 2, avatarColor: 2 },
+    ]);
+    return model;
+  }
+
+  it("aims at a living opponent, on this phone's own board", () => {
+    const model = playingWithRoster();
+    model.pickTarget("B");
+    expect(model.targetId).toBe("B");
+    expect((model as any).board.targetId).toBe("B");
+  });
+
+  it("refuses to aim at yourself", () => {
+    const model = playingWithRoster();
+    model.pickTarget("B");
+    model.pickTarget(model.playerId);
+    expect(model.targetId).toBe("B");
+  });
+
+  it("refuses to aim at somebody who is out", () => {
+    const model = playingWithRoster();
+    (model as any).handleThumbnails({ boards: [{ i: 2, alive: false, thumb: "" }] });
+    model.pickTarget("C");
+    expect(model.targetId).toBeNull();
+  });
+
+  it("cycles through the living opponents", () => {
+    const model = playingWithRoster();
+    model.cycleTarget(1);
+    const first = model.targetId;
+    model.cycleTarget(1);
+    const second = model.targetId;
+    expect(first).not.toBeNull();
+    expect(second).not.toBe(first);
+    expect([first, second].sort()).toEqual(["B", "C"]);
+  });
+});

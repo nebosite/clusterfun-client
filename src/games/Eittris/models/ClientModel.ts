@@ -751,9 +751,22 @@ export class EittrisClientModel extends ClusterfunClientModel {
     });
   }
 
+  // Aim at somebody.  This is applied HERE, not sent as a command: the board belongs to
+  // this phone, and a command would be handled on the host, which would then have its copy
+  // overwritten by this phone's very next report - so nothing appeared to happen at all.
+  // The choice rides upward with the board, and the host reads it when relaying an attack.
   pickTarget(targetId: string) {
-    if (targetId === this.playerId) return;
-    this.sendCommand({ command: "pickTarget", targetId });
+    if (!this.board || targetId === this.playerId) return;
+    // The roster is this phone's own view of the room, which is all it needs: aiming at
+    // somebody who has gone out should do nothing.
+    const target = this.roster.find((p) => p.playerId === targetId);
+    if (!target || !target.alive) return;
+    runInAction(() => {
+      this.board!.targetId = targetId;
+    });
+    this.mirrorBoard();
+    this.markReportDue();
+    this.saveCheckpoint();
   }
 
   // Handy for the view: board dimensions without importing logic there
