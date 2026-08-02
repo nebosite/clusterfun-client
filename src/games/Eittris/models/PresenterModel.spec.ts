@@ -7,7 +7,8 @@ import {
   applyIncomingSpecial,
   stepBoard,
 } from "./eittrisSimulation";
-import { ISessionHelper, instantiateGame, getPresenterTypeHelper } from "libs";
+import { ISessionHelper, instantiateGame, getPresenterTypeHelper, getClientTypeHelper } from "libs";
+import { EittrisClientModel, getEittrisClientTypeHelper } from "./ClientModel";
 import { MockTelemetryLogger } from "libs/telemetry/MockTelemetryLogger";
 import { PresenterGameState, GeneralGameState } from "libs";
 import {
@@ -2082,5 +2083,76 @@ describe("EittrisPresenterModel - starting a second game", () => {
     expect(model.boards.every((b) => b.score === 0)).toBe(true);
     expect(model.boards.every((b) => b.deathOrder === 0)).toBe(true);
     expect(model.winnerId).toBeNull();
+  });
+});
+
+// -------------------------------------------------------------------
+// Presenter and phone, joined up.  Everything above tests one end or the other; this
+// takes the message the presenter really sends and gives it to a real phone model, which
+// is the seam the replay bug lived in - the round token only means anything once it has
+// crossed between the two.
+// -------------------------------------------------------------------
+describe("EittrisPresenterModel + EittrisClientModel - playing again", () => {
+  function makePhone(model: EittrisPresenterModel, playerId: string): EittrisClientModel {
+    // The phone asks the host who it is and what it is looking at; answer from the real
+    // presenter, so what the phone learns is what the presenter would actually tell it.
+    const session = {
+      ...makeFakeSession([]),
+      personalId: playerId,
+      requestPresenter: ((endpoint: any) =>
+        Promise.resolve(
+          String(endpoint.route).includes("onboard")
+            ? model.handleOnboardClient(playerId, {})
+            : undefined,
+        )) as any,
+    } as ISessionHelper;
+    const gameProps: any = {
+      playerName: playerId,
+      logger: new MockTelemetryLogger("test"),
+      storage: stubStorage,
+    };
+    return instantiateGame(
+      getClientTypeHelper(getEittrisClientTypeHelper(session, gameProps)),
+      gameProps.logger,
+      stubStorage,
+    ) as EittrisClientModel;
+  }
+
+  /** Hand the phone whatever start-playing the presenter last addressed to it. */
+  function deliverStart(sent: SentMessage[], phone: EittrisClientModel, playerId: string) {
+    const start = sent
+      .filter((m) => String(m.route).includes("start-playing") && m.receiverId === playerId)
+      .pop();
+    expect(start).toBeDefined();
+    (phone as any).handleStartPlaying(start!.message);
+  }
+
+  it("gives the phone a brand new board for the second game", async () => {
+    const { model, sent } = startTwoPlayerGame();
+    const phone = makePhone(model, "A");
+
+    deliverStart(sent, phone, "A");
+    const firstBoard = (phone as any).board;
+    expect(phone.gameState).toBe("Playing");
+    runInAction(() => (firstBoard.score = 3300));
+    (phone as any).mirrorBoard();
+    expect(phone.score).toBe(3300);
+
+    // A dies, Bob wins, the host starts another game
+    reportedDeath(model, "A");
+    phone.handleGameOverMessage({});
+    await Promise.resolve(); // the phone re-onboards to learn who won
+    expect(model.gameState).toBe(GeneralGameState.GameOver);
+
+    sent.length = 0;
+    model.playAgain(false);
+    deliverStart(sent, phone, "A");
+
+    expect((phone as any).board).not.toBe(firstBoard);
+    expect(phone.score).toBe(0);
+    expect(phone.rows).toBe(0);
+    expect(phone.alive).toBe(true);
+    expect(phone.gameState).toBe("Playing");
+    expect(phone.winnerName).toBeNull();
   });
 });
