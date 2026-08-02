@@ -131,7 +131,6 @@ export class EittrisClientModel extends ClusterfunClientModel {
   @observable gridString: string = encodeGrid(emptyGrid());
   @observable piece: EittrisPiece | null = null;
   @observable nextTypes: number[] = [];
-  @observable score = 0;
   @observable rows = 0;
   @observable alive = true;
   @observable intervalMs = START_INTERVAL_MS;
@@ -408,7 +407,6 @@ export class EittrisClientModel extends ClusterfunClientModel {
     if (snapshot.grid !== undefined) this.gridString = snapshot.grid;
     this.piece = snapshot.piece;
     this.nextTypes = snapshot.next.slice();
-    this.score = snapshot.score;
     this.rows = snapshot.rows;
     this.alive = snapshot.alive;
     this.intervalMs = snapshot.intervalMs;
@@ -549,7 +547,6 @@ export class EittrisClientModel extends ClusterfunClientModel {
       grid,
       piece: b.piece ? { ...b.piece } : null,
       next: b.nextQueue.slice(0, b.crystalBall ? CRYSTAL_BALL_PREVIEW : NEXT_PREVIEW_COUNT),
-      score: b.score,
       rows: b.rows,
       alive: b.alive,
       intervalMs: Math.round(effectiveIntervalMs(b.intervalMs, b.speedupStacks, b.slowdownStacks)),
@@ -588,7 +585,6 @@ export class EittrisClientModel extends ClusterfunClientModel {
         0,
         b.crystalBall ? CRYSTAL_BALL_PREVIEW : NEXT_PREVIEW_COUNT,
       );
-      this.score = b.score;
       this.rows = b.rows;
       this.alive = b.alive;
       this.intervalMs = effectiveIntervalMs(b.intervalMs, b.speedupStacks, b.slowdownStacks);

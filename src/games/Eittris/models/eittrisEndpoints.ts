@@ -19,7 +19,6 @@ export interface EittrisBoardSnapshot {
   grid?: string;
   piece: EittrisPiece | null; // the falling piece (null once dead)
   next: number[]; // the next 2 piece types
-  score: number;
   rows: number;
   alive: boolean;
   intervalMs: number;

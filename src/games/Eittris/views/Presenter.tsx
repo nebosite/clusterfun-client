@@ -300,7 +300,7 @@ class PausedGamePage extends React.Component<{ appModel?: EittrisPresenterModel 
   }
 }
 
-// One player's mini board with name, avatar, and score
+// One player's mini board with name, avatar, and rows cleared
 @inject("appModel")
 @observer
 class BoardPanel extends React.Component<{
@@ -356,7 +356,7 @@ class BoardPanel extends React.Component<{
           {!board.alive ? <div className={styles.toppedOut}>TOPPED OUT</div> : null}
         </div>
         <div className={styles.boardScore} style={{ maxWidth: cellPx * 10 + 8 }}>
-          {board.score} pts · {board.rows} rows
+          {board.rows} rows
         </div>
       </div>
     );

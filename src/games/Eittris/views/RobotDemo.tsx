@@ -121,7 +121,6 @@ export class RobotDemo extends React.Component<RobotDemoProps, RobotDemoState> {
     const result = lockAndClear(board.grid, board.piece!);
     board.grid = result.grid;
     board.rows += result.cleared;
-    board.score += result.scoreGained;
     board.piece = null;
     board.spawnDelayMs = 120;
   }

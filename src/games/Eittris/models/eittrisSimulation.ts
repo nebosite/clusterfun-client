@@ -5,7 +5,6 @@ import {
   ANTIDOTE_DURATION_MS,
   BOARD_HEIGHT,
   BOARD_WIDTH,
-  DROP_POINTS_PER_ROW,
   BRIDGE_COLUMN_MS,
   CLEAR_EAT_MS,
   EittrisBoard,
@@ -441,7 +440,6 @@ export function lockCurrentPiece(board: EittrisBoard, bumped: boolean, ctx: Simu
   // The grid keeps its cleared rows for now: they are eaten away on screen first, and only
   // then does the stack fall.  `clearing` below drives that.
   board.grid = result.cleared > 0 ? lockOnly(board.grid, board.piece!) : result.grid;
-  board.score += result.scoreGained;
   board.rows += result.cleared;
 
   // Cleared rows hand over any specials sitting on them; markers above ride down with
@@ -698,7 +696,6 @@ export function applyCommand(
       const dragged = dragTowards(board.grid, board.piece, targetX, targetY);
       changed = dragged.piece.x !== board.piece.x || dragged.piece.y !== board.piece.y;
       if (dragged.rowsDescended > 0) {
-        board.score += dragged.rowsDescended * DROP_POINTS_PER_ROW;
         board.dropTimerMs = 0; // give the player a full beat before gravity locks it
       }
       board.piece = dragged.piece;
@@ -716,7 +713,6 @@ export function applyCommand(
     case "hardDrop": {
       const dropped = hardDrop(board.grid, board.piece);
       board.piece = dropped.piece;
-      board.score += dropped.rowsDropped * DROP_POINTS_PER_ROW;
       lockCurrentPiece(board, true, ctx);
       changed = true;
       break;
@@ -764,7 +760,6 @@ export function applyCommand(
       const moved = tryMove(board.grid, board.piece, 0, 1);
       if (moved) {
         board.piece = moved;
-        board.score += DROP_POINTS_PER_ROW;
         // Same courtesy the drag gets: a full beat before gravity locks it, so
         // soft-dropping onto the stack is not an instant commitment.
         board.dropTimerMs = 0;
@@ -790,7 +785,6 @@ export function applyReportToBoard(board: EittrisBoard, snapshot: EittrisBoardSn
   if (snapshot.grid !== undefined) board.grid = decodeGrid(snapshot.grid);
   board.piece = snapshot.piece;
   board.nextQueue = snapshot.next.slice();
-  board.score = snapshot.score;
   board.rows = snapshot.rows;
   board.alive = snapshot.alive;
   board.intervalMs = snapshot.intervalMs;

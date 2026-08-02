@@ -63,7 +63,6 @@ function snapshot(overrides: Partial<EittrisBoardSnapshot> = {}): EittrisBoardSn
     grid: encodeGrid(emptyGrid()),
     piece: { type: 0, rot: 0, x: 5, y: 0 },
     next: [1, 2],
-    score: 100,
     rows: 1,
     alive: true,
     intervalMs: 900,
@@ -96,7 +95,6 @@ describe("EittrisClientModel - board updates", () => {
     const model = makeClient();
     (model as any).handleBoardUpdate(snapshot());
 
-    expect(model.score).toBe(100);
     expect(model.specials.length).toBe(1);
     expect(model.specials[0].t).toBe(SpecialType.Antidote);
     expect(model.antidotes).toBe(2);
@@ -118,10 +116,10 @@ describe("EittrisClientModel - board updates", () => {
     // The crash was here: applying an update to a restored model
     expect(() =>
       (restored as any).handleBoardUpdate(
-        snapshot({ specials: [{ i: 5, t: SpecialType.Speedup }], score: 250 }),
+        snapshot({ specials: [{ i: 5, t: SpecialType.Speedup }], rows: 7 }),
       ),
     ).not.toThrow();
-    expect(restored.score).toBe(250);
+    expect(restored.rows).toBe(7);
     expect(restored.specials.length).toBe(1);
     expect(restored.specials[0].t).toBe(SpecialType.Speedup);
   });
@@ -195,7 +193,7 @@ describe("EittrisClientModel - a live board is not thrown away", () => {
   it("ignores a repeat for the same round, keeping the board it is playing", () => {
     const model = playingModel();
     const board = (model as any).board;
-    board.score = 4321; // something only THIS board has
+    board.rows = 43; // something only THIS board has
 
     (model as any).handleStartPlaying({
       settings: defaultSettings(),
@@ -204,12 +202,12 @@ describe("EittrisClientModel - a live board is not thrown away", () => {
     });
 
     expect((model as any).board).toBe(board);
-    expect((model as any).board.score).toBe(4321);
+    expect((model as any).board.rows).toBe(43);
   });
 
   it("does start fresh when the round moves on", () => {
     const model = playingModel();
-    (model as any).board.score = 4321;
+    (model as any).board.rows = 43;
 
     (model as any).handleStartPlaying({
       settings: defaultSettings(),
@@ -217,14 +215,14 @@ describe("EittrisClientModel - a live board is not thrown away", () => {
       targetId: null,
     });
 
-    expect((model as any).board.score).toBe(0);
+    expect((model as any).board.rows).toBe(0);
   });
 
   it("takes a handed-back board even within the same round", () => {
     // This is a rejoin: the host is giving the seat back, and what it sends wins.
     const model = playingModel();
     const handedBack = makeBoard("someone-else", () => 0.5);
-    handedBack.score = 999;
+    handedBack.rows = 9;
 
     (model as any).handleStartPlaying({
       settings: defaultSettings(),
@@ -233,7 +231,7 @@ describe("EittrisClientModel - a live board is not thrown away", () => {
       board: handedBack,
     });
 
-    expect((model as any).board.score).toBe(999);
+    expect((model as any).board.rows).toBe(9);
     expect((model as any).board.playerId).toBe(model.playerId);
   });
 });
@@ -372,7 +370,6 @@ describe("EittrisClientModel - a second game", () => {
     const model = makeClient();
     (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
     const board = (model as any).board;
-    board.score = 4200;
     board.grid[BOARD_HEIGHT - 1][0] = 1;
     (model as any).mirrorBoard();
     runInAction(() => {
@@ -388,7 +385,6 @@ describe("EittrisClientModel - a second game", () => {
     (model as any).handleStartPlaying({ settings: defaultSettings(), round: 2, targetId: "B" });
 
     expect((model as any).board).not.toBe(oldBoard);
-    expect(model.score).toBe(0);
     expect(model.gameState).toBe(EittrisClientState.Playing);
     expect(model.winnerName).toBeNull();
     expect(model.youWon).toBe(false);
@@ -403,7 +399,6 @@ describe("EittrisClientModel - a second game", () => {
     (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
 
     expect((model as any).board).not.toBe(oldBoard);
-    expect(model.score).toBe(0);
     expect(model.gameState).toBe(EittrisClientState.Playing);
   });
 
@@ -411,12 +406,12 @@ describe("EittrisClientModel - a second game", () => {
     const model = makeClient();
     (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
     const board = (model as any).board;
-    board.score = 900;
+    board.rows = 9;
 
     (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
 
     expect((model as any).board).toBe(board);
-    expect(board.score).toBe(900);
+    expect(board.rows).toBe(9);
   });
 
   it("does not rebuild under a dead player waiting out the round", () => {

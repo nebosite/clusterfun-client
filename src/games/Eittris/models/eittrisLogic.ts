@@ -27,7 +27,6 @@ export const EXP_DECAY_PER_SEC = 0.0024; // interval *= exp(-0.0024 * dt) above 
 export const LINEAR_KNEE_MS = 500; // below this the decay goes linear
 export const LINEAR_DECAY_MS_PER_SEC = 1.2; // interval -= 1.2ms per elapsed second
 
-export const DROP_POINTS_PER_ROW = 10; // hard/soft dropped rows: +10 points per row
 // Garbage painted into a board by an attack.  Not a playable piece type -
 // it just occupies cells and renders in its own color.
 export const GARBAGE_CELL = 7;
@@ -450,7 +449,7 @@ export function dragTowards(
   }
 }
 
-// Drop to the floor; the caller locks it and awards DROP_POINTS_PER_ROW per row
+// Drop to the floor; the caller locks it
 export function hardDrop(
   grid: number[][],
   piece: EittrisPiece,
@@ -468,16 +467,10 @@ export function hardDrop(
 // ------------------------------------------------------------------------------------------
 // Locking + clearing.  Returns a NEW grid; cells above the top (y < 0) are
 // discarded.  Full rows are spliced atomically and everything above shifts down.
-// Score: n cleared rows -> n * n * 1000.
 // ------------------------------------------------------------------------------------------
-export function scoreForClear(clearedRows: number): number {
-  return clearedRows * clearedRows * 1000;
-}
-
 export interface LockResult {
   grid: number[][];
   cleared: number;
-  scoreGained: number;
   clearedRows: number[]; // row indices in the PRE-clear grid (specials need these)
 }
 
@@ -505,7 +498,6 @@ export function lockAndClear(grid: number[][], piece: EittrisPiece): LockResult 
   return {
     grid: newGrid,
     cleared: clearedRows.length,
-    scoreGained: scoreForClear(clearedRows.length),
     clearedRows,
   };
 }
@@ -926,7 +918,6 @@ export interface EittrisBoard {
   grid: number[][];
   piece: EittrisPiece | null; // null once the board is dead
   nextQueue: number[]; // upcoming piece types
-  score: number;
   rows: number; // total rows cleared
   alive: boolean;
   intervalMs: number; // current gravity interval
@@ -1012,7 +1003,6 @@ export function makeBoard(
     grid: emptyGrid(),
     piece: spawned.piece,
     nextQueue: spawned.queue,
-    score: 0,
     rows: 0,
     alive: true,
     intervalMs: startIntervalFor(speed),
@@ -1153,14 +1143,15 @@ export function decodeThumbnail(thumb: string): boolean[] {
   return cells;
 }
 
-// Rank for game end: survivors first (by score), then the dead - died later is
-// better, score breaks ties (see DESIGN.md "Game over").
+// Rank for game end: survivors first, then the dead - died later is better.  Rows cleared
+// breaks ties, which used to be the score's job; the score measured how long you had been
+// pressing buttons more than how well you were playing (see DESIGN.md "Game over").
 export function rankBoards(boards: EittrisBoard[]): EittrisBoard[] {
   return boards.slice().sort((a, b) => {
     if (a.alive !== b.alive) return a.alive ? -1 : 1;
-    if (a.alive) return b.score - a.score;
+    if (a.alive) return b.rows - a.rows;
     if (a.deathOrder !== b.deathOrder) return b.deathOrder - a.deathOrder;
-    return b.score - a.score;
+    return b.rows - a.rows;
   });
 }
 
@@ -1968,7 +1959,7 @@ export function rollAllowedSpecial(rand: () => number, allowed: SpecialType[]): 
 // VERTICAL cost is not - the player's avatar in the label scales with the cell
 // size, so a bigger board also carries a taller header.
 export const PANEL_H_CHROME = 34;
-export const PANEL_V_BASE = 57; // padding, border, name line, score line
+export const PANEL_V_BASE = 57; // padding, border, name line, rows line
 export const PANEL_AVATAR_MIN = 18; // the avatar never shrinks below this
 export const BOARD_MIN_CELL_PX = 3;
 export const BOARD_MAX_CELL_PX = 24;

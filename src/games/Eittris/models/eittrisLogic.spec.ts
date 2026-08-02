@@ -36,7 +36,6 @@ import {
   randomPieceType,
   rankBoards,
   retargetOnDeath,
-  scoreForClear,
   slamHorizontal,
   SPAWN_X,
   SPAWN_Y,
@@ -316,20 +315,11 @@ describe("eittrisLogic - movement", () => {
 // ------------------------------------------------------------------------------------------
 // Locking, clearing, scoring
 // ------------------------------------------------------------------------------------------
-describe("eittrisLogic - lock + clear + score", () => {
-  it("scores n*n*1000 for n cleared rows", () => {
-    expect(scoreForClear(0)).toBe(0);
-    expect(scoreForClear(1)).toBe(1000);
-    expect(scoreForClear(2)).toBe(4000);
-    expect(scoreForClear(3)).toBe(9000);
-    expect(scoreForClear(4)).toBe(16000);
-  });
-
+describe("eittrisLogic - lock + clear", () => {
   it("locks a piece into the grid without clearing anything", () => {
     const grid = emptyGrid();
     const result = lockAndClear(grid, pieceAt(0, 0, 4, BOARD_HEIGHT - 2));
     expect(result.cleared).toBe(0);
-    expect(result.scoreGained).toBe(0);
     expect(result.grid[BOARD_HEIGHT - 1][4]).toBe(0);
     expect(result.grid[BOARD_HEIGHT - 1][5]).toBe(0);
     expect(result.grid[BOARD_HEIGHT - 1][6]).toBe(0);
@@ -356,7 +346,6 @@ describe("eittrisLogic - lock + clear + score", () => {
     // T lands flat filling (4..6, 20) with its bump at (5,19)
     const result = lockAndClear(grid, pieceAt(0, 0, 4, 19));
     expect(result.cleared).toBe(1);
-    expect(result.scoreGained).toBe(1000);
     // row 20 cleared; the marker and the T bump shifted down one row
     expect(result.grid[20][0]).toBe(2);
     expect(result.grid[20][5]).toBe(0);
@@ -372,7 +361,6 @@ describe("eittrisLogic - lock + clear + score", () => {
     // third column, so a box at x=7 is column 9.
     const result = lockAndClear(grid, pieceAt(1, 1, 7, 17));
     expect(result.cleared).toBe(4);
-    expect(result.scoreGained).toBe(16000);
     expect(result.grid.every((row) => row.every((cell) => cell === EMPTY_CELL))).toBe(true);
   });
 
@@ -388,7 +376,6 @@ describe("eittrisLogic - lock + clear + score", () => {
     // bar in the box's second column, so a box at x=-1 is column 0.
     const result = lockAndClear(grid, pieceAt(1, 3, -1, 17));
     expect(result.cleared).toBe(2);
-    expect(result.scoreGained).toBe(4000);
     // the partial row 19 survives (with the I's cell at x=0), now at the bottom
     expect(result.grid[20][0]).toBe(1);
     expect(result.grid[20][1]).toBe(2);
@@ -509,22 +496,23 @@ describe("eittrisLogic - spawning", () => {
 // Ranking
 // ------------------------------------------------------------------------------------------
 describe("eittrisLogic - rankBoards", () => {
-  function board(playerId: string, alive: boolean, deathOrder: number, score: number) {
-    return { ...makeBoard(playerId, () => 0), alive, deathOrder, score };
+  function board(playerId: string, alive: boolean, deathOrder: number, rows: number) {
+    return { ...makeBoard(playerId, () => 0), alive, deathOrder, rows };
   }
 
-  it("ranks survivors first (by score), then later deaths, then score", () => {
+  it("ranks survivors first, then later deaths", () => {
     const ranked = rankBoards([
-      board("earlyDeath", false, 1, 99999),
-      board("survivor", true, 0, 100),
-      board("lateDeath", false, 2, 50),
+      board("earlyDeath", false, 1, 40),
+      board("survivor", true, 0, 2),
+      board("lateDeath", false, 2, 1),
     ]);
     expect(ranked.map((b) => b.playerId)).toEqual(["survivor", "lateDeath", "earlyDeath"]);
   });
 
-  it("breaks a same-death-order tie by score", () => {
-    const ranked = rankBoards([board("low", false, 1, 100), board("high", false, 1, 2000)]);
-    expect(ranked[0].playerId).toBe("high");
+  it("breaks a same-death-order tie by rows cleared", () => {
+    // Rows, not points: the points went up fastest for whoever hammered the drop button
+    const ranked = rankBoards([board("few", false, 1, 3), board("many", false, 1, 11)]);
+    expect(ranked[0].playerId).toBe("many");
   });
 });
 

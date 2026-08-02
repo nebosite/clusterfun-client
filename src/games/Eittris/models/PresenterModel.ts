@@ -986,7 +986,6 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       grid: this.gridForWire(board, opts?.forceGrid ?? false),
       piece: board.piece ? { ...board.piece } : null,
       next: board.nextQueue.slice(0, board.crystalBall ? CRYSTAL_BALL_PREVIEW : NEXT_PREVIEW_COUNT),
-      score: board.score,
       rows: board.rows,
       alive: board.alive,
       intervalMs: Math.round(

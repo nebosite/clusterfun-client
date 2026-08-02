@@ -256,8 +256,7 @@ describe("EittrisPresenterModel - commands", () => {
     // The box is three wide, so column 7 is as far right as it goes
     phoneCommand(model, "A", { command: "dragTo", column: 8, row: 3 });
     expect(board.piece!.x).toBe(BOARD_WIDTH - 3);
-    expect(board.piece!.y).toBe(3);
-    expect(board.score).toBe((3 - SPAWN_Y) * 10); // rows dragged, at 10 a row
+    expect(board.piece!.y).toBe(3); // rows dragged, at 10 a row
     // B's board is untouched
     expect(model.boards.find((b) => b.playerId === "B")!.piece!.x).toBe(SPAWN_X);
   });
@@ -308,7 +307,6 @@ describe("EittrisPresenterModel - commands", () => {
     const board = model.boards.find((b) => b.playerId === "A")!;
     phoneCommand(model, "A", { command: "hardDrop" });
     // T dropped from the spawn row to the floor, at 10 points a row
-    expect(board.score).toBe((BOARD_HEIGHT - 2 - SPAWN_Y) * 10);
     expect(board.grid[BOARD_HEIGHT - 1][3]).toBe(0);
     expect(board.grid[BOARD_HEIGHT - 1][4]).toBe(0);
     expect(board.grid[BOARD_HEIGHT - 1][5]).toBe(0);
@@ -325,7 +323,6 @@ describe("EittrisPresenterModel - commands", () => {
     const board = model.boards.find((b) => b.playerId === "A")!;
     phoneCommand(model, "A", { command: "hardDrop" });
     const gridAfterLock = JSON.stringify(board.grid);
-    const scoreAfterLock = board.score;
 
     // A stray gesture arriving in the gap must do nothing at all
     phoneCommand(model, "A", { command: "hardDrop" });
@@ -334,7 +331,6 @@ describe("EittrisPresenterModel - commands", () => {
     phoneCommand(model, "A", { command: "release" });
     expect(board.piece).toBeNull();
     expect(JSON.stringify(board.grid)).toBe(gridAfterLock);
-    expect(board.score).toBe(scoreAfterLock);
 
     // After the gap the new piece is untouched at its spawn spot
     tickTo(model, SPAWN_DELAY_MS + 20);
@@ -566,7 +562,6 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
 
     expect(board.rows).toBe(1);
     // dropped rows at 10 each, plus 1000 for the single-row clear
-    expect(board.score).toBe((BOARD_HEIGHT - 2 - SPAWN_Y) * 10 + 1000);
 
     // The row is scored at once but does NOT vanish at once: it is eaten away
     // on screen first, so it is still standing while `clearing` runs.
@@ -695,7 +690,6 @@ describe("EittrisPresenterModel - checkpoint serialization", () => {
 
     const boardA = back.boards.find((b) => b.playerId === "A")!;
     const boardB = back.boards.find((b) => b.playerId === "B")!;
-    expect(boardA.score).toBe((BOARD_HEIGHT - 2 - SPAWN_Y) * 10); // hard drop points survived
     expect(boardA.grid[BOARD_HEIGHT - 1][7]).toBe(0); // and the locked cells
     expect(boardA.targetId).toBe("B"); // the target ring survives a refresh
     expect(boardB.piece!.rot).toBe(1); // B's rotated falling piece survived
@@ -1929,7 +1923,7 @@ describe("EittrisPresenterModel - leaving and coming back", () => {
     // ...carrying the board as it stands, not a fresh one
     expect(handovers[0].message.board).toBeTruthy();
     expect(handovers[0].message.board.playerId).toBe("A");
-    expect(handovers[0].message.board.score).toBe(board.score);
+    expect(handovers[0].message.board.rows).toBe(board.rows);
     // ...and the robot has let go of it
     expect(board.robotTakeover).toBe(false);
   });
@@ -2078,15 +2072,12 @@ describe("EittrisPresenterModel - starting a second game", () => {
 
   it("gives everybody a live, empty board again", () => {
     const { model } = startTwoPlayerGame();
-    const scored = model.boards.find((b) => b.playerId === "B")!;
-    runInAction(() => (scored.score = 5000));
     reportedDeath(model, "A");
 
     model.playAgain(false);
 
     expect(model.boards.length).toBe(2);
     expect(model.boards.every((b) => b.alive)).toBe(true);
-    expect(model.boards.every((b) => b.score === 0)).toBe(true);
     expect(model.boards.every((b) => b.deathOrder === 0)).toBe(true);
     expect(model.winnerId).toBeNull();
   });
@@ -2140,9 +2131,9 @@ describe("EittrisPresenterModel + EittrisClientModel - playing again", () => {
     deliverStart(sent, phone, "A");
     const firstBoard = (phone as any).board;
     expect(phone.gameState).toBe("Playing");
-    runInAction(() => (firstBoard.score = 3300));
+    runInAction(() => (firstBoard.rows = 33));
     (phone as any).mirrorBoard();
-    expect(phone.score).toBe(3300);
+    expect(phone.rows).toBe(33);
 
     // A dies, Bob wins, the host starts another game
     reportedDeath(model, "A");
@@ -2155,7 +2146,6 @@ describe("EittrisPresenterModel + EittrisClientModel - playing again", () => {
     deliverStart(sent, phone, "A");
 
     expect((phone as any).board).not.toBe(firstBoard);
-    expect(phone.score).toBe(0);
     expect(phone.rows).toBe(0);
     expect(phone.alive).toBe(true);
     expect(phone.gameState).toBe("Playing");

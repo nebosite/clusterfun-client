@@ -672,8 +672,10 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
     return (
       <div>
         <div className={styles.statusRow}>
-          <span className={styles.score}>{appModel.score} pts</span>
-          <span>{appModel.rows} rows</span>
+          {/* Rows, and nothing else.  There used to be a points total here, which counted
+              dropped rows as much as cleared ones - so it went up fastest for a player
+              hammering the drop button, and told nobody anything about the game. */}
+          <span className={styles.rowsCleared}>{appModel.rows} rows</span>
         </div>
         {/* Fixed-height strip: afflictions + the transient event banner.
             It always occupies the same space so the board never shifts. */}
