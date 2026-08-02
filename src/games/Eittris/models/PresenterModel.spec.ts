@@ -1765,8 +1765,10 @@ describe("EittrisPresenterModel - host settings in play", () => {
     const { model } = makeModel();
     addPlayer(model, "A", "Alice");
     model.startGame();
+    // Toggle by what is actually on rather than by the full list - the antidote starts off
     for (const type of IMPLEMENTED_SPECIALS) {
-      if (type !== SpecialType.Speedup) model.toggleAllowedSpecial(type);
+      const wanted = type === SpecialType.Speedup;
+      if (model.isSpecialAllowed(type) !== wanted) model.toggleAllowedSpecial(type);
     }
     expect(model.settings.allowedSpecials).toEqual([SpecialType.Speedup]);
 

@@ -1683,12 +1683,21 @@ export interface EittrisSettings {
   allowedSpecials: SpecialType[];
 }
 
+// The pool a host gets before touching anything.  Everything EXCEPT the antidote: it is the
+// one powerup that does nothing to anybody else, so a random one is a turn where nothing
+// happens, and now that every powerup is equally likely those turns are no longer rare.
+// Players still start with an antidote in hand, and it is still the four-row award and one
+// tick box away - it just does not litter the board unasked.
+export const DEFAULT_ALLOWED_SPECIALS: SpecialType[] = IMPLEMENTED_SPECIALS.filter(
+  (type) => type !== SpecialType.Antidote,
+);
+
 export function defaultSettings(): EittrisSettings {
   return {
     startingAntidotes: ANTIDOTES_AT_START,
     speed: "slow",
     fourRowAward: SpecialType.Antidote,
-    allowedSpecials: IMPLEMENTED_SPECIALS.slice(),
+    allowedSpecials: DEFAULT_ALLOWED_SPECIALS.slice(),
   };
 }
 

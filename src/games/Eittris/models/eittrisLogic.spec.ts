@@ -1615,7 +1615,13 @@ describe("eittrisLogic - host settings", () => {
     const settings = defaultSettings();
     expect(settings.startingAntidotes).toBe(ANTIDOTES_AT_START);
     expect(settings.fourRowAward).toBe(SpecialType.Antidote);
-    expect(settings.allowedSpecials).toEqual(IMPLEMENTED_SPECIALS);
+    // Everything is in play to begin with EXCEPT the antidote: a random one is a turn where
+    // nothing happens to anybody.  It is still what four rows wins you, and still one tick
+    // box away for a host who wants it back.
+    expect(settings.allowedSpecials).not.toContain(SpecialType.Antidote);
+    expect(settings.allowedSpecials).toEqual(
+      IMPLEMENTED_SPECIALS.filter((t) => t !== SpecialType.Antidote),
+    );
   });
 
   it("clamps the starting antidotes to what a player can hold", () => {
