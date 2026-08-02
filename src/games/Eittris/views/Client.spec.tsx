@@ -111,10 +111,16 @@ describe("EITtris ControlsHelp", () => {
 });
 
 describe("EITtris control guide data", () => {
+  /** Everything a section describes, whether it has seats to choose between or not. */
+  const allEntries = (section: (typeof EITTRIS_CONTROL_GUIDE)[number]) =>
+    section.layouts && section.layouts.length > 0
+      ? section.layouts.flatMap((l) => l.entries)
+      : section.entries;
+
   it("describes something for every way to play", () => {
     expect(EITTRIS_CONTROL_GUIDE.map((s) => s.id)).toEqual(["touch", "keyboard", "pad"]);
     for (const section of EITTRIS_CONTROL_GUIDE) {
-      expect(section.entries.length).toBeGreaterThan(0);
+      expect(allEntries(section).length).toBeGreaterThan(0);
       expect(section.summary.length).toBeGreaterThan(0);
     }
   });
@@ -124,7 +130,31 @@ describe("EITtris control guide data", () => {
     // into a game holding a cure they cannot fire.
     for (const id of ["keyboard", "pad"]) {
       const section = EITTRIS_CONTROL_GUIDE.find((s) => s.id === id)!;
-      expect(section.entries.some((e) => /antidote/i.test(e.detail))).toBe(true);
+      expect(allEntries(section).some((e) => /antidote/i.test(e.detail))).toBe(true);
+    }
+  });
+
+  it("gives every keyboard seat the whole game, not a subset of it", () => {
+    // A seat missing an action is a player who cannot fire an antidote all evening and has
+    // no way to find out why.
+    const keyboard = EITTRIS_CONTROL_GUIDE.find((s) => s.id === "keyboard")!;
+    expect(keyboard.layouts!.length).toBe(4);
+    const wanted = [
+      /move left and right/i,
+      /down one row/i,
+      /rotate clockwise/i,
+      /counter-clockwise/i,
+      /hard drop/i,
+      /aim at/i,
+      /antidote/i,
+      /earthquake/i,
+    ];
+    for (const layout of keyboard.layouts!) {
+      for (const want of wanted) {
+        expect(layout.entries.some((e) => want.test(e.detail))).toBe(true);
+      }
+      // ...and every one of them names a key
+      for (const entry of layout.entries) expect(entry.label.length).toBeGreaterThan(0);
     }
   });
 });
@@ -147,5 +177,56 @@ describe("EITtris TargetList - showing a hit", () => {
   it("shows nothing when nobody has been hit", () => {
     const { container } = renderList(fakeModel());
     expect(container.querySelectorAll('[class*="hitFlash"]').length).toBe(0);
+  });
+});
+
+describe("EITtris ControlsHelp - picking a keyboard seat", () => {
+  const openKeyboard = () => {
+    render(<ControlsHelp />);
+    fireEvent.click(screen.getByRole("button", { name: "Keyboard" }));
+  };
+
+  it("offers the four seats", () => {
+    openKeyboard();
+    for (const seat of ["Arrows", "WASD", "IJKL", "Numpad"]) {
+      expect(screen.getByRole("button", { name: seat })).toBeInTheDocument();
+    }
+  });
+
+  it("shows one seat's keys at a time", () => {
+    openKeyboard();
+    // Arrows first, so the list is never empty
+    expect(screen.getByText("← →")).toBeInTheDocument();
+    expect(screen.queryByText("A D")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "WASD" }));
+    expect(screen.getByText("A D")).toBeInTheDocument();
+    expect(screen.queryByText("← →")).not.toBeInTheDocument();
+  });
+
+  it("swaps every key, not just the arrows", () => {
+    openKeyboard();
+    fireEvent.click(screen.getByRole("button", { name: "Numpad" }));
+    expect(screen.getByText("4 6")).toBeInTheDocument();
+    expect(screen.getByText("- / +")).toBeInTheDocument();
+    expect(screen.queryByText("Space")).not.toBeInTheDocument(); // the numpad has its own drop
+  });
+
+  it("forgets the seat when another kind of control is opened", () => {
+    openKeyboard();
+    fireEvent.click(screen.getByRole("button", { name: "IJKL" }));
+    expect(screen.getByText("J L")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Keyboard" })); // closed
+    expect(screen.queryByText("J L")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Keyboard" })); // and open again
+    expect(screen.getByText("← →")).toBeInTheDocument();
+  });
+
+  it("leaves a control type with no seats alone", () => {
+    render(<ControlsHelp />);
+    fireEvent.click(screen.getByRole("button", { name: "Controller" }));
+    expect(screen.queryByRole("button", { name: "WASD" })).not.toBeInTheDocument();
+    expect(screen.getByText(/D-pad/)).toBeInTheDocument();
   });
 });

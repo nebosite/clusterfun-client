@@ -58,15 +58,34 @@ export const EITTRIS_BINDINGS: InputBindings = {
       action: EittrisAction.RotateRight,
       codes: ["ArrowUp", "KeyW", "KeyI", "Numpad3", "KeyX"],
     },
-    // The guideline's counter-clockwise key, plus a numpad seat
-    { action: EittrisAction.RotateLeft, codes: ["KeyZ", "ControlLeft", "Numpad7"] },
-    // Space hard-drops. Nothing else does, because it ends your turn.
+    // The guideline's counter-clockwise key, and one within reach of each other seat
+    {
+      action: EittrisAction.RotateLeft,
+      codes: ["KeyZ", "ControlLeft", "ControlRight", "KeyU", "Numpad7"],
+    },
+    // Space hard-drops, and is the one key three of the four seats share - it is where
+    // every player's thumb already is.  The numpad seat gets its own so a fourth player is
+    // not fighting for it.
     { action: EittrisAction.Drop, codes: ["Space", "Numpad8"] },
-    // Targeting and the antidote are EITtris's own, so they get their own keys
-    { action: EittrisAction.PrevTarget, codes: ["KeyQ", "BracketLeft", "PageUp"] },
-    { action: EittrisAction.NextTarget, codes: ["KeyE", "BracketRight", "PageDown"] },
-    { action: EittrisAction.UseAntidote, codes: ["KeyF", "Enter", "NumpadEnter", "Numpad0"] },
-    { action: EittrisAction.UseEarthquake, codes: ["KeyG", "ShiftLeft", "NumpadDecimal"] },
+    // Targeting, the antidote and the earthquake are EITtris's own, so every seat gets its
+    // own key for each within reach of that cluster - see EITTRIS_CONTROL_GUIDE, which is
+    // what a player actually reads.
+    {
+      action: EittrisAction.PrevTarget,
+      codes: ["KeyQ", "BracketLeft", "PageUp", "NumpadSubtract"],
+    },
+    {
+      action: EittrisAction.NextTarget,
+      codes: ["KeyE", "BracketRight", "PageDown", "NumpadAdd"],
+    },
+    {
+      action: EittrisAction.UseAntidote,
+      codes: ["KeyF", "KeyH", "Enter", "NumpadEnter", "Numpad0"],
+    },
+    {
+      action: EittrisAction.UseEarthquake,
+      codes: ["KeyG", "ShiftLeft", "Semicolon", "Delete", "NumpadDecimal"],
+    },
   ],
   pad: [
     // Traditional pad tetris: d-pad or left stick moves, A/B rotate,
@@ -120,13 +139,47 @@ export interface ControlGuideEntry {
   detail: string;
 }
 
+/** One seat at a shared keyboard.  Same nine actions, different keys. */
+export interface ControlGuideLayout {
+  id: string;
+  /** Chip text */
+  title: string;
+  entries: ControlGuideEntry[];
+}
+
 export interface ControlGuideSection {
   id: "touch" | "keyboard" | "pad";
   /** Chip text */
   title: string;
   /** One line, shown under the title when the section is open */
   summary: string;
+  /** Shown when the section has no layouts to choose between */
   entries: ControlGuideEntry[];
+  /** Where there are several ways to sit at this thing, one per way */
+  layouts?: ControlGuideLayout[];
+}
+
+/** The nine actions, in the order a player wants to read them. */
+function seat(
+  move: string,
+  down: string,
+  cw: string,
+  ccw: string,
+  drop: string,
+  target: string,
+  antidote: string,
+  quake: string,
+): ControlGuideEntry[] {
+  return [
+    { label: move, detail: "Move left and right" },
+    { label: down, detail: "Down one row" },
+    { label: cw, detail: "Rotate clockwise" },
+    { label: ccw, detail: "Rotate counter-clockwise" },
+    { label: drop, detail: "Hard drop" },
+    { label: target, detail: "Aim at the previous or next player" },
+    { label: antidote, detail: "Use an antidote" },
+    { label: quake, detail: "Set off an earthquake" },
+  ];
 }
 
 export const EITTRIS_CONTROL_GUIDE: ControlGuideSection[] = [
@@ -151,18 +204,32 @@ export const EITTRIS_CONTROL_GUIDE: ControlGuideSection[] = [
   {
     id: "keyboard",
     title: "Keyboard",
-    // One key per action rather than all four seats: the full table needs more lines than a
-    // phone has, and the summary is what tells a player the other seats exist at all.
-    summary: "Arrows, WASD, IJKL or the numpad - four seats, so a room can share one PC.",
-    entries: [
-      { label: "← →", detail: "Move left and right" },
-      { label: "↓", detail: "Down one row" },
-      { label: "↑ or X", detail: "Rotate clockwise" },
-      { label: "Z", detail: "Rotate counter-clockwise" },
-      { label: "Space", detail: "Hard drop" },
-      { label: "Q / E", detail: "Aim at the previous or next player" },
-      { label: "F", detail: "Use an antidote" },
-      { label: "G", detail: "Set off an earthquake" },
+    // Four seats at one keyboard, and a player only wants the one under their hands.  Only
+    // one seat's keys are shown at a time, because the full table is four times longer than
+    // a phone screen and three quarters of it belongs to somebody else.
+    summary: "Four seats at one keyboard - pick the one under your hands.",
+    entries: [],
+    layouts: [
+      {
+        id: "arrows",
+        title: "Arrows",
+        entries: seat("← →", "↓", "↑", "Right Ctrl", "Space", "PgUp / PgDn", "Enter", "Delete"),
+      },
+      {
+        id: "wasd",
+        title: "WASD",
+        entries: seat("A D", "S", "W", "Z", "Space", "Q / E", "F", "G"),
+      },
+      {
+        id: "ijkl",
+        title: "IJKL",
+        entries: seat("J L", "K", "I", "U", "Space", "[ / ]", "H", ";"),
+      },
+      {
+        id: "numpad",
+        title: "Numpad",
+        entries: seat("4 6", "5", "3", "7", "8", "- / +", "0", "."),
+      },
     ],
   },
   {

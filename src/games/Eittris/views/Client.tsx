@@ -48,7 +48,13 @@ import {
 import EittrisAssets from "../assets/Assets";
 import BoardGrid from "./BoardGrid";
 import { DragScroller, GameInputController } from "libs";
-import { EITTRIS_BINDINGS, EITTRIS_CONTROL_GUIDE, EittrisAction } from "../models/eittrisInput";
+import {
+  ControlGuideEntry,
+  ControlGuideSection,
+  EITTRIS_BINDINGS,
+  EITTRIS_CONTROL_GUIDE,
+  EittrisAction,
+} from "../models/eittrisInput";
 
 // Board cell size in the phone's 1080x1920 virtual space.  Chosen with the
 // status strip's height so the grid's bottom edge lands exactly 15px above
@@ -278,8 +284,18 @@ export class GestureTracker {
 // Tap one and it says exactly what every input does.  Only one is open at a
 // time: the point is a short read, not a manual.
 // -------------------------------------------------------------------
-export class ControlsHelp extends React.Component<{}, { openId: string | null }> {
-  state = { openId: null as string | null };
+export class ControlsHelp extends React.Component<
+  {},
+  { openId: string | null; layoutId: string | null }
+> {
+  state = { openId: null as string | null, layoutId: null as string | null };
+
+  /** The entries to show: a chosen seat's, or the section's own where it has no seats. */
+  private entriesFor(section: ControlGuideSection): ControlGuideEntry[] {
+    if (!section.layouts || section.layouts.length === 0) return section.entries;
+    const chosen = section.layouts.find((l) => l.id === this.state.layoutId) ?? section.layouts[0];
+    return chosen.entries;
+  }
 
   render() {
     const { openId } = this.state;
@@ -293,7 +309,14 @@ export class ControlsHelp extends React.Component<{}, { openId: string | null }>
               className={classNames(styles.controlChip, {
                 [styles.controlChipOpen]: openId === section.id,
               })}
-              onClick={() => this.setState({ openId: openId === section.id ? null : section.id })}
+              onClick={() =>
+                // Opening or closing a section forgets which seat was picked in it: coming
+                // back to the keyboard should start where a first-time reader starts.
+                this.setState({
+                  openId: openId === section.id ? null : section.id,
+                  layoutId: null,
+                })
+              }
             >
               {section.title}
             </button>
@@ -302,7 +325,26 @@ export class ControlsHelp extends React.Component<{}, { openId: string | null }>
         {EITTRIS_CONTROL_GUIDE.filter((s) => s.id === openId).map((section) => (
           <div className={styles.controlDetail} key={section.id}>
             <div className={styles.controlSummary}>{section.summary}</div>
-            {section.entries.map((entry) => (
+            {/* Where a thing can be sat at in several ways - four seats at one keyboard -
+                pick one and the list below is that seat's, and only that seat's. */}
+            {section.layouts && section.layouts.length > 0 ? (
+              <div className={styles.layoutChips}>
+                {section.layouts.map((layout, i) => (
+                  <button
+                    key={layout.id}
+                    className={classNames(styles.layoutChip, {
+                      [styles.layoutChipOn]:
+                        this.state.layoutId === layout.id ||
+                        (this.state.layoutId === null && i === 0),
+                    })}
+                    onClick={() => this.setState({ layoutId: layout.id })}
+                  >
+                    {layout.title}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {this.entriesFor(section).map((entry) => (
               <div className={styles.controlEntry} key={entry.label}>
                 <span className={styles.controlKey}>{entry.label}</span>
                 <span className={styles.controlWhat}>{entry.detail}</span>

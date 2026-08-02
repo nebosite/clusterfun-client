@@ -586,6 +586,31 @@
 .gameclient .controlDetail {
   margin-top: 10px;
 }
+
+/* The seats at a shared keyboard.  Smaller than the chips above them, because they are a
+   choice WITHIN a choice - and one of them is always on, so they never read as a dead end. */
+.gameclient .layoutChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+.gameclient .layoutChip {
+  background: #14203a;
+  color: #b8c4d8;
+  border: 2px solid #35486a;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 80%;
+  font-family: inherit;
+  margin: 0;
+  cursor: pointer;
+}
+.gameclient .layoutChipOn {
+  background: #4d76b8;
+  border-color: #9fc4ff;
+  color: white;
+}
 .gameclient .controlEntry {
   display: flex;
   gap: 12px;
