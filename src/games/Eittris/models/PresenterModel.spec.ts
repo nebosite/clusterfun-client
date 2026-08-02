@@ -38,6 +38,7 @@ import {
   CLEAR_EAT_MS,
   CLEAR_FALL_MS,
   EVIL_PIECE_COUNT,
+  SPAWN_X,
   SPAWN_Y,
   decodePsychoOverlay,
   STENCIL_ROW_MS,
@@ -232,7 +233,7 @@ describe("EittrisPresenterModel - game start", () => {
     for (const board of model.boards) {
       expect(board.alive).toBe(true);
       expect(board.piece).not.toBeNull();
-      expect(board.piece!.x).toBe(5); // spawn column
+      expect(board.piece!.x).toBe(SPAWN_X); // spawn column (the box's left edge)
       expect(board.piece!.y).toBe(SPAWN_Y);
       expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
       expect(board.intervalMs).toBe(START_INTERVAL_MS);
@@ -252,19 +253,20 @@ describe("EittrisPresenterModel - commands", () => {
   it("dragTo walks the piece toward the target column AND down, paying +10 per row", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
+    // The box is three wide, so column 7 is as far right as it goes
     phoneCommand(model, "A", { command: "dragTo", column: 8, row: 3 });
-    expect(board.piece!.x).toBe(8);
+    expect(board.piece!.x).toBe(BOARD_WIDTH - 3);
     expect(board.piece!.y).toBe(3);
     expect(board.score).toBe((3 - SPAWN_Y) * 10); // rows dragged, at 10 a row
     // B's board is untouched
-    expect(model.boards.find((b) => b.playerId === "B")!.piece!.x).toBe(5);
+    expect(model.boards.find((b) => b.playerId === "B")!.piece!.x).toBe(SPAWN_X);
   });
 
   it("dragTo onto the floor does NOT lock; release locks the resting piece", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
     phoneCommand(model, "A", { command: "dragTo", column: 5, row: 20 });
-    expect(board.piece!.y).toBe(BOARD_HEIGHT - 1); // resting on the floor...
+    expect(board.piece!.y).toBe(BOARD_HEIGHT - 2); // resting on the floor...
     expect(board.grid[BOARD_HEIGHT - 1][5]).toBe(EMPTY_CELL); // ...but NOT locked
 
     phoneCommand(model, "A", { command: "release" });
@@ -289,9 +291,9 @@ describe("EittrisPresenterModel - commands", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
     phoneCommand(model, "A", { command: "slamLeft" });
-    expect(board.piece!.x).toBe(1); // T occupies x-1..x+1
+    expect(board.piece!.x).toBe(0); // the box's left edge is against the wall
     phoneCommand(model, "A", { command: "slamRight" });
-    expect(board.piece!.x).toBe(8);
+    expect(board.piece!.x).toBe(BOARD_WIDTH - 3);
   });
 
   it("rotate spins the piece clockwise", () => {
@@ -306,11 +308,11 @@ describe("EittrisPresenterModel - commands", () => {
     const board = model.boards.find((b) => b.playerId === "A")!;
     phoneCommand(model, "A", { command: "hardDrop" });
     // T dropped from the spawn row to the floor, at 10 points a row
-    expect(board.score).toBe((BOARD_HEIGHT - 1 - SPAWN_Y) * 10);
+    expect(board.score).toBe((BOARD_HEIGHT - 2 - SPAWN_Y) * 10);
+    expect(board.grid[BOARD_HEIGHT - 1][3]).toBe(0);
     expect(board.grid[BOARD_HEIGHT - 1][4]).toBe(0);
     expect(board.grid[BOARD_HEIGHT - 1][5]).toBe(0);
-    expect(board.grid[BOARD_HEIGHT - 1][6]).toBe(0);
-    expect(board.grid[BOARD_HEIGHT - 2][5]).toBe(0);
+    expect(board.grid[BOARD_HEIGHT - 2][4]).toBe(0);
     // the board is empty during the spawn gap, then a fresh piece appears
     expect(board.piece).toBeNull();
     tickTo(model, SPAWN_DELAY_MS + 20);
@@ -336,7 +338,7 @@ describe("EittrisPresenterModel - commands", () => {
 
     // After the gap the new piece is untouched at its spawn spot
     tickTo(model, SPAWN_DELAY_MS + 20);
-    expect(board.piece!.x).toBe(5);
+    expect(board.piece!.x).toBe(SPAWN_X);
     expect(board.piece!.y).toBe(SPAWN_Y);
   });
 
@@ -427,7 +429,7 @@ describe("EittrisPresenterModel - target targeting", () => {
     const { model } = startThreePlayerGame();
     const boardC = model.boards.find((b) => b.playerId === "C")!;
     runInAction(() => {
-      boardC.grid[0][5] = 3; // C's next spawn will collide
+      boardC.grid[1][4] = 3; // C's next spawn will collide
     });
     model.handleCommand("C", { command: "hardDrop" });
     tickTo(model, SPAWN_DELAY_MS + 20); // the fatal spawn lands after the gap
@@ -556,7 +558,7 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
     const board = model.boards.find((b) => b.playerId === "A")!;
     runInAction(() => {
       for (let x = 0; x < BOARD_WIDTH; x++) {
-        if (x < 4 || x > 6) board.grid[BOARD_HEIGHT - 1][x] = 1;
+        if (x < 3 || x > 5) board.grid[BOARD_HEIGHT - 1][x] = 1;
       }
     });
 
@@ -564,7 +566,7 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
 
     expect(board.rows).toBe(1);
     // dropped rows at 10 each, plus 1000 for the single-row clear
-    expect(board.score).toBe((BOARD_HEIGHT - 1 - SPAWN_Y) * 10 + 1000);
+    expect(board.score).toBe((BOARD_HEIGHT - 2 - SPAWN_Y) * 10 + 1000);
 
     // The row is scored at once but does NOT vanish at once: it is eaten away
     // on screen first, so it is still standing while `clearing` runs.
@@ -574,8 +576,8 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
 
     // Once the eating finishes the grid really collapses...
     tickTo(model, CLEAR_EAT_MS + 10);
-    expect(board.grid[BOARD_HEIGHT - 1][5]).toBe(0); // the T's bump landed
-    expect(board.grid[BOARD_HEIGHT - 1][4]).toBe(EMPTY_CELL);
+    expect(board.grid[BOARD_HEIGHT - 1][4]).toBe(0); // the T's bump landed
+    expect(board.grid[BOARD_HEIGHT - 1][3]).toBe(EMPTY_CELL);
 
     // ...and only after the stack has fallen does the next piece come
     expect(board.piece).toBeNull();
@@ -591,7 +593,7 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
     const { model, sent } = startTwoPlayerGame();
     const boardA = model.boards.find((b) => b.playerId === "A")!;
     runInAction(() => {
-      boardA.grid[0][5] = 3; // blocks the next spawn at (5,0)
+      boardA.grid[1][4] = 3; // blocks the next spawn
     });
 
     phoneCommand(model, "A", { command: "hardDrop" }); // locks...
@@ -622,7 +624,7 @@ describe("EittrisPresenterModel - clears, death, and game end", () => {
     expect(model.gameState).toBe(EittrisGameState.Playing); // still alive, still playing
 
     runInAction(() => {
-      board.grid[0][5] = 3;
+      board.grid[1][4] = 3;
     });
     phoneCommand(model, "A", { command: "hardDrop" });
     // tickTo takes an ABSOLUTE game time - push past the second gap
@@ -693,7 +695,7 @@ describe("EittrisPresenterModel - checkpoint serialization", () => {
 
     const boardA = back.boards.find((b) => b.playerId === "A")!;
     const boardB = back.boards.find((b) => b.playerId === "B")!;
-    expect(boardA.score).toBe((BOARD_HEIGHT - 1 - SPAWN_Y) * 10); // hard drop points survived
+    expect(boardA.score).toBe((BOARD_HEIGHT - 2 - SPAWN_Y) * 10); // hard drop points survived
     expect(boardA.grid[BOARD_HEIGHT - 1][7]).toBe(0); // and the locked cells
     expect(boardA.targetId).toBe("B"); // the target ring survives a refresh
     expect(boardB.piece!.rot).toBe(1); // B's rotated falling piece survived
@@ -758,7 +760,7 @@ describe("EittrisPresenterModel - specials", () => {
     // Fill the bottom row except the T's landing spot, and mark one block
     runInAction(() => {
       for (let x = 0; x < BOARD_WIDTH; x++) {
-        if (x < 4 || x > 6) board.grid[BOARD_HEIGHT - 1][x] = 1;
+        if (x < 3 || x > 5) board.grid[BOARD_HEIGHT - 1][x] = 1;
       }
       board.specials.push({ index: (BOARD_HEIGHT - 1) * BOARD_WIDTH, type: SpecialType.Antidote });
     });
@@ -795,7 +797,7 @@ describe("EittrisPresenterModel - Speedup", () => {
     const board = model.boards.find((b) => b.playerId === "A")!;
     runInAction(() => {
       for (let x = 0; x < BOARD_WIDTH; x++) {
-        if (x < 4 || x > 6) board.grid[BOARD_HEIGHT - 1][x] = 1;
+        if (x < 3 || x > 5) board.grid[BOARD_HEIGHT - 1][x] = 1;
       }
       board.specials.push({ index: (BOARD_HEIGHT - 1) * BOARD_WIDTH, type: SpecialType.Speedup });
     });
@@ -864,7 +866,7 @@ describe("EittrisPresenterModel - Speedup", () => {
     expect(board.targetId).toBeNull(); // solo game
     runInAction(() => {
       for (let x = 0; x < BOARD_WIDTH; x++) {
-        if (x < 4 || x > 6) board.grid[BOARD_HEIGHT - 1][x] = 1;
+        if (x < 3 || x > 5) board.grid[BOARD_HEIGHT - 1][x] = 1;
       }
       board.specials.push({ index: (BOARD_HEIGHT - 1) * BOARD_WIDTH, type: SpecialType.Speedup });
     });
@@ -1017,7 +1019,7 @@ describe("EittrisPresenterModel - TheWall", () => {
     const board = model.boards.find((b) => b.playerId === "A")!;
     runInAction(() => {
       for (let x = 0; x < BOARD_WIDTH; x++) {
-        if (x < 4 || x > 6) board.grid[BOARD_HEIGHT - 1][x] = 1;
+        if (x < 3 || x > 5) board.grid[BOARD_HEIGHT - 1][x] = 1;
       }
       board.specials.push({ index: (BOARD_HEIGHT - 1) * BOARD_WIDTH, type: SpecialType.TheWall });
     });
@@ -1106,7 +1108,9 @@ describe("EittrisPresenterModel - Bridge", () => {
           if (x !== 0) board.grid[y][x] = 1;
         }
       }
-      board.piece = { type: 1, rot: 0, x: 0, y: 1 }; // I piece over column 0
+      // A vertical I over column 0.  Rotation 3 puts the bar in the box's second column,
+      // so the box sits one column off the left edge.
+      board.piece = { type: 1, rot: 3, x: -1, y: 0 };
     });
     return board;
   }
@@ -1172,7 +1176,7 @@ describe("EittrisPresenterModel - SeeShadows", () => {
 
     runInAction(() => {
       for (let x = 0; x < BOARD_WIDTH; x++) {
-        if (x < 4 || x > 6) board.grid[BOARD_HEIGHT - 1][x] = 1;
+        if (x < 3 || x > 5) board.grid[BOARD_HEIGHT - 1][x] = 1;
       }
       board.specials.push({
         index: (BOARD_HEIGHT - 1) * BOARD_WIDTH,
@@ -1198,16 +1202,16 @@ describe("EittrisPresenterModel - CrazyIvan", () => {
 
     // Sane controls first
     phoneCommand(model, "A", { command: "slamLeft" });
-    expect(board.piece!.x).toBe(1); // T occupies x-1..x+1
+    expect(board.piece!.x).toBe(0);
 
     runInAction(() => {
       board.crazyIvan = true;
     });
     // Now "left" goes right
     phoneCommand(model, "A", { command: "slamLeft" });
-    expect(board.piece!.x).toBe(8);
+    expect(board.piece!.x).toBe(BOARD_WIDTH - 3);
     phoneCommand(model, "A", { command: "slamRight" });
-    expect(board.piece!.x).toBe(1);
+    expect(board.piece!.x).toBe(0);
   });
 
   it("mirrors dragging too", () => {
@@ -1216,9 +1220,9 @@ describe("EittrisPresenterModel - CrazyIvan", () => {
     runInAction(() => {
       board.crazyIvan = true;
     });
-    // asking for column 1 lands on the mirrored column 8
+    // asking for column 1 lands on the mirrored column 8, as far right as the box goes
     phoneCommand(model, "A", { command: "dragTo", column: 1, row: 0 });
-    expect(board.piece!.x).toBe(8);
+    expect(board.piece!.x).toBe(BOARD_WIDTH - 3);
   });
 
   it("is cured by an antidote", () => {
@@ -1230,7 +1234,7 @@ describe("EittrisPresenterModel - CrazyIvan", () => {
     phoneCommand(model, "A", { command: "useAntidote" });
     expect(board.crazyIvan).toBe(false);
     phoneCommand(model, "A", { command: "slamLeft" });
-    expect(board.piece!.x).toBe(1); // sane again
+    expect(board.piece!.x).toBe(0); // sane again
   });
 });
 

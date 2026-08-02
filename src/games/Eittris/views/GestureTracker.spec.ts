@@ -138,19 +138,19 @@ describe("EITtris GestureTracker - a tap turns the piece towards it", () => {
   }
 
   it("rotates clockwise when tapped to the right of the piece", () => {
-    // A T at x=5 covers columns 4..6, so its middle is at 100 + 5.5 * CELL
-    expect(tapAt(100 + 8 * CELL)).toEqual(["rotate"]);
+    // A T with its box at x=5 covers columns 5..7, so its middle is at 100 + 6.5 * CELL
+    expect(tapAt(100 + 9 * CELL)).toEqual(["rotate"]);
   });
 
   it("rotates back when tapped to the left of the piece", () => {
     expect(tapAt(100 + 1 * CELL)).toEqual(["rotateLeft"]);
   });
 
-  it("splits at the middle of the piece, not at its anchor column", () => {
-    // The anchor is column 5; the cells run 4..6, so the halfway line is at 5.5 cells.
-    // A tap between the two would go the wrong way if the anchor were used.
-    expect(tapAt(100 + 5.2 * CELL)).toEqual(["rotateLeft"]);
-    expect(tapAt(100 + 5.8 * CELL)).toEqual(["rotate"]);
+  it("splits at the middle of the piece, not at the corner of its box", () => {
+    // The box starts at column 5; the cells run 5..7, so the halfway line is 6.5 cells.
+    // A tap between the two would go the wrong way if the box corner were used.
+    expect(tapAt(100 + 6.2 * CELL)).toEqual(["rotateLeft"]);
+    expect(tapAt(100 + 6.8 * CELL)).toEqual(["rotate"]);
   });
 
   it("does nothing when there is no piece to turn", () => {

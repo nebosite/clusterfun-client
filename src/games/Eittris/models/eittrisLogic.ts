@@ -7,10 +7,11 @@
 
 export const BOARD_WIDTH = 10;
 export const BOARD_HEIGHT = 21; // row 0 at top; gravity is y++
-export const SPAWN_X = 5;
-// One row down from the very top: at row 0 a piece is half off the board on spawn,
-// which reads as a glitch rather than as a piece arriving.
-export const SPAWN_Y = 1;
+// Where a new piece's bounding box lands: SRS's own spawn column on a ten-wide board, with
+// the box's top row at the top of the board.  Its own top row is empty for every piece
+// except I and O, so what the player sees is a piece arriving on row 1, as before.
+export const SPAWN_X = 3;
+export const SPAWN_Y = 0;
 export const NEXT_PREVIEW_COUNT = 1; // the phone's tray normally shows one piece
 // ...but CrystalBall shows three, so the queue always holds that many.  The
 // preview depth is a display choice; the queue depth is what makes it possible.
@@ -57,34 +58,93 @@ export const STENCIL_ROW_MS = 100;
 export const EMPTY_CELL = -1;
 
 // ------------------------------------------------------------------------------------------
-// Piece definitions - verbatim from the original C#.  Format "centerType|dx,dy|..."
-// where R rotates about the origin (x,y)->(-y,x) clockwise and C rotates about a
-// corner (x,y)->(-y+1,x) clockwise.  Type index doubles as the grid cell value.
+// Piece definitions - the Super Rotation System (https://tetris.wiki/Super_Rotation_System).
+//
+// This is the rotation every modern tetris uses, and the reason to adopt it is that people
+// already know it: the shapes turn where a player expects them to, and a rotation that would
+// not fit is nudged - "kicked" - into a place where it does, rather than being refused.  The
+// original's rotate-about-a-cell scheme did neither, so a piece flush against a wall or
+// wedged in a well simply would not turn.
+//
+// Each piece is four rotation states of a bounding box - 3x3 for T L J S Z, 4x4 for I, and
+// 2x2 for O, which is symmetrical and never turns at all.  A piece's x,y is the TOP-LEFT of
+// that box, so rotation is a table lookup rather than arithmetic about an origin.  Type
+// indices are unchanged: they are also the settled cell's colour.
+//
+// The colours are still the original's deliberately non-standard ones.  Only the geometry
+// is standard.
 // ------------------------------------------------------------------------------------------
-const PIECE_DEFS = [
-  "R|-1,0|0,0|1,0|0,-1", // 0: T
-  "R|0,-1|0,0|0,1|0,2", // 1: I
-  "R|0,-1|0,0|0,1|1,1", // 2: L
-  "R|0,-1|0,0|0,1|-1,1", // 3: reverse L
-  "R|0,-1|0,0|-1,-1|1,0", // 4: Z
-  "R|0,-1|0,0|1,-1|-1,0", // 5: reverse Z
-  "C|0,0|1,0|0,1|1,1", // 6: O
+
+export interface Cell {
+  x: number;
+  y: number;
+}
+
+/** Shorthand for a rotation state: "cols per row", one string per row of the box. */
+function shape(...rows: string[]): Cell[] {
+  const cells: Cell[] = [];
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) if (row[x] !== ".") cells.push({ x, y });
+  });
+  return cells;
+}
+
+// Indexed by piece type, then by rotation state 0 / R / 2 / L (clockwise).
+const PIECE_SHAPES: Cell[][][] = [
+  // 0: T
+  [
+    shape(".X.", "XXX", "..."),
+    shape(".X.", ".XX", ".X."),
+    shape("...", "XXX", ".X."),
+    shape(".X.", "XX.", ".X."),
+  ],
+  // 1: I
+  [
+    shape("....", "XXXX", "....", "...."),
+    shape("..X.", "..X.", "..X.", "..X."),
+    shape("....", "....", "XXXX", "...."),
+    shape(".X..", ".X..", ".X..", ".X.."),
+  ],
+  // 2: L
+  [
+    shape("..X", "XXX", "..."),
+    shape(".X.", ".X.", ".XX"),
+    shape("...", "XXX", "X.."),
+    shape("XX.", ".X.", ".X."),
+  ],
+  // 3: J ("reverse L")
+  [
+    shape("X..", "XXX", "..."),
+    shape(".XX", ".X.", ".X."),
+    shape("...", "XXX", "..X"),
+    shape(".X.", ".X.", "XX."),
+  ],
+  // 4: Z
+  [
+    shape("XX.", ".XX", "..."),
+    shape("..X", ".XX", ".X."),
+    shape("...", "XX.", ".XX"),
+    shape(".X.", "XX.", "X.."),
+  ],
+  // 5: S ("reverse Z")
+  [
+    shape(".XX", "XX.", "..."),
+    shape(".X.", ".XX", "..X"),
+    shape("...", ".XX", "XX."),
+    shape("X..", "XX.", ".X."),
+  ],
+  // 6: O
+  [shape("XX", "XX"), shape("XX", "XX"), shape("XX", "XX"), shape("XX", "XX")],
 ];
 
-export const PIECE_COUNT = PIECE_DEFS.length;
+export const PIECE_COUNT = PIECE_SHAPES.length;
 
-// The EvilPieces table: nothing but Z pieces, left- and right-handed.  Both
-// of them leave a hole on flat ground no matter how they are rotated, so an
-// afflicted stack rots from underneath however well the victim places.
-const EVIL_PIECE_DEFS = [
-  "R|0,-1|0,0|-1,-1|1,0", // Z
-  "R|0,-1|0,0|1,-1|-1,0", // reverse Z
-];
-
-export const EVIL_PIECE_COUNT = EVIL_PIECE_DEFS.length;
-
-// Where the evil table's entries live in the normal table, in the same order
+// The EvilPieces affliction deals nothing but S and Z, left- and right-handed.  Both leave a
+// hole on flat ground however they are turned, so an afflicted stack rots from underneath
+// however well the victim places.  They are the ordinary S and Z pieces - hence a lookup
+// into the table above rather than a table of their own.
 export const Z_PIECE_TYPES = [4, 5];
+export const EVIL_PIECE_COUNT = Z_PIECE_TYPES.length;
 
 // eitrix's own (deliberately non-standard) piece colors, indexed by type
 export const PIECE_COLORS = [
@@ -99,44 +159,8 @@ export const PIECE_COLORS = [
   "#4f4f4f", // 8: TowerOfEit's darker stone
 ];
 
-export interface Cell {
-  x: number;
-  y: number;
-}
-
-interface PieceDef {
-  centerType: "R" | "C";
-  offsets: Cell[];
-}
-
-function parseDefs(defs: string[]): PieceDef[] {
-  return defs.map((def) => {
-    const parts = def.split("|");
-    return {
-      centerType: parts[0] as "R" | "C",
-      offsets: parts.slice(1).map((p) => {
-        const [x, y] = p.split(",").map(Number);
-        return { x, y };
-      }),
-    };
-  });
-}
-
-const evilParsedDefs: PieceDef[] = parseDefs(EVIL_PIECE_DEFS);
-
-const parsedDefs: PieceDef[] = PIECE_DEFS.map((def) => {
-  const parts = def.split("|");
-  return {
-    centerType: parts[0] as "R" | "C",
-    offsets: parts.slice(1).map((p) => {
-      const [x, y] = p.split(",").map(Number);
-      return { x, y };
-    }),
-  };
-});
-
-// The falling piece: type index, clockwise rotation count 0-3, and board
-// position.  `evil` selects the EvilPieces table instead of the normal one.
+// The falling piece: type index, rotation state 0-3 clockwise from spawn, and the top-left
+// of its bounding box on the board.  `evil` selects the S/Z pair instead of the full set.
 export interface EittrisPiece {
   type: number;
   rot: number;
@@ -145,29 +169,164 @@ export interface EittrisPiece {
   evil?: boolean;
 }
 
+/** Which entry of PIECE_SHAPES this piece is really made of. */
+function shapeIndex(piece: EittrisPiece): number {
+  return piece.evil
+    ? Z_PIECE_TYPES[((piece.type % EVIL_PIECE_COUNT) + EVIL_PIECE_COUNT) % EVIL_PIECE_COUNT]
+    : ((piece.type % PIECE_COUNT) + PIECE_COUNT) % PIECE_COUNT;
+}
+
 // Evil pieces ARE the two normal Z pieces, so they settle wearing the normal
 // Z colors - which also keeps every settled cell a single digit and the grid
 // encoding at 210 characters.
 export function pieceColorIndex(piece: EittrisPiece): number {
-  return piece.evil ? Z_PIECE_TYPES[piece.type % Z_PIECE_TYPES.length] : piece.type;
-}
-
-// One clockwise rotation of a single offset
-function rotateOffsetCW(centerType: "R" | "C", cell: Cell): Cell {
-  return centerType === "R" ? { x: -cell.y, y: cell.x } : { x: -cell.y + 1, y: cell.x };
+  return shapeIndex(piece);
 }
 
 // The four absolute board cells a piece occupies
 export function pieceCells(piece: EittrisPiece): Cell[] {
-  const table = piece.evil ? evilParsedDefs : parsedDefs;
-  const def = table[piece.type % table.length];
-  return def.offsets.map((offset) => {
-    let c = offset;
-    for (let i = 0; i < ((piece.rot % 4) + 4) % 4; i++) {
-      c = rotateOffsetCW(def.centerType, c);
-    }
-    return { x: piece.x + c.x, y: piece.y + c.y };
-  });
+  const states = PIECE_SHAPES[shapeIndex(piece)];
+  const cells = states[((piece.rot % 4) + 4) % 4];
+  return cells.map((c) => ({ x: piece.x + c.x, y: piece.y + c.y }));
+}
+
+// ------------------------------------------------------------------------------------------
+// Wall kicks.
+//
+// A rotation is tried at the piece's own position first; if that collides, four offsets are
+// tried in order and the first that fits wins.  This is what lets a piece turn while it is
+// flush against a wall or down a one-wide well - and it is where the T-spin comes from.
+//
+// The numbers are the standard tables, written exactly as tetris.wiki has them, which means
+// POSITIVE Y IS UP.  This board's y grows downward, so the y is negated where they are
+// applied - the alternative is a table nobody can check against the source.
+// ------------------------------------------------------------------------------------------
+type KickTable = Record<string, Cell[]>;
+
+const KICKS_JLSTZ: KickTable = {
+  "0>1": [
+    { x: 0, y: 0 },
+    { x: -1, y: 0 },
+    { x: -1, y: 1 },
+    { x: 0, y: -2 },
+    { x: -1, y: -2 },
+  ],
+  "1>0": [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 1, y: -1 },
+    { x: 0, y: 2 },
+    { x: 1, y: 2 },
+  ],
+  "1>2": [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 1, y: -1 },
+    { x: 0, y: 2 },
+    { x: 1, y: 2 },
+  ],
+  "2>1": [
+    { x: 0, y: 0 },
+    { x: -1, y: 0 },
+    { x: -1, y: 1 },
+    { x: 0, y: -2 },
+    { x: -1, y: -2 },
+  ],
+  "2>3": [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 1, y: 1 },
+    { x: 0, y: -2 },
+    { x: 1, y: -2 },
+  ],
+  "3>2": [
+    { x: 0, y: 0 },
+    { x: -1, y: 0 },
+    { x: -1, y: -1 },
+    { x: 0, y: 2 },
+    { x: -1, y: 2 },
+  ],
+  "3>0": [
+    { x: 0, y: 0 },
+    { x: -1, y: 0 },
+    { x: -1, y: -1 },
+    { x: 0, y: 2 },
+    { x: -1, y: 2 },
+  ],
+  "0>3": [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 1, y: 1 },
+    { x: 0, y: -2 },
+    { x: 1, y: -2 },
+  ],
+};
+
+const KICKS_I: KickTable = {
+  "0>1": [
+    { x: 0, y: 0 },
+    { x: -2, y: 0 },
+    { x: 1, y: 0 },
+    { x: -2, y: -1 },
+    { x: 1, y: 2 },
+  ],
+  "1>0": [
+    { x: 0, y: 0 },
+    { x: 2, y: 0 },
+    { x: -1, y: 0 },
+    { x: 2, y: 1 },
+    { x: -1, y: -2 },
+  ],
+  "1>2": [
+    { x: 0, y: 0 },
+    { x: -1, y: 0 },
+    { x: 2, y: 0 },
+    { x: -1, y: 2 },
+    { x: 2, y: -1 },
+  ],
+  "2>1": [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: -2, y: 0 },
+    { x: 1, y: -2 },
+    { x: -2, y: 1 },
+  ],
+  "2>3": [
+    { x: 0, y: 0 },
+    { x: 2, y: 0 },
+    { x: -1, y: 0 },
+    { x: 2, y: 1 },
+    { x: -1, y: -2 },
+  ],
+  "3>2": [
+    { x: 0, y: 0 },
+    { x: -2, y: 0 },
+    { x: 1, y: 0 },
+    { x: -2, y: -1 },
+    { x: 1, y: 2 },
+  ],
+  "3>0": [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: -2, y: 0 },
+    { x: 1, y: -2 },
+    { x: -2, y: 1 },
+  ],
+  "0>3": [
+    { x: 0, y: 0 },
+    { x: -1, y: 0 },
+    { x: 2, y: 0 },
+    { x: -1, y: 2 },
+    { x: 2, y: -1 },
+  ],
+};
+
+/** The offsets to try, in order, for one rotation of one piece. */
+export function kicksFor(piece: EittrisPiece, from: number, to: number): Cell[] {
+  const type = shapeIndex(piece);
+  if (type === 6) return [{ x: 0, y: 0 }]; // O never needs one - it does not move when it turns
+  const table = type === 1 ? KICKS_I : KICKS_JLSTZ;
+  return table[`${from}>${to}`] ?? [{ x: 0, y: 0 }];
 }
 
 // ------------------------------------------------------------------------------------------
@@ -201,15 +360,27 @@ export function tryMove(
   return collides(grid, pieceCells(moved)) ? null : moved;
 }
 
-export function tryRotateCW(grid: number[][], piece: EittrisPiece): EittrisPiece | null {
-  const rotated = { ...piece, rot: (piece.rot + 1) % 4 };
-  return collides(grid, pieceCells(rotated)) ? null : rotated;
+// Rotate, kicking the piece into whatever nearby space will take it (see kicksFor).  The
+// first offset in every table is no offset at all, so a rotation with room simply happens.
+// null means all five candidates collided, which is the only case where a rotation is
+// refused outright.
+function tryRotate(grid: number[][], piece: EittrisPiece, quarters: 1 | 3): EittrisPiece | null {
+  const from = ((piece.rot % 4) + 4) % 4;
+  const to = (from + quarters) % 4;
+  for (const kick of kicksFor(piece, from, to)) {
+    // The tables are written y-up, as published; this board is y-down
+    const candidate = { ...piece, rot: to, x: piece.x + kick.x, y: piece.y - kick.y };
+    if (!collides(grid, pieceCells(candidate))) return candidate;
+  }
+  return null;
 }
 
-// Used to take back the rotation the first tap of a double tap caused
+export function tryRotateCW(grid: number[][], piece: EittrisPiece): EittrisPiece | null {
+  return tryRotate(grid, piece, 1);
+}
+
 export function tryRotateCCW(grid: number[][], piece: EittrisPiece): EittrisPiece | null {
-  const rotated = { ...piece, rot: (piece.rot + 3) % 4 };
-  return collides(grid, pieceCells(rotated)) ? null : rotated;
+  return tryRotate(grid, piece, 3);
 }
 
 // Step column-by-column toward targetX, stopping at the first obstruction

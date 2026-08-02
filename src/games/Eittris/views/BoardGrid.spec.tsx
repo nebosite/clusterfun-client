@@ -45,7 +45,8 @@ describe("BoardGrid - Transparency", () => {
     const { container } = render(
       <BoardGrid grid={gridWithBlocks()} piece={piece} cellPx={20} transparency />,
     );
-    const pieceCell = cells(container)[3 * BOARD_WIDTH + 5];
+    // A T with its box at 5,3 puts its bump at (6,3) and its flat row across (5..7,4)
+    const pieceCell = cells(container)[3 * BOARD_WIDTH + 6];
     expect(pieceCell.style.backgroundColor).not.toBe("transparent");
     expect(pieceCell.style.border).toBe("");
   });

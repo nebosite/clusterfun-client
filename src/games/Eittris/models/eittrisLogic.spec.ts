@@ -9,6 +9,7 @@ import {
   EittrisPiece,
   EMPTY_CELL,
   emptyGrid,
+  kicksFor,
   encodeGrid,
   encodeThumbnail,
   gravityStep,
@@ -155,75 +156,43 @@ describe("eittrisLogic - piece shapes and rotation", () => {
     }
   });
 
-  it("matches the verbatim C# base shapes at rotation 0", () => {
-    expect(cellKeys(pieceCells(pieceAt(0)))).toEqual(
-      cellKeys([
-        { x: -1, y: 0 },
-        { x: 0, y: 0 },
-        { x: 1, y: 0 },
-        { x: 0, y: -1 },
-      ]),
-    ); // T
-    expect(cellKeys(pieceCells(pieceAt(1)))).toEqual(
-      cellKeys([
-        { x: 0, y: -1 },
-        { x: 0, y: 0 },
-        { x: 0, y: 1 },
-        { x: 0, y: 2 },
-      ]),
-    ); // I
-    expect(cellKeys(pieceCells(pieceAt(2)))).toEqual(
-      cellKeys([
-        { x: 0, y: -1 },
-        { x: 0, y: 0 },
-        { x: 0, y: 1 },
-        { x: 1, y: 1 },
-      ]),
-    ); // L
-    expect(cellKeys(pieceCells(pieceAt(3)))).toEqual(
-      cellKeys([
-        { x: 0, y: -1 },
-        { x: 0, y: 0 },
-        { x: 0, y: 1 },
-        { x: -1, y: 1 },
-      ]),
-    ); // reverse L
-    expect(cellKeys(pieceCells(pieceAt(4)))).toEqual(
-      cellKeys([
-        { x: 0, y: -1 },
-        { x: 0, y: 0 },
-        { x: -1, y: -1 },
-        { x: 1, y: 0 },
-      ]),
-    ); // Z
-    expect(cellKeys(pieceCells(pieceAt(5)))).toEqual(
-      cellKeys([
-        { x: 0, y: -1 },
-        { x: 0, y: 0 },
-        { x: 1, y: -1 },
-        { x: -1, y: 0 },
-      ]),
-    ); // reverse Z
-    expect(cellKeys(pieceCells(pieceAt(6)))).toEqual(
-      cellKeys([
-        { x: 0, y: 0 },
-        { x: 1, y: 0 },
-        { x: 0, y: 1 },
-        { x: 1, y: 1 },
-      ]),
-    ); // O
+  it("spawns each piece in its SRS orientation", () => {
+    // Read against https://tetris.wiki/Super_Rotation_System.  x,y is the top-left of the
+    // piece's box, so at 0,0 these ARE the published spawn shapes.
+    const rows = (piece: EittrisPiece, width: number, height: number) => {
+      const cells = new Set(cellKeys(pieceCells(piece)));
+      return Array.from({ length: height }, (_, y) =>
+        Array.from({ length: width }, (_, x) => (cells.has(`${x},${y}`) ? "X" : ".")).join(""),
+      );
+    };
+    expect(rows(pieceAt(0), 3, 2)).toEqual([".X.", "XXX"]); // T
+    expect(rows(pieceAt(1), 4, 2)).toEqual(["....", "XXXX"]); // I
+    expect(rows(pieceAt(2), 3, 2)).toEqual(["..X", "XXX"]); // L
+    expect(rows(pieceAt(3), 3, 2)).toEqual(["X..", "XXX"]); // J ("reverse L")
+    expect(rows(pieceAt(4), 3, 2)).toEqual(["XX.", ".XX"]); // Z
+    expect(rows(pieceAt(5), 3, 2)).toEqual([".XX", "XX."]); // S ("reverse Z")
+    expect(rows(pieceAt(6), 2, 2)).toEqual(["XX", "XX"]); // O
   });
 
-  it("R rotation maps (x,y) -> (-y,x): the T's flat row goes vertical", () => {
-    // T rot 1: (-1,0)->(0,-1), (0,0)->(0,0), (1,0)->(0,1), (0,-1)->(1,0)
-    expect(cellKeys(pieceCells(pieceAt(0, 1)))).toEqual(
-      cellKeys([
-        { x: 0, y: -1 },
-        { x: 0, y: 0 },
-        { x: 0, y: 1 },
-        { x: 1, y: 0 },
-      ]),
-    );
+  it("turns the T through the four SRS states", () => {
+    const rows = (rot: number) => {
+      const cells = new Set(cellKeys(pieceCells(pieceAt(0, rot))));
+      return Array.from({ length: 3 }, (_, y) =>
+        Array.from({ length: 3 }, (_, x) => (cells.has(`${x},${y}`) ? "X" : ".")).join(""),
+      );
+    };
+    expect(rows(0)).toEqual([".X.", "XXX", "..."]);
+    expect(rows(1)).toEqual([".X.", ".XX", ".X."]);
+    expect(rows(2)).toEqual(["...", "XXX", ".X."]);
+    expect(rows(3)).toEqual([".X.", "XX.", ".X."]);
+  });
+
+  it("gives every piece four cells in every state, and the same four after a full turn", () => {
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      for (let rot = 0; rot < 4; rot++) {
+        expect(pieceCells(pieceAt(type, rot)).length).toBe(4);
+      }
+    }
   });
 
   it("returns to the original shape after 4 clockwise rotations (all pieces)", () => {
@@ -232,19 +201,24 @@ describe("eittrisLogic - piece shapes and rotation", () => {
     }
   });
 
-  it("corner rotation keeps the O piece's footprint identical in every rotation", () => {
+  it("keeps the O piece's footprint identical in every rotation", () => {
     const base = cellKeys(pieceCells(pieceAt(6, 0)));
     for (let rot = 1; rot < 4; rot++) {
       expect(cellKeys(pieceCells(pieceAt(6, rot)))).toEqual(base);
     }
   });
 
-  it("every rotation of every piece stays within a 5x5 neighborhood of its origin", () => {
+  it("keeps every piece inside its own box", () => {
+    // 4x4 for the I, 2x2 for the O, 3x3 for the rest - which is what makes the spawn
+    // column and the kick tables mean anything.
+    const boxes = [3, 4, 3, 3, 3, 3, 2];
     for (let type = 0; type < PIECE_COUNT; type++) {
       for (let rot = 0; rot < 4; rot++) {
         for (const c of pieceCells(pieceAt(type, rot))) {
-          expect(Math.abs(c.x)).toBeLessThanOrEqual(2);
-          expect(Math.abs(c.y)).toBeLessThanOrEqual(2);
+          expect(c.x).toBeGreaterThanOrEqual(0);
+          expect(c.y).toBeGreaterThanOrEqual(0);
+          expect(c.x).toBeLessThan(boxes[type]);
+          expect(c.y).toBeLessThan(boxes[type]);
         }
       }
     }
@@ -288,42 +262,53 @@ describe("eittrisLogic - movement", () => {
     expect(tryMove(grid, atLeftWall, 1, 0)).not.toBeNull();
   });
 
-  it("tryRotateCW refuses a blocked rotation and leaves rot unchanged", () => {
+  it("tryRotateCW refuses a rotation with nowhere at all to go", () => {
+    // A T boxed in on every side: five kick candidates, all of them blocked.  Rotation is
+    // only ever refused outright when there is genuinely no room within a kick of here.
     const grid = emptyGrid();
-    // T at rot 0 occupies (4,5)(5,5)(6,5)(5,4).  Rot 1 needs (5,4)(5,5)(5,6)(6,5).
-    grid[6][5] = 0; // block (5,6)
-    const piece = pieceAt(0, 0, 5, 5);
+    for (let y = 0; y < BOARD_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) grid[y][x] = 1;
+    }
+    // Carve out exactly the T's spawn footprint at 4,5 and nothing else
+    const piece = pieceAt(0, 0, 4, 5);
+    for (const c of pieceCells(piece)) grid[c.y][c.x] = EMPTY_CELL;
+
     expect(tryRotateCW(grid, piece)).toBeNull();
-    grid[6][5] = EMPTY_CELL;
-    expect(tryRotateCW(grid, piece)?.rot).toBe(1);
+
+    // Open the cell the plain rotation wants and it goes round with no kick at all
+    grid[7][5] = EMPTY_CELL;
+    const turned = tryRotateCW(grid, piece)!;
+    expect(turned.rot).toBe(1);
+    expect(turned.x).toBe(4);
+    expect(turned.y).toBe(5);
   });
 
   it("moveTowardColumn follows the target and stops at an obstruction", () => {
     const grid = emptyGrid();
-    const piece = pieceAt(0, 0, 5, 5); // T, occupies x 4..6
-    expect(moveTowardColumn(grid, piece, 8).x).toBe(8);
-    expect(moveTowardColumn(grid, piece, 1).x).toBe(1);
-    grid[5][8] = 3; // wall at x=8 in the piece's row
-    expect(moveTowardColumn(grid, piece, 9).x).toBe(6); // right edge reaches x=7 -> origin 6
+    const piece = pieceAt(0, 0, 4, 5); // T box at 4..6, cells on rows 5 and 6
+    expect(moveTowardColumn(grid, piece, 7).x).toBe(7);
+    expect(moveTowardColumn(grid, piece, 0).x).toBe(0);
+    grid[6][8] = 3; // wall at x=8 in the piece's wide row
+    expect(moveTowardColumn(grid, piece, 9).x).toBe(5); // the box's right column stops at 7
   });
 
   it("slamHorizontal runs to the walls", () => {
     const grid = emptyGrid();
-    const piece = pieceAt(0, 0, 5, 5); // T needs x-1 and x+1 clear
-    expect(slamHorizontal(grid, piece, -1).x).toBe(1);
-    expect(slamHorizontal(grid, piece, 1).x).toBe(8);
+    const piece = pieceAt(0, 0, 4, 5); // T box is 3 wide
+    expect(slamHorizontal(grid, piece, -1).x).toBe(0);
+    expect(slamHorizontal(grid, piece, 1).x).toBe(BOARD_WIDTH - 3);
   });
 
   it("hardDrop reports the rows dropped and rests on the stack", () => {
     const grid = emptyGrid();
-    const piece = pieceAt(0, 0, 5, 0); // T flat row at y=0
+    const piece = pieceAt(0, 0, 4, 0); // T box at the very top; its cells are rows 0 and 1
     const dropped = hardDrop(grid, piece);
-    expect(dropped.piece.y).toBe(BOARD_HEIGHT - 1);
-    expect(dropped.rowsDropped).toBe(BOARD_HEIGHT - 1);
+    expect(dropped.piece.y).toBe(BOARD_HEIGHT - 2); // the box's lower row is the piece's floor
+    expect(dropped.rowsDropped).toBe(BOARD_HEIGHT - 2);
 
-    grid[20][5] = 1; // one block under the center
+    grid[20][5] = 1; // one block under the middle of the T
     const resting = hardDrop(grid, piece);
-    expect(resting.piece.y).toBe(BOARD_HEIGHT - 2);
+    expect(resting.piece.y).toBe(BOARD_HEIGHT - 3);
   });
 });
 
@@ -341,7 +326,7 @@ describe("eittrisLogic - lock + clear + score", () => {
 
   it("locks a piece into the grid without clearing anything", () => {
     const grid = emptyGrid();
-    const result = lockAndClear(grid, pieceAt(0, 0, 5, BOARD_HEIGHT - 1));
+    const result = lockAndClear(grid, pieceAt(0, 0, 4, BOARD_HEIGHT - 2));
     expect(result.cleared).toBe(0);
     expect(result.scoreGained).toBe(0);
     expect(result.grid[BOARD_HEIGHT - 1][4]).toBe(0);
@@ -353,12 +338,12 @@ describe("eittrisLogic - lock + clear + score", () => {
   });
 
   it("discards locked cells above the top of the board", () => {
+    // A piece pushed above the ceiling by a kick or a rising stack: the cells that are off
+    // the board are dropped rather than crashing an array index.
     const grid = emptyGrid();
-    // I piece vertical at y=0 spans y -1..2; the y=-1 cell just disappears
-    const result = lockAndClear(grid, pieceAt(1, 0, 5, 0));
+    const result = lockAndClear(grid, pieceAt(1, 1, 3, -2)); // vertical I, half of it above 0
     expect(result.grid[0][5]).toBe(1);
     expect(result.grid[1][5]).toBe(1);
-    expect(result.grid[2][5]).toBe(1);
     expect(result.grid.length).toBe(BOARD_HEIGHT);
   });
 
@@ -368,7 +353,7 @@ describe("eittrisLogic - lock + clear + score", () => {
     grid[19][0] = 2; // a marker block above the full row
 
     // T lands flat filling (4..6, 20) with its bump at (5,19)
-    const result = lockAndClear(grid, pieceAt(0, 0, 5, 20));
+    const result = lockAndClear(grid, pieceAt(0, 0, 4, 19));
     expect(result.cleared).toBe(1);
     expect(result.scoreGained).toBe(1000);
     // row 20 cleared; the marker and the T bump shifted down one row
@@ -382,8 +367,9 @@ describe("eittrisLogic - lock + clear + score", () => {
     for (let y = 17; y <= 20; y++) {
       for (let x = 0; x < BOARD_WIDTH; x++) if (x !== 9) grid[y][x] = 1;
     }
-    // vertical I at x=9 fills rows 17..20 (y=18 spans y-1..y+2)
-    const result = lockAndClear(grid, pieceAt(1, 0, 9, 18));
+    // A vertical I fills rows 17..20 in column 9.  Rotation 1 puts the bar in the box's
+    // third column, so a box at x=7 is column 9.
+    const result = lockAndClear(grid, pieceAt(1, 1, 7, 17));
     expect(result.cleared).toBe(4);
     expect(result.scoreGained).toBe(16000);
     expect(result.grid.every((row) => row.every((cell) => cell === EMPTY_CELL))).toBe(true);
@@ -397,8 +383,9 @@ describe("eittrisLogic - lock + clear + score", () => {
       grid[20][x] = 3; // row 20: missing only x=0
     }
 
-    // vertical I at x=0, y=18 fills (0,17)(0,18)(0,19)(0,20): completes rows 18 and 20
-    const result = lockAndClear(grid, pieceAt(1, 0, 0, 18));
+    // A vertical I filling (0,17)..(0,20) completes rows 18 and 20.  Rotation 3 puts the
+    // bar in the box's second column, so a box at x=-1 is column 0.
+    const result = lockAndClear(grid, pieceAt(1, 3, -1, 17));
     expect(result.cleared).toBe(2);
     expect(result.scoreGained).toBe(4000);
     // the partial row 19 survives (with the I's cell at x=0), now at the bottom
@@ -497,8 +484,8 @@ describe("eittrisLogic - spawning", () => {
 
   it("a fresh spawn into a blocked spawn area collides (board death condition)", () => {
     const grid = emptyGrid();
-    grid[0][5] = 2;
-    const piece = spawnPiece(0, 0); // T occupies (4,0)(5,0)(6,0)(5,-1)
+    grid[1][4] = 2; // under the left end of a spawned T's flat row
+    const piece = spawnPiece(0, 0);
     expect(collides(grid, pieceCells(piece))).toBe(true);
   });
 
@@ -546,43 +533,43 @@ describe("eittrisLogic - rankBoards", () => {
 describe("eittrisLogic - dragTowards", () => {
   it("moves horizontally AND down at once toward the target", () => {
     const grid = emptyGrid();
-    const result = dragTowards(grid, pieceAt(0, 0, 5, 5), 8, 8);
-    expect(result.piece.x).toBe(8);
+    const result = dragTowards(grid, pieceAt(0, 0, 4, 5), 7, 8);
+    expect(result.piece.x).toBe(7);
     expect(result.piece.y).toBe(8);
     expect(result.rowsDescended).toBe(3);
   });
 
   it("never moves up (a target row above the piece is ignored)", () => {
     const grid = emptyGrid();
-    const result = dragTowards(grid, pieceAt(0, 0, 5, 5), 7, 2);
-    expect(result.piece.x).toBe(7);
+    const result = dragTowards(grid, pieceAt(0, 0, 4, 5), 6, 2);
+    expect(result.piece.x).toBe(6);
     expect(result.piece.y).toBe(5);
     expect(result.rowsDescended).toBe(0);
   });
 
   it("stops at a horizontal obstruction when it cannot descend past it", () => {
     const grid = emptyGrid();
-    grid[5][8] = 1; // blocks the T (occupies x-1..x+1) from reaching x=7 at y=5
-    const result = dragTowards(grid, pieceAt(0, 0, 5, 5), 8, 5);
-    expect(result.piece.x).toBe(6);
+    grid[6][8] = 1; // blocks the T's wide row from reaching column 8
+    const result = dragTowards(grid, pieceAt(0, 0, 4, 5), 7, 5);
+    expect(result.piece.x).toBe(5);
     expect(result.piece.y).toBe(5);
   });
 
   it("navigates around an obstruction by descending below it", () => {
     const grid = emptyGrid();
-    grid[5][8] = 1; // same wall, but the drag also goes down
-    const result = dragTowards(grid, pieceAt(0, 0, 5, 5), 8, 8);
-    expect(result.piece.x).toBe(8);
+    grid[6][8] = 1; // same wall, but the drag also goes down
+    const result = dragTowards(grid, pieceAt(0, 0, 4, 5), 7, 8);
+    expect(result.piece.x).toBe(7);
     expect(result.piece.y).toBe(8);
   });
 
   it("stops descending on the stack but keeps sliding sideways - and does NOT lock", () => {
     const grid = emptyGrid();
     for (let x = 0; x < BOARD_WIDTH; x++) grid[8][x] = 2; // a full shelf at row 8
-    const result = dragTowards(grid, pieceAt(0, 0, 5, 5), 8, 15);
-    expect(result.piece.y).toBe(7); // resting on the shelf
-    expect(result.piece.x).toBe(8);
-    expect(result.rowsDescended).toBe(2);
+    const result = dragTowards(grid, pieceAt(0, 0, 4, 5), 7, 15);
+    expect(result.piece.y).toBe(6); // resting on the shelf - the box's lower row is row 7
+    expect(result.piece.x).toBe(7);
+    expect(result.rowsDescended).toBe(1);
     // still a live piece - locking is the caller's decision (release/gravity)
     expect(isResting(grid, result.piece)).toBe(true);
   });
@@ -591,10 +578,10 @@ describe("eittrisLogic - dragTowards", () => {
 describe("eittrisLogic - isResting", () => {
   it("is false in open air and true on the floor or the stack", () => {
     const grid = emptyGrid();
-    expect(isResting(grid, pieceAt(0, 0, 5, 5))).toBe(false);
-    expect(isResting(grid, pieceAt(0, 0, 5, BOARD_HEIGHT - 1))).toBe(true);
-    grid[6][5] = 1; // block right under the T's center
-    expect(isResting(grid, pieceAt(0, 0, 5, 5))).toBe(true);
+    expect(isResting(grid, pieceAt(0, 0, 4, 5))).toBe(false);
+    expect(isResting(grid, pieceAt(0, 0, 4, BOARD_HEIGHT - 2))).toBe(true);
+    grid[7][5] = 1; // block right under the T's flat row
+    expect(isResting(grid, pieceAt(0, 0, 4, 5))).toBe(true);
   });
 });
 
@@ -1552,8 +1539,9 @@ describe("eittrisLogic - the row-clear animation", () => {
 
   it("lockOnly stamps a piece without taking any rows out", () => {
     const grid = emptyGrid();
-    for (let x = 0; x < BOARD_WIDTH - 1; x++) grid[20][x] = 1;
-    const piece = { type: 1, rot: 1, x: BOARD_WIDTH - 1, y: 20, evil: false };
+    for (let x = 0; x < BOARD_WIDTH - 4; x++) grid[20][x] = 1;
+    // A flat I filling the last four columns of the bottom row, and nothing above it
+    const piece = { type: 1, rot: 0, x: BOARD_WIDTH - 4, y: 19, evil: false };
     const locked = lockOnly(grid, piece);
     // The row is now full, and still there - that is the point
     expect(locked[20].every((c) => c !== EMPTY_CELL)).toBe(true);
@@ -2035,5 +2023,92 @@ describe("eittrisLogic - game speed", () => {
   it("starts a board at the speed the host picked", () => {
     expect(makeBoard("p", () => 0.5, "fast").intervalMs).toBe(startIntervalFor("fast"));
     expect(makeBoard("p", () => 0.5).intervalMs).toBe(startIntervalFor("slow"));
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// SRS wall kicks - the reason for the whole rotation change.  A rotation with no room used
+// to be refused; now the piece is nudged into a place where it fits.
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - wall kicks", () => {
+  /** Draw a board out of strings, bottom-aligned.  "#" is a settled block. */
+  function board(...rows: string[]): number[][] {
+    const grid = emptyGrid();
+    rows.forEach((row, i) => {
+      const y = BOARD_HEIGHT - rows.length + i;
+      for (let x = 0; x < row.length; x++) if (row[x] === "#") grid[y][x] = 1;
+    });
+    return grid;
+  }
+
+  it("turns a piece that is flush against the left wall", () => {
+    // A vertical I in column 0 cannot turn flat without moving right - SRS moves it
+    const grid = emptyGrid();
+    const vertical = { type: 1, rot: 3, x: -1, y: BOARD_HEIGHT - 4 };
+    const flat = tryRotateCW(grid, vertical);
+    expect(flat).not.toBeNull();
+    for (const c of pieceCells(flat!)) {
+      expect(c.x).toBeGreaterThanOrEqual(0);
+      expect(c.x).toBeLessThan(BOARD_WIDTH);
+    }
+  });
+
+  it("turns a piece that is flush against the right wall", () => {
+    const grid = emptyGrid();
+    const vertical = { type: 1, rot: 1, x: BOARD_WIDTH - 3, y: BOARD_HEIGHT - 4 };
+    const flat = tryRotateCW(grid, vertical);
+    expect(flat).not.toBeNull();
+    for (const c of pieceCells(flat!)) expect(c.x).toBeLessThan(BOARD_WIDTH);
+  });
+
+  it("kicks a T out of a niche it could never have turned in before", () => {
+    // A one-wide well with the T standing in it.  The plain rotation is blocked on both
+    // sides; the kick lifts it clear.  This is the shape of every T-spin setup.
+    const grid = board("###.######", "###.######", "###.######");
+    const piece = { type: 0, rot: 1, x: 2, y: BOARD_HEIGHT - 3 };
+    const turned = tryRotateCW(grid, piece);
+    expect(turned).not.toBeNull();
+    expect(collides(grid, pieceCells(turned!))).toBe(false);
+  });
+
+  it("still refuses when not one of the five candidates fits", () => {
+    const grid = emptyGrid();
+    for (let y = 0; y < BOARD_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) grid[y][x] = 1;
+    }
+    const piece = { type: 0, rot: 0, x: 4, y: 5 };
+    for (const c of pieceCells(piece)) grid[c.y][c.x] = EMPTY_CELL;
+    expect(tryRotateCW(grid, piece)).toBeNull();
+    expect(tryRotateCCW(grid, piece)).toBeNull();
+  });
+
+  it("never needs to kick the O piece", () => {
+    // It is the same four cells in every state, so its kick list is the identity
+    for (let rot = 0; rot < 4; rot++) {
+      expect(kicksFor({ type: 6, rot, x: 0, y: 0 }, rot, (rot + 1) % 4)).toEqual([{ x: 0, y: 0 }]);
+    }
+  });
+
+  it("gives the I piece its own kick table", () => {
+    const i = kicksFor({ type: 1, rot: 0, x: 0, y: 0 }, 0, 1);
+    const t = kicksFor({ type: 0, rot: 0, x: 0, y: 0 }, 0, 1);
+    expect(i).not.toEqual(t);
+    expect(i.length).toBe(5);
+    expect(t.length).toBe(5);
+    // Every table starts with "try it where it is"
+    expect(i[0]).toEqual({ x: 0, y: 0 });
+    expect(t[0]).toEqual({ x: 0, y: 0 });
+  });
+
+  it("takes a rotation straight back when nothing is in the way", () => {
+    const grid = emptyGrid();
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      const piece = { type, rot: 0, x: 3, y: 5 };
+      const there = tryRotateCW(grid, piece)!;
+      const back = tryRotateCCW(grid, there)!;
+      expect(back.rot).toBe(piece.rot);
+      expect(back.x).toBe(piece.x);
+      expect(back.y).toBe(piece.y);
+    }
   });
 });
