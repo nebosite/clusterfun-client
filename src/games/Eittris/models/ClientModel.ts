@@ -55,6 +55,7 @@ import {
   SimulationContext,
   applyCommand,
   applyIncomingSpecial,
+  collectSpecial,
   spendAntidote,
   triggerEarthquake,
   stepBoard,
@@ -786,27 +787,38 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.mirrorBoard();
   }
 
-  // DEV ONLY: pin which special spawns (null = normal random play)
+  // DEV ONLY: pin which special spawns (null = normal random play).
+  //
+  // Set on the BOARD, not just on the observable.  The board is this phone's now, and
+  // mirrorBoard copies it back over the observable on every tick - so a picker that only
+  // set the observable was overwritten within a frame and the whole dev panel did nothing.
   setForcedSpecial(specialType: number | null) {
-    action(() => (this.forcedSpecial = specialType))();
+    runInAction(() => {
+      this.forcedSpecial = specialType;
+      if (this.board) this.board.forcedSpecial = specialType;
+    });
     this.session.sendMessageToPresenter(EittrisCommandEndpoint, {
       command: "setForcedSpecial",
       specialType,
     });
   }
 
-  // DEV ONLY: fire the selected special as though it had just been cleared
+  // DEV ONLY: fire the selected special as though it had just been cleared.  Applied here,
+  // like every other thing that happens to this board - sent to the host it would land on
+  // the host's mirror and be overwritten by this phone's next report.
   fireSelectedSpecial() {
-    if (this.forcedSpecial === null) return;
-    this.session.sendMessageToPresenter(EittrisCommandEndpoint, {
-      command: "fireSpecial",
-      specialType: this.forcedSpecial,
-    });
+    if (this.forcedSpecial === null || !this.board) return;
+    collectSpecial(this.board, this.forcedSpecial as SpecialType, this.simContext);
+    this.mirrorBoard();
+    this.markReportDue();
   }
 
   // DEV ONLY: hand this board to the computer player
   setAiControlled(aiControlled: boolean) {
-    action(() => (this.aiControlled = aiControlled))();
+    runInAction(() => {
+      this.aiControlled = aiControlled;
+      if (this.board) this.board.aiControlled = aiControlled;
+    });
     this.session.sendMessageToPresenter(EittrisCommandEndpoint, {
       command: "setAiControlled",
       aiControlled,

@@ -683,3 +683,44 @@ describe("EittrisClientModel - earning earthquakes by clearing rows", () => {
     expect(board.earthquakes).toBe(1); // spent one, earned one
   });
 });
+
+describe("EittrisClientModel - the dev panel", () => {
+  // Dev-only, but broken by the same thing that broke the antidote and the target list: the
+  // board belongs to this phone now, and mirrorBoard copies it back over the observables
+  // every tick.  Anything set only on an observable is gone within a frame.
+  function playing() {
+    const model = makeClient();
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+    return model;
+  }
+
+  it("pins the forced special onto the board, not just the view", () => {
+    const model = playing();
+    model.setForcedSpecial(SpecialType.Earthquake);
+    (model as any).mirrorBoard();
+    expect(model.forcedSpecial).toBe(SpecialType.Earthquake);
+    expect((model as any).board.forcedSpecial).toBe(SpecialType.Earthquake);
+  });
+
+  it("hands the board to the robot in the same way", () => {
+    const model = playing();
+    model.setAiControlled(true);
+    (model as any).mirrorBoard();
+    expect(model.aiControlled).toBe(true);
+    expect((model as any).board.aiControlled).toBe(true);
+  });
+
+  it("collects the selected special right here", () => {
+    const model = playing();
+    model.setForcedSpecial(SpecialType.Earthquake);
+    model.fireSelectedSpecial();
+    expect((model as any).board.earthquakes).toBe(1);
+    expect(model.earthquakes).toBe(1);
+  });
+
+  it("does nothing with nothing selected", () => {
+    const model = playing();
+    model.fireSelectedSpecial();
+    expect((model as any).board.earthquakes).toBe(0);
+  });
+});
