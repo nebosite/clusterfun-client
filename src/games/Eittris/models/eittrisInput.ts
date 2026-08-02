@@ -98,6 +98,76 @@ export const EITTRIS_BINDINGS: InputBindings = {
   repeat: EITTRIS_REPEAT,
 };
 
+// ==========================================================================================
+// The controls, in plain English, for the waiting screen.
+//
+// Three ways to play and nobody is told about two of them: a phone is all gestures, a PC is
+// all keys, and a pad plugged into either works too.  Rather than a line of hints squeezed
+// under the board mid-game - where it is both too small to read and too late to be useful -
+// this is the list a player can open while waiting for the host to start.
+//
+// It lives beside the bindings so the two are edited together.  A mapping described here and
+// not bound above is a lie a player finds out about the hard way.
+// ==========================================================================================
+
+export interface ControlGuideEntry {
+  /** What you do */
+  label: string;
+  /** What it does */
+  detail: string;
+}
+
+export interface ControlGuideSection {
+  id: "touch" | "keyboard" | "pad";
+  /** Chip text */
+  title: string;
+  /** One line, shown under the title when the section is open */
+  summary: string;
+  entries: ControlGuideEntry[];
+}
+
+export const EITTRIS_CONTROL_GUIDE: ControlGuideSection[] = [
+  {
+    id: "touch",
+    title: "Touch",
+    summary: "Everything happens on the board itself - there are no buttons to hunt for.",
+    entries: [
+      { label: "Drag", detail: "The piece follows your finger sideways and downward" },
+      { label: "Tap", detail: "Rotate the piece - anywhere on the board, not just on it" },
+      { label: "Flick down", detail: "Hard drop: straight down and stuck" },
+      { label: "Flick left / right", detail: "Slam the piece to that wall" },
+      { label: "Lift your finger", detail: "Place the piece if it is resting, else keep falling" },
+      { label: "Tap a player", detail: "Aim your next attack at them" },
+    ],
+  },
+  {
+    id: "keyboard",
+    title: "Keyboard",
+    summary: "Four seats at one keyboard, so a room full of people can share a PC.",
+    entries: [
+      { label: "← → / A D / J L / Num 4 6", detail: "Move left and right" },
+      { label: "↓ / S / K / Num 5", detail: "Down one row" },
+      { label: "↑ / W / I / X / Num 3", detail: "Rotate clockwise" },
+      { label: "Z / Ctrl / Num 7", detail: "Rotate counter-clockwise" },
+      { label: "Space / Num 8", detail: "Hard drop" },
+      { label: "Q E / [ ] / PgUp PgDn", detail: "Aim at the previous or next player" },
+      { label: "F / Enter / Num 0", detail: "Use an antidote" },
+    ],
+  },
+  {
+    id: "pad",
+    title: "Controller",
+    summary: "Any game pad the browser can see, on a PC or a phone.",
+    entries: [
+      { label: "D-pad / left stick", detail: "Move left, right and down" },
+      { label: "A / B", detail: "Rotate clockwise / counter-clockwise" },
+      { label: "Up / Y", detail: "Hard drop" },
+      { label: "LB / RB", detail: "Aim at the previous or next player" },
+      { label: "X", detail: "Use an antidote" },
+    ],
+  },
+];
+
 // What to show a player who has a keyboard.  One representative key per action
 // rather than all of them - the full list is noise on a status line.
 export const EITTRIS_KEY_HINTS: { action: EittrisActionName; label: string; keys: string }[] = [

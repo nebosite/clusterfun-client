@@ -465,19 +465,60 @@
 /* ---- Keyboard / controller hints ----
    Only rendered on a device where they apply (see IS_DESKTOP / hasGamepad),
    so a phone never spends space on keys it does not have. */
-.gameclient .keyHints {
+/* ---- The controls, explained on the waiting screen ---- */
+
+.gameclient .controlsHelp {
+  margin-top: 18px;
+  text-align: left;
+}
+.gameclient .controlsTitle {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.gameclient .controlChips {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px 18px;
-  padding: 10px 6px 0 6px;
-  font-size: 30%;
-  color: #9fb2cc;
+  gap: 10px;
 }
-.gameclient .keyHint b {
+/* Chips are big enough to hit with a thumb without looking - this screen is
+   read while the host is still fiddling with settings. */
+.gameclient .controlChip {
+  background: #2a3d5c;
   color: #dbe7f5;
+  border: 2px solid #4d648a;
+  border-radius: 999px;
+  padding: 8px 20px;
+  font-size: 100%;
+  font-family: inherit;
+  cursor: pointer;
+}
+.gameclient .controlChipOpen {
+  background: #4d76b8;
+  border-color: #9fc4ff;
+  color: white;
+}
+.gameclient .controlSummary {
+  color: #9fb2cc;
+  font-size: 85%;
+  margin-top: 10px;
+}
+.gameclient .controlDetail {
+  margin-top: 10px;
+}
+.gameclient .controlEntry {
+  display: flex;
+  gap: 12px;
+  padding: 4px 0;
+  align-items: baseline;
+}
+.gameclient .controlKey {
+  color: #ffe9a8;
   font-weight: 700;
-  margin-right: 6px;
+  flex: 0 0 42%;
+}
+.gameclient .controlWhat {
+  color: #dbe7f5;
+  flex: 1 1 auto;
 }
 
 /* Antidote charges: one icon each, centred, 30% larger than the old inline

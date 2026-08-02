@@ -47,8 +47,7 @@ import {
 import EittrisAssets from "../assets/Assets";
 import BoardGrid from "./BoardGrid";
 import { DragScroller, GameInputController } from "libs";
-import { GLOBALS } from "../../../Globals";
-import { EITTRIS_BINDINGS, EITTRIS_KEY_HINTS, EittrisAction } from "../models/eittrisInput";
+import { EITTRIS_BINDINGS, EITTRIS_CONTROL_GUIDE, EittrisAction } from "../models/eittrisInput";
 
 // Board cell size in the phone's 1080x1920 virtual space.  Chosen with the
 // status strip's height so the grid's bottom edge lands exactly 15px above
@@ -56,13 +55,6 @@ import { EITTRIS_BINDINGS, EITTRIS_KEY_HINTS, EittrisAction } from "../models/ei
 const CELL_PX = 64;
 // In dev the special picker takes the title's place in the top bar
 const IS_DEV = process.env.REACT_APP_DEVMODE === "development";
-// A real keyboard is worth binding; a phone's on-screen one is not.  Coarse
-// pointer + no hover is the standard "this is a touch device" signal.
-const IS_DESKTOP =
-  typeof window !== "undefined" &&
-  !GLOBALS.IsMobile &&
-  !window.matchMedia?.("(pointer: coarse)")?.matches;
-
 // One line of plain English for a special that just fired
 export function describeSpecialEvent(
   event: {
@@ -240,6 +232,53 @@ class GestureTracker {
 
   cancel() {
     this.end();
+  }
+}
+
+// -------------------------------------------------------------------
+// ControlsHelp - the three ways to play, offered while waiting for the host.
+//
+// Closed it is three chips, which is enough to answer "can I use a keyboard?".
+// Tap one and it says exactly what every input does.  Only one is open at a
+// time: the point is a short read, not a manual.
+// -------------------------------------------------------------------
+export class ControlsHelp extends React.Component<{}, { openId: string | null }> {
+  state = { openId: null as string | null };
+
+  render() {
+    const { openId } = this.state;
+    return (
+      <div className={styles.controlsHelp}>
+        <div className={styles.controlsTitle}>Controls</div>
+        <div className={styles.controlChips}>
+          {EITTRIS_CONTROL_GUIDE.map((section) => (
+            <button
+              key={section.id}
+              className={classNames(styles.controlChip, {
+                [styles.controlChipOpen]: openId === section.id,
+              })}
+              onClick={() => this.setState({ openId: openId === section.id ? null : section.id })}
+            >
+              {section.title}
+            </button>
+          ))}
+        </div>
+        {EITTRIS_CONTROL_GUIDE.filter((s) => s.id === openId).map((section) => (
+          <div className={styles.controlDetail} key={section.id}>
+            <div className={styles.controlSummary}>{section.summary}</div>
+            {section.entries.map((entry) => (
+              <div className={styles.controlEntry} key={entry.label}>
+                <span className={styles.controlKey}>{entry.label}</span>
+                <span className={styles.controlWhat}>{entry.detail}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+        {openId === null ? (
+          <div className={styles.controlSummary}>Tap one to see how it is laid out</div>
+        ) : null}
+      </div>
+    );
   }
 }
 
@@ -421,24 +460,17 @@ class AfflictionChip extends React.Component<ChipInfo> {
 
 @inject("appModel")
 @observer
-class PlayingBoard extends React.Component<
-  { appModel?: EittrisClientModel },
-  { hasGamepad: boolean }
-> {
+class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
   boardRef = React.createRef<HTMLDivElement>();
   tracker: GestureTracker;
   input: GameInputController;
 
   constructor(props: Readonly<{ appModel?: EittrisClientModel }>) {
     super(props);
-    this.state = { hasGamepad: false };
     this.tracker = new GestureTracker(props.appModel!);
     // Keyboard and controller, on top of the touch gestures - a player at a PC
     // should not have to drag a piece around with a mouse.
-    this.input = new GameInputController(EITTRIS_BINDINGS, {
-      onAction: this.handleInputAction,
-      onGamepadChange: (connected) => this.setState({ hasGamepad: connected }),
-    });
+    this.input = new GameInputController(EITTRIS_BINDINGS, { onAction: this.handleInputAction });
   }
 
   componentDidMount() {
@@ -699,25 +731,9 @@ class PlayingBoard extends React.Component<
           </div>
           <TargetList />
         </div>
-        {/* Controls, shown only where they apply: a phone with no pad attached
-            never sees them, and they cost a line on a PC where they are the
-            only way to know the keys exist. */}
-        {IS_DESKTOP || this.state.hasGamepad ? (
-          <div className={styles.keyHints}>
-            {this.state.hasGamepad ? (
-              <span className={styles.keyHint}>
-                <b>Controller ready</b> d-pad move · A/B rotate · ↑ drop · LB/RB target · X antidote
-              </span>
-            ) : null}
-            {IS_DESKTOP
-              ? EITTRIS_KEY_HINTS.map((hint) => (
-                  <span className={styles.keyHint} key={hint.action + hint.label}>
-                    <b>{hint.label}</b> {hint.keys}
-                  </span>
-                ))
-              : null}
-          </div>
-        ) : null}
+        {/* The controls used to be listed here, under the board.  Mid-game is the wrong
+            moment to read them and this was the smallest text on the screen; they are on
+            the waiting screen now, where there is room and time for them. */}
       </div>
     );
   }
@@ -760,7 +776,8 @@ export default class Client extends React.Component<{
             </div>
             <div className={styles.instructions}>
               <div style={{ fontWeight: 700 }}>How to play:</div>
-              <p>Use your finger to control and place pieces</p>
+              <p>Fill rows to clear them. Collect powerups and fire them at somebody else.</p>
+              <ControlsHelp />
             </div>
           </div>
         );
