@@ -833,7 +833,14 @@ export default class Client extends React.Component<{
           virtualHeight={1920}
           virtualWidth={1080}
         >
-          <div className={styles.gameclient}>
+          {/* The whole phone goes red while something is wrong with you.  Six afflictions
+              each have their own chip and their own effect on the board, and in the middle
+              of a round none of that reads fast enough - the colour of the screen does. */}
+          <div
+            className={classNames(styles.gameclient, {
+              [styles.afflictedScreen]: !!appModel?.afflicted,
+            })}
+          >
             <div className={classNames(styles.divRow, styles.topbar)}>
               <DevOnly>
                 <select

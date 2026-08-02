@@ -17,6 +17,20 @@
   font-family: sans-serif;
 }
 
+/* Afflicted: the background turns red.  A deep, desaturated red rather than a bright one -
+   it has to be unmistakable at a glance without making the board itself harder to read,
+   which is the thing you are actually trying to look at.  The fade keeps it from flickering
+   when a short affliction lands and lifts.
+
+   Both classes in the selector so this does not depend on which rule came last. */
+.gameclient.afflictedScreen {
+  background-color: rgb(112, 34, 40);
+}
+
+.gameclient {
+  transition: background-color 300ms ease-out;
+}
+
 .gameclient button {
   font-size: 100%;
   padding: 15px;

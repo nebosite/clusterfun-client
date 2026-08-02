@@ -197,6 +197,18 @@ export class EittrisClientModel extends ClusterfunClientModel {
   @observable private identities: EittrisRosterEntry[] = [];
   @observable private boardStates: { alive: boolean; thumb: string }[] = [];
 
+  /**
+   * Is anything wrong with me right now?
+   *
+   * Read off the affliction clocks rather than the individual flags, so it tracks
+   * AFFLICTION_TIMERS on its own: a clock only runs while its affliction is on, and a new
+   * affliction added to that table is covered here without anybody remembering to come back.
+   * The self-buffs (shadows, crystal ball, slowdown) have no clock and are not afflictions.
+   */
+  get afflicted(): boolean {
+    return this.afflictionMs.some((ms) => ms > 0);
+  }
+
   /** The two halves put back together, which is what the target list draws. */
   get roster(): EittrisRosterView[] {
     return this.identities.map((who, i) => ({

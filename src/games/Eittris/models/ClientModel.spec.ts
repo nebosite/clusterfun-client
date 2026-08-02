@@ -5,6 +5,7 @@ import { EittrisClientModel, EittrisClientState, getEittrisClientTypeHelper } fr
 import { EittrisBoardSnapshot, EittrisSpecialEventMessage } from "./eittrisEndpoints";
 import { applyIncomingSpecial } from "./eittrisSimulation";
 import {
+  AFFLICTION_TIMERS,
   BOARD_HEIGHT,
   BOARD_WIDTH,
   defaultSettings,
@@ -489,5 +490,51 @@ describe("EittrisClientModel - noticing who got hit", () => {
     (model as any).handleSpecialEvent(hit());
     (model as any).handleStartPlaying({ settings: defaultSettings(), round: 7, targetId: null });
     expect(model.hitPulses.size).toBe(0);
+  });
+});
+
+describe("EittrisClientModel - knowing you are afflicted", () => {
+  // The phone turns red while something is wrong with you, so this has to be right about
+  // what "wrong" means: the six timed afflictions, and none of the self-buffs.
+  function playing() {
+    const model = makeClient();
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+    return model;
+  }
+
+  it("is fine to begin with", () => {
+    expect(playing().afflicted).toBe(false);
+  });
+
+  it("knows about every affliction that has a clock", () => {
+    for (const spec of AFFLICTION_TIMERS) {
+      const model = playing();
+      const board = (model as any).board;
+      applyIncomingSpecial(board, spec.type, (model as any).simContext);
+      (model as any).mirrorBoard();
+      expect(model.afflicted).toBe(true);
+    }
+  });
+
+  it("does not count a self-buff as an affliction", () => {
+    const model = playing();
+    const board = (model as any).board;
+    board.seeShadows = true;
+    board.crystalBall = true;
+    board.slowdownStacks = 2;
+    (model as any).mirrorBoard();
+    expect(model.afflicted).toBe(false);
+  });
+
+  it("is fine again once the antidote has cured it", () => {
+    const model = playing();
+    const board = (model as any).board;
+    board.antidotes = 1;
+    applyIncomingSpecial(board, SpecialType.FreezeDried, (model as any).simContext);
+    (model as any).mirrorBoard();
+    expect(model.afflicted).toBe(true);
+
+    model.useAntidote();
+    expect(model.afflicted).toBe(false);
   });
 });
