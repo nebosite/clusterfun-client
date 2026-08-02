@@ -55,6 +55,7 @@ import {
   SimulationContext,
   applyCommand,
   applyIncomingSpecial,
+  spendAntidote,
   stepBoard,
 } from "./eittrisSimulation";
 import {
@@ -717,11 +718,14 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.pickTarget(candidates[nextIndex].playerId);
   }
 
-  // Fire a banked antidote.  Uses the raw send so it works during the
-  // post-lock spawn gap (sendCommand requires a live piece).
+  // Fire a banked antidote.  Applied HERE, on this phone's own board - sending it to the
+  // host spent a charge on the host's copy, which this phone's next report then overwrote,
+  // so nothing was cured and the charge came back.  It also works during the post-lock
+  // spawn gap, because curing has nothing to do with the falling piece.
   useAntidote() {
-    if (this.antidotes <= 0) return;
-    this.session.sendMessageToPresenter(EittrisCommandEndpoint, { command: "useAntidote" });
+    if (!this.board || this.board.antidotes <= 0) return;
+    spendAntidote(this.board, this.simContext);
+    this.mirrorBoard();
   }
 
   // DEV ONLY: pin which special spawns (null = normal random play)

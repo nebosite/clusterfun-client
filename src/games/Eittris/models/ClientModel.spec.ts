@@ -2,6 +2,7 @@ import { ISessionHelper, instantiateGame, getClientTypeHelper } from "libs";
 import { MockTelemetryLogger } from "libs/telemetry/MockTelemetryLogger";
 import { EittrisClientModel, getEittrisClientTypeHelper } from "./ClientModel";
 import { EittrisBoardSnapshot } from "./eittrisEndpoints";
+import { applyIncomingSpecial } from "./eittrisSimulation";
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
@@ -280,5 +281,83 @@ describe("EittrisClientModel - choosing a target", () => {
     expect(first).not.toBeNull();
     expect(second).not.toBe(first);
     expect([first, second].sort()).toEqual(["B", "C"]);
+  });
+});
+
+describe("EittrisClientModel - antidotes", () => {
+  // Spending a charge has to happen on the phone.  Sent as a command it was spent on the
+  // host's copy of the board, which this phone's next report immediately overwrote - the
+  // charge came back and nothing was cured.
+  function afflictedModel() {
+    const model = makeClient();
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+    const board = (model as any).board;
+    board.antidotes = 2;
+    return { model, board };
+  }
+
+  it("spends a charge and cures what is on the board", () => {
+    const { model, board } = afflictedModel();
+    board.freezeDried = true;
+    board.speedupStacks = 2;
+    board.crazyIvan = true;
+
+    model.useAntidote();
+
+    expect(board.antidotes).toBe(1);
+    expect(board.freezeDried).toBe(false);
+    expect(board.speedupStacks).toBe(0);
+    expect(board.crazyIvan).toBe(false);
+    // ...and the view sees it, because the board is mirrored straight afterwards
+    expect(model.antidotes).toBe(1);
+    expect(model.freezeDried).toBe(false);
+  });
+
+  it("clears the countdowns as well as the effects", () => {
+    // A timed affliction whose clock survived would put itself straight back on.
+    const { model, board } = afflictedModel();
+    board.freezeDried = true;
+    board.freezeDriedMs = 12000;
+    board.transparency = true;
+    board.transparencyMs = 9000;
+
+    model.useAntidote();
+
+    expect(board.freezeDriedMs).toBe(0);
+    expect(board.transparencyMs).toBe(0);
+    expect(board.transparency).toBe(false);
+  });
+
+  it("raises a shield that turns the next attack away", () => {
+    const { model, board } = afflictedModel();
+    model.useAntidote();
+    expect(board.shieldMs).toBeGreaterThan(0);
+
+    const repelled = applyIncomingSpecial(
+      board,
+      SpecialType.FreezeDried,
+      (model as any).simContext,
+    );
+    expect(repelled).toBe(true);
+    expect(board.freezeDried).toBe(false);
+  });
+
+  it("works during the spawn gap, when no piece is falling", () => {
+    const { model, board } = afflictedModel();
+    board.piece = null;
+    board.freezeDried = true;
+
+    model.useAntidote();
+
+    expect(board.freezeDried).toBe(false);
+    expect(board.antidotes).toBe(1);
+  });
+
+  it("does nothing with no charges banked", () => {
+    const { model, board } = afflictedModel();
+    board.antidotes = 0;
+    board.freezeDried = true;
+    model.useAntidote();
+    expect(board.freezeDried).toBe(true);
   });
 });
