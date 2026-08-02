@@ -235,17 +235,19 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
                     {count}
                   </button>
                 ))}
+                {/* Faces, not names.  A robot's name is invented, means nothing to anybody
+                    in the room, and four of them read as four more players to keep track
+                    of - the avatars say how many there are, which is the only thing the
+                    host is deciding here. */}
                 {appModel.robotCount > 0 && appModel.robotCount <= MAX_ROBOTS ? (
                   <span className={styles.robotNames}>
                     {appModel.robots.map((robot) => (
-                      <span className={styles.nameBox} key={robot.playerId}>
-                        <PlayerAvatar
-                          avatarId={robot.avatarId}
-                          colorIndex={robot.avatarColor}
-                          size={40}
-                        />{" "}
-                        {robot.name}
-                      </span>
+                      <PlayerAvatar
+                        key={robot.playerId}
+                        avatarId={robot.avatarId}
+                        colorIndex={robot.avatarColor}
+                        size={40}
+                      />
                     ))}
                   </span>
                 ) : appModel.robotCount > MAX_ROBOTS ? (
