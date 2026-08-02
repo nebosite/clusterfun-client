@@ -257,6 +257,17 @@
   font-size: 80%;
   cursor: pointer;
 }
+
+/* Twice the size the browser gives them.  This list is read and clicked from across a
+   room, by somebody standing at the shared screen, not from a desk chair. */
+.specialCheck input[type="checkbox"] {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: #48e148;
+  cursor: pointer;
+}
 .specialCheckIcon {
   display: inline-block;
   width: 32px;
