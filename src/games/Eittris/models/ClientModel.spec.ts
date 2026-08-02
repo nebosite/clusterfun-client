@@ -724,3 +724,36 @@ describe("EittrisClientModel - the dev panel", () => {
     expect((model as any).board.earthquakes).toBe(0);
   });
 });
+
+describe("EittrisClientModel - a powerup you set off on yourself", () => {
+  function event(overrides: Partial<EittrisSpecialEventMessage> = {}): EittrisSpecialEventMessage {
+    return {
+      type: SpecialType.SeeShadows,
+      attackerId: "ME",
+      attackerName: "Me",
+      victimId: "ME",
+      victimName: "Me",
+      repelled: false,
+      ...overrides,
+    };
+  }
+
+  it("says nothing at all", () => {
+    // "You hit you with Earthquake" is nonsense, and news to nobody: you pressed the
+    // button and you are watching the board shake.
+    const model = makeClient();
+    (model as any).handleSpecialEvent(
+      event({ attackerId: model.playerId, victimId: model.playerId }),
+    );
+    expect(model.lastSpecialEvent).toBeNull();
+  });
+
+  it("still says what somebody else did to you", () => {
+    const model = makeClient();
+    (model as any).handleSpecialEvent(
+      event({ attackerId: "A", attackerName: "Alice", victimId: model.playerId }),
+    );
+    expect(model.lastSpecialEvent).not.toBeNull();
+    expect(model.lastSpecialEvent!.attackerId).toBe("A");
+  });
+});

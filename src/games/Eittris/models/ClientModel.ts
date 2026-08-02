@@ -375,13 +375,16 @@ export class EittrisClientModel extends ClusterfunClientModel {
     // across the room is noise on a phone the size of a playing card, and it crowds out the
     // one message that actually needs acting on.
     if (message.victimId !== this.playerId) return;
+    // ...and nothing at all for a powerup I set off on myself.  "You hit you with
+    // Earthquake" is both nonsense and news to nobody: I pressed the button, I am watching
+    // the board shake, and the banner is in the way of that.
+    if (message.attackerId === this.playerId) return;
+
     // Getting hit is the loudest thing that happens to you, so it gets the
     // loudest buzz - and a shielded hit gets a lighter one, since the news is
     // good.  Phones stay silent otherwise: the shared screen has the speakers.
     SafeBrowser.vibrate(message.repelled ? VIBRATE_SHIELDED : VIBRATE_ATTACKED);
     action(() => (this.lastSpecialEvent = message))();
-    const mine = message.attackerId === this.playerId || message.victimId === this.playerId;
-    if (mine) SafeBrowser.vibrate([40, 40, 40]);
     setTimeout(
       () =>
         action(() => {
