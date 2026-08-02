@@ -395,6 +395,41 @@ export function tryRotateCCW(grid: number[][], piece: EittrisPiece): EittrisPiec
   return tryRotate(grid, piece, 3);
 }
 
+// ------------------------------------------------------------------------------------------
+// Where a piece's BOX may sit.
+//
+// A piece's x is the corner of its bounding box, and most rotations do not fill their box:
+// a vertical I is one column of a four-wide box, and a T on its side is two of three.  So
+// the box has to be allowed off the edge of the board - a vertical I needs its box at -2
+// to put its bar in column 0 - and clamping x to 0..9, as the drag handler used to, left
+// every one of those pieces unable to reach the wall.
+// ------------------------------------------------------------------------------------------
+export function pieceColumnRange(piece: EittrisPiece): { min: number; max: number } {
+  const columns = pieceCells(piece).map((c) => c.x - piece.x);
+  return {
+    min: -Math.min(...columns),
+    max: BOARD_WIDTH - 1 - Math.max(...columns),
+  };
+}
+
+export function pieceRowLimit(piece: EittrisPiece): number {
+  const rows = pieceCells(piece).map((c) => c.y - piece.y);
+  return BOARD_HEIGHT - 1 - Math.max(...rows);
+}
+
+/** Fold a requested drag target into somewhere the piece could actually be. */
+export function clampDragTarget(
+  piece: EittrisPiece,
+  column: number,
+  row: number,
+): { x: number; y: number } {
+  const range = pieceColumnRange(piece);
+  return {
+    x: Math.max(range.min, Math.min(range.max, Math.floor(column))),
+    y: Math.min(pieceRowLimit(piece), Math.floor(row)),
+  };
+}
+
 // Step column-by-column toward targetX, stopping at the first obstruction
 export function moveTowardColumn(
   grid: number[][],
@@ -1380,7 +1415,11 @@ export function planPlacement(grid: number[][], piece: EittrisPiece): AiPlan | n
   let best: AiPlan | null = null;
   for (let rot = 0; rot < 4; rot++) {
     const rotated = { ...piece, rot: (piece.rot + rot) % 4 };
-    for (let x = 0; x < BOARD_WIDTH; x++) {
+    // From wherever this rotation's box has to sit to reach column 0, to wherever it has to
+    // sit to reach the far wall.  Starting at 0 would leave the robot unable to use the
+    // leftmost columns with half the pieces.
+    const range = pieceColumnRange(rotated);
+    for (let x = range.min; x <= range.max; x++) {
       const candidate = { ...rotated, x };
       if (collides(grid, pieceCells(candidate))) continue;
       const landed = dropDestination(grid, candidate);

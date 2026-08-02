@@ -47,6 +47,7 @@ import {
   SWAP_COLUMN_MS,
   WALL_ROWS,
   effectiveIntervalMs,
+  EittrisPiece,
   BOARD_HEIGHT,
   BOARD_WIDTH,
   EMPTY_CELL,
@@ -2197,5 +2198,48 @@ describe("EittrisPresenterModel + EittrisClientModel - playing again", () => {
     expect(phone.alive).toBe(true);
     expect(phone.gameState).toBe("Playing");
     expect(phone.winnerName).toBeNull();
+  });
+});
+
+describe("EittrisPresenterModel - dragging a piece to the wall", () => {
+  // The box is allowed off the edge of the board; clamping it to 0..9 left a vertical I
+  // unable to reach either wall, which is what "I can't drag some pieces to the edge" was.
+  function boardWith(model: EittrisPresenterModel, piece: EittrisPiece) {
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    runInAction(() => (board.piece = piece));
+    return board;
+  }
+
+  it("puts a vertical I against the left wall", () => {
+    const { model } = startTwoPlayerGame();
+    const board = boardWith(model, { type: 1, rot: 1, x: 3, y: 2 });
+
+    phoneCommand(model, "A", { command: "dragTo", column: -5, row: 2 });
+
+    expect(pieceCells(board.piece!).every((c) => c.x === 0)).toBe(true);
+  });
+
+  it("puts a vertical I against the right wall", () => {
+    const { model } = startTwoPlayerGame();
+    const board = boardWith(model, { type: 1, rot: 1, x: 3, y: 2 });
+
+    phoneCommand(model, "A", { command: "dragTo", column: 99, row: 2 });
+
+    expect(pieceCells(board.piece!).every((c) => c.x === BOARD_WIDTH - 1)).toBe(true);
+  });
+
+  it("gets every rotation of every piece to both walls", () => {
+    const { model } = startTwoPlayerGame();
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      for (let rot = 0; rot < 4; rot++) {
+        const board = boardWith(model, { type, rot, x: 3, y: 2 });
+
+        phoneCommand(model, "A", { command: "dragTo", column: -20, row: 2 });
+        expect(Math.min(...pieceCells(board.piece!).map((c) => c.x))).toBe(0);
+
+        phoneCommand(model, "A", { command: "dragTo", column: 20, row: 2 });
+        expect(Math.max(...pieceCells(board.piece!).map((c) => c.x))).toBe(BOARD_WIDTH - 1);
+      }
+    }
   });
 });

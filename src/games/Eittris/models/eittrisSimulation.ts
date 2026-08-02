@@ -28,6 +28,7 @@ import {
   clearFallMs,
   collapseRows,
   collectAndShiftMarkers,
+  clampDragTarget,
   collapseGravity,
   collides,
   countCoveredGaps,
@@ -825,9 +826,10 @@ export function applyCommand(
       if (message.column === undefined) break;
       let wanted = Math.floor(message.column);
       if (board.crazyIvan) wanted = BOARD_WIDTH - 1 - wanted; // mirrored
-      const targetX = Math.max(0, Math.min(BOARD_WIDTH - 1, wanted));
-      const targetY = Math.min(BOARD_HEIGHT - 1, Math.floor(message.row ?? board.piece.y));
-      const dragged = dragTowards(board.grid, board.piece, targetX, targetY);
+      // Clamped to where this piece's box may actually sit, which is NOT 0..9: a vertical I
+      // needs its box at -2 to put its bar against the left wall.
+      const target = clampDragTarget(board.piece, wanted, message.row ?? board.piece.y);
+      const dragged = dragTowards(board.grid, board.piece, target.x, target.y);
       changed = dragged.piece.x !== board.piece.x || dragged.piece.y !== board.piece.y;
       if (dragged.rowsDescended > 0) {
         board.dropTimerMs = 0; // give the player a full beat before gravity locks it

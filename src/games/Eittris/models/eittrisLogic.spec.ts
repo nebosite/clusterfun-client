@@ -3,6 +3,8 @@ import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
   collides,
+  pieceColumnRange,
+  clampDragTarget,
   fullRows,
   collapseGravity,
   decodeGrid,
@@ -2260,5 +2262,73 @@ describe("eittrisLogic - collapseGravity", () => {
     const grid = gridOf("#########.", ".........#");
     const settled = collapseGravity(grid).grid;
     expect(fullRows(settled)).toEqual([BOARD_HEIGHT - 1]);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// Reaching the walls.  A piece's x is the corner of its box and most rotations do not fill
+// their box, so the box has to be allowed off the edge of the board.
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - how far a piece's box may go", () => {
+  it("lets a vertical I put its bar in either wall column", () => {
+    const vertical = { type: 1, rot: 1, x: 0, y: 5 }; // bar in the box's third column
+    const range = pieceColumnRange(vertical);
+    expect(range.min).toBe(-2);
+    expect(range.max).toBe(BOARD_WIDTH - 3);
+
+    // ...and at those extremes the bar really is in column 0 and column 9
+    expect(pieceCells({ ...vertical, x: range.min }).every((c) => c.x === 0)).toBe(true);
+    expect(pieceCells({ ...vertical, x: range.max }).every((c) => c.x === BOARD_WIDTH - 1)).toBe(
+      true,
+    );
+  });
+
+  it("gives every rotation of every piece a range that reaches both walls", () => {
+    // This is the bug in one assertion: with the box clamped to 0..9, half of these could
+    // not be dragged to the left wall at all.
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      for (let rot = 0; rot < 4; rot++) {
+        const piece = { type, rot, x: 0, y: 5 };
+        const range = pieceColumnRange(piece);
+        const left = pieceCells({ ...piece, x: range.min }).map((c) => c.x);
+        const right = pieceCells({ ...piece, x: range.max }).map((c) => c.x);
+        expect(Math.min(...left)).toBe(0);
+        expect(Math.max(...right)).toBe(BOARD_WIDTH - 1);
+        // ...and neither extreme hangs off the board
+        expect(Math.max(...left)).toBeLessThan(BOARD_WIDTH);
+        expect(Math.min(...right)).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it("clamps a drag to somewhere the piece could be", () => {
+    const vertical = { type: 1, rot: 1, x: 3, y: 5 };
+    expect(clampDragTarget(vertical, -99, 5).x).toBe(-2);
+    expect(clampDragTarget(vertical, 99, 5).x).toBe(BOARD_WIDTH - 3);
+    expect(clampDragTarget(vertical, 4, 5).x).toBe(4); // left alone in the middle
+  });
+
+  it("clamps a drag to the floor, not to the last row", () => {
+    const flat = { type: 0, rot: 0, x: 4, y: 0 }; // T: cells on the box's second row
+    expect(clampDragTarget(flat, 4, 999).y).toBe(BOARD_HEIGHT - 2);
+    expect(pieceCells({ ...flat, y: BOARD_HEIGHT - 2 }).every((c) => c.y < BOARD_HEIGHT)).toBe(
+      true,
+    );
+  });
+
+  it("lets the robot consider the columns against the left wall", () => {
+    // planPlacement used to start at x=0, so a rotation whose cells begin in the box's
+    // second column could never be planned into column 0.
+    const grid = emptyGrid();
+    const vertical = { type: 1, rot: 1, x: 3, y: 0 };
+    const plan = planPlacement(grid, vertical);
+    expect(plan).not.toBeNull();
+    // The whole board is empty, so every column is reachable - including the wall ones
+    const reachable: number[] = [];
+    for (let x = -3; x < BOARD_WIDTH; x++) {
+      const candidate = { ...vertical, x };
+      if (!collides(grid, pieceCells(candidate))) reachable.push(x);
+    }
+    expect(Math.min(...reachable)).toBe(-2);
   });
 });
