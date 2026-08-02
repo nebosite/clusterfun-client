@@ -54,7 +54,6 @@ import {
   pickSpecialCell,
   pruneOrphanedSpecials,
   specialsAreAnchored,
-  rollSpecialType,
   SpecialType,
   countCoveredGaps,
   contactCount,
@@ -738,12 +737,6 @@ describe("eittrisLogic - special markers", () => {
     const taken = [{ index: 5 * BOARD_WIDTH + 3, type: SpecialType.Antidote }];
     expect(pickSpecialCell(g, taken, () => 0)).toBeNull();
     expect(pickSpecialCell(emptyGrid(), [], () => 0)).toBeNull();
-  });
-
-  it("rolls an antidote at the configured rate", () => {
-    expect(rollSpecialType(() => 0.1, 0.5)).toBe(SpecialType.Antidote);
-    // above the threshold it draws from the implemented pool
-    expect(IMPLEMENTED_SPECIALS).toContain(rollSpecialType(() => 0.9, 0.5));
   });
 
   it("collects markers on cleared rows and rides the rest down", () => {
@@ -1653,20 +1646,37 @@ describe("eittrisLogic - host settings", () => {
   it("only rolls specials the host allowed", () => {
     const allowed = [SpecialType.Speedup, SpecialType.TheWall];
     for (let r = 0; r < 100; r++) {
-      const rolled = rollAllowedSpecial(() => r / 100, 0.5, allowed);
+      const rolled = rollAllowedSpecial(() => r / 100, allowed);
       expect(allowed).toContain(rolled);
     }
   });
 
-  it("keeps the antidote's share of the rolls when it is switched on", () => {
-    expect(rollAllowedSpecial(() => 0.1, 0.5, IMPLEMENTED_SPECIALS)).toBe(SpecialType.Antidote);
+  it("gives every switched-on powerup the same chance", () => {
+    // The antidote used to take half of every roll before the rest drew for the remainder,
+    // which made a tick box worth wildly different amounts depending on how many others
+    // were ticked.  Sweep the whole 0..1 range and count what comes out.
+    const counts = new Map<SpecialType, number>();
+    const draws = 1700;
+    for (let i = 0; i < draws; i++) {
+      const rolled = rollAllowedSpecial(() => i / draws, IMPLEMENTED_SPECIALS);
+      counts.set(rolled, (counts.get(rolled) ?? 0) + 1);
+    }
+    expect(counts.size).toBe(IMPLEMENTED_SPECIALS.length);
+    const share = draws / IMPLEMENTED_SPECIALS.length;
+    for (const type of IMPLEMENTED_SPECIALS) {
+      expect(counts.get(type)).toBe(share);
+    }
   });
 
   it("does not sneak an antidote in when the host turned it off", () => {
     const allowed = [SpecialType.Speedup, SpecialType.TheWall];
     for (let r = 0; r < 100; r++) {
-      expect(rollAllowedSpecial(() => r / 100, 0.9, allowed)).not.toBe(SpecialType.Antidote);
+      expect(rollAllowedSpecial(() => r / 100, allowed)).not.toBe(SpecialType.Antidote);
     }
+  });
+
+  it("still has something to roll when the host allows nothing", () => {
+    expect(rollAllowedSpecial(() => 0.5, [])).toBe(SpecialType.Antidote);
   });
 });
 

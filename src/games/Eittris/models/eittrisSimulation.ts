@@ -1,7 +1,6 @@
 import Logger from "js-logger";
 import {
   AFFLICTION_TIMERS,
-  ANTIDOTE_CHANCE,
   ANTIDOTE_MAX,
   ANTIDOTE_DURATION_MS,
   BOARD_HEIGHT,
@@ -291,9 +290,7 @@ function tickSpecials(board: EittrisBoard, dtMs: number, ctx: SimulationContext)
     board.specialTimerMs = board.forcedSpecial === null ? SPECIAL_INTERVAL_MS : 0;
     return;
   }
-  const type =
-    board.forcedSpecial ??
-    rollAllowedSpecial(ctx.random, ANTIDOTE_CHANCE, ctx.settings.allowedSpecials);
+  const type = board.forcedSpecial ?? rollAllowedSpecial(ctx.random, ctx.settings.allowedSpecials);
   board.specials.push({ index, type });
   board.specialTimerMs = SPECIAL_INTERVAL_MS;
   ctx.events.changed(board);

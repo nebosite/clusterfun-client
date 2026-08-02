@@ -35,10 +35,9 @@ export const TOWER_CELL = 8;
 
 // Specials: a settled block gets tagged every 8s, but only ever ONE at a
 // time - it stays put until the player clears its row, and nothing new
-// appears until then.  Half of all rolls are antidotes, you may bank 4, and
-// a fired antidote shields/cures for 10s.  Players start with one.
+// appears until then.  Every switched-on powerup is equally likely.  You may
+// bank 4 antidotes, and a fired one shields/cures for 10s.
 export const SPECIAL_INTERVAL_MS = 8000;
-export const ANTIDOTE_CHANCE = 0.5;
 export const ANTIDOTE_MAX = 3;
 export const ANTIDOTE_DURATION_MS = 10000;
 // Every affliction wears off on its own after this long.  Getting hit again
@@ -634,13 +633,6 @@ export function pickSpecialCell(
   });
   if (free.length === 0) return null;
   return free[Math.min(free.length - 1, Math.floor(rand() * free.length))];
-}
-
-// eitrix rolls an Antidote half the time, otherwise any special
-export function rollSpecialType(rand: () => number, antidoteChance: number): SpecialType {
-  if (rand() < antidoteChance) return SpecialType.Antidote;
-  const pool = IMPLEMENTED_SPECIALS;
-  return pool[Math.min(pool.length - 1, Math.floor(rand() * pool.length))];
 }
 
 // Clearing a row collects the specials sitting on it; markers above the
@@ -1729,15 +1721,15 @@ export function sanitizeSettings(settings: Partial<EittrisSettings> | null): Eit
   };
 }
 
-// Roll a special from the allowed pool.  Antidotes keep their fixed share of
-// the rolls when they are switched on, exactly as the original had it.
-export function rollAllowedSpecial(
-  rand: () => number,
-  antidoteChance: number,
-  allowed: SpecialType[],
-): SpecialType {
+// Roll a special from the allowed pool - every one that is switched on, equally likely.
+//
+// The antidote used to take half of all rolls before the others drew for the rest, which is
+// where the original got its feel.  It also made the host's tick boxes misleading: switching
+// something on bought it a share of the leftovers, so the same box was worth a lot or a
+// little depending on how many others were ticked.  A flat pool is what the checklist looks
+// like it means.
+export function rollAllowedSpecial(rand: () => number, allowed: SpecialType[]): SpecialType {
   const pool = allowed.length > 0 ? allowed : [SpecialType.Antidote];
-  if (pool.includes(SpecialType.Antidote) && rand() < antidoteChance) return SpecialType.Antidote;
   return pool[Math.min(pool.length - 1, Math.floor(rand() * pool.length))];
 }
 
