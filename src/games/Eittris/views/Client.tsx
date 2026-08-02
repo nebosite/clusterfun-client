@@ -113,6 +113,9 @@ export class GestureTracker {
   private lastSentRow: number | null = null;
   private cellWidthPx = CELL_PX;
   private cellHeightPx = CELL_PX;
+  // Left edge of the board on screen - a tap has to be placed against the piece, and the
+  // piece is in board coordinates
+  private boardLeftPx = 0;
   // Pointer-move events seen on the board since the last flick.  Flicks stay
   // disarmed until this reaches FLICK_REARM_MOVES, which kills the phantom
   // repeat you get when a flick's pointer-up lands off-screen.
@@ -143,6 +146,7 @@ export class GestureTracker {
     // Quantize by the on-screen board size (UINormalizer scales the layout)
     this.cellWidthPx = (boardRect?.width ?? BOARD_WIDTH * CELL_PX) / BOARD_WIDTH;
     this.cellHeightPx = (boardRect?.height ?? BOARD_HEIGHT * CELL_PX) / BOARD_HEIGHT;
+    this.boardLeftPx = boardRect?.left ?? 0;
   }
 
   // End the gesture.  Until the next pointer-down, every event is ignored.
@@ -236,10 +240,12 @@ export class GestureTracker {
       return;
     }
 
-    // A quick touch that barely moved is a tap.  It works anywhere on the grid and
-    // always acts on the falling piece, and it only ever rotates.
+    // A quick touch that barely moved is a tap.  It works anywhere on the grid and always
+    // acts on the falling piece; which way it turns is the side of the piece you tapped.
     if (duration < TAP_MAX_DURATION_MS && distance < TAP_MAX_DISTANCE_PX) {
-      if (classifyTap(!!this.model.piece) === "rotate") this.model.rotate();
+      const action = classifyTap(!!this.model.piece, e.clientX, this.pieceCenterPx());
+      if (action === "rotateRight") this.model.rotate();
+      else if (action === "rotateLeft") this.model.rotateLeft();
       return;
     }
 
@@ -249,6 +255,19 @@ export class GestureTracker {
 
   cancel() {
     this.end();
+  }
+
+  /**
+   * The middle of the falling piece in screen pixels.  The piece's own x is the anchor of
+   * its 4x4 box, not its middle, so an L tapped just to its right would otherwise read as a
+   * tap on the left.  Measured off the cells it actually occupies.
+   */
+  private pieceCenterPx(): number {
+    const piece = this.model.piece;
+    if (!piece) return this.boardLeftPx + (BOARD_WIDTH / 2) * this.cellWidthPx;
+    const columns = pieceCells(piece).map((c) => c.x);
+    const middle = (Math.min(...columns) + Math.max(...columns) + 1) / 2;
+    return this.boardLeftPx + middle * this.cellWidthPx;
   }
 }
 

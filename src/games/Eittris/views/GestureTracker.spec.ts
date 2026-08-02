@@ -22,6 +22,7 @@ function fakeModel() {
     slamLeft: () => calls.push({ name: "slamLeft", args: [] }),
     slamRight: () => calls.push({ name: "slamRight", args: [] }),
     rotate: () => calls.push({ name: "rotate", args: [] }),
+    rotateLeft: () => calls.push({ name: "rotateLeft", args: [] }),
   } as unknown as EittrisClientModel;
   return { model, calls };
 }
@@ -117,5 +118,47 @@ describe("EITtris GestureTracker - a swipe down does not steer", () => {
     const tracker = new GestureTracker(model);
     drag(tracker, [[1, DRAG_ACTIVATION_PX - 3]]);
     expect(calls.length).toBe(0);
+  });
+});
+
+describe("EITtris GestureTracker - a tap turns the piece towards it", () => {
+  // The board's left edge is at x=100 in these tests, and the piece sits around column 5.
+  const boardRect = {
+    width: BOARD_WIDTH * CELL,
+    height: BOARD_HEIGHT * CELL,
+    left: 100,
+  } as DOMRect;
+
+  function tapAt(x: number) {
+    const { model, calls } = fakeModel();
+    const tracker = new GestureTracker(model);
+    tracker.down({ pointerId: 1, clientX: x, clientY: 400, buttons: 1 } as any, boardRect);
+    tracker.up({ pointerId: 1, clientX: x, clientY: 400, buttons: 0 } as any);
+    return calls.map((c) => c.name);
+  }
+
+  it("rotates clockwise when tapped to the right of the piece", () => {
+    // A T at x=5 covers columns 4..6, so its middle is at 100 + 5.5 * CELL
+    expect(tapAt(100 + 8 * CELL)).toEqual(["rotate"]);
+  });
+
+  it("rotates back when tapped to the left of the piece", () => {
+    expect(tapAt(100 + 1 * CELL)).toEqual(["rotateLeft"]);
+  });
+
+  it("splits at the middle of the piece, not at its anchor column", () => {
+    // The anchor is column 5; the cells run 4..6, so the halfway line is at 5.5 cells.
+    // A tap between the two would go the wrong way if the anchor were used.
+    expect(tapAt(100 + 5.2 * CELL)).toEqual(["rotateLeft"]);
+    expect(tapAt(100 + 5.8 * CELL)).toEqual(["rotate"]);
+  });
+
+  it("does nothing when there is no piece to turn", () => {
+    const { model, calls } = fakeModel();
+    (model as any).piece = null;
+    const tracker = new GestureTracker(model);
+    tracker.down({ pointerId: 1, clientX: 500, clientY: 400, buttons: 1 } as any, boardRect);
+    tracker.up({ pointerId: 1, clientX: 500, clientY: 400, buttons: 0 } as any);
+    expect(calls).toEqual([]);
   });
 });

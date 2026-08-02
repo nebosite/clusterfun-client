@@ -133,7 +133,8 @@ export const EITTRIS_CONTROL_GUIDE: ControlGuideSection[] = [
     summary: "Everything happens on the board itself - there are no buttons to hunt for.",
     entries: [
       { label: "Drag", detail: "The piece follows your finger sideways and downward" },
-      { label: "Tap", detail: "Rotate the piece - anywhere on the board, not just on it" },
+      { label: "Tap right of the piece", detail: "Rotate it clockwise" },
+      { label: "Tap left of the piece", detail: "Rotate it back, anticlockwise" },
       { label: "Flick down", detail: "Hard drop: straight down and stuck" },
       { label: "Flick left / right", detail: "Slam the piece to that wall" },
       { label: "Lift your finger", detail: "Place the piece if it is resting, else keep falling" },

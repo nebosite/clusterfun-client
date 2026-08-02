@@ -1350,11 +1350,21 @@ export function landingCells(grid: number[][], piece: EittrisPiece | null): Set<
 // A tap rotates, and that is all it does.  Two quick taps used to drop the piece,
 // which made every deliberate second rotation a gamble; taps are now simply
 // independent of one another.  Dropping is a downward flick.
+//
+// WHICH WAY it rotates is the side of the piece you tapped: tap to its right and it turns
+// to the right, tap to its left and it turns left.  Every tap used to turn the same way, so
+// undoing a rotation meant three more of them - three chances for gravity to land the piece
+// somewhere you did not want it.  The rule reads off the screen with no explanation.
 // ------------------------------------------------------------------------------------------
-export type TapAction = "rotate" | "none";
+export type TapAction = "rotateLeft" | "rotateRight" | "none";
 
-export function classifyTap(hasPiece: boolean): TapAction {
-  return hasPiece ? "rotate" : "none";
+/**
+ * @param tapX          where the tap landed
+ * @param pieceCenterX  the middle of the falling piece, in the same units
+ */
+export function classifyTap(hasPiece: boolean, tapX: number, pieceCenterX: number): TapAction {
+  if (!hasPiece) return "none";
+  return tapX < pieceCenterX ? "rotateLeft" : "rotateRight";
 }
 
 // ------------------------------------------------------------------------------------------

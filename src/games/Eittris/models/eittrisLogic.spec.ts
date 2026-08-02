@@ -1318,19 +1318,27 @@ describe("eittrisLogic - the landing ghost", () => {
 });
 
 describe("eittrisLogic - taps", () => {
-  it("rotates on a tap, wherever it landed", () => {
-    expect(classifyTap(true)).toBe("rotate");
+  it("turns the piece towards the side you tapped", () => {
+    expect(classifyTap(true, 300, 200)).toBe("rotateRight");
+    expect(classifyTap(true, 100, 200)).toBe("rotateLeft");
+  });
+
+  it("still works when the tap lands nowhere near the piece", () => {
+    // Every gesture acts on the falling piece wherever it lands - hitting the piece itself
+    // is hopeless on a phone.  The side is all that is being read.
+    expect(classifyTap(true, 999, 200)).toBe("rotateRight");
+    expect(classifyTap(true, 0, 200)).toBe("rotateLeft");
   });
 
   it("treats every tap independently - two taps are two rotations, never a drop", () => {
     // Taps used to pair up into a drop, which made a deliberate second rotation a
     // gamble.  Nothing about one tap may depend on the one before it.
-    expect(classifyTap(true)).toBe("rotate");
-    expect(classifyTap(true)).toBe("rotate");
+    expect(classifyTap(true, 300, 200)).toBe("rotateRight");
+    expect(classifyTap(true, 300, 200)).toBe("rotateRight");
   });
 
   it("does nothing at all during the spawn gap", () => {
-    expect(classifyTap(false)).toBe("none");
+    expect(classifyTap(false, 300, 200)).toBe("none");
   });
 });
 
