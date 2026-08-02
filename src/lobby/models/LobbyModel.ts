@@ -29,6 +29,9 @@ export interface JoinDiagnostics {
 export type JoinFailureCategory =
   "no_such_room" | "bad_request" | "server_error" | "offline" | "unknown";
 
+// Room codes are always this long; anything shorter is somebody mid-type.
+export const ROOM_CODE_LENGTH = 4;
+
 export enum LobbyMode {
   Unchosen,
   Client,
@@ -172,7 +175,9 @@ export class LobbyModel {
   }
 
   get canJoin() {
-    return this.playerName.trim() !== "" && this.roomId.trim() !== "";
+    // A partial code is not a code.  The button used to come alive on the first
+    // character typed, which offered a join that could only fail.
+    return this.playerName.trim() !== "" && this.roomId.trim().length === ROOM_CODE_LENGTH;
   }
 
   private _telemetry: ITelemetryLoggerFactory;
@@ -278,6 +283,17 @@ export class LobbyModel {
     }
     this.saveState();
   };
+
+  // -------------------------------------------------------------------
+  // leaveGame - step out of the game and back to the lobby, exactly as tapping Quit
+  // does: the room code stays, because stepping out is not the room ending.  Used by
+  // the browser's Back button (see LobbyMainPage), which people expect to mean "out of
+  // here", not "reload the whole app".
+  // -------------------------------------------------------------------
+  public leaveGame() {
+    if (this.lobbyState === LobbyState.Fresh) return;
+    this.onGameEnded("quit");
+  }
 
   // -------------------------------------------------------------------
   // forgetMe - drop the remembered identity entirely

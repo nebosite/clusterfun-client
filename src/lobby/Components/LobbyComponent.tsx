@@ -150,7 +150,6 @@ class PresenterComponent extends React.Component<
               <span className={styles.liveDot} /> live
             </span>
             <span className={styles.dropsNote}>{visible.length} games · new drops weekly</span>
-            <span className={styles.joinPill}>join at cluster.fun</span>
           </div>
         </div>
 

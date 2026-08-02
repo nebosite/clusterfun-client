@@ -31,4 +31,36 @@ export class SafeBrowser {
       navigator.vibrate(args);
     }
   }
+
+  // -------------------------------------------------------------------
+  // History.  A hash rather than a path, because the app is served as a static bundle:
+  // a real path would 404 on refresh, a hash cannot.  Every call is guarded - an
+  // embedded or sandboxed browser can refuse history access, and losing the lobby over
+  // a decorative URL would be a poor trade.
+  // -------------------------------------------------------------------
+  static pushRoute(hash: string) {
+    try {
+      window.history.pushState({ clusterfunRoute: hash }, "", hash);
+    } catch {
+      /* a URL is a nicety; never break the app over one */
+    }
+  }
+
+  /** Undo our own pushRoute, when the game was left by some means other than Back. */
+  static dropRoute() {
+    try {
+      if (window.history.state?.clusterfunRoute) window.history.back();
+    } catch {
+      /* as above */
+    }
+  }
+
+  static onPopState(handler: () => void): () => void {
+    try {
+      window.addEventListener("popstate", handler);
+      return () => window.removeEventListener("popstate", handler);
+    } catch {
+      return () => {};
+    }
+  }
 }

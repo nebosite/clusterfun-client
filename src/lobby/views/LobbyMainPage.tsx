@@ -4,6 +4,7 @@ import { observer, Provider } from "mobx-react";
 import { LobbyState, LobbyModel } from "../models/LobbyModel";
 import { LobbyComponent } from "../Components/LobbyComponent";
 import { getGameComponent } from "../../GameChooser";
+import { SafeBrowser } from "libs/Browser/SafeBrowser";
 import Logger from "js-logger";
 import { GameDescriptor } from "games/lists/GameDescriptor";
 
@@ -46,10 +47,13 @@ export class LobbyMainPage extends React.Component<
   // -------------------------------------------------------------------
   componentDidMount() {
     window.addEventListener("resize", this.sizeChangeHandler);
+    this.stopListeningForBack = SafeBrowser.onPopState(this.onPopState);
   }
   componentWillUnmount() {
     window.removeEventListener("resize", this.sizeChangeHandler);
+    this.stopListeningForBack?.();
   }
+  private stopListeningForBack?: () => void;
   private sizeChangeHandler = () => {
     if (this.getSize) {
       const size = this.getSize();
@@ -61,9 +65,42 @@ export class LobbyMainPage extends React.Component<
   };
 
   // -------------------------------------------------------------------
+  // The Back button.
+  //
+  // Opening a game pushes a history entry, so Back steps out of the game and lands in
+  // the lobby instead of leaving the site altogether - which is what a phone's back
+  // gesture would otherwise do, mid-round.  A hash rather than a real path, because the
+  // relay serves this as a static bundle: a deep path would 404 on refresh, a hash
+  // cannot.
+  // -------------------------------------------------------------------
+  private inGameRoute = false;
+
+  private onPopState = () => {
+    // Back out of a game.  If we are not in one there is nothing to leave.
+    if (!this.inGameRoute) return;
+    this.inGameRoute = false;
+    this.props.lobbyModel.leaveGame();
+  };
+
+  private syncRoute() {
+    const inGame = this.props.lobbyModel.lobbyState === LobbyState.ReadyToPlay;
+    if (inGame === this.inGameRoute) return;
+    this.inGameRoute = inGame;
+    const name = this.props.lobbyModel.gameProperties?.gameName ?? "game";
+    if (inGame) {
+      SafeBrowser.pushRoute(`#${name.toLowerCase()}`);
+    } else {
+      // Left by some other route - Quit, or the host ending it.  Drop the entry we
+      // pushed so Back does not walk into a game that is over.
+      SafeBrowser.dropRoute();
+    }
+  }
+
+  // -------------------------------------------------------------------
   // render
   // -------------------------------------------------------------------
   render() {
+    this.syncRoute();
     const { lobbyModel, games } = this.props;
     let innerChild: any;
     const uiProperties = {

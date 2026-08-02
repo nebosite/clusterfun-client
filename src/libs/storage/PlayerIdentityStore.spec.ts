@@ -42,6 +42,7 @@ describe("PlayerIdentityStore", () => {
     const store = new PlayerIdentityStore(memoryAccessor());
     store.save({ playerName: "Ann", avatarId: 7, avatarColor: 3, roomId: "AB12" });
     expect(store.load()).toEqual({
+      roomSavedAt: expect.any(Number),
       playerName: "Ann",
       avatarId: 7,
       avatarColor: 3,
@@ -98,6 +99,8 @@ describe("PlayerIdentityStore - refusing to trust what it reads", () => {
           avatarId: "not a number",
           avatarColor: -5,
           roomId: "ab-12!!",
+          // Freshly saved: this test is about coercing the VALUES, not about expiry
+          roomSavedAt: Date.now(),
         }),
       }),
     );
@@ -206,5 +209,72 @@ describe("PlayerIdentityStore - the reconnect token", () => {
     const ann = store.token("Ann");
     store.forgetAll();
     expect(store.token("Ann")).not.toBe(ann);
+  });
+});
+
+describe("PlayerIdentityStore - a room code goes stale", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it("offers a code saved a few hours ago", () => {
+    let now = 1_000_000_000_000;
+    const accessor = memoryAccessor();
+    const store = new PlayerIdentityStore(accessor, () => now);
+    store.save({ playerName: "Ann", roomId: "AB12" });
+
+    now += 6 * 60 * 60 * 1000; // six hours later, same evening
+    expect(store.load().roomId).toBe("AB12");
+  });
+
+  it("still offers it just under a day later", () => {
+    let now = 1_000_000_000_000;
+    const store = new PlayerIdentityStore(memoryAccessor(), () => now);
+    store.save({ roomId: "AB12" });
+
+    now += DAY - 60_000;
+    expect(store.load().roomId).toBe("AB12");
+  });
+
+  it("forgets a code older than a day, keeping the name and avatar", () => {
+    // Rooms do not live anywhere near that long, so an old code would only send
+    // somebody to a room that is not there.
+    let now = 1_000_000_000_000;
+    const store = new PlayerIdentityStore(memoryAccessor(), () => now);
+    store.save({ playerName: "Ann", avatarId: 3, roomId: "AB12" });
+
+    now += DAY + 60_000;
+    const identity = store.load();
+    expect(identity.roomId).toBe("");
+    expect(identity.playerName).toBe("Ann");
+    expect(identity.avatarId).toBe(3);
+  });
+
+  it("restamps the clock when a new code is saved", () => {
+    let now = 1_000_000_000_000;
+    const store = new PlayerIdentityStore(memoryAccessor(), () => now);
+    store.save({ roomId: "AB12" });
+
+    now += DAY - 1000;
+    store.save({ roomId: "CD34" }); // a fresh code gets a fresh day
+    now += DAY - 1000;
+    expect(store.load().roomId).toBe("CD34");
+  });
+
+  it("does not resurrect a code that was deliberately forgotten", () => {
+    const store = new PlayerIdentityStore(memoryAccessor());
+    store.save({ roomId: "AB12" });
+    store.forgetRoom();
+    expect(store.load().roomId).toBe("");
+  });
+
+  it("treats an identity written before this existed as stale", () => {
+    // Anything saved by an older build has no timestamp, so it reads as long ago.
+    const accessor = memoryAccessor();
+    accessor.setItem(
+      PLAYER_IDENTITY_KEY,
+      JSON.stringify({ playerName: "Ann", avatarId: 1, avatarColor: 2, roomId: "AB12" }),
+    );
+    const store = new PlayerIdentityStore(accessor);
+    expect(store.load().roomId).toBe("");
+    expect(store.load().playerName).toBe("Ann");
   });
 });

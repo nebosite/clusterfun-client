@@ -35,6 +35,8 @@ export interface PlayerIdentity {
   avatarId: number;
   avatarColor: number;
   roomId: string;
+  /** When the room code was last written, so a stale one can be dropped.  See load(). */
+  roomSavedAt: number;
 }
 
 export const BLANK_IDENTITY: PlayerIdentity = {
@@ -42,7 +44,13 @@ export const BLANK_IDENTITY: PlayerIdentity = {
   avatarId: 0,
   avatarColor: 0,
   roomId: "",
+  roomSavedAt: 0,
 };
+
+// How long a remembered room code is worth offering.  Long enough to survive an evening,
+// a closed tab, a flat battery and a night's sleep; short enough that a code from last
+// week does not greet somebody who has moved on.
+export const ROOM_CODE_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
 // A token is minted once per browser and then kept.  Random and meaningless:
 // it identifies the seat you are holding, nothing about you.
@@ -63,14 +71,17 @@ function asString(value: unknown, max: number): string {
 
 export class PlayerIdentityStore {
   private accessor: IStorageAccessor;
+  // Injectable so a test can be a day older without taking a day
+  private now: () => number;
   // Tokens held for this page load when storage will not cooperate
   private memoryTokens = new Map<string, string>();
   // If localStorage throws (private browsing, quota, a locked-down browser) we
   // keep the identity for this page load rather than losing the lobby.
   private fallback: PlayerIdentity | null = null;
 
-  constructor(accessor?: IStorageAccessor) {
+  constructor(accessor?: IStorageAccessor, now: () => number = () => Date.now()) {
     this.accessor = accessor ?? new ClientStorage();
+    this.now = now;
   }
 
   // -------------------------------------------------------------------
@@ -78,13 +89,13 @@ export class PlayerIdentityStore {
   // malformed reads as a blank identity rather than throwing into startup.
   // -------------------------------------------------------------------
   load(): PlayerIdentity {
-    if (this.fallback) return { ...this.fallback };
+    if (this.fallback) return this.withoutStaleRoom({ ...this.fallback });
     try {
       const raw = this.accessor.getItem(PLAYER_IDENTITY_KEY);
       if (!raw) return { ...BLANK_IDENTITY };
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object") return { ...BLANK_IDENTITY };
-      return {
+      return this.withoutStaleRoom({
         playerName: asString(parsed.playerName, 16),
         avatarId: asNumber(parsed.avatarId),
         avatarColor: asNumber(parsed.avatarColor),
@@ -94,7 +105,8 @@ export class PlayerIdentityStore {
           .toUpperCase()
           .replace(/[^A-Z0-9]/g, "")
           .slice(0, 4),
-      };
+        roomSavedAt: typeof parsed.roomSavedAt === "number" ? parsed.roomSavedAt : 0,
+      });
     } catch (err) {
       Logger.warn(`Could not read the remembered player identity: ${err}`);
       return { ...BLANK_IDENTITY };
@@ -106,6 +118,10 @@ export class PlayerIdentityStore {
   // -------------------------------------------------------------------
   save(changes: Partial<PlayerIdentity>) {
     const merged = { ...this.load(), ...changes };
+    // A code is only as good as the moment it was written down, so note when that was.
+    if (changes.roomId !== undefined && changes.roomSavedAt === undefined) {
+      merged.roomSavedAt = changes.roomId ? this.now() : 0;
+    }
     try {
       this.accessor.setItem(PLAYER_IDENTITY_KEY, JSON.stringify(merged));
       this.fallback = null;
@@ -163,7 +179,19 @@ export class PlayerIdentityStore {
   // stay: those are the whole point of remembering anything.
   // -------------------------------------------------------------------
   forgetRoom() {
-    this.save({ roomId: "" });
+    this.save({ roomId: "", roomSavedAt: 0 });
+  }
+
+  // -------------------------------------------------------------------
+  // A code older than ROOM_CODE_LIFETIME_MS is not offered again.  Rooms do not live
+  // anywhere near that long, so an old code would send somebody to a room that is not
+  // there - but within a day it is far more likely to be the game they are still in.
+  // -------------------------------------------------------------------
+  private withoutStaleRoom(identity: PlayerIdentity): PlayerIdentity {
+    if (!identity.roomId) return identity;
+    const age = this.now() - (identity.roomSavedAt || 0);
+    if (age >= 0 && age < ROOM_CODE_LIFETIME_MS) return identity;
+    return { ...identity, roomId: "", roomSavedAt: 0 };
   }
 
   // Wipe everything (a "not you?" style reset)

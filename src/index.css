@@ -11,3 +11,25 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
+
+/* ==========================================================================================
+   Phone browser gestures we never want in a game.
+
+   A pinch that zooms the board, or a downward swipe that reloads the page mid-round, is a
+   lost game rather than a browsing convenience.  Both are things people do by accident
+   while playing, so both are switched off here rather than per component.
+   ========================================================================================== */
+html,
+body {
+  /* No pull-to-refresh, and no rubber-band bounce past the ends of the page */
+  overscroll-behavior: none;
+  /* Pan and scroll are fine; pinch-zoom and double-tap-zoom are not */
+  touch-action: pan-x pan-y;
+  /* Safari zooms text on rotate without this */
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Double-tap to zoom is a touch gesture the viewport tag alone does not stop on iOS. */
+* {
+  touch-action: manipulation;
+}
