@@ -271,16 +271,11 @@ export class LobbyModel {
     this.lobbyState = LobbyState.Fresh;
     if (this._onGameEnded) this._onGameEnded(reason);
     this.gameProperties = null;
-    // Only retire the code when the HOST ended things - then it is a dead room
-    // and offering it again would send the player nowhere.  A player who taps
-    // Quit is just stepping out, and should find their lobby exactly as they
-    // left it: name, avatar and code all still filled in.
-    if (reason === "hostEnded" || reason === "terminated") {
-      this._identity.forgetRoom();
-      action(() => {
-        this._roomId = "";
-      })();
-    }
+    // The code is NOT forgotten here, however the game ended.  A host who ends a game
+    // almost always starts another one in the same room - that is what the "play again"
+    // path does - so clearing the code made everybody retype a code that was about to be
+    // correct again.  Age is the only thing that makes a code worth forgetting, and the
+    // identity store handles that on its own: anything over a day old is not offered.
     this.saveState();
   };
 

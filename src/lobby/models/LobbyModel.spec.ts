@@ -58,7 +58,10 @@ describe("LobbyModel - remembering who you are", () => {
     expect(localStorage.getItem(PLAYER_IDENTITY_KEY)).toContain("Ann");
   });
 
-  it("forgets a room code once the host says the game is over, but not you", () => {
+  it("keeps the room code when the host ends the game", () => {
+    // A host who ends a game almost always starts another in the same room, so clearing
+    // the code made everybody retype one that was about to be correct again.  Age is the
+    // only thing that retires a code now - see PlayerIdentityStore.
     const { model } = makeLobby();
     model.playerName = "Ann";
     model.avatarId = 3;
@@ -66,9 +69,9 @@ describe("LobbyModel - remembering who you are", () => {
 
     (model as any).onGameEnded("hostEnded");
 
-    expect(model.roomId).toBe("");
+    expect(model.roomId).toBe("WXYZ");
     const reopened = makeLobby().model;
-    expect(reopened.roomId).toBe("");
+    expect(reopened.roomId).toBe("WXYZ");
     expect(reopened.playerName).toBe("Ann");
     expect(reopened.avatarId).toBe(3);
   });
@@ -90,11 +93,21 @@ describe("LobbyModel - remembering who you are", () => {
     expect(reopened.avatarId).toBe(3);
   });
 
-  it("also retires the code when the host terminates the room", () => {
+  it("keeps the code when the host terminates the room too", () => {
     const { model } = makeLobby();
     model.roomId = "WXYZ";
     (model as any).onGameEnded("terminated");
-    expect(model.roomId).toBe("");
+    expect(model.roomId).toBe("WXYZ");
+  });
+
+  it("keeps the code however the game ended", () => {
+    // Every ending leads to the same place now: only age retires a code.
+    for (const reason of ["quit", "hostEnded", "terminated", "unknown", undefined]) {
+      const { model } = makeLobby();
+      model.roomId = "WXYZ";
+      (model as any).onGameEnded(reason);
+      expect(model.roomId).toBe("WXYZ");
+    }
   });
 
   it("keeps the code when the reason is unknown - the safer guess", () => {
