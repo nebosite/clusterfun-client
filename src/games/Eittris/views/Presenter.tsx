@@ -209,6 +209,7 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
                         className={styles.specialCheckIcon}
                         style={{
                           backgroundImage: `url(${EittrisAssets.images.specials})`,
+                          backgroundSize: `${SPECIAL_ICON_COUNT * 100}% 100%`,
                           backgroundPosition: `${(type / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`,
                         }}
                       />

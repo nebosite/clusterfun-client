@@ -425,7 +425,8 @@
   display: inline-block;
   width: 44px;
   height: 44px;
-  background-size: 1700% 100%;
+  /* background-size is set inline from SPECIAL_ICON_COUNT - see BoardGrid and Client.tsx.
+     It lived here as a hardcoded 1700% and was wrong the moment an 18th icon was added. */
   background-repeat: no-repeat;
   flex-shrink: 0;
 }
@@ -666,7 +667,6 @@
   display: inline-block;
   width: 57px;
   height: 57px;
-  background-size: 1700% 100%;
   background-repeat: no-repeat;
   flex: 0 0 auto;
 }

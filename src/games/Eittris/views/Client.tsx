@@ -534,6 +534,7 @@ class AfflictionChip extends React.Component<ChipInfo> {
             className={styles.specialIcon}
             style={{
               backgroundImage: `url(${EittrisAssets.images.specials})`,
+              backgroundSize: `${SPECIAL_ICON_COUNT * 100}% 100%`,
               backgroundPosition: `${(iconIndex / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`,
             }}
           />
@@ -753,6 +754,7 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
                   className={styles.specialIcon}
                   style={{
                     backgroundImage: `url(${EittrisAssets.images.specials})`,
+                    backgroundSize: `${SPECIAL_ICON_COUNT * 100}% 100%`,
                     backgroundPosition: `${(appModel.lastSpecialEvent.type / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`,
                   }}
                 />
@@ -777,6 +779,7 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
                 className={styles.antidoteIcon}
                 style={{
                   backgroundImage: `url(${EittrisAssets.images.specials})`,
+                  backgroundSize: `${SPECIAL_ICON_COUNT * 100}% 100%`,
                   backgroundPosition: `${(SpecialType.Antidote / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`,
                 }}
               />
@@ -801,6 +804,7 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
                 className={styles.antidoteIcon}
                 style={{
                   backgroundImage: `url(${EittrisAssets.images.specials})`,
+                  backgroundSize: `${SPECIAL_ICON_COUNT * 100}% 100%`,
                   backgroundPosition: `${(SpecialType.Earthquake / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`,
                 }}
               />
