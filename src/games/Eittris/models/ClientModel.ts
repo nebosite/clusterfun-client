@@ -56,6 +56,7 @@ import {
   applyCommand,
   applyIncomingSpecial,
   spendAntidote,
+  triggerEarthquake,
   stepBoard,
 } from "./eittrisSimulation";
 import {
@@ -142,6 +143,8 @@ export class EittrisClientModel extends ClusterfunClientModel {
   // Specials on my settled blocks, my banked antidotes, and my shield timer
   @observable specials: { i: number; t: number }[] = [];
   @observable antidotes = 0;
+  @observable earthquakes = 0;
+  @observable quakeMs = 0;
   @observable speedupStacks = 0;
   @observable slowdownStacks = 0;
   @observable seeShadows = false;
@@ -413,6 +416,8 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.backgroundIndex = snapshot.backgroundIndex;
     this.specials = snapshot.specials ?? [];
     this.antidotes = snapshot.antidotes ?? 0;
+    this.earthquakes = snapshot.earthquakes ?? 0;
+    this.quakeMs = snapshot.quakeMs ?? 0;
     this.speedupStacks = snapshot.speedupStacks ?? 0;
     this.slowdownStacks = snapshot.slowdownStacks ?? 0;
     this.seeShadows = snapshot.seeShadows ?? false;
@@ -477,6 +482,7 @@ export class EittrisClientModel extends ClusterfunClientModel {
         selfSpecial: (_b, special) => this.report({ kind: "selfSpecial", special }),
         afflictionEnded: (_b, types) => this.report({ kind: "afflictionEnded", types }),
         antidoteUsed: () => this.report({ kind: "antidoteUsed" }),
+        quakeStarted: () => this.report({ kind: "quakeStarted" }),
         jumbleNudge: () => this.report({ kind: "jumbleNudge" }),
         slammed: () => this.report({ kind: "slammed" }),
         died: () => {
@@ -555,6 +561,8 @@ export class EittrisClientModel extends ClusterfunClientModel {
       pieceSeq: b.pieceSeq,
       specials: b.specials.map((m) => ({ i: m.index, t: m.type })),
       antidotes: b.antidotes,
+      earthquakes: b.earthquakes,
+      quakeMs: Math.round(b.quakeMs),
       speedupStacks: b.speedupStacks,
       slowdownStacks: b.slowdownStacks,
       seeShadows: b.seeShadows,
@@ -593,6 +601,8 @@ export class EittrisClientModel extends ClusterfunClientModel {
       this.targetId = b.targetId;
       this.specials = b.specials.map((m) => ({ i: m.index, t: m.type }));
       this.antidotes = b.antidotes;
+      this.earthquakes = b.earthquakes;
+      this.quakeMs = b.quakeMs;
       this.speedupStacks = b.speedupStacks;
       this.slowdownStacks = b.slowdownStacks;
       this.seeShadows = b.seeShadows;
@@ -752,6 +762,18 @@ export class EittrisClientModel extends ClusterfunClientModel {
           : candidates.length - 1
         : (current + step + candidates.length) % candidates.length;
     this.pickTarget(candidates[nextIndex].playerId);
+  }
+
+  // Set off a banked earthquake.  Like the antidote this is applied HERE, on this phone's
+  // own board: sent to the host it would be spent on a mirror that this phone's next report
+  // immediately overwrites.  The board shakes first and the stack comes down when it stops,
+  // so the player sees it happen rather than finding the grid rearranged.
+  useEarthquake() {
+    if (!this.board || this.board.earthquakes <= 0) return;
+    triggerEarthquake(this.board, this.simContext);
+    this.mirrorBoard();
+    this.markReportDue();
+    this.saveCheckpoint();
   }
 
   // Fire a banked antidote.  Applied HERE, on this phone's own board - sending it to the

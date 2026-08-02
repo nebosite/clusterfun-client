@@ -2,6 +2,8 @@ import Logger from "js-logger";
 import {
   AFFLICTION_TIMERS,
   ANTIDOTE_MAX,
+  EARTHQUAKE_MAX,
+  EARTHQUAKE_SHAKE_MS,
   ANTIDOTE_DURATION_MS,
   BOARD_HEIGHT,
   BOARD_WIDTH,
@@ -24,12 +26,15 @@ import {
   clearFallMs,
   collapseRows,
   collectAndShiftMarkers,
+  collapseGravity,
   collides,
+  countCoveredGaps,
   decodeGrid,
   decodePsychoOverlay,
   dragTowards,
   effectiveIntervalMs,
   emptyPsychoOverlay,
+  fullRows,
   gravityStep,
   hardDrop,
   hasAfflictions,
@@ -108,6 +113,8 @@ export interface SimulationEvents {
   jumbleNudge(board: EittrisBoard): void;
   /** A piece was slammed sideways into a wall or a stack - a thump, but not a lock. */
   slammed(board: EittrisBoard): void;
+  /** An earthquake has started shaking a board.  The stack drops when it stops. */
+  quakeStarted(board: EittrisBoard): void;
   /** Topped out.  The host decides what that means for the game; the board is already dead. */
   died(board: EittrisBoard): void;
   /** A good moment to save state, if whoever owns this board saves state. */
@@ -127,6 +134,7 @@ export const NO_EVENTS: SimulationEvents = {
   antidoteUsed: () => {},
   jumbleNudge: () => {},
   slammed: () => {},
+  quakeStarted: () => {},
   died: () => {},
   persist: () => {},
 };
@@ -169,6 +177,19 @@ export function stepBoard(board: EittrisBoard, dtMs: number, ctx: SimulationCont
       board.specials = anchored;
       ctx.events.changed(board);
     }
+  }
+
+  // The ground is shaking.  Nothing falls, nothing spawns and no command lands until it
+  // stops - the shake is a beat, and a piece dropping through the middle of it would read
+  // as a glitch rather than as the board being taken out of the player's hands.
+  if (board.quakeMs > 0) {
+    board.quakeMs -= dtMs;
+    if (board.quakeMs <= 0) {
+      board.quakeMs = 0;
+      settleEarthquake(board, ctx);
+    }
+    ctx.events.changed(board);
+    return;
   }
 
   // A clear is playing out: nothing falls and nothing spawns until the rows have been eaten
@@ -413,6 +434,14 @@ function tickAi(board: EittrisBoard, dtMs: number, ctx: SimulationContext) {
     return;
   }
 
+  // Then shake the holes out, if it has an earthquake and any holes to shake out.  A robot
+  // that banked one and never used it would sit there looking stupid next to a player who
+  // does, and the gaps are exactly what a robot is worst at avoiding.
+  if (board.earthquakes > 0 && countCoveredGaps(board.grid) > 0) {
+    triggerEarthquake(board, ctx);
+    return;
+  }
+
   if (!board.piece) return; // nothing to steer during the spawn gap
   const plan = planPlacement(board.grid, board.piece);
   if (!plan) return;
@@ -479,6 +508,58 @@ export function lockCurrentPiece(board: EittrisBoard, bumped: boolean, ctx: Simu
   ctx.events.persist();
 }
 
+// ------------------------------------------------------------------------------------------
+// The earthquake.
+//
+// Two halves, deliberately: shaking, and then the stack coming down.  Spending the charge
+// only starts the shake; settleEarthquake is what actually happens to the board, and it runs
+// when the shaking stops.
+// ------------------------------------------------------------------------------------------
+export function bankEarthquake(board: EittrisBoard) {
+  board.earthquakes = Math.min(EARTHQUAKE_MAX, board.earthquakes + 1);
+}
+
+/** Spend a charge and start the board shaking.  Nothing moves until it stops. */
+export function triggerEarthquake(board: EittrisBoard, ctx: SimulationContext): boolean {
+  if (!board.alive || board.earthquakes <= 0 || board.quakeMs > 0 || board.clearing) return false;
+  board.earthquakes--;
+  board.quakeMs = EARTHQUAKE_SHAKE_MS;
+  ctx.events.quakeStarted(board);
+  ctx.events.changed(board);
+  ctx.events.persist();
+  return true;
+}
+
+/** The shaking stopped: everything falls, and whatever that completes is cleared. */
+export function settleEarthquake(board: EittrisBoard, ctx: SimulationContext) {
+  const settled = collapseGravity(board.grid, board.specials);
+  board.grid = settled.grid;
+  board.specials = settled.markers;
+
+  // The falling piece is not part of the grid, so a block can land where it is standing.
+  // Lift it clear rather than leaving two things in one cell.
+  while (board.piece && collides(board.grid, pieceCells(board.piece))) {
+    board.piece = { ...board.piece, y: board.piece.y - 1 };
+    if (board.piece.y < -4) break;
+  }
+
+  // Closing the holes can complete rows, and those rows pay out exactly as they would if a
+  // piece had completed them - powerups and all.  That is the whole point of the powerup.
+  const rows = fullRows(board.grid);
+  if (rows.length > 0) {
+    const harvest = collectAndShiftMarkers(board.specials, rows);
+    board.grid = collapseRows(board.grid, rows);
+    board.specials = harvest.markers;
+    board.rows += rows.length;
+    ctx.events.rowsCleared(board, rows.length);
+    for (const type of harvest.collected) collectSpecial(board, type, ctx);
+    ctx.events.clearCollapsed(board);
+  }
+
+  ctx.events.changed(board);
+  ctx.events.persist();
+}
+
 /** The gap expired: bring in the next piece.  A spawn that immediately collides is death. */
 export function spawnNextPiece(board: EittrisBoard, ctx: SimulationContext) {
   const spawned = spawnNextFromQueue(board.nextQueue, ctx.random, board.evilPieces);
@@ -536,6 +617,11 @@ export function collectSpecial(board: EittrisBoard, type: SpecialType, ctx: Simu
     case SpecialType.SeeShadows:
       // Earned for the rest of the round (the original never removes it)
       board.seeShadows = true;
+      ctx.events.changed(board);
+      ctx.events.selfSpecial(board, type);
+      break;
+    case SpecialType.Earthquake:
+      bankEarthquake(board);
       ctx.events.changed(board);
       ctx.events.selfSpecial(board, type);
       break;
@@ -666,11 +752,16 @@ export function applyCommand(
   ctx: SimulationContext,
 ): boolean {
   if (!board.alive) return false;
+  // The ground is moving; nobody is steering anything
+  if (board.quakeMs > 0) return false;
 
   // These do not touch the falling piece, so they work even in the post-lock gap
   if (message.command === "useAntidote") {
     spendAntidote(board, ctx);
     return true;
+  }
+  if (message.command === "useEarthquake") {
+    return triggerEarthquake(board, ctx);
   }
   // DEV: behave exactly as if this special had just been cleared
   if (message.command === "fireSpecial") {
@@ -793,6 +884,8 @@ export function applyReportToBoard(board: EittrisBoard, snapshot: EittrisBoardSn
   board.pieceSeq = snapshot.pieceSeq;
   board.specials = (snapshot.specials ?? []).map((m) => ({ index: m.i, type: m.t }));
   board.antidotes = snapshot.antidotes ?? 0;
+  board.earthquakes = snapshot.earthquakes ?? 0;
+  board.quakeMs = snapshot.quakeMs ?? 0;
   board.speedupStacks = snapshot.speedupStacks ?? 0;
   board.slowdownStacks = snapshot.slowdownStacks ?? 0;
   board.seeShadows = !!snapshot.seeShadows;

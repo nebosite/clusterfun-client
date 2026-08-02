@@ -352,6 +352,38 @@
   border-color: #48e148;
 }
 
+/* The earthquake button, lit.  A different colour from the antidote's green: the two sit
+   side by side and do completely different things, and under pressure a player is going by
+   colour rather than by reading either of them. */
+.gameclient .quakeReady {
+  background: #7a4310;
+  border-color: #ffa640;
+}
+
+/* The board shaking, which is the whole tell that something is about to happen to it.
+   Deliberately violent - it has to be unmistakable from the corner of an eye. */
+.gameclient .boardQuaking {
+  animation: eittrisQuake 90ms linear infinite;
+}
+
+@keyframes eittrisQuake {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(-6px, 3px) rotate(-0.6deg);
+  }
+  50% {
+    transform: translate(5px, -4px) rotate(0.5deg);
+  }
+  75% {
+    transform: translate(-4px, -2px) rotate(0.4deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+}
+
 .gameclient .antidoteButton:disabled {
   opacity: 0.45;
 }

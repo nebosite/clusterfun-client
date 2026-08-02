@@ -543,6 +543,10 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
       appModel.useAntidote();
       return;
     }
+    if (action === EittrisAction.UseEarthquake) {
+      appModel.useEarthquake();
+      return;
+    }
     if (action === EittrisAction.NextTarget) {
       appModel.cycleTarget(1);
       return;
@@ -731,6 +735,30 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
               <span className={styles.antidoteEmpty}>Antidote</span>
             ) : null}
           </button>
+          {/* Lit only when there is one to spend.  It sits beside the antidote because
+              the two are the same kind of thing: something you banked, for later, for
+              yourself. */}
+          <button
+            className={classNames(styles.antidoteButton, {
+              [styles.quakeReady]: appModel.earthquakes > 0,
+            })}
+            disabled={appModel.earthquakes < 1 || appModel.quakeMs > 0}
+            onClick={() => appModel.useEarthquake()}
+          >
+            {Array.from({ length: Math.max(0, appModel.earthquakes) }, (_, i) => (
+              <span
+                key={i}
+                className={styles.antidoteIcon}
+                style={{
+                  backgroundImage: `url(${EittrisAssets.images.specials})`,
+                  backgroundPosition: `${(SpecialType.Earthquake / (SPECIAL_ICON_COUNT - 1)) * 100}% 0%`,
+                }}
+              />
+            ))}
+            {appModel.earthquakes === 0 ? (
+              <span className={styles.antidoteEmpty}>Quake</span>
+            ) : null}
+          </button>
           {dead ? <span className={styles.hintRow}>Waiting for the round to end...</span> : null}
           <div className={styles.nextBox}>
             <span className={styles.nextLabel}>Next</span>
@@ -744,7 +772,9 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
         <div className={styles.boardRow}>
           <div
             ref={this.boardRef}
-            className={styles.boardArea}
+            className={classNames(styles.boardArea, {
+              [styles.boardQuaking]: appModel.quakeMs > 0,
+            })}
             onPointerDown={(e) => {
               // Capture keeps move/up coming to this element even if the
               // finger leaves the board - best-effort, never fatal

@@ -94,6 +94,7 @@ export enum EittrisGameEvent {
   SpecialCollected = "SpecialCollected", // args: playerId, SpecialType
   SpecialFired = "SpecialFired", // args: attackerId, victimId, type, repelled
   AntidoteUsed = "AntidoteUsed", // args: playerId
+  QuakeStarted = "QuakeStarted", // args: playerId - the ground is moving
   AfflictionEnded = "AfflictionEnded", // args: playerId, SpecialType[] that lifted
   JumbleNudge = "JumbleNudge", // args: playerId - a block just skittered
   PlayerDied = "PlayerDied",
@@ -522,6 +523,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       afflictionEnded: (board, types) =>
         this.invokeEvent(EittrisGameEvent.AfflictionEnded, board.playerId, types),
       antidoteUsed: (board) => this.invokeEvent(EittrisGameEvent.AntidoteUsed, board.playerId),
+      quakeStarted: (board) => this.invokeEvent(EittrisGameEvent.QuakeStarted, board.playerId),
       jumbleNudge: (board) => this.invokeEvent(EittrisGameEvent.JumbleNudge, board.playerId),
       slammed: (board) => this.invokeEvent(EittrisGameEvent.PieceBumped, board.playerId),
       died: (board) => this.onBoardDied(board),
@@ -996,6 +998,8 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       pieceSeq: board.pieceSeq,
       specials: board.specials.map((m) => ({ i: m.index, t: m.type })),
       antidotes: board.antidotes,
+      earthquakes: board.earthquakes,
+      quakeMs: Math.round(board.quakeMs),
       speedupStacks: board.speedupStacks,
       slowdownStacks: board.slowdownStacks,
       seeShadows: board.seeShadows,

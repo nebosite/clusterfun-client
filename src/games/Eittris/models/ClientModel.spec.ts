@@ -3,10 +3,12 @@ import { ISessionHelper, instantiateGame, getClientTypeHelper, GeneralGameState 
 import { MockTelemetryLogger } from "libs/telemetry/MockTelemetryLogger";
 import { EittrisClientModel, EittrisClientState, getEittrisClientTypeHelper } from "./ClientModel";
 import { EittrisBoardSnapshot, EittrisSpecialEventMessage } from "./eittrisEndpoints";
-import { applyIncomingSpecial } from "./eittrisSimulation";
+import { applyIncomingSpecial, stepBoard } from "./eittrisSimulation";
 import {
   AFFLICTION_TIMERS,
   BOARD_HEIGHT,
+  EARTHQUAKE_SHAKE_MS,
+  EMPTY_CELL,
   BOARD_WIDTH,
   defaultSettings,
   emptyGrid,
@@ -71,6 +73,8 @@ function snapshot(overrides: Partial<EittrisBoardSnapshot> = {}): EittrisBoardSn
     pieceSeq: 3,
     specials: [{ i: (BOARD_HEIGHT - 1) * BOARD_WIDTH, t: SpecialType.Antidote }],
     antidotes: 2,
+    earthquakes: 0,
+    quakeMs: 0,
     speedupStacks: 1,
     slowdownStacks: 0,
     seeShadows: false,
@@ -531,5 +535,84 @@ describe("EittrisClientModel - knowing you are afflicted", () => {
 
     model.useAntidote();
     expect(model.afflicted).toBe(false);
+  });
+});
+
+describe("EittrisClientModel - the earthquake", () => {
+  // Two halves on purpose: pressing the button starts the board shaking, and the stack
+  // only comes down when the shaking stops.  A grid that rearranged itself the instant you
+  // pressed a button would read as a bug rather than as a powerup.
+  function quaking(rows: string[] = []) {
+    const model = makeClient();
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+    const board = (model as any).board;
+    board.piece = null; // out of the way; the shake holds the piece anyway
+    rows.forEach((row, i) => {
+      const y = BOARD_HEIGHT - rows.length + i;
+      for (let x = 0; x < row.length; x++) if (row[x] === "#") board.grid[y][x] = 1;
+    });
+    board.earthquakes = 1;
+    return { model, board };
+  }
+
+  it("spends a charge and starts the board shaking", () => {
+    const { model, board } = quaking(["#........."]);
+    model.useEarthquake();
+    expect(board.earthquakes).toBe(0);
+    expect(board.quakeMs).toBeGreaterThan(0);
+    expect(model.quakeMs).toBeGreaterThan(0); // and the view can see it
+  });
+
+  it("does not touch the stack until the shaking stops", () => {
+    const { model, board } = quaking(["#.........", "..........", ".........."]);
+    model.useEarthquake();
+    expect(board.grid[BOARD_HEIGHT - 3][0]).toBe(1); // still up there
+    expect(board.grid[BOARD_HEIGHT - 1][0]).toBe(EMPTY_CELL);
+  });
+
+  it("brings everything down when it does stop", () => {
+    const { model, board } = quaking(["#.........", "..........", ".........."]);
+    model.useEarthquake();
+    stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, (model as any).simContext);
+    expect(board.quakeMs).toBe(0);
+    expect(board.grid[BOARD_HEIGHT - 1][0]).toBe(1);
+    expect(board.grid[BOARD_HEIGHT - 3][0]).toBe(EMPTY_CELL);
+  });
+
+  it("clears whatever the collapse completed, and counts the rows", () => {
+    const { model, board } = quaking(["#########.", ".........#"]);
+    const before = board.rows;
+    model.useEarthquake();
+    stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, (model as any).simContext);
+    expect(board.rows).toBe(before + 1);
+    expect(board.grid[BOARD_HEIGHT - 1].every((c: number) => c === EMPTY_CELL)).toBe(true);
+  });
+
+  it("sets off the powerups sitting on the rows it completed", () => {
+    const { model, board } = quaking(["#########.", ".........#"]);
+    // A banked antidote riding the block that is about to land on the full row
+    board.specials = [{ index: (BOARD_HEIGHT - 1) * BOARD_WIDTH + 9, type: SpecialType.Antidote }];
+    const antidotesBefore = board.antidotes;
+
+    model.useEarthquake();
+    stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, (model as any).simContext);
+
+    expect(board.antidotes).toBe(antidotesBefore + 1);
+    expect(board.specials.length).toBe(0);
+  });
+
+  it("does nothing with none banked", () => {
+    const { model, board } = quaking(["#........."]);
+    board.earthquakes = 0;
+    model.useEarthquake();
+    expect(board.quakeMs).toBe(0);
+  });
+
+  it("cannot be set off twice at once", () => {
+    const { model, board } = quaking(["#........."]);
+    board.earthquakes = 2;
+    model.useEarthquake();
+    model.useEarthquake();
+    expect(board.earthquakes).toBe(1); // only the first one was spent
   });
 });

@@ -22,6 +22,7 @@ export const EittrisAction = {
   NextTarget: "nextTarget",
   PrevTarget: "prevTarget",
   UseAntidote: "useAntidote",
+  UseEarthquake: "useEarthquake",
 } as const;
 
 export type EittrisActionName = (typeof EittrisAction)[keyof typeof EittrisAction];
@@ -65,6 +66,7 @@ export const EITTRIS_BINDINGS: InputBindings = {
     { action: EittrisAction.PrevTarget, codes: ["KeyQ", "BracketLeft", "PageUp"] },
     { action: EittrisAction.NextTarget, codes: ["KeyE", "BracketRight", "PageDown"] },
     { action: EittrisAction.UseAntidote, codes: ["KeyF", "Enter", "NumpadEnter", "Numpad0"] },
+    { action: EittrisAction.UseEarthquake, codes: ["KeyG", "ShiftLeft", "NumpadDecimal"] },
   ],
   pad: [
     // Traditional pad tetris: d-pad or left stick moves, A/B rotate,
@@ -94,6 +96,7 @@ export const EITTRIS_BINDINGS: InputBindings = {
     { action: EittrisAction.PrevTarget, buttons: [PAD_BUTTON.LeftShoulder] },
     { action: EittrisAction.NextTarget, buttons: [PAD_BUTTON.RightShoulder] },
     { action: EittrisAction.UseAntidote, buttons: [PAD_BUTTON.X] },
+    { action: EittrisAction.UseEarthquake, buttons: [PAD_BUTTON.RightTrigger] },
   ],
   repeat: EITTRIS_REPEAT,
 };
@@ -139,6 +142,7 @@ export const EITTRIS_CONTROL_GUIDE: ControlGuideSection[] = [
       { label: "Flick left / right", detail: "Slam the piece to that wall" },
       { label: "Lift your finger", detail: "Place the piece if it is resting, else keep falling" },
       { label: "Tap a player", detail: "Aim your next attack at them" },
+      { label: "Quake button", detail: "Shake the stack down, closing the holes in it" },
     ],
   },
   {
@@ -155,6 +159,7 @@ export const EITTRIS_CONTROL_GUIDE: ControlGuideSection[] = [
       { label: "Space", detail: "Hard drop" },
       { label: "Q / E", detail: "Aim at the previous or next player" },
       { label: "F", detail: "Use an antidote" },
+      { label: "G", detail: "Set off an earthquake" },
     ],
   },
   {
@@ -167,6 +172,7 @@ export const EITTRIS_CONTROL_GUIDE: ControlGuideSection[] = [
       { label: "Up / Y", detail: "Hard drop" },
       { label: "LB / RB", detail: "Aim at the previous or next player" },
       { label: "X", detail: "Use an antidote" },
+      { label: "Right trigger", detail: "Set off an earthquake" },
     ],
   },
 ];

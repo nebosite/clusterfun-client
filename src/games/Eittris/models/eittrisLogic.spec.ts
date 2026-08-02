@@ -3,6 +3,8 @@ import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
   collides,
+  fullRows,
+  collapseGravity,
   decodeGrid,
   decodeThumbnail,
   dragTowards,
@@ -1647,7 +1649,7 @@ describe("eittrisLogic - host settings", () => {
     // which made a tick box worth wildly different amounts depending on how many others
     // were ticked.  Sweep the whole 0..1 range and count what comes out.
     const counts = new Map<SpecialType, number>();
-    const draws = 1700;
+    const draws = 100 * IMPLEMENTED_SPECIALS.length;
     for (let i = 0; i < draws; i++) {
       const rolled = rollAllowedSpecial(() => i / draws, IMPLEMENTED_SPECIALS);
       counts.set(rolled, (counts.get(rolled) ?? 0) + 1);
@@ -2167,5 +2169,96 @@ describe("eittrisLogic - the seven-bag", () => {
       expect(spawned.piece.type).toBeLessThan(EVIL_PIECE_COUNT);
       queue = spawned.queue;
     }
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// The earthquake's collapse.  Buried gaps are what stop a player clearing rows, and no
+// amount of good placement digs them out - which is what makes shaking them shut worth a
+// powerup.
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - collapseGravity", () => {
+  /** Build a grid from strings, bottom-aligned.  "#" is a block, "." is empty. */
+  function gridOf(...rows: string[]): number[][] {
+    const grid = emptyGrid();
+    rows.forEach((row, i) => {
+      const y = BOARD_HEIGHT - rows.length + i;
+      for (let x = 0; x < row.length; x++) if (row[x] === "#") grid[y][x] = 1;
+    });
+    return grid;
+  }
+
+  /** The bottom `count` rows, as strings. */
+  function bottom(grid: number[][], count: number): string[] {
+    return grid
+      .slice(BOARD_HEIGHT - count)
+      .map((row) => row.map((c) => (c === EMPTY_CELL ? "." : "#")).join(""));
+  }
+
+  it("drops every block as far as it will go", () => {
+    const grid = gridOf(
+      "#.........", // floating
+      "..........",
+      "#...#.....",
+    );
+    const settled = collapseGravity(grid).grid;
+    expect(bottom(settled, 3)).toEqual(["..........", "#.........", "#...#....."]);
+  });
+
+  it("closes a hole under an overhang", () => {
+    const grid = gridOf(
+      "####.#####", //
+      "#####.####",
+      "##########".replace("#", "."), // a row with a gap at 0
+    );
+    const settled = collapseGravity(grid).grid;
+    // Every column keeps the same number of blocks; they are just all at the bottom
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      const before = grid.filter((row) => row[x] !== EMPTY_CELL).length;
+      const after = settled.filter((row) => row[x] !== EMPTY_CELL).length;
+      expect(after).toBe(before);
+    }
+  });
+
+  it("never moves a block sideways, and never loses one", () => {
+    const grid = gridOf("#.#.#.#.#.", "..........", ".#.#.#.#.#", "..........", "#........#");
+    const settled = collapseGravity(grid).grid;
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      const before = grid.filter((row) => row[x] !== EMPTY_CELL).length;
+      const after = settled.filter((row) => row[x] !== EMPTY_CELL).length;
+      expect(after).toBe(before);
+      // ...and they are packed against the floor
+      for (let i = 0; i < after; i++) {
+        expect(settled[BOARD_HEIGHT - 1 - i][x]).not.toBe(EMPTY_CELL);
+      }
+    }
+  });
+
+  it("carries powerup markers down with the blocks they are on", () => {
+    const grid = gridOf("..#.......", "..........", "..........");
+    const from = (BOARD_HEIGHT - 3) * BOARD_WIDTH + 2;
+    const { markers } = collapseGravity(grid, [{ index: from, type: SpecialType.Antidote }]);
+    expect(markers.length).toBe(1);
+    expect(markers[0].index).toBe((BOARD_HEIGHT - 1) * BOARD_WIDTH + 2);
+    expect(markers[0].type).toBe(SpecialType.Antidote);
+  });
+
+  it("drops a marker that had no block under it", () => {
+    // It would be pruned a frame later anyway - this just makes it happen at once
+    const grid = gridOf("..........");
+    const { markers } = collapseGravity(grid, [{ index: 5, type: SpecialType.Antidote }]);
+    expect(markers).toEqual([]);
+  });
+
+  it("leaves an already-settled board exactly as it was", () => {
+    const grid = gridOf("###.......", "##########");
+    const settled = collapseGravity(grid).grid;
+    expect(bottom(settled, 2)).toEqual(["###.......", "##########"]);
+  });
+
+  it("finds the rows the collapse completed", () => {
+    const grid = gridOf("#########.", ".........#");
+    const settled = collapseGravity(grid).grid;
+    expect(fullRows(settled)).toEqual([BOARD_HEIGHT - 1]);
   });
 });

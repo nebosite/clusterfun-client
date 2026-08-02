@@ -39,6 +39,14 @@ export const TOWER_CELL = 8;
 // bank 4 antidotes, and a fired one shields/cures for 10s.
 export const SPECIAL_INTERVAL_MS = 8000;
 export const ANTIDOTE_MAX = 3;
+// Earthquake: bank up to three, and each one shakes the board for this long before the
+// stack drops.  The shake is not decoration - it is the beat that says "something is about
+// to happen to your board", which is the difference between a satisfying powerup and the
+// grid mysteriously rearranging itself.
+export const EARTHQUAKE_MAX = 3;
+export const EARTHQUAKE_SHAKE_MS = 700;
+// Every this many rows cleared earns one, on top of any that are collected
+export const EARTHQUAKE_EVERY_ROWS = 22;
 export const ANTIDOTE_DURATION_MS = 10000;
 // Every affliction wears off on its own after this long.  Getting hit again
 // with the same one refreshes the clock rather than stacking a second timer.
@@ -525,10 +533,12 @@ export enum SpecialType {
   Transparency = 15,
   // A perk of our own, not from the original: see further down the queue
   CrystalBall = 16,
+  // Also ours: shake the stack until it settles, closing the holes you left behind
+  Earthquake = 17,
 }
 
 // Icons in assets/images/specials.png, one per SpecialType, in enum order
-export const SPECIAL_ICON_COUNT = 17;
+export const SPECIAL_ICON_COUNT = 18;
 
 export const SPECIAL_NAMES: string[] = [
   "Speedup",
@@ -548,6 +558,7 @@ export const SPECIAL_NAMES: string[] = [
   "FreezeDried",
   "Transparency",
   "CrystalBall",
+  "Earthquake",
 ];
 
 // Specials that actually DO something today.  Random rolls and the dev
@@ -570,6 +581,7 @@ export const IMPLEMENTED_SPECIALS: SpecialType[] = [
   SpecialType.Jumble,
   SpecialType.SwitchScreens,
   SpecialType.CrystalBall,
+  SpecialType.Earthquake,
 ];
 
 // Specials that are fired AT your target rather than kept for yourself
@@ -941,6 +953,11 @@ export interface EittrisBoard {
   specials: SpecialMarker[];
   specialTimerMs: number; // countdown to tagging the next block
   antidotes: number; // stored antidote charges (max ANTIDOTE_MAX)
+  // Banked earthquakes, and how much of the current shake is left (0 = not shaking)
+  earthquakes: number;
+  quakeMs: number;
+  // Rows cleared at the last earthquake award, so the every-22 count survives a checkpoint
+  quakeRowMark: number;
   // Afflictions laid on this board by other players' specials.  Kept apart
   // from intervalMs (the natural gravity curve) so an antidote can wipe them.
   speedupStacks: number;
@@ -1015,6 +1032,9 @@ export function makeBoard(
     specials: [],
     specialTimerMs: SPECIAL_INTERVAL_MS,
     antidotes: ANTIDOTES_AT_START,
+    earthquakes: 0,
+    quakeMs: 0,
+    quakeRowMark: 0,
     speedupStacks: 0,
     slowdownStacks: 0,
     seeShadows: false,
@@ -1153,6 +1173,50 @@ export function rankBoards(boards: EittrisBoard[]): EittrisBoard[] {
     if (a.deathOrder !== b.deathOrder) return b.deathOrder - a.deathOrder;
     return b.rows - a.rows;
   });
+}
+
+// ------------------------------------------------------------------------------------------
+// The earthquake's collapse.
+//
+// Every settled block falls straight down as far as it can, column by column, closing every
+// hole underneath it.  That is what makes the powerup worth having: the buried gaps a
+// player has been carrying around are exactly what stops them clearing rows, and no amount
+// of good placement digs them out again.
+//
+// Powerup markers belong to blocks, so they travel with them.  Anything left behind would
+// be a marker floating over an empty cell, which the simulation prunes a frame later - the
+// player would simply lose it.
+// ------------------------------------------------------------------------------------------
+export function collapseGravity(
+  grid: number[][],
+  markers: SpecialMarker[] = [],
+): { grid: number[][]; markers: SpecialMarker[] } {
+  const out = emptyGrid();
+  const moved = new Map<number, number>(); // old cell index -> new cell index
+  for (let x = 0; x < BOARD_WIDTH; x++) {
+    let write = BOARD_HEIGHT - 1;
+    for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
+      if (grid[y][x] === EMPTY_CELL) continue;
+      out[write][x] = grid[y][x];
+      moved.set(y * BOARD_WIDTH + x, write * BOARD_WIDTH + x);
+      write--;
+    }
+  }
+  return {
+    grid: out,
+    markers: markers
+      .filter((m) => moved.has(m.index))
+      .map((m) => ({ ...m, index: moved.get(m.index)! })),
+  };
+}
+
+/** Which rows are full right now.  The earthquake needs this without locking a piece. */
+export function fullRows(grid: number[][]): number[] {
+  const rows: number[] = [];
+  for (let y = 0; y < BOARD_HEIGHT; y++) {
+    if (grid[y].every((cell) => cell !== EMPTY_CELL)) rows.push(y);
+  }
+  return rows;
 }
 
 // ------------------------------------------------------------------------------------------

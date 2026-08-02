@@ -28,6 +28,8 @@ export interface EittrisBoardSnapshot {
   // Specials sitting on this board's settled blocks: cell index + type
   specials: { i: number; t: number }[];
   antidotes: number; // banked antidote charges
+  earthquakes: number; // banked earthquakes
+  quakeMs: number; // how much of the current shake is left (0 = still)
   speedupStacks: number; // Speedup afflictions currently on this board
   slowdownStacks: number; // SlowDown self-buffs (not curable)
   seeShadows: boolean; // draw the landing ghost
@@ -97,6 +99,7 @@ export type EittrisCommandKind =
   | "moveDown" // one row, the soft drop
   | "pickTarget"
   | "useAntidote" // fire a stored antidote (cure + shield)
+  | "useEarthquake" // shake the stack down, closing the holes in it
   | "setForcedSpecial" // DEV ONLY: pin which special spawns
   | "setAiControlled" // DEV ONLY: let the computer play this board
   | "fireSpecial"; // DEV ONLY: collect the selected special right now
@@ -201,6 +204,7 @@ export type EittrisReportEvent =
   | { kind: "hit"; special: number; attackerId: string; repelled: boolean }
   | { kind: "afflictionEnded"; types: number[] }
   | { kind: "antidoteUsed" }
+  | { kind: "quakeStarted" }
   | { kind: "jumbleNudge" }
   | { kind: "slammed" }
   | { kind: "died" };
