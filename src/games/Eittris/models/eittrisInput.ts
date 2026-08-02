@@ -143,15 +143,17 @@ export const EITTRIS_CONTROL_GUIDE: ControlGuideSection[] = [
   {
     id: "keyboard",
     title: "Keyboard",
-    summary: "Four seats at one keyboard, so a room full of people can share a PC.",
+    // One key per action rather than all four seats: the full table needs more lines than a
+    // phone has, and the summary is what tells a player the other seats exist at all.
+    summary: "Arrows, WASD, IJKL or the numpad - four seats, so a room can share one PC.",
     entries: [
-      { label: "← → / A D / J L / Num 4 6", detail: "Move left and right" },
-      { label: "↓ / S / K / Num 5", detail: "Down one row" },
-      { label: "↑ / W / I / X / Num 3", detail: "Rotate clockwise" },
-      { label: "Z / Ctrl / Num 7", detail: "Rotate counter-clockwise" },
-      { label: "Space / Num 8", detail: "Hard drop" },
-      { label: "Q E / [ ] / PgUp PgDn", detail: "Aim at the previous or next player" },
-      { label: "F / Enter / Num 0", detail: "Use an antidote" },
+      { label: "← →", detail: "Move left and right" },
+      { label: "↓", detail: "Down one row" },
+      { label: "↑ or X", detail: "Rotate clockwise" },
+      { label: "Z", detail: "Rotate counter-clockwise" },
+      { label: "Space", detail: "Hard drop" },
+      { label: "Q / E", detail: "Aim at the previous or next player" },
+      { label: "F", detail: "Use an antidote" },
     ],
   },
   {
@@ -166,16 +168,4 @@ export const EITTRIS_CONTROL_GUIDE: ControlGuideSection[] = [
       { label: "X", detail: "Use an antidote" },
     ],
   },
-];
-
-// What to show a player who has a keyboard.  One representative key per action
-// rather than all of them - the full list is noise on a status line.
-export const EITTRIS_KEY_HINTS: { action: EittrisActionName; label: string; keys: string }[] = [
-  { action: EittrisAction.MoveLeft, label: "Move", keys: "← → / A D / J L" },
-  { action: EittrisAction.MoveDown, label: "Down", keys: "↓ / S / K" },
-  { action: EittrisAction.RotateRight, label: "Rotate", keys: "↑ / W / X" },
-  { action: EittrisAction.RotateLeft, label: "Rotate back", keys: "Z" },
-  { action: EittrisAction.Drop, label: "Drop", keys: "Space" },
-  { action: EittrisAction.PrevTarget, label: "Target", keys: "Q E" },
-  { action: EittrisAction.UseAntidote, label: "Antidote", keys: "F" },
 ];

@@ -10,7 +10,10 @@
   background-color: rgb(43, 65, 98);
   color: #eeeeee;
   overflow: hidden;
-  font-size: 55px;
+  /* The phone's base size, which nearly everything below is a percentage of.
+     Sixty per cent up on where it started: this is read at arm's length, in a
+     lit room, by somebody who is also trying to play. */
+  font-size: 88px;
   font-family: sans-serif;
 }
 
@@ -37,7 +40,7 @@
 }
 
 .gameclient .quitbutton {
-  font-size: 40px;
+  font-size: 64px;
   font-weight: 800;
   padding: 0;
   width: 100px;
@@ -237,13 +240,13 @@
 }
 
 .gameclient .celebrationTrophy {
-  font-size: 300px;
+  font-size: 480px;
   margin-top: 120px;
   animation: trophyPulse 0.8s ease-in-out infinite alternate;
 }
 
 .gameclient .celebrationText {
-  font-size: 130px;
+  font-size: 208px;
   font-weight: 900;
   color: #ffd34e;
   animation: trophyPulse 0.8s ease-in-out infinite alternate-reverse;
