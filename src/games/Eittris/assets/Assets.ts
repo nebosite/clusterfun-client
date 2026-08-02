@@ -28,6 +28,7 @@ import vanish from "./sounds/Attack09.wav";
 import psycho from "./sounds/Attack10_Yell.wav";
 import cured from "./sounds/Trans03_Chimes.wav";
 import jumble from "./sounds/Dot02.wav";
+import quake from "./sounds/Quake.wav";
 import swap from "./sounds/Dot.wav";
 import dot from "./sounds/Dot.wav";
 import clear1 from "./sounds/Clear1Line.wav";
@@ -68,6 +69,7 @@ const EittrisAssets = {
     psycho, // Psycho scrambling the colors
     cured, // an affliction let go - timed out, or an antidote washed it off
     jumble, // Jumble shaking a stack apart
+    quake, // the ground moving under an earthquake
     swap, // SwitchScreens trading boards
     hello, // a player joined (template placeholder - no eitrix equivalent wired)
     dot, // a piece locked in place

@@ -3,6 +3,7 @@ import {
   AFFLICTION_TIMERS,
   ANTIDOTE_MAX,
   EARTHQUAKE_EVERY_ROWS,
+  EARTHQUAKE_FALL_MS,
   EARTHQUAKE_MAX,
   EARTHQUAKE_SHAKE_MS,
   ANTIDOTE_DURATION_MS,
@@ -37,6 +38,8 @@ import {
   dragTowards,
   effectiveIntervalMs,
   emptyPsychoOverlay,
+  encodeDrops,
+  decodeDrops,
   fullRows,
   gravityStep,
   hardDrop,
@@ -191,6 +194,18 @@ export function stepBoard(board: EittrisBoard, dtMs: number, ctx: SimulationCont
     if (board.quakeMs <= 0) {
       board.quakeMs = 0;
       settleEarthquake(board, ctx);
+    }
+    ctx.events.changed(board);
+    return;
+  }
+
+  // The stack is coming down after a shake.  Same rule as a row clear: nothing else moves
+  // until it has landed.
+  if (board.quakeFall) {
+    board.quakeFall.elapsedMs += dtMs;
+    if (board.quakeFall.elapsedMs >= board.quakeFall.fallMs) {
+      board.quakeFall = null;
+      clearFullRowsNow(board, ctx);
     }
     ctx.events.changed(board);
     return;
@@ -571,7 +586,13 @@ export function triggerEarthquake(board: EittrisBoard, ctx: SimulationContext): 
   return true;
 }
 
-/** The shaking stopped: everything falls, and whatever that completes is cleared. */
+/**
+ * The shaking stopped: everything comes down.
+ *
+ * The grid is collapsed at once - the rules are not animated - and what is animated is
+ * where each block is DRAWN on the way there.  Whatever the fall completes is cleared when
+ * it lands, in clearFullRowsNow, so the two never happen on top of one another.
+ */
 export function settleEarthquake(board: EittrisBoard, ctx: SimulationContext) {
   const settled = collapseGravity(board.grid, board.specials);
   board.grid = settled.grid;
@@ -584,22 +605,36 @@ export function settleEarthquake(board: EittrisBoard, ctx: SimulationContext) {
     if (board.piece.y < -4) break;
   }
 
-  // Closing the holes can complete rows, and those rows pay out exactly as they would if a
-  // piece had completed them - powerups and all.  That is the whole point of the powerup.
-  const rows = fullRows(board.grid);
-  if (rows.length > 0) {
-    const harvest = collectAndShiftMarkers(board.specials, rows);
-    board.grid = collapseRows(board.grid, rows);
-    board.specials = harvest.markers;
-    board.rows += rows.length;
-    awardEarthquakeForRows(board, ctx);
-    ctx.events.rowsCleared(board, rows.length);
-    for (const type of harvest.collected) collectSpecial(board, type, ctx);
-    ctx.events.clearCollapsed(board);
+  const fell = settled.drops.some((d) => d > 0);
+  if (fell) {
+    board.quakeFall = { drops: settled.drops, elapsedMs: 0, fallMs: EARTHQUAKE_FALL_MS };
+  } else {
+    // Nothing moved - a board with no holes in it.  Straight to the clear check.
+    clearFullRowsNow(board, ctx);
   }
 
   ctx.events.changed(board);
   ctx.events.persist();
+}
+
+/**
+ * Take out whatever rows are complete right now, with no piece involved.
+ *
+ * Closing the holes can complete rows, and those rows pay out exactly as they would if a
+ * piece had completed them - powerups and all.  That is the whole point of the powerup.
+ */
+export function clearFullRowsNow(board: EittrisBoard, ctx: SimulationContext) {
+  const rows = fullRows(board.grid);
+  if (rows.length === 0) return;
+  const harvest = collectAndShiftMarkers(board.specials, rows);
+  board.grid = collapseRows(board.grid, rows);
+  board.specials = harvest.markers;
+  board.rows += rows.length;
+  awardEarthquakeForRows(board, ctx);
+  ctx.events.rowsCleared(board, rows.length);
+  for (const type of harvest.collected) collectSpecial(board, type, ctx);
+  ctx.events.clearCollapsed(board);
+  ctx.events.changed(board);
 }
 
 /** The gap expired: bring in the next piece.  A spawn that immediately collides is death. */
@@ -796,8 +831,8 @@ export function applyCommand(
   ctx: SimulationContext,
 ): boolean {
   if (!board.alive) return false;
-  // The ground is moving; nobody is steering anything
-  if (board.quakeMs > 0) return false;
+  // The ground is moving, or the stack is still coming down; nobody is steering anything
+  if (board.quakeMs > 0 || board.quakeFall) return false;
 
   // These do not touch the falling piece, so they work even in the post-lock gap
   if (message.command === "useAntidote") {
@@ -931,6 +966,13 @@ export function applyReportToBoard(board: EittrisBoard, snapshot: EittrisBoardSn
   board.antidotes = snapshot.antidotes ?? 0;
   board.earthquakes = snapshot.earthquakes ?? 0;
   board.quakeMs = snapshot.quakeMs ?? 0;
+  board.quakeFall = snapshot.quakeFall
+    ? {
+        drops: decodeDrops(snapshot.quakeFall.drops),
+        elapsedMs: snapshot.quakeFall.elapsedMs,
+        fallMs: snapshot.quakeFall.fallMs,
+      }
+    : null;
   board.speedupStacks = snapshot.speedupStacks ?? 0;
   board.slowdownStacks = snapshot.slowdownStacks ?? 0;
   board.seeShadows = !!snapshot.seeShadows;

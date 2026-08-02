@@ -355,6 +355,7 @@ class BoardPanel extends React.Component<{
             psychoSeed={board.psychoSeed}
             psychoOverlay={board.psychoOverlay}
             clearing={board.clearing}
+            quakeFall={board.quakeFall}
           />
           {!board.alive ? <div className={styles.toppedOut}>TOPPED OUT</div> : null}
         </div>
@@ -548,6 +549,11 @@ export default class Presenter extends React.Component<
     // Blocks skittering while the randomizer shakes a stack apart.  Same
     // short sample every time, at a different pitch each time, which is what
     // turns a repeated click into a tinkle.
+    // The ground moving.  It plays on the shared screen, where the speakers are, and it
+    // outlasts the shake by a little so it tails off rather than stopping dead.
+    appModel?.subscribe(EittrisGameEvent.QuakeStarted, "play quake rumble", () =>
+      this.media.playSound(EittrisAssets.sounds.quake, { volume: 0.9 }),
+    );
     appModel?.subscribe(EittrisGameEvent.JumbleNudge, "play jumble tinkle", () =>
       this.media.playSound(EittrisAssets.sounds.jumble, {
         volume: 0.35,

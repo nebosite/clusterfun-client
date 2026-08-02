@@ -55,26 +55,57 @@ interface BoardGridProps {
   // lasts.  The component runs its own clock from the moment it first sees a
   // given clear, so the animation is smooth without streaming frames.
   clearing?: { rows: number[]; elapsedMs: number; eatMs: number; fallMs: number } | null;
+  /** An earthquake's stack coming down: how far each cell fell, indexed by where it is now */
+  quakeFall?: { drops: number[]; elapsedMs: number; fallMs: number } | null;
 }
 
 interface BoardGridState {
   clearElapsedMs: number;
+  quakeElapsedMs: number;
 }
 
 export class BoardGrid extends React.Component<BoardGridProps, BoardGridState> {
-  state: BoardGridState = { clearElapsedMs: 0 };
+  state: BoardGridState = { clearElapsedMs: 0, quakeElapsedMs: 0 };
+  private quakeFrame?: number;
+  private quakeStartedAt = 0;
+  private animatingQuake = false;
   private clearFrame?: number;
   private clearStartedAt = 0;
   private animatingRows = "";
 
   componentDidUpdate() {
     this.syncClearAnimation();
+    this.syncQuakeAnimation();
   }
   componentDidMount() {
     this.syncClearAnimation();
+    this.syncQuakeAnimation();
   }
   componentWillUnmount() {
     if (this.clearFrame !== undefined) cancelAnimationFrame(this.clearFrame);
+    if (this.quakeFrame !== undefined) cancelAnimationFrame(this.quakeFrame);
+  }
+
+  // The same idea as the row-clear clock below, for the earthquake's fall: the grid is
+  // already collapsed, and every block that moved is drawn back where it came from and
+  // eased down.  Its own clock, because a fall can be followed straight away by a clear.
+  private syncQuakeAnimation() {
+    const falling = !!this.props.quakeFall;
+    if (falling === this.animatingQuake) return;
+    this.animatingQuake = falling;
+    if (this.quakeFrame !== undefined) cancelAnimationFrame(this.quakeFrame);
+    this.quakeFrame = undefined;
+    if (!falling) {
+      if (this.state.quakeElapsedMs !== 0) this.setState({ quakeElapsedMs: 0 });
+      return;
+    }
+    this.quakeStartedAt = performance.now() - this.props.quakeFall!.elapsedMs;
+    const step = () => {
+      const elapsed = performance.now() - this.quakeStartedAt;
+      this.setState({ quakeElapsedMs: elapsed });
+      if (this.animatingQuake) this.quakeFrame = requestAnimationFrame(step);
+    };
+    this.quakeFrame = requestAnimationFrame(step);
   }
 
   // Start a local clock the first time we see a particular clear, and stop it
@@ -155,6 +186,10 @@ export class BoardGrid extends React.Component<BoardGridProps, BoardGridState> {
       ? 1 - fallProgress(clearElapsed - clearing.eatMs, clearing.fallMs)
       : 0;
 
+    // ---- An earthquake's stack coming down -----------------------------
+    const quakeFall = this.props.quakeFall;
+    const quakeLeft = quakeFall ? 1 - fallProgress(this.state.quakeElapsedMs, quakeFall.fallMs) : 0;
+
     // Marked blocks pulse (the original cycles rainbow) and wear their icon
     const specialAt = new Map<number, number>();
     for (const m of this.props.specials ?? []) {
@@ -178,7 +213,13 @@ export class BoardGrid extends React.Component<BoardGridProps, BoardGridState> {
         // ...and once the rows are gone, whatever dropped into the gap is
         // lifted back to where it started and eased down.
         const drop = dropAmounts[y] ?? 0;
-        const fallOffsetPx = drop > 0 ? -fallLeft * drop * cellPx : 0;
+        let fallOffsetPx = drop > 0 ? -fallLeft * drop * cellPx : 0;
+        // ...and an earthquake does the same thing per CELL rather than per row, since
+        // every block falls its own distance when the holes underneath it close.
+        if (quakeFall) {
+          const quakeDrop = quakeFall.drops[index] ?? 0;
+          if (quakeDrop > 0) fallOffsetPx = -quakeLeft * quakeDrop * cellPx;
+        }
         const special = specialAt.get(index);
         // FreezeDried shrivels SETTLED blocks only - the falling piece stays
         // readable, which is what makes it so disorienting

@@ -3,16 +3,23 @@ import { ISessionHelper, instantiateGame, getClientTypeHelper, GeneralGameState 
 import { MockTelemetryLogger } from "libs/telemetry/MockTelemetryLogger";
 import { EittrisClientModel, EittrisClientState, getEittrisClientTypeHelper } from "./ClientModel";
 import { EittrisBoardSnapshot, EittrisSpecialEventMessage } from "./eittrisEndpoints";
-import { applyIncomingSpecial, awardEarthquakeForRows, stepBoard } from "./eittrisSimulation";
+import {
+  applyCommand,
+  applyIncomingSpecial,
+  awardEarthquakeForRows,
+  stepBoard,
+} from "./eittrisSimulation";
 import {
   AFFLICTION_DURATION_MS,
   AFFLICTION_TIMERS,
   BOARD_HEIGHT,
   EARTHQUAKE_EVERY_ROWS,
+  EARTHQUAKE_FALL_MS,
   EARTHQUAKE_MAX,
   EARTHQUAKE_SHAKE_MS,
   EMPTY_CELL,
   BOARD_WIDTH,
+  decodeDrops,
   defaultSettings,
   emptyGrid,
   encodeGrid,
@@ -542,6 +549,12 @@ describe("EittrisClientModel - knowing you are afflicted", () => {
   });
 });
 
+/** Run a quake all the way out: the shake, then the stack coming down after it. */
+function settleQuake(board: any, ctx: any) {
+  stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, ctx);
+  stepBoard(board, EARTHQUAKE_FALL_MS + 10, ctx);
+}
+
 describe("EittrisClientModel - the earthquake", () => {
   // Two halves on purpose: pressing the button starts the board shaking, and the stack
   // only comes down when the shaking stops.  A grid that rearranged itself the instant you
@@ -577,7 +590,7 @@ describe("EittrisClientModel - the earthquake", () => {
   it("brings everything down when it does stop", () => {
     const { model, board } = quaking(["#.........", "..........", ".........."]);
     model.useEarthquake();
-    stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, (model as any).simContext);
+    settleQuake(board, (model as any).simContext);
     expect(board.quakeMs).toBe(0);
     expect(board.grid[BOARD_HEIGHT - 1][0]).toBe(1);
     expect(board.grid[BOARD_HEIGHT - 3][0]).toBe(EMPTY_CELL);
@@ -587,7 +600,7 @@ describe("EittrisClientModel - the earthquake", () => {
     const { model, board } = quaking(["#########.", ".........#"]);
     const before = board.rows;
     model.useEarthquake();
-    stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, (model as any).simContext);
+    settleQuake(board, (model as any).simContext);
     expect(board.rows).toBe(before + 1);
     expect(board.grid[BOARD_HEIGHT - 1].every((c: number) => c === EMPTY_CELL)).toBe(true);
   });
@@ -599,7 +612,7 @@ describe("EittrisClientModel - the earthquake", () => {
     const antidotesBefore = board.antidotes;
 
     model.useEarthquake();
-    stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, (model as any).simContext);
+    settleQuake(board, (model as any).simContext);
 
     expect(board.antidotes).toBe(antidotesBefore + 1);
     expect(board.specials.length).toBe(0);
@@ -679,7 +692,7 @@ describe("EittrisClientModel - earning earthquakes by clearing rows", () => {
     board.earthquakes = 1;
 
     model.useEarthquake();
-    stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, ctx);
+    settleQuake(board, ctx);
 
     expect(board.rows).toBe(EARTHQUAKE_EVERY_ROWS);
     expect(board.earthquakes).toBe(1); // spent one, earned one
@@ -844,5 +857,72 @@ describe("EittrisClientModel - how long the hit message stays up", () => {
     (model as any).mirrorBoard();
     expect(model.lastSpecialEvent).not.toBeNull();
     expect((model as any)._bannerAffliction).toBeNull();
+  });
+});
+
+describe("EittrisClientModel - the stack coming down after a quake", () => {
+  function quaking(rows: string[]) {
+    const model = makeClient();
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+    const board = (model as any).board;
+    board.piece = null;
+    rows.forEach((row, i) => {
+      const y = BOARD_HEIGHT - rows.length + i;
+      for (let x = 0; x < row.length; x++) if (row[x] === "#") board.grid[y][x] = 1;
+    });
+    board.earthquakes = 1;
+    return { model, board, ctx: (model as any).simContext };
+  }
+
+  it("falls over time rather than snapping into place", () => {
+    const { model, board, ctx } = quaking(["#.........", "..........", ".........."]);
+    model.useEarthquake();
+    stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, ctx);
+
+    // The grid is already collapsed - the rules are not animated - but the block is still
+    // being DRAWN two rows up, which is what the fall is.
+    expect(board.grid[BOARD_HEIGHT - 1][0]).toBe(1);
+    expect(board.quakeFall).not.toBeNull();
+    expect(board.quakeFall.drops[(BOARD_HEIGHT - 1) * BOARD_WIDTH]).toBe(2);
+
+    (model as any).mirrorBoard();
+    expect(model.quakeFall).not.toBeNull(); // and the view can see it
+  });
+
+  it("lands, and only then takes the completed rows out", () => {
+    const { model, board, ctx } = quaking(["#########.", ".........#"]);
+    model.useEarthquake();
+    stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, ctx);
+    expect(board.rows).toBe(0); // still falling - nothing cleared yet
+
+    stepBoard(board, EARTHQUAKE_FALL_MS + 10, ctx);
+    expect(board.quakeFall).toBeNull();
+    expect(board.rows).toBe(1);
+  });
+
+  it("does not wait around when nothing had anywhere to fall", () => {
+    const { model, board, ctx } = quaking(["##########"]);
+    model.useEarthquake();
+    stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, ctx);
+    expect(board.quakeFall).toBeNull();
+    expect(board.rows).toBe(1); // the full row went at once
+  });
+
+  it("takes no commands while the stack is in the air", () => {
+    const { model, board, ctx } = quaking(["#.........", "..........", ".........."]);
+    model.useEarthquake();
+    stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, ctx);
+    expect(applyCommand(board, { command: "hardDrop" }, ctx)).toBe(false);
+  });
+
+  it("survives the round trip to the host and back", () => {
+    // The drops are encoded one character per cell, like the grid
+    const { model, board, ctx } = quaking(["#.........", "..........", ".........."]);
+    model.useEarthquake();
+    stepBoard(board, EARTHQUAKE_SHAKE_MS + 10, ctx);
+
+    const snapshot = (model as any).snapshotOfOwnBoard(undefined);
+    expect(typeof snapshot.quakeFall.drops).toBe("string");
+    expect(decodeDrops(snapshot.quakeFall.drops)[(BOARD_HEIGHT - 1) * BOARD_WIDTH]).toBe(2);
   });
 });

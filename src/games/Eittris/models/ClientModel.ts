@@ -46,6 +46,8 @@ import {
   defaultSettings,
   effectiveIntervalMs,
   emptyGrid,
+  decodeDrops,
+  encodeDrops,
   encodeGrid,
   encodePsychoOverlay,
   makeBoard,
@@ -148,6 +150,8 @@ export class EittrisClientModel extends ClusterfunClientModel {
   @observable antidotes = 0;
   @observable earthquakes = 0;
   @observable quakeMs = 0;
+  // The stack coming down after a shake, for the view to animate
+  @observable quakeFall: { drops: number[]; elapsedMs: number; fallMs: number } | null = null;
   @observable speedupStacks = 0;
   @observable slowdownStacks = 0;
   @observable seeShadows = false;
@@ -447,6 +451,13 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.antidotes = snapshot.antidotes ?? 0;
     this.earthquakes = snapshot.earthquakes ?? 0;
     this.quakeMs = snapshot.quakeMs ?? 0;
+    this.quakeFall = snapshot.quakeFall
+      ? {
+          drops: decodeDrops(snapshot.quakeFall.drops),
+          elapsedMs: snapshot.quakeFall.elapsedMs,
+          fallMs: snapshot.quakeFall.fallMs,
+        }
+      : null;
     this.speedupStacks = snapshot.speedupStacks ?? 0;
     this.slowdownStacks = snapshot.slowdownStacks ?? 0;
     this.seeShadows = snapshot.seeShadows ?? false;
@@ -593,6 +604,13 @@ export class EittrisClientModel extends ClusterfunClientModel {
       antidotes: b.antidotes,
       earthquakes: b.earthquakes,
       quakeMs: Math.round(b.quakeMs),
+      quakeFall: b.quakeFall
+        ? {
+            drops: encodeDrops(b.quakeFall.drops),
+            elapsedMs: Math.round(b.quakeFall.elapsedMs),
+            fallMs: b.quakeFall.fallMs,
+          }
+        : null,
       speedupStacks: b.speedupStacks,
       slowdownStacks: b.slowdownStacks,
       seeShadows: b.seeShadows,
@@ -634,6 +652,7 @@ export class EittrisClientModel extends ClusterfunClientModel {
       this.antidotes = b.antidotes;
       this.earthquakes = b.earthquakes;
       this.quakeMs = b.quakeMs;
+      this.quakeFall = b.quakeFall;
       this.speedupStacks = b.speedupStacks;
       this.slowdownStacks = b.slowdownStacks;
       this.seeShadows = b.seeShadows;

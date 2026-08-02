@@ -88,3 +88,37 @@ describe("BoardGrid - the row-clear animation", () => {
     expect(cells(container).some((c) => c.style.transform)).toBe(false);
   });
 });
+
+describe("BoardGrid - an earthquake's stack coming down", () => {
+  // The grid is already collapsed by the time this is drawn; the fall is entirely a matter
+  // of where each block is DRAWN on the way to where it already is.
+  const drops = () => {
+    const d: number[] = new Array(BOARD_WIDTH * BOARD_HEIGHT).fill(0);
+    d[(BOARD_HEIGHT - 1) * BOARD_WIDTH] = 3; // the bottom-left block fell three rows
+    d[(BOARD_HEIGHT - 1) * BOARD_WIDTH + 1] = 1;
+    return d;
+  };
+
+  it("lifts each block back by its own drop", () => {
+    const { container } = render(
+      <BoardGrid
+        grid={gridWithBlocks()}
+        piece={null}
+        cellPx={20}
+        quakeFall={{ drops: drops(), elapsedMs: 0, fallMs: 400 }}
+      />,
+    );
+    const bottom = cells(container).slice((BOARD_HEIGHT - 1) * BOARD_WIDTH);
+    // Three rows up, one row up, and everything else where it belongs
+    expect(bottom[0].style.transform).toBe("translateY(-60px)");
+    expect(bottom[1].style.transform).toBe("translateY(-20px)");
+    expect(bottom[2].style.transform).toBe("");
+  });
+
+  it("draws every block in place once the fall is over", () => {
+    const { container } = render(
+      <BoardGrid grid={gridWithBlocks()} piece={null} cellPx={20} quakeFall={null} />,
+    );
+    for (const cell of cells(container)) expect(cell.style.transform).toBe("");
+  });
+});

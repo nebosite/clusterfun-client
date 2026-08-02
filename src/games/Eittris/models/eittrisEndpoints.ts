@@ -30,6 +30,8 @@ export interface EittrisBoardSnapshot {
   antidotes: number; // banked antidote charges
   earthquakes: number; // banked earthquakes
   quakeMs: number; // how much of the current shake is left (0 = still)
+  // The stack coming down after a shake: per-cell drops, encoded (see encodeDrops)
+  quakeFall?: { drops: string; elapsedMs: number; fallMs: number } | null;
   speedupStacks: number; // Speedup afflictions currently on this board
   slowdownStacks: number; // SlowDown self-buffs (not curable)
   seeShadows: boolean; // draw the landing ghost

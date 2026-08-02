@@ -40,6 +40,7 @@ import {
 } from "./eittrisEndpoints";
 import {
   EittrisBoard,
+  encodeDrops,
   encodeGrid,
   encodeThumbnail,
   initTargetRing,
@@ -1000,6 +1001,13 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       antidotes: board.antidotes,
       earthquakes: board.earthquakes,
       quakeMs: Math.round(board.quakeMs),
+      quakeFall: board.quakeFall
+        ? {
+            drops: encodeDrops(board.quakeFall.drops),
+            elapsedMs: Math.round(board.quakeFall.elapsedMs),
+            fallMs: board.quakeFall.fallMs,
+          }
+        : null,
       speedupStacks: board.speedupStacks,
       slowdownStacks: board.slowdownStacks,
       seeShadows: board.seeShadows,

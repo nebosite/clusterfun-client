@@ -50,6 +50,10 @@ export const ANTIDOTE_MAX = 3;
 export const SEE_SHADOWS_DURATION_MS = 30000;
 export const EARTHQUAKE_MAX = 3;
 export const EARTHQUAKE_SHAKE_MS = 700;
+// ...and then the stack comes down, at the same unhurried pace a cleared row's stack falls
+// at.  Blocks that teleport into their new places read as a redraw; blocks that fall read
+// as gravity, which is the thing the powerup is pretending to be.
+export const EARTHQUAKE_FALL_MS = 420;
 // Every this many rows cleared earns one, on top of any that are collected
 export const EARTHQUAKE_EVERY_ROWS = 22;
 export const ANTIDOTE_DURATION_MS = 10000;
@@ -996,6 +1000,9 @@ export interface EittrisBoard {
   // Banked earthquakes, and how much of the current shake is left (0 = not shaking)
   earthquakes: number;
   quakeMs: number;
+  // The stack coming down after a shake: how far each block fell, and how far through the
+  // fall we are.  null when nothing is falling.
+  quakeFall: { drops: number[]; elapsedMs: number; fallMs: number } | null;
   // Rows cleared at the last earthquake award, so the every-22 count survives a checkpoint
   quakeRowMark: number;
   // Afflictions laid on this board by other players' specials.  Kept apart
@@ -1075,6 +1082,7 @@ export function makeBoard(
     antidotes: ANTIDOTES_AT_START,
     earthquakes: 0,
     quakeMs: 0,
+    quakeFall: null,
     quakeRowMark: 0,
     speedupStacks: 0,
     slowdownStacks: 0,
@@ -1232,7 +1240,7 @@ export function rankBoards(boards: EittrisBoard[]): EittrisBoard[] {
 export function collapseGravity(
   grid: number[][],
   markers: SpecialMarker[] = [],
-): { grid: number[][]; markers: SpecialMarker[] } {
+): { grid: number[][]; markers: SpecialMarker[]; drops: number[] } {
   const out = emptyGrid();
   const moved = new Map<number, number>(); // old cell index -> new cell index
   for (let x = 0; x < BOARD_WIDTH; x++) {
@@ -1244,12 +1252,34 @@ export function collapseGravity(
       write--;
     }
   }
+  // How far each block fell, indexed by where it ENDED UP - which is what an animation
+  // needs, because it draws the new grid and offsets each block back to where it came from.
+  const drops: number[] = new Array(BOARD_WIDTH * BOARD_HEIGHT).fill(0);
+  for (const [from, to] of moved) {
+    drops[to] = Math.floor(to / BOARD_WIDTH) - Math.floor(from / BOARD_WIDTH);
+  }
   return {
     grid: out,
+    drops,
     markers: markers
       .filter((m) => moved.has(m.index))
       .map((m) => ({ ...m, index: moved.get(m.index)! })),
   };
+}
+
+// The per-cell drops on the wire.  One character per cell, base 36, '.' for a block that
+// did not move - the same shape as the grid string, and just as cheap to read.
+export function encodeDrops(drops: number[]): string {
+  return drops.map((d) => (d > 0 ? d.toString(36) : ".")).join("");
+}
+
+export function decodeDrops(encoded: string): number[] {
+  const out: number[] = new Array(BOARD_WIDTH * BOARD_HEIGHT).fill(0);
+  for (let i = 0; i < out.length && i < encoded.length; i++) {
+    const c = encoded[i];
+    if (c !== ".") out[i] = parseInt(c, 36);
+  }
+  return out;
 }
 
 /** Which rows are full right now.  The earthquake needs this without locking a piece. */

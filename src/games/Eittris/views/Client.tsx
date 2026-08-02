@@ -860,6 +860,7 @@ class PlayingBoard extends React.Component<{ appModel?: EittrisClientModel }> {
               psychoSeed={appModel.psychoSeed}
               psychoOverlay={psychoOverlay}
               clearing={appModel.clearing}
+              quakeFall={appModel.quakeFall}
             />
             {dead ? <div className={styles.toppedOut}>TOPPED OUT</div> : null}
           </div>
