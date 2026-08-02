@@ -15,7 +15,6 @@ import {
   UINormalizer,
   ErrorBoundary,
   PlayerAvatar,
-  DevOnly,
 } from "libs";
 import {
   BOARD_HEIGHT,
@@ -60,7 +59,9 @@ import {
 // status strip's height so the grid's bottom edge lands exactly 15px above
 // the bottom of the visible area (21 * 64 + 8px border + 553px above = 1905).
 const CELL_PX = 64;
-// In dev the special picker takes the title's place in the top bar
+// The dev panel only exists in dev.  Used directly rather than through <DevOnly>,
+// whose own bordered box would take up room in the layout - and the whole point of the
+// panel now is that it takes up none.
 const IS_DEV = process.env.REACT_APP_DEVMODE === "development";
 // One line of plain English for a special that just fired
 export function describeSpecialEvent(
@@ -951,8 +952,12 @@ export default class Client extends React.Component<{
               [styles.afflictedScreen]: !!appModel?.afflicted,
             })}
           >
-            <div className={classNames(styles.divRow, styles.topbar)}>
-              <DevOnly>
+            {/* The dev panel FLOATS over the top-left corner.  In the row it used to sit in
+                it made the whole strip taller and, once the text grew, wide enough to shove
+                the player's own name off the screen - a debugging tool rearranging the game
+                it is there to debug. */}
+            {IS_DEV ? (
+              <div className={styles.devOverlay}>
                 <select
                   className={styles.devSelect}
                   value={appModel?.forcedSpecial === null ? "" : String(appModel?.forcedSpecial)}
@@ -985,13 +990,22 @@ export default class Client extends React.Component<{
                   />
                   CPU
                 </label>
-              </DevOnly>
-              {IS_DEV ? null : <span className={classNames(styles.gametitle)}>EITtris</span>}
-              <span>
+              </div>
+            ) : null}
+            <div className={classNames(styles.divRow, styles.topbar)}>
+              {/* In dev the floating panel covers this corner, so the title stands aside and
+                  leaves a gap the width of the panel - otherwise the player's own name ends
+                  up underneath it. */}
+              {IS_DEV ? (
+                <span className={styles.devSpacer} />
+              ) : (
+                <span className={classNames(styles.gametitle)}>EITtris</span>
+              )}
+              <span className={styles.whoami}>
                 <PlayerAvatar
                   avatarId={appModel?.avatarId ?? 0}
                   colorIndex={appModel?.avatarColor}
-                  size={40}
+                  size={80}
                 />{" "}
                 {appModel?.playerName}
               </span>
@@ -999,7 +1013,10 @@ export default class Client extends React.Component<{
                 X
               </button>
             </div>
-            <div style={{ margin: "40px" }}>
+            {/* 5px at the top: every pixel above the board is one the board does not get,
+                and the board is the game.  The sides keep their margin - that is what makes
+                the 1000px-wide board row sit centred in the 1080px screen. */}
+            <div style={{ margin: "5px 40px 40px 40px" }}>
               <ErrorBoundary>{this.renderSubScreen()}</ErrorBoundary>
             </div>
           </div>

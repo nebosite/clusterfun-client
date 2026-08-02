@@ -5,6 +5,7 @@
      itself is 10 cells of 64px plus its 8px of border, and they sit 18px
      apart - whatever is left is the column. */
   --side-column: calc(1000px - (10 * 64px + 8px) - 18px);
+  position: relative; /* the dev panel hangs off this */
   width: 100%;
   height: 100%;
   background-color: rgb(43, 65, 98);
@@ -48,9 +49,41 @@
 
 .gameclient .topbar {
   display: flex;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: center;
-  padding-top: 15px;
+  gap: 20px;
+  padding: 5px 10px 0 10px;
+}
+
+/* Stands in for the title in dev, so the row starts clear of the floating panel */
+.gameclient .devSpacer {
+  flex: 0 0 520px;
+}
+
+/* Who you are, at a size that reads across a table */
+.gameclient .whoami {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* The dev panel: over the game, never part of it.  Dimmed so it is obviously not
+   something a player is meant to be reading. */
+.gameclient .devOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 6px 6px;
+  background: rgba(0, 0, 0, 0.62);
+  border-bottom-right-radius: 14px;
+  opacity: 0.85;
 }
 
 .gameclient .quitbutton {
