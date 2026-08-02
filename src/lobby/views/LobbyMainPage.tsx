@@ -12,6 +12,13 @@ export interface LobbyMainPageProps {
   games: GameDescriptor[];
   lobbyModel: LobbyModel;
   size?: () => { width: number; height: number };
+  /**
+   * Whether this page owns the browser's history and Back button.  True for the app, which
+   * is one lobby filling the window.  FALSE wherever several lobbies share a page - there is
+   * only one history between them, so each one pushing and popping it makes every quit look
+   * to the others like somebody pressed Back.
+   */
+  manageHistory?: boolean;
 }
 
 // -------------------------------------------------------------------
@@ -47,7 +54,9 @@ export class LobbyMainPage extends React.Component<
   // -------------------------------------------------------------------
   componentDidMount() {
     window.addEventListener("resize", this.sizeChangeHandler);
-    this.stopListeningForBack = SafeBrowser.onPopState(this.onPopState);
+    if (this.ownsHistory) {
+      this.stopListeningForBack = SafeBrowser.onPopState(this.onPopState);
+    }
   }
   componentWillUnmount() {
     window.removeEventListener("resize", this.sizeChangeHandler);
@@ -72,8 +81,17 @@ export class LobbyMainPage extends React.Component<
   // gesture would otherwise do, mid-round.  A hash rather than a real path, because the
   // relay serves this as a static bundle: a deep path would 404 on refresh, a hash
   // cannot.
+  //
+  // The history is the PAGE's, not this component's, so a page showing several lobbies at
+  // once (the Test Lobby: a presenter and four phones side by side) must not let each of
+  // them drive it.  One quitting would call history.back(), and every other lobby on the
+  // page would hear that popstate and leave the game too - one X closing all five.
   // -------------------------------------------------------------------
   private inGameRoute = false;
+
+  private get ownsHistory() {
+    return this.props.manageHistory !== false;
+  }
 
   private onPopState = () => {
     // Back out of a game.  If we are not in one there is nothing to leave.
@@ -83,6 +101,7 @@ export class LobbyMainPage extends React.Component<
   };
 
   private syncRoute() {
+    if (!this.ownsHistory) return;
     const inGame = this.props.lobbyModel.lobbyState === LobbyState.ReadyToPlay;
     if (inGame === this.inGameRoute) return;
     this.inGameRoute = inGame;

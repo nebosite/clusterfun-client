@@ -114,6 +114,7 @@ class ClientComponent extends React.Component<
           <LobbyMainPage
             lobbyModel={clientModel}
             games={games}
+            manageHistory={false}
             size={() => {
               return this.getClientSize(sizeAdjust);
             }}
@@ -232,9 +233,12 @@ export class GameTestComponent extends React.Component<GameTestComponentProps> {
             width: `${gameTestModel.presenterSize}px`,
           }}
         >
+          {/* Five lobbies, one browser history: nobody here gets to drive it.  If they
+              did, quitting one would fire a popstate the other four would read as Back. */}
           <LobbyMainPage
             lobbyModel={gameTestModel.presenterModel}
             games={games}
+            manageHistory={false}
             size={() => {
               return this.getPresenterSize();
             }}
