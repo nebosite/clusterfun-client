@@ -26,6 +26,7 @@ import {
   SPECIAL_MIN_ROW_GAP,
   defaultSettings,
   sanitizeSettings,
+  shuffledBag,
   rollAllowedSpecial,
   ANTIDOTE_MAX,
   nextLivingTarget,
@@ -473,13 +474,13 @@ describe("eittrisLogic - spawning", () => {
     const first = spawnNextFromQueue([4], rand);
     expect(first.piece.type).toBe(4); // the head is what falls
     // and the tray is restocked, so the phone always has something to show
-    expect(first.queue.length).toBe(NEXT_QUEUE_DEPTH);
+    expect(first.queue.length).toBeGreaterThanOrEqual(NEXT_QUEUE_DEPTH);
     expect(calls).toBeGreaterThan(0);
 
     // An empty queue is filled before anything is taken from it
     const fromEmpty = spawnNextFromQueue([], rand);
     expect(fromEmpty.piece).not.toBeNull();
-    expect(fromEmpty.queue.length).toBe(NEXT_QUEUE_DEPTH);
+    expect(fromEmpty.queue.length).toBeGreaterThanOrEqual(NEXT_QUEUE_DEPTH);
   });
 
   it("a fresh spawn into a blocked spawn area collides (board death condition)", () => {
@@ -493,7 +494,7 @@ describe("eittrisLogic - spawning", () => {
     const board = makeBoard("p1", () => 0.1);
     expect(board.alive).toBe(true);
     expect(board.piece).not.toBeNull();
-    expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+    expect(board.nextQueue.length).toBeGreaterThanOrEqual(NEXT_QUEUE_DEPTH);
     expect(board.intervalMs).toBe(START_INTERVAL_MS);
     expect(board.grid.length).toBe(BOARD_HEIGHT);
     expect(board.grid[0].length).toBe(BOARD_WIDTH);
@@ -1780,13 +1781,13 @@ describe("eittrisLogic - the piece queue follows the piece table in use", () => 
     board.evilPieces = true;
     startAffliction(board, SpecialType.EvilPieces); // as the presenter does
     board.nextQueue = refillNextQueue(() => 0.5, true);
-    expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+    expect(board.nextQueue.length).toBeGreaterThanOrEqual(NEXT_QUEUE_DEPTH);
     expect(board.nextQueue.every((type) => type < EVIL_PIECE_COUNT)).toBe(true);
 
     // When it wears off, the queue is rebuilt against the normal table
     tickAfflictions(board, AFFLICTION_DURATION_MS, () => 0.5);
     expect(board.evilPieces).toBe(false);
-    expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+    expect(board.nextQueue.length).toBeGreaterThanOrEqual(NEXT_QUEUE_DEPTH);
     expect(board.nextQueue.every((type) => type < PIECE_COUNT)).toBe(true);
   });
 
@@ -1797,7 +1798,7 @@ describe("eittrisLogic - the piece queue follows the piece table in use", () => 
     board.nextQueue = refillNextQueue(() => 0.5, true);
     cureAfflictions(board, () => 0.5);
     expect(board.evilPieces).toBe(false);
-    expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+    expect(board.nextQueue.length).toBeGreaterThanOrEqual(NEXT_QUEUE_DEPTH);
   });
 
   it("never leaves the queue empty across the switch", () => {
@@ -2109,6 +2110,74 @@ describe("eittrisLogic - wall kicks", () => {
       expect(back.rot).toBe(piece.rot);
       expect(back.x).toBe(piece.x);
       expect(back.y).toBe(piece.y);
+    }
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// The seven-bag.  Independent draws let a player go twenty pieces without an I, or hand
+// them four S pieces in a row - losing to the dice rather than to anybody at the party.
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - the seven-bag", () => {
+  const cycling = (values: number[]) => {
+    let i = 0;
+    return () => values[i++ % values.length];
+  };
+
+  it("deals one of each piece, in some order", () => {
+    const bag = shuffledBag(cycling([0.1, 0.9, 0.4, 0.7, 0.2, 0.55, 0.3]));
+    expect(bag.length).toBe(PIECE_COUNT);
+    expect([...bag].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it("actually shuffles", () => {
+    const shuffled = shuffledBag(cycling([0.9, 0.8, 0.7, 0.6, 0.5, 0.4]));
+    expect(shuffled).not.toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect([...shuffled].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it("leaves the order alone when the randomness does not move", () => {
+    // What makes a fixed-randomness test readable: rand() === 0 shuffles nothing
+    expect(shuffledBag(() => 0)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it("hands out every piece once before any piece comes round again", () => {
+    let queue = refillNextQueue(cycling([0.13, 0.77, 0.29, 0.91, 0.05, 0.61, 0.44, 0.38]));
+    const dealt: number[] = [];
+    for (let i = 0; i < PIECE_COUNT; i++) {
+      const spawned = spawnNextFromQueue(queue, cycling([0.31, 0.66, 0.12, 0.88, 0.5]));
+      dealt.push(spawned.piece.type);
+      queue = spawned.queue;
+    }
+    expect([...dealt].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it("bounds the drought - no gap of twelve pieces between two of a kind", () => {
+    // The worst case is a piece first in one bag and last in the next: twelve between.
+    let queue = refillNextQueue(cycling([0.17, 0.83, 0.41, 0.09, 0.72, 0.36, 0.58]));
+    const dealt: number[] = [];
+    const rand = cycling([0.23, 0.61, 0.47, 0.9, 0.14, 0.78, 0.35]);
+    for (let i = 0; i < 70; i++) {
+      const spawned = spawnNextFromQueue(queue, rand);
+      dealt.push(spawned.piece.type);
+      queue = spawned.queue;
+    }
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      const at = dealt.map((t, i) => (t === type ? i : -1)).filter((i) => i >= 0);
+      expect(at.length).toBe(10); // ten bags, ten of each
+      for (let i = 1; i < at.length; i++) expect(at[i] - at[i - 1]).toBeLessThanOrEqual(12);
+    }
+  });
+
+  it("keeps dealing the two evil pieces while EvilPieces is on", () => {
+    // There is no bag of seven to draw from when only S and Z exist
+    let queue = refillNextQueue(cycling([0.2, 0.8]), true);
+    const rand = cycling([0.2, 0.8, 0.4]);
+    for (let i = 0; i < 20; i++) {
+      const spawned = spawnNextFromQueue(queue, rand, true);
+      expect(spawned.piece.evil).toBe(true);
+      expect(spawned.piece.type).toBeLessThan(EVIL_PIECE_COUNT);
+      queue = spawned.queue;
     }
   });
 });

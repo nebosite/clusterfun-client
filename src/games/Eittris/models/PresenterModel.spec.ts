@@ -235,7 +235,7 @@ describe("EittrisPresenterModel - game start", () => {
       expect(board.piece).not.toBeNull();
       expect(board.piece!.x).toBe(SPAWN_X); // spawn column (the box's left edge)
       expect(board.piece!.y).toBe(SPAWN_Y);
-      expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+      expect(board.nextQueue.length).toBeGreaterThanOrEqual(NEXT_QUEUE_DEPTH);
       expect(board.intervalMs).toBe(START_INTERVAL_MS);
       expect(board.grid.length).toBe(BOARD_HEIGHT);
     }
@@ -1495,13 +1495,13 @@ describe("EittrisPresenterModel - the Next tray is never empty", () => {
     const { model } = startTwoPlayerGame();
     const board = model.boards.find((b) => b.playerId === "A")!;
     for (let step = 0; step < 6; step++) {
-      expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+      expect(board.nextQueue.length).toBeGreaterThanOrEqual(NEXT_QUEUE_DEPTH);
       // ...but only one of them is shown, without a crystal ball
       expect(model.snapshotFor("A")!.next.length).toBe(NEXT_PREVIEW_COUNT);
       phoneCommand(model, "A", { command: "hardDrop" });
       // ...including right through the post-lock gap, when nothing is falling
       expect(board.piece).toBeNull();
-      expect(board.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+      expect(board.nextQueue.length).toBeGreaterThanOrEqual(NEXT_QUEUE_DEPTH);
       tickTo(model, (step + 1) * (SPAWN_DELAY_MS + 50));
     }
   });
@@ -1510,13 +1510,13 @@ describe("EittrisPresenterModel - the Next tray is never empty", () => {
     const { model } = startTwoPlayerGame();
     const victim = model.boards.find((b) => b.playerId === "B")!;
     phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.EvilPieces });
-    expect(victim.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+    expect(victim.nextQueue.length).toBeGreaterThanOrEqual(NEXT_QUEUE_DEPTH);
     expect(victim.nextQueue.every((type) => type < EVIL_PIECE_COUNT)).toBe(true);
 
     // ...and swaps it straight back when the affliction times out
     tickTo(model, AFFLICTION_DURATION_MS + 100);
     expect(victim.evilPieces).toBe(false);
-    expect(victim.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+    expect(victim.nextQueue.length).toBeGreaterThanOrEqual(NEXT_QUEUE_DEPTH);
   });
 
   it("keeps the preview stocked when an antidote cures EvilPieces", () => {
@@ -1525,7 +1525,7 @@ describe("EittrisPresenterModel - the Next tray is never empty", () => {
     phoneCommand(model, "A", { command: "fireSpecial", specialType: SpecialType.EvilPieces });
     phoneCommand(model, "B", { command: "useAntidote" });
     expect(victim.evilPieces).toBe(false);
-    expect(victim.nextQueue.length).toBe(NEXT_QUEUE_DEPTH);
+    expect(victim.nextQueue.length).toBeGreaterThanOrEqual(NEXT_QUEUE_DEPTH);
   });
 });
 

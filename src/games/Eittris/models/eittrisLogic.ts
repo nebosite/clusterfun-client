@@ -851,24 +851,59 @@ export function randomPieceType(rand: () => number): number {
   return Math.min(PIECE_COUNT - 1, Math.floor(rand() * PIECE_COUNT));
 }
 
+// ------------------------------------------------------------------------------------------
+// The seven-bag.
+//
+// Pieces come one bag at a time: all seven, shuffled, then another seven.  Drawing each
+// piece independently means a player can go twenty pieces without the I they are holding a
+// well open for, or get four S pieces in a row and lose to the dice.  A bag bounds the
+// drought at twelve pieces and makes the game about placing what comes rather than about
+// what comes - which is what every modern tetris does, and for the same reason.
+//
+// The bag is not stored anywhere: the preview queue IS the bag.  A whole shuffled seven is
+// appended whenever the queue runs short, so the order survives a checkpoint and a rejoin
+// without a second field to keep in step with it.
+// ------------------------------------------------------------------------------------------
+export function shuffledBag(rand: () => number): number[] {
+  const bag = Array.from({ length: PIECE_COUNT }, (_, i) => i);
+  // Fisher-Yates, forwards, on the injected randomness so a test can pin the order.  Taken
+  // forwards rather than backwards for one reason: a rand() that always returns 0 then
+  // shuffles nothing, which is what makes a fixed-randomness test readable.
+  for (let i = 0; i < bag.length - 1; i++) {
+    const j = Math.min(bag.length - 1, i + Math.floor(rand() * (bag.length - i)));
+    const swap = bag[i];
+    bag[i] = bag[j];
+    bag[j] = swap;
+  }
+  return bag;
+}
+
+/** Top the queue up so it can always answer the deepest preview.  Mutates in place. */
+function topUpQueue(queue: number[], rand: () => number, evil: boolean) {
+  while (queue.length < NEXT_QUEUE_DEPTH) {
+    if (evil) {
+      // EvilPieces deals nothing but S and Z; there is no bag to draw, only the two
+      queue.push(Math.min(EVIL_PIECE_COUNT - 1, Math.floor(rand() * EVIL_PIECE_COUNT)));
+    } else {
+      queue.push(...shuffledBag(rand));
+    }
+  }
+}
+
 export function spawnPiece(type: number, rotations: number, evil = false): EittrisPiece {
   return { type, rot: ((rotations % 4) + 4) % 4, x: SPAWN_X, y: SPAWN_Y, evil };
 }
 
-// Pull the next piece off the queue (refilling it) and spawn it with a random rotation
+// Pull the next piece off the queue (topping it up) and spawn it with a random rotation
 export function spawnNextFromQueue(
   nextQueue: number[],
   rand: () => number,
   evil = false,
 ): { piece: EittrisPiece; queue: number[] } {
-  const pick = () =>
-    evil
-      ? Math.min(EVIL_PIECE_COUNT - 1, Math.floor(rand() * EVIL_PIECE_COUNT))
-      : randomPieceType(rand);
   const queue = nextQueue.slice();
-  while (queue.length < NEXT_QUEUE_DEPTH) queue.push(pick());
+  topUpQueue(queue, rand, evil);
   const type = queue.shift()!;
-  queue.push(pick());
+  topUpQueue(queue, rand, evil);
   return { piece: spawnPiece(type, Math.floor(rand() * 4), evil), queue };
 }
 
@@ -877,13 +912,7 @@ export function spawnNextFromQueue(
 // refilling it would leave the phone's Next tray empty until the next spawn.
 export function refillNextQueue(rand: () => number, evil = false): number[] {
   const queue: number[] = [];
-  while (queue.length < NEXT_QUEUE_DEPTH) {
-    queue.push(
-      evil
-        ? Math.min(EVIL_PIECE_COUNT - 1, Math.floor(rand() * EVIL_PIECE_COUNT))
-        : randomPieceType(rand),
-    );
-  }
+  topUpQueue(queue, rand, evil);
   return queue;
 }
 
