@@ -2,7 +2,8 @@ import Logger from "js-logger";
 import {
   ClusterFunMessageHeader,
   ClusterFunRoutingHeader,
-  parseMessage,
+  parseEnvelope,
+  parsePayload,
   stringifyMessage,
 } from "libs/comms";
 import MessageEndpoint from "./MessageEndpoint";
@@ -33,21 +34,31 @@ export default class ClusterfunListener<REQUEST, RESPONSE> {
     // TODO: Note that the payload is untrusted - can we add verification here?
     let header: ClusterFunMessageHeader;
     let routing: ClusterFunRoutingHeader;
-    let payload: REQUEST;
+    let payloadText: string;
     try {
-      const parsedMessage = parseMessage(data);
-      header = parsedMessage.header;
-      routing = parsedMessage.routing;
-      payload = parsedMessage.payload as REQUEST;
+      const envelope = parseEnvelope(data);
+      header = envelope.header;
+      routing = envelope.routing;
+      payloadText = envelope.payloadText;
     } catch (e) {
       Logger.warn("Improperly formatted message received: " + e);
       return;
     }
+    // Decide whether this is ours BEFORE touching the payload.  Every listener
+    // on this device sees every message, so parsing first meant a 133KB upload
+    // was JSON-parsed once per listener just to be thrown away.
     if (
       routing.route !== this.endpoint.route ||
       (routing.role !== "request" && routing.role !== "message")
     ) {
       return; // this message is not for us
+    }
+    let payload: REQUEST;
+    try {
+      payload = parsePayload(payloadText) as REQUEST;
+    } catch (e) {
+      Logger.warn("Message payload could not be read: " + e);
+      return;
     }
     try {
       const rawResult = this._apiCallback(header.s, payload);

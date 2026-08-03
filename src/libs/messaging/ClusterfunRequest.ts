@@ -2,7 +2,8 @@ import Logger from "js-logger";
 import {
   ClusterFunMessageHeader,
   ClusterFunRoutingHeader,
-  parseMessage,
+  parseEnvelope,
+  parsePayload,
   stringifyMessage,
 } from "libs/comms";
 import MessageEndpoint from "./MessageEndpoint";
@@ -108,10 +109,14 @@ export default class ClusterfunRequest<REQUEST, RESPONSE> implements PromiseLike
   }
 
   private respondToMessage(data: string): void {
-    const { routing, payload } = parseMessage(data);
+    // Route first, payload second.  Every in-flight request has its own handler
+    // on the socket, so with N requests outstanding a single large response was
+    // being fully JSON-parsed N times before N-1 of them discarded it.
+    const { routing, payloadText } = parseEnvelope(data);
     if (routing.route !== this.endpoint.route || routing.requestId !== this.id) {
       return; // this message is not for us
     }
+    const payload = parsePayload(payloadText);
     if (routing.role === "response") {
       this.resolve(payload as RESPONSE);
     } else if (routing.role === "error") {

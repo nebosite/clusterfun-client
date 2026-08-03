@@ -75,15 +75,14 @@ its own `players.find(p => p.playerId === sender)`. A missed check is a per-game
 **`allowRejoinOnNameOnly` defaults to `true`** (`ClusterfunPresenterModel.ts:131`), and names
 are visible on the shared screen. The `playerToken` path already handles honest rejoins.
 
-> ### ⚠ `comms/` is duplicated in the server, and has drifted
+> ### `comms/` and `config/` are duplicated in the server
 >
-> `clusterfun-server/src/libs/comms/ClusterFunMessageHeader.ts` is a hand-kept copy with **no
-> sync mechanism**, and the two no longer agree: the server declares a required `t: string`
-> the client lacks, exports it as `default` rather than named, and types `id` as
-> `string | number` vs the client's `string`. `config/GameInstanceProperties.ts` is duplicated
-> the same way but is currently byte-identical.
+> `ClusterFunMessageHeader.ts` and `config/GameInstanceProperties.ts` each exist twice — the
+> two projects are separate repos with no shared package between them. **They must be
+> byte-identical**, and the root repo's `scripts/check-shared-contracts.js` enforces it: the
+> deploy runs it before building, and `npm run check:contracts` runs it by hand.
 >
-> Both ends of a relay must agree on this. Treat any edit here as a two-repo change.
+> They had drifted, which is why the check exists. Treat any edit here as a two-repo change.
 
 ## Testing
 
