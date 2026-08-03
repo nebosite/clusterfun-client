@@ -549,10 +549,12 @@ export default class Presenter extends React.Component<
     // Blocks skittering while the randomizer shakes a stack apart.  Same
     // short sample every time, at a different pitch each time, which is what
     // turns a repeated click into a tinkle.
-    // The ground moving.  It plays on the shared screen, where the speakers are, and it
-    // outlasts the shake by a little so it tails off rather than stopping dead.
+    // The ground moving.  It plays on the shared screen, where the speakers are, it outlasts
+    // the shake so it tails off rather than stopping dead, and it is the loudest thing in
+    // the game - at full volume, and limited rather than merely peak-normalised, because a
+    // rumble that is all sub-bass is inaudible on the speakers this actually comes out of.
     appModel?.subscribe(EittrisGameEvent.QuakeStarted, "play quake rumble", () =>
-      this.media.playSound(EittrisAssets.sounds.quake, { volume: 0.9 }),
+      this.media.playSound(EittrisAssets.sounds.quake, { volume: 1 }),
     );
     appModel?.subscribe(EittrisGameEvent.JumbleNudge, "play jumble tinkle", () =>
       this.media.playSound(EittrisAssets.sounds.jumble, {
