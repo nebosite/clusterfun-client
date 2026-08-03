@@ -2293,3 +2293,49 @@ describe("EittrisPresenterModel - when a robot spends its earthquake", () => {
     expect(board.earthquakes).toBe(1); // no holes: nothing would fall
   });
 });
+
+describe("EittrisPresenterModel - what the room hears about a phone", () => {
+  // Everything a phone reports has to be answered here, or it happens on the phone and the
+  // room never hears about it.  That is exactly how the earthquake ended up silent for
+  // everybody except the robots: the phone reported it and the host dropped it on the floor.
+  // invokeEvent fires on a timer, so a spy has to be given a moment to hear anything
+  async function eventsFired(model: EittrisPresenterModel, events: any[]) {
+    const fired: { event: string; args: any[] }[] = [];
+    for (const name of Object.values(EittrisGameEvent)) {
+      model.subscribe(name, "spy " + name, (...args: any[]) => fired.push({ event: name, args }));
+    }
+    const board = model.snapshotFor("A", { forceGrid: true })!;
+    model.handleBoardReport("A", { board, events });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    return fired;
+  }
+
+  it("tells the room when a phone sets off an earthquake", async () => {
+    const { model } = startTwoPlayerGame();
+    const fired = await eventsFired(model, [{ kind: "quakeStarted" }]);
+    expect(fired.map((f) => f.event)).toContain(EittrisGameEvent.QuakeStarted);
+    expect(fired.find((f) => f.event === EittrisGameEvent.QuakeStarted)!.args[0]).toBe("A");
+  });
+
+  it("answers every kind of event a phone can send", async () => {
+    // One of each, and none of them may fall through the handler unnoticed
+    const { model } = startTwoPlayerGame();
+    const everyKind: any[] = [
+      { kind: "locked", bumped: false },
+      { kind: "rowsCleared", count: 2 },
+      { kind: "collected", special: SpecialType.Antidote },
+      { kind: "selfSpecial", special: SpecialType.SeeShadows },
+      { kind: "fire", special: SpecialType.Speedup, targetId: "B" },
+      { kind: "hit", special: SpecialType.Speedup, attackerId: "B", repelled: false },
+      { kind: "afflictionEnded", types: [SpecialType.Speedup] },
+      { kind: "antidoteUsed" },
+      { kind: "quakeStarted" },
+      { kind: "jumbleNudge" },
+      { kind: "slammed" },
+      { kind: "died" },
+    ];
+    const fired = await eventsFired(model, everyKind);
+    // Every one of them reached the room in some form
+    expect(fired.length).toBeGreaterThanOrEqual(6);
+  });
+});

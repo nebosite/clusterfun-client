@@ -77,6 +77,11 @@ export class EittrisPlayer extends ClusterFunPlayer {
   forcedSpecial: SpecialType | null = null;
 }
 
+/** A switch over a union that has missed a case will not compile past this. */
+function unreachable(value: never): never {
+  throw new Error(`Unhandled report event: ${JSON.stringify(value)}`);
+}
+
 // -------------------------------------------------------------------
 // The Game state
 // -------------------------------------------------------------------
@@ -611,9 +616,18 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
         case "jumbleNudge":
           this.invokeEvent(EittrisGameEvent.JumbleNudge, sender);
           break;
+        case "quakeStarted":
+          this.invokeEvent(EittrisGameEvent.QuakeStarted, sender);
+          break;
         case "died":
           // Nothing to do here - the death is noticed below, from the board itself.
           break;
+        default:
+          // Every kind a phone can report must be answered here, or it happens on the
+          // phone and the room never hears about it - which is exactly how the earthquake
+          // ended up silent for everybody except the robots.  This makes the compiler say
+          // so rather than the players.
+          unreachable(event);
       }
     }
 
