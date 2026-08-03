@@ -98,6 +98,9 @@
   font-size: 90%;
 }
 
+/* The whole of the how-to-play panel, scrolled rather than clipped.  A keyboard seat is
+   eight rows plus its chips, which is more than is left of a phone screen once the waiting
+   message is above it - and a control you cannot see is one you do not know you have. */
 .gameclient .instructions {
   background: #1b2a42;
   border: 2px solid #4d648a;
@@ -105,6 +108,12 @@
   padding: 10px 30px;
   font-size: 60%;
   margin-top: 40px;
+  max-height: 1450px;
+  overflow-y: auto;
+  /* A finger scrolling this must not drag the page behind it */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 /* ---- The player's board ---- */
