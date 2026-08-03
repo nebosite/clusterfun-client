@@ -5,6 +5,7 @@ import {
   collides,
   pieceColumnRange,
   clampDragTarget,
+  fillFraction,
   fullRows,
   collapseGravity,
   decodeGrid,
@@ -68,6 +69,10 @@ import {
   heightZoneMultiplier,
   AI_GAP_PENALTY,
   AI_HEIGHT_UNIT,
+  columnsWithGaps,
+  heightUrgency,
+  AI_BURY_PENALTY,
+  AI_CLEAR_WEIGHT,
   AI_CONTACT_WEIGHT,
   withPieceSettled,
   dropDestination,
@@ -1892,9 +1897,19 @@ describe("eittrisLogic - what the computer player pays for height", () => {
     // Search for placements burying exactly one cell and more than one
     const gapsFor = (landed: EittrisPiece) =>
       countCoveredGaps(withPieceSettled(grid, landed)) - countCoveredGaps(grid);
+    // Everything the score is made of EXCEPT the gap penalty, so what is left is the gap
+    // penalty on its own.
+    const bad = columnsWithGaps(grid);
     const penaltyFor = (landed: EittrisPiece) => {
+      const buried = pieceCells(landed).filter((c) => bad[c.x]).length;
+      const alreadyFull = new Set(fullRows(grid));
+      const cleared = fullRows(withPieceSettled(grid, landed)).filter(
+        (row) => !alreadyFull.has(row),
+      ).length;
       const noGapScore =
-        -heightCost(Math.min(...pieceCells(landed).map((c) => c.y))) +
+        -heightCost(Math.min(...pieceCells(landed).map((c) => c.y))) * heightUrgency(grid) -
+        AI_BURY_PENALTY * buried +
+        AI_CLEAR_WEIGHT * cleared * cleared +
         AI_CONTACT_WEIGHT * contactCount(grid, landed);
       return noGapScore - scorePlacement(grid, landed);
     };
@@ -2330,5 +2345,93 @@ describe("eittrisLogic - how far a piece's box may go", () => {
       if (!collides(grid, pieceCells(candidate))) reachable.push(x);
     }
     expect(Math.min(...reachable)).toBe(-2);
+  });
+});
+
+// ------------------------------------------------------------------------------------------
+// The computer player, after being beaten too easily by a deep hole.
+// ------------------------------------------------------------------------------------------
+describe("eittrisLogic - the computer player thinks ahead", () => {
+  /** Build a grid from strings, bottom-aligned. */
+  function gridOf(...rows: string[]): number[][] {
+    const grid = emptyGrid();
+    rows.forEach((row, i) => {
+      const y = BOARD_HEIGHT - rows.length + i;
+      for (let x = 0; x < row.length; x++) if (row[x] === "#") grid[y][x] = 1;
+    });
+    return grid;
+  }
+
+  it("wants a piece lower the taller the stack already is", () => {
+    expect(heightUrgency(emptyGrid())).toBe(1);
+    const tall = gridOf(...new Array(14).fill("#........."));
+    expect(heightUrgency(tall)).toBeGreaterThan(2);
+  });
+
+  it("is more frightened of height on a tall board than on an empty one", () => {
+    // The same clean placement, high up, on two boards.  On the empty one it costs little;
+    // on the crowded one it is most of a death.
+    const empty = emptyGrid();
+    const tall = gridOf(...new Array(13).fill("#.#.#.#.#."));
+    const highOnEmpty = { type: 6, rot: 0, x: 4, y: 3 };
+    const penaltyEmpty = -scorePlacement(empty, highOnEmpty);
+    const penaltyTall = -scorePlacement(tall, highOnEmpty);
+    expect(penaltyTall).toBeGreaterThan(penaltyEmpty);
+  });
+
+  it("would rather clear a row than tidy an edge", () => {
+    // One row away from a clear, with a flat I to place.  Filling the gap clears it.
+    const grid = gridOf("####.#####", "####.#####", "####.#####", "####.#####");
+    const piece = { type: 1, rot: 1, x: 2, y: 0 }; // vertical I over the well
+    const plan = planPlacement(grid, piece)!;
+    const landed = dropDestination(grid, { ...piece, rot: plan.rot, x: plan.x });
+    expect(fullRows(withPieceSettled(grid, landed)).length).toBe(4);
+  });
+
+  it("will not pile onto a column that is already hiding a hole", () => {
+    // Two towers the same height: the left one solid, the right one with a hole in the
+    // middle of it.  Everything about landing a square on either is identical except that.
+    const grid = gridOf("#........#", "#.........", "#........#");
+    expect(columnsWithGaps(grid)[0]).toBe(false);
+    expect(columnsWithGaps(grid)[9]).toBe(true);
+
+    const onClean = dropDestination(grid, { type: 6, rot: 0, x: 0, y: 0 });
+    const onHole = dropDestination(grid, { type: 6, rot: 0, x: 8, y: 0 });
+    expect(Math.min(...pieceCells(onClean).map((c) => c.y))).toBe(
+      Math.min(...pieceCells(onHole).map((c) => c.y)),
+    ); // same height, so it is the hole being priced and nothing else
+    expect(scorePlacement(grid, onClean)).toBeGreaterThan(scorePlacement(grid, onHole));
+  });
+
+  it("changes its mind when it knows what is coming next", () => {
+    // A board with a one-wide well: the only piece that fits it cleanly is the I.  Told
+    // that an I is next, the bot should leave the well alone for it.
+    const grid = gridOf("#########.", "#########.", "#########.", "#########.");
+    const square = { type: 6, rot: 0, x: 4, y: 0 };
+    const blind = planPlacement(grid, square)!;
+    const knowing = planPlacement(grid, square, 1)!;
+    // Whatever it does, knowing scores the pair rather than the piece
+    expect(knowing.score).not.toBe(blind.score);
+    // ...and it does not fill the well in with the square, which cannot fit it
+    const landed = dropDestination(grid, { ...square, rot: knowing.rot, x: knowing.x });
+    expect(pieceCells(landed).some((c) => c.x === 9)).toBe(false);
+  });
+
+  it("knows a board is dead when the next piece has nowhere to go", () => {
+    // Filling the last column of a board with a full ceiling leaves nothing placeable
+    const grid = gridOf(...new Array(BOARD_HEIGHT - 1).fill("#########."));
+    const piece = { type: 1, rot: 1, x: 7, y: 0 }; // a vertical I down the last column
+    const plan = planPlacement(grid, piece, 6);
+    expect(plan).not.toBeNull();
+  });
+
+  it("measures how full a board is", () => {
+    expect(fillFraction(emptyGrid())).toBe(0);
+    const half = emptyGrid();
+    for (let y = Math.floor(BOARD_HEIGHT / 2); y < BOARD_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) half[y][x] = 1;
+    }
+    expect(fillFraction(half)).toBeGreaterThan(0.49);
+    expect(fillFraction(half)).toBeLessThan(0.55);
   });
 });

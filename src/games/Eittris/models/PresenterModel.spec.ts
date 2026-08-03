@@ -2243,3 +2243,53 @@ describe("EittrisPresenterModel - dragging a piece to the wall", () => {
     }
   });
 });
+
+describe("EittrisPresenterModel - when a robot spends its earthquake", () => {
+  // Half full is the trick: an earthquake on a nearly empty board saves a couple of rows,
+  // and the same one on a board that is closing in saves the game.
+  function robotBoard(model: EittrisPresenterModel, fill: number) {
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    runInAction(() => {
+      board.aiControlled = true;
+      board.earthquakes = 1;
+      const rows = Math.round(fill * BOARD_HEIGHT);
+      for (let y = BOARD_HEIGHT - rows; y < BOARD_HEIGHT; y++) {
+        for (let x = 0; x < BOARD_WIDTH; x++) board.grid[y][x] = 1;
+      }
+      // ...with a hole under the stack, so there is something for a quake to do
+      board.grid[BOARD_HEIGHT - 1][4] = EMPTY_CELL;
+      board.grid[BOARD_HEIGHT - 2][4] = EMPTY_CELL;
+    });
+    return board;
+  }
+
+  it("holds on to it while the board is still mostly empty", () => {
+    const { model } = startTwoPlayerGame();
+    const board = robotBoard(model, 0.2);
+    tickTo(model, AI_MOVE_INTERVAL_MS + 100);
+    expect(board.earthquakes).toBe(1);
+    expect(board.quakeMs).toBe(0);
+  });
+
+  it("spends it once the board is more than half full", () => {
+    const { model } = startTwoPlayerGame();
+    const board = robotBoard(model, 0.7);
+    tickTo(model, AI_MOVE_INTERVAL_MS + 100);
+    expect(board.earthquakes).toBe(0);
+    expect(board.quakeMs).toBeGreaterThan(0);
+  });
+
+  it("does not waste one on a full board with nothing to shake loose", () => {
+    const { model } = startTwoPlayerGame();
+    const board = model.boards.find((b) => b.playerId === "A")!;
+    runInAction(() => {
+      board.aiControlled = true;
+      board.earthquakes = 1;
+      for (let y = BOARD_HEIGHT - 15; y < BOARD_HEIGHT; y++) {
+        for (let x = 0; x < BOARD_WIDTH; x++) board.grid[y][x] = 1;
+      }
+    });
+    tickTo(model, AI_MOVE_INTERVAL_MS + 100);
+    expect(board.earthquakes).toBe(1); // no holes: nothing would fall
+  });
+});

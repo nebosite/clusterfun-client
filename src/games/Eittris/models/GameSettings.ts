@@ -37,6 +37,10 @@ export const BANNER_MS = 3000;
 // ...with a backstop, in case the affliction it is waiting on never arrives at all
 export const BANNER_MAX_MS = 30000;
 
+// How full a robot's board has to be before it will spend an earthquake.  Below this an
+// earthquake buys a couple of rows; at this point it buys the game.
+export const AI_QUAKE_FILL = 0.5;
+
 // Computer player: one move (rotate or a single sideways step) twice a second
 export const AI_MOVE_INTERVAL_MS = 500;
 // How much quicker the computer players think while dev "Go fast" is on.  The

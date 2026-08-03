@@ -40,6 +40,7 @@ import {
   emptyPsychoOverlay,
   encodeDrops,
   decodeDrops,
+  fillFraction,
   fullRows,
   gravityStep,
   hardDrop,
@@ -74,7 +75,12 @@ import {
   tryRotateCW,
   xorPsychoOverlay,
 } from "./eittrisLogic";
-import { AI_FAST_MULTIPLIER, AI_MOVE_INTERVAL_MS, SPAWN_DELAY_MS } from "./GameSettings";
+import {
+  AI_FAST_MULTIPLIER,
+  AI_MOVE_INTERVAL_MS,
+  AI_QUAKE_FILL,
+  SPAWN_DELAY_MS,
+} from "./GameSettings";
 import { EittrisBoardSnapshot, EittrisCommandMessage } from "./eittrisEndpoints";
 
 // ==========================================================================================
@@ -470,16 +476,24 @@ function tickAi(board: EittrisBoard, dtMs: number, ctx: SimulationContext) {
     return;
   }
 
-  // Then shake the holes out, if it has an earthquake and any holes to shake out.  A robot
-  // that banked one and never used it would sit there looking stupid next to a player who
-  // does, and the gaps are exactly what a robot is worst at avoiding.
-  if (board.earthquakes > 0 && countCoveredGaps(board.grid) > 0) {
+  // Then shake the holes out.  Waiting until the board is HALF FULL is the whole trick: an
+  // earthquake on a nearly empty board saves a couple of rows, and the same one on a board
+  // that is closing in saves the game.  Holding it forever is no good either, so any holes
+  // at all will do once it is that full - with no holes there is nothing to fall and the
+  // charge would be thrown away.
+  if (
+    board.earthquakes > 0 &&
+    fillFraction(board.grid) > AI_QUAKE_FILL &&
+    countCoveredGaps(board.grid) > 0
+  ) {
     triggerEarthquake(board, ctx);
     return;
   }
 
   if (!board.piece) return; // nothing to steer during the spawn gap
-  const plan = planPlacement(board.grid, board.piece);
+  // Planned with the next piece in hand, which is the difference between placing well and
+  // placing well enough to have somewhere to put what is coming.
+  const plan = planPlacement(board.grid, board.piece, board.nextQueue[0]);
   if (!plan) return;
 
   const move = nextAiMove(board.piece, plan);

@@ -1403,6 +1403,19 @@ export function withPieceSettled(grid: number[][], piece: EittrisPiece): number[
 export const AI_HEIGHT_UNIT = 3;
 export const AI_GAP_PENALTY = 3 * AI_HEIGHT_UNIT; // any gaps at all cost this
 export const AI_CONTACT_WEIGHT = 3;
+// Clearing rows is the only thing that ever makes a board better, so it is worth more than
+// any tidiness: four at once is worth more than four singles, which is what stops the bot
+// from nibbling one row at a time and never digging itself out.
+export const AI_CLEAR_WEIGHT = 14;
+// Dropping a block into a column that already has a hole under it buries that hole deeper.
+// Per block, because a piece lying flat across three bad columns is three times the sin.
+export const AI_BURY_PENALTY = 8;
+// How much the NEXT piece's best placement counts toward this one's score.  Less than the
+// present, because the next piece is a fact and the one after it is not.
+export const AI_LOOKAHEAD_WEIGHT = 0.6;
+// How many of this piece's placements are worth looking a move ahead from.  All of them is
+// forty times the work for the benefit of ranking placements that were never in contention.
+export const AI_LOOKAHEAD_CANDIDATES = 6;
 
 // 1 in the bottom third of the board, 2 in the middle, 3 up top
 export function heightZoneMultiplier(row: number): number {
@@ -1426,23 +1439,82 @@ export function stackHeight(grid: number[][]): number {
   return 0;
 }
 
+/** Which columns have a hole somewhere under their stack right now. */
+export function columnsWithGaps(grid: number[][]): boolean[] {
+  const bad: boolean[] = new Array(BOARD_WIDTH).fill(false);
+  for (let x = 0; x < BOARD_WIDTH; x++) {
+    let covered = false;
+    for (let y = 0; y < BOARD_HEIGHT; y++) {
+      if (grid[y][x] !== EMPTY_CELL) covered = true;
+      else if (covered) {
+        bad[x] = true;
+        break;
+      }
+    }
+  }
+  return bad;
+}
+
+/** How full the board is, 0..1.  What the bot uses to decide how frightened to be. */
+export function fillFraction(grid: number[][]): number {
+  let filled = 0;
+  for (let y = 0; y < BOARD_HEIGHT; y++) {
+    for (let x = 0; x < BOARD_WIDTH; x++) if (grid[y][x] !== EMPTY_CELL) filled++;
+  }
+  return filled / (BOARD_WIDTH * BOARD_HEIGHT);
+}
+
+/**
+ * How badly this board wants the next piece kept LOW.
+ *
+ * On an empty board a piece landing high costs almost nothing - there is all the room in
+ * the world.  On a board two thirds full the same placement is most of a death, and the bot
+ * used to price the two the same and go on politely tidying its edges while the stack came
+ * up to meet it.
+ */
+export function heightUrgency(grid: number[][]): number {
+  return 1 + 2 * (stackHeight(grid) / BOARD_HEIGHT);
+}
+
 export function scorePlacement(grid: number[][], landed: EittrisPiece): number {
   const settled = withPieceSettled(grid, landed);
   const madeGaps = countCoveredGaps(settled) > countCoveredGaps(grid);
   // The piece's TOP cell is how high up this placement reaches
   const highest = Math.min(...pieceCells(landed).map((c) => c.y));
+
+  // Rows this placement completes, and blocks it drops onto a column that is already
+  // hiding a hole - piling onto a hole is how a bot buries itself past digging out.
+  const alreadyFull = new Set(fullRows(grid));
+  const cleared = fullRows(settled).filter((row) => !alreadyFull.has(row)).length;
+  const bad = columnsWithGaps(grid);
+  let buried = 0;
+  for (const c of pieceCells(landed)) if (bad[c.x]) buried++;
+
   return (
     -(madeGaps ? AI_GAP_PENALTY : 0) -
-    heightCost(highest) +
+    heightCost(highest) * heightUrgency(grid) -
+    AI_BURY_PENALTY * buried +
+    AI_CLEAR_WEIGHT * cleared * cleared +
     AI_CONTACT_WEIGHT * contactCount(grid, landed)
   );
+}
+
+/** The board as it would be after this placement, rows and all. */
+export function boardAfter(grid: number[][], landed: EittrisPiece): number[][] {
+  const settled = withPieceSettled(grid, landed);
+  const rows = fullRows(settled);
+  return rows.length > 0 ? collapseRows(settled, rows) : settled;
 }
 
 // Try every rotation at every reachable column and keep the best landing.
 // Columns are only considered if the piece can actually slide there from its
 // current position, since the AI moves one step at a time.
-export function planPlacement(grid: number[][], piece: EittrisPiece): AiPlan | null {
-  let best: AiPlan | null = null;
+/** Every landing this piece could reach from here, scored on its own merits. */
+function everyPlacement(
+  grid: number[][],
+  piece: EittrisPiece,
+): { plan: AiPlan; landed: EittrisPiece }[] {
+  const out: { plan: AiPlan; landed: EittrisPiece }[] = [];
   for (let rot = 0; rot < 4; rot++) {
     const rotated = { ...piece, rot: (piece.rot + rot) % 4 };
     // From wherever this rotation's box has to sit to reach column 0, to wherever it has to
@@ -1453,11 +1525,51 @@ export function planPlacement(grid: number[][], piece: EittrisPiece): AiPlan | n
       const candidate = { ...rotated, x };
       if (collides(grid, pieceCells(candidate))) continue;
       const landed = dropDestination(grid, candidate);
-      const score = scorePlacement(grid, landed);
-      if (!best || score > best.score) {
-        best = { rot: candidate.rot, x, score };
-      }
+      out.push({ plan: { rot: candidate.rot, x, score: scorePlacement(grid, landed) }, landed });
     }
+  }
+  return out;
+}
+
+/**
+ * Where to put this piece, given what is coming after it.
+ *
+ * The bot used to judge a placement entirely on its own, which is how it walked into the
+ * hole it could not get out of: the tidiest place for the piece in hand is often the place
+ * that leaves nowhere for the next one.  With `nextType` it plays both, and scores the
+ * pair.
+ *
+ * Only the best few placements are looked ahead from.  Doing it for all forty is forty
+ * times the work to rank placements that were never in contention.
+ */
+export function planPlacement(
+  grid: number[][],
+  piece: EittrisPiece,
+  nextType?: number,
+): AiPlan | null {
+  const placements = everyPlacement(grid, piece);
+  if (placements.length === 0) return null;
+  if (nextType === undefined) {
+    return placements.reduce((a, b) => (b.plan.score > a.plan.score ? b : a)).plan;
+  }
+
+  const shortlist = placements
+    .slice()
+    .sort((a, b) => b.plan.score - a.plan.score)
+    .slice(0, AI_LOOKAHEAD_CANDIDATES);
+
+  let best: AiPlan | null = null;
+  for (const { plan, landed } of shortlist) {
+    const after = boardAfter(grid, landed);
+    const nextPiece: EittrisPiece = { ...piece, type: nextType, rot: 0, x: SPAWN_X, y: SPAWN_Y };
+    const followUps = everyPlacement(after, nextPiece);
+    const followUp = followUps.length
+      ? followUps.reduce((a, b) => (b.plan.score > a.plan.score ? b : a)).plan.score
+      : // Nowhere to put the next piece at all: that is the board being dead, and by far
+        // the worst thing a placement can lead to.
+        -1000;
+    const total = plan.score + AI_LOOKAHEAD_WEIGHT * followUp;
+    if (!best || total > best.score) best = { rot: plan.rot, x: plan.x, score: total };
   }
   return best;
 }
