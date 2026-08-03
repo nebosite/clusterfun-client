@@ -10,6 +10,7 @@ import {
 import { GameAnalytics } from "../telemetry/GameAnalytics";
 import { AnalyticsEntity } from "../telemetry/AnalyticsTypes";
 import { getDeviceId } from "../telemetry/DeviceId";
+import { configureErrorReporter, reportError } from "../telemetry/ErrorReporter";
 
 import { action, makeObservable, observable } from "mobx";
 import Logger from "js-logger";
@@ -57,8 +58,18 @@ export function instantiateGame<T extends BaseGameModel>(
       }
     }
   } catch (err) {
+    // A failed restore is not a small thing: from the room's point of view the
+    // host refreshed and the party started over, with no error and no cause.
+    // It used to be logged and swallowed, so nobody ever found out it had
+    // happened - report it, then carry on with a fresh game, which is still
+    // the only sensible thing to do next.
     logger.logEvent("Error", "Failed Game Restore", (err as any).message);
     Logger.error(`getSavedGame: Could not restore game because: `, err);
+    reportError(
+      "window",
+      err instanceof Error ? err : new Error(String(err)),
+      "checkpoint restore failed - starting a fresh game",
+    );
   }
 
   const gameTypeName = typeHelper.rootTypeName;
@@ -227,6 +238,11 @@ export abstract class BaseGameModel {
         deviceId: getDeviceId(this.storage),
         entity: this.analyticsEntity,
       });
+      // Point crash reporting at this game.  The app shell arms the reporter
+      // at startup so nothing is ever lost, but once a game is running its
+      // channel is the better one: an error then arrives tagged with the game
+      // and with host-vs-phone, which is most of what makes it actionable.
+      configureErrorReporter(this._analytics);
     }
     return this._analytics;
   }

@@ -1,4 +1,5 @@
 import React from "react";
+import { reportError } from "../telemetry/ErrorReporter";
 
 // -------------------------------------------------------------------
 // Wrap elements in this so that errors in rendering code don't
@@ -18,8 +19,17 @@ export class ErrorBoundary extends React.Component<
 
   // -------------------------------------------------------------------
   // Intercept errors
+  //
+  // Showing the message is only half the job: a guest reads "Something went
+  // wrong", puts the phone down, and nobody ever finds out.  Reporting it is
+  // what turns a ruined round into something that can be fixed.
   // -------------------------------------------------------------------
-  componentDidCatch(error: Error, errorInfo: Object): void {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    // The component stack names the component that blew up, which the error's
+    // own stack often does not once the code is minified.
+    const componentStack = errorInfo?.componentStack ?? "";
+    const firstFrame = componentStack.split("\n").find((line) => line.trim().length > 0);
+    reportError("react", error, firstFrame?.trim());
     this.setState({ errorMessage: error.toString() });
   }
 

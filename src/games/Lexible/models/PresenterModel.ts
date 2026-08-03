@@ -326,11 +326,17 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
   //                    word list
   // -------------------------------------------------------------------
   private async populateWordSet() {
-    const wordListPromise = import("../assets/words/Collins_Scrabble_2019");
+    // Both are presenter-only and both are lazy: a phone never downloads a
+    // dictionary.  The word list is a compressed asset fetched at runtime
+    // rather than a source module - see assets/words/wordList.ts.
+    const wordListPromise = import("../assets/words/wordList").then((m) => m.loadWordList());
     const badWordsPromise = import("../assets/words/badwords");
 
-    const { wordList } = await wordListPromise;
+    const wordList = await wordListPromise;
     let lastAwaitTime = window.performance.now();
+    // Drop blanks.  The list is a text file and ends with a newline, so a plain
+    // split leaves a trailing "" that would go into both the set and the trie -
+    // an empty-string node in the tree and a word count one too high.
     const words = wordList.split("\n");
     this.wordTree = new WordTree("", undefined);
     for (const word of words) {
@@ -339,8 +345,10 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         if (this.isShutdown) return;
         lastAwaitTime = window.performance.now();
       }
-      this.wordTree.add(word.trim());
-      this.wordSet.add(word.trim());
+      const trimmed = word.trim();
+      if (!trimmed) continue;
+      this.wordTree.add(trimmed);
+      this.wordSet.add(trimmed);
     }
     Logger.info(`Loaded ${this.wordSet.size} words`);
 
@@ -352,7 +360,11 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
         if (this.isShutdown) return;
         lastAwaitTime = window.performance.now();
       }
-      this.badWords.add(badWord.trim());
+      const trimmed = badWord.trim();
+      // Same reason as above - and an empty entry in the censor list would be
+      // far worse than a miscount, since it matches everything it is tested on.
+      if (!trimmed) continue;
+      this.badWords.add(trimmed);
     }
     Logger.info(`Loaded ${this.badWords.size} censored words`);
   }

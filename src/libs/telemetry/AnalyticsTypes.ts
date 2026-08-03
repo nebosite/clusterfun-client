@@ -42,6 +42,10 @@ export enum AnalyticsEvent {
   PlayerRejoined = "cf_player_rejoined",
   PlayerQuit = "cf_player_quit",
   JoinDenied = "cf_join_denied",
+  // Something threw on somebody's device.  See libs/telemetry/ErrorReporter.
+  // Deduplicated and capped per page load, so a count here is "distinct
+  // failures", not "how many times the same render loop threw".
+  ClientError = "cf_client_error",
 }
 
 // How a game finished.  "completed" means it reached its own game-over; "abandoned" means

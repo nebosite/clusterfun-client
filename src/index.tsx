@@ -6,6 +6,9 @@ import { GameManifestItem, LobbyGame } from "games/lists/GameDescriptor";
 import { fetchPopularity, sortGamesByPopularity } from "games/lists/gamePopularity";
 import { GameInstanceProperties } from "libs/config/GameInstanceProperties";
 import { WebSocketMessageThing } from "libs/messaging/MessageThing";
+import { GameAnalytics } from "libs/telemetry/GameAnalytics";
+import { getDeviceId } from "libs/telemetry/DeviceId";
+import { configureErrorReporter, installGlobalErrorHandlers } from "libs/telemetry/ErrorReporter";
 import "index.css";
 import React from "react";
 
@@ -79,6 +82,26 @@ const telemetryFactoryPromise = (async () => {
 })();
 
 const getStoragePromise = (async () => (await import("./libs/storage/StorageHelper")).getStorage)();
+
+// Crash reporting, armed as early as we can.
+//
+// An error boundary only sees errors thrown while rendering.  Everything else - a throw from
+// an event handler or a timer, a promise nobody awaited, anything that happens before the
+// first game model exists - reaches nobody at all without these two listeners.  Installed
+// synchronously so a failure during startup is still caught; the analytics channel is
+// attached a moment later, and reportError holds nothing until it arrives.
+installGlobalErrorHandlers();
+(async () => {
+  const factory = await telemetryFactoryPromise;
+  const getStorage = await getStoragePromise;
+  configureErrorReporter(
+    new GameAnalytics(factory.getLogger("Lobby"), {
+      game: "Lobby",
+      deviceId: getDeviceId(getStorage("clusterfun")),
+      entity: "lobby",
+    }),
+  );
+})();
 
 // Get the google analitics measurement ID from :  https://analytics.google.com/analytics/web/#/a169765098p268496630/admin/streams/table/2416371752
 

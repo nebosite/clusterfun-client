@@ -5,3 +5,7 @@
 declare module "*.m4a";
 declare module "*.mp3";
 declare module "*.png";
+// Lexible's dictionary ships pre-compressed and is fetched at runtime rather
+// than parsed as source.  Webpack treats it as an asset and the import is its
+// content-hashed URL.
+declare module "*.gz";

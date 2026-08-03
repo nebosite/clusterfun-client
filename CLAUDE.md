@@ -419,6 +419,7 @@ A game gets these for free — do not re-send them:
 | `cf_player_rejoined` | both      | `player_count`, `matched_by` (`id`/`name`)                                       |
 | `cf_player_quit`     | presenter | `player_count`                                                                   |
 | `cf_join_denied`     | both      | `reason`                                                                         |
+| `cf_client_error`    | anywhere  | `error_source`, `error_name`, `error_message`, `error_where`, `error_index`      |
 
 - **Completion** means the game reached `GameOver`; **abandoned** means it was destroyed
   while still playing. A game that simply stops being heard from reports neither, which
@@ -428,6 +429,27 @@ A game gets these for free — do not re-send them:
   i.e. a reboot.
 - Host and client both report joins, tagged by `entity`. **Filter `entity=host` for
   authoritative counts**, or a two-player game looks like four joins.
+
+### Crash reporting (`libs/telemetry/ErrorReporter.ts`)
+
+Nothing to call — it is wired up for you. `installGlobalErrorHandlers()` runs at startup in
+`index.tsx` and catches what an error boundary cannot: a throw from an event handler or a
+timer, and any unhandled promise rejection. `ErrorBoundary` reports render errors. Each game
+model re-points the reporter at its own analytics channel, so an in-game crash arrives tagged
+with the game and with host-vs-phone.
+
+Three rules it is built around, and a reason for each:
+
+- **Never throws.** A reporter that breaks while reporting is worse than none.
+- **Deduplicates and caps at 10 per page load.** A render loop throws every frame; without
+  this the interesting first error is buried under thousands of copies of itself. A count
+  here means _distinct failures_, not occurrences.
+- **Clips every value to 90 characters.** GA4 silently truncates a parameter at 100, so a raw
+  stack would arrive as a useless prefix. `error_where` is the first stack frame that is
+  _our_ code, skipping `node_modules`, which is the single most useful line.
+
+Call `reportError(source, error, extra?)` directly if you catch something worth knowing about
+and are deliberately swallowing it.
 
 ## Game popularity (the lobby's own ordering)
 
