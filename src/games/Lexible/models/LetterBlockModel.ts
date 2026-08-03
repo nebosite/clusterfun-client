@@ -36,6 +36,32 @@ export class LetterBlockModel {
     action(() => (this._failFade = value))();
   }
 
+  // Is this tile joined to its own team's starting area, walking only through
+  // its team's tiles?  A tile that is not is an island: it counts for nothing
+  // towards crossing the board.  The presenter outlines the joined region so a
+  // gap in the chain is obvious from across the room - see teamAreas.ts.
+  @observable private _connectedToHome = false;
+  get connectedToHome() {
+    return this._connectedToHome;
+  }
+
+  // Which SIDES of this tile face out of that region: bit 1 top, 2 right,
+  // 4 bottom, 8 left.  Drawing only the outward-facing edges turns a set of
+  // squares into one outline around the whole region, rather than a box around
+  // every tile - which at this size would read as noise.
+  @observable private _homeEdgeMask = 0;
+  get homeEdgeMask() {
+    return this._homeEdgeMask;
+  }
+
+  setHomeConnection(connected: boolean, edgeMask: number) {
+    if (this._connectedToHome === connected && this._homeEdgeMask === edgeMask) return;
+    action(() => {
+      this._connectedToHome = connected;
+      this._homeEdgeMask = edgeMask;
+    })();
+  }
+
   @observable private _onPath = false;
   get onPath() {
     return this._onPath;

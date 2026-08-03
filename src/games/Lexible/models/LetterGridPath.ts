@@ -1,6 +1,7 @@
 import { LetterGridModel } from "./LetterGridModel";
 import { PriorityQueue } from "@datastructures-js/priority-queue";
 import { Vector2 } from "libs";
+import { goalX, homeCells } from "./teamAreas";
 
 export interface PathCost {
   ally: number;
@@ -100,13 +101,12 @@ interface QueueElement {
 //   and this function will find that path.
 // ---------------------------------------------------------
 export function findHotPathInGrid(grid: LetterGridModel, team: "A" | "B"): LetterGridPath {
-  // Implement A* to find the current shortest path for the given team
-  let startx = 0;
-  let winx = grid.width - 1;
-  if (team === "B") {
-    startx = grid.width - 1;
-    winx = 0;
-  }
+  // Both teams start on the left, interleaved, and both run for the right-hand
+  // edge - see teamAreas.ts for why.  The starting squares are a handful of
+  // specific cells rather than a whole column, so the search is seeded from
+  // those; the goal is the same column for everybody.
+  const winx = goalX(grid);
+  const startCells = homeCells(grid, team);
 
   // A set indicating whether a coordinate has been visited
   const visited = new Vector2Map<boolean>();
@@ -128,10 +128,10 @@ export function findHotPathInGrid(grid: LetterGridModel, team: "A" | "B"): Lette
     );
   });
 
-  // Start on the startx, giving the true and estimated costs
-  for (let y = 0; y < grid.height; y++) {
-    const location = new Vector2(startx, y);
-    const block = grid.getBlock(location)!;
+  // Seed the search at every one of the team's starting squares
+  for (const location of startCells) {
+    const block = grid.getBlock(location);
+    if (!block) continue;
     const cost = {
       ally: block.team === team ? 1 : 0,
       neutral: block.team === "_" ? 1 : 0,

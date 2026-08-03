@@ -6,3 +6,4 @@ export * from "./MusicPlayer";
 export * from "./DirectMusicSource";
 export * from "./CachedMusicSource";
 export * from "./VolumePreferences";
+export * from "./SpeechHelper";

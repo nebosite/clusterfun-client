@@ -200,6 +200,8 @@
   flex-shrink: unset;
 }
 
+/* Both rosters stack in this one column on the left; the right-hand column is
+   gone and its width went to the board. */
 .gamepresenter .teamColumn {
   width: 355px;
   box-sizing: border-box; /* keep padding inside the width so the play column keeps its size */
@@ -208,6 +210,15 @@
   height: 80%;
   font-size: 110%;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.gamepresenter .teamPanel {
+  box-sizing: border-box;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
   background: var(--panel);
   border-radius: 22px;
   /* border-top accent color is set inline per team */
@@ -215,7 +226,7 @@
   padding: 10px;
 }
 .gamepresenter .playColumn {
-  width: 1180px;
+  width: 1535px;
   height: 980px;
   font-size: 80%;
   overflow: hidden;
@@ -273,6 +284,20 @@
   width: 30px;
   height: 30px;
   margin: 10px;
+}
+
+.gamepresenter .settingsSlider {
+  width: 320px;
+  margin: 10px 16px;
+  accent-color: var(--teamA, #e56b45);
+}
+
+/* The resulting board shape, so the host can see what the slider is doing
+   before they commit to a round. */
+.gamepresenter .settingsValue {
+  min-width: 110px;
+  font-family: "Space Mono", monospace;
+  color: var(--sub, #9a8c79);
 }
 
 .gamepresenter .settingsBox {

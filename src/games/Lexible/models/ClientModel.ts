@@ -1,6 +1,7 @@
 import { action, makeObservable, observable } from "mobx";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { LetterGridModel } from "./LetterGridModel";
+import { chainActionFor } from "./dragSelection";
 import { LexibleGameEvent } from "./PresenterModel";
 import {
   ISessionHelper,
@@ -202,13 +203,52 @@ export class LexibleClientModel extends ClusterfunClientModel {
     let selectable = true;
     let isSelected = block.isSelectedByPlayer(playerId);
     if (!isSelected) {
-      if (this.startFromTeamArea && this.letterChain.length === 0 && block.team !== this.myTeam) {
+      if (!this.canStartWordAt(block)) {
         selectable = false;
       }
     }
 
     if (selectable) {
       block.selectForPlayer(playerId, !isSelected);
+    }
+  }
+
+  // -------------------------------------------------------------------
+  //  canStartWordAt - may a word BEGIN on this letter?
+  //
+  //  With "words must start from team territory" on, only your own tiles will
+  //  do.  This is also what decides, on touch-down, whether a drag spells a
+  //  word or scrolls the board - see dragSelection.ts.
+  // -------------------------------------------------------------------
+  canStartWordAt(block: LetterBlockModel): boolean {
+    if (this.letterChain.length > 0) return true;
+    if (!this.startFromTeamArea) return true;
+    return block.team === this.myTeam;
+  }
+
+  // -------------------------------------------------------------------
+  //  dragSelectTo - the finger has moved onto this letter mid-drag.
+  //
+  //  Adds it, or takes the last one off if the finger has retraced.  Doing
+  //  nothing is a perfectly normal outcome - a finger crosses plenty of
+  //  letters it is not allowed to reach.
+  // -------------------------------------------------------------------
+  dragSelectTo(block: LetterBlockModel, playerId: string) {
+    const chain = this.letterChain.map((l) => l.coordinates);
+    const action = chainActionFor(chain, block.coordinates, this.canStartWordAt(block));
+
+    switch (action.kind) {
+      case "start":
+      case "extend":
+        block.selectForPlayer(playerId, true);
+        break;
+      case "retract": {
+        const last = this.letterChain[this.letterChain.length - 1];
+        if (last) last.selectForPlayer(playerId, false);
+        break;
+      }
+      case "none":
+        break;
     }
   }
 

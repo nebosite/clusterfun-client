@@ -9,9 +9,9 @@ import { LetterBlockModel } from "../models/LetterBlockModel";
 import LetterBlock from "./LetterBlock";
 import { InstructionDemo } from "./InstructionDemo";
 import { teamColor } from "./cozyTheme";
+import { MIN_GRID_HEIGHT, MAX_GRID_HEIGHT, blockSizeForHeight } from "../models/gridLayout";
 import {
   LexiblePresenterModel,
-  MapSize,
   LexibleGameEvent,
   LexiblePlayer,
   LexibleGameState,
@@ -25,9 +25,11 @@ import {
   GeneralGameState,
   UINormalizer,
   DevUI,
+  SpeechHelper,
+  DEFAULT_VOICE_A,
+  DEFAULT_VOICE_B,
 } from "libs";
 import { action, makeAutoObservable } from "mobx";
-import SamJs from "sam-js";
 
 @inject("appModel")
 @observer
@@ -67,29 +69,23 @@ class GameSettings extends React.Component<{ appModel?: LexiblePresenterModel }>
           />
           <div>Words must start from team territory:</div>
         </Row>
+        {/* One control for board size: how many rows.  The tile size and the
+            column count both follow from it and the play area, so the board
+            always fills the screen - see models/gridLayout.ts. */}
         <Row>
-          <div>Map Size:</div>
+          <div>Board rows:</div>
           <input
-            className={styles.settingsCheckbox}
-            type="checkbox"
-            checked={appModel.mapSize === MapSize.Small}
-            onChange={() => (appModel.mapSize = MapSize.Small)}
+            className={styles.settingsSlider}
+            type="range"
+            min={MIN_GRID_HEIGHT}
+            max={MAX_GRID_HEIGHT}
+            step={1}
+            value={appModel.gridHeight}
+            onChange={(e) => (appModel.gridHeight = parseInt(e.target.value, 10))}
           />
-          <div>small</div>
-          <input
-            className={styles.settingsCheckbox}
-            type="checkbox"
-            checked={appModel.mapSize === MapSize.Medium}
-            onChange={() => (appModel.mapSize = MapSize.Medium)}
-          />
-          <div>medium</div>
-          <input
-            className={styles.settingsCheckbox}
-            type="checkbox"
-            checked={appModel.mapSize === MapSize.Large}
-            onChange={() => (appModel.mapSize = MapSize.Large)}
-          />
-          <div>large</div>
+          <div className={styles.settingsValue}>
+            {appModel.gridHeight} x {appModel.gridWidth}
+          </div>
         </Row>
       </div>
     );
@@ -315,20 +311,31 @@ class PlayingPage extends React.Component<{
   appModel?: LexiblePresenterModel;
   media: MediaHelper;
 }> {
+  private speech: SpeechHelper;
+
   // -------------------------------------------------------------------
   // ctor
   // -------------------------------------------------------------------
   constructor(props: Readonly<{ appModel?: LexiblePresenterModel; media: MediaHelper }>) {
     super(props);
 
-    const teamAVoice = new SamJs({ speed: 72, pitch: 64, throat: 128, mouth: 128 }); // default SAM/V1
-    const teamBVoice = new SamJs({ speed: 72, pitch: 48, throat: 128, mouth: 128 }); // higher pitched SAM
-    const voiceFromTeam = (team: string) => (team === "A" ? teamAVoice : teamBVoice);
+    // Speech is Kokoro now rather than SAM, which was characterful and often
+    // unintelligible - the point of reading a word out is that the room hears
+    // WHICH word.  The model is fetched lazily on first use and cached by the
+    // browser thereafter; until it arrives (and forever, if it never does) the
+    // fallback below keeps the game making the right noises at the right time.
+    this.speech = new SpeechHelper((text) => {
+      props.media.playSound(
+        text.length > 12 ? LexibleAssets.sounds.hello : LexibleAssets.sounds.ding,
+      );
+    });
+    const voiceFromTeam = (team: string) => (team === "A" ? DEFAULT_VOICE_A : DEFAULT_VOICE_B);
+
     props.appModel!.subscribe(
       LexibleGameEvent.WordAccepted,
       "say accepted word",
       (word: string, player: LexiblePlayer) => {
-        voiceFromTeam(player.teamName).speak(word);
+        this.speech.speak(word, { voice: voiceFromTeam(player.teamName) });
       },
     );
     props.appModel!.subscribe(
@@ -336,9 +343,15 @@ class PlayingPage extends React.Component<{
       "Taunt from the winners",
       (team: string) => {
         const taunts = team === "A" ? teamATaunts : teamBTaunts;
-        voiceFromTeam(team).speak(props.appModel?.randomItem(taunts) ?? taunts[0]);
+        this.speech.speak(props.appModel?.randomItem(taunts) ?? taunts[0], {
+          voice: voiceFromTeam(team),
+        });
       },
     );
+
+    // Start fetching while people are still joining, so the first word of the
+    // round is spoken rather than beeped.
+    this.speech.warmUp();
   }
 
   // -------------------------------------------------------------------
@@ -351,7 +364,10 @@ class PlayingPage extends React.Component<{
       <Row className={styles.letterRow}>
         {row.map((b) => (
           <LetterBlock
-            size={1150 / this.props.appModel!.theGrid.width}
+            // Sized off the ROW count so the board fills the play area's height
+            // exactly; the column count was chosen to fill its width at this
+            // same size.  See models/gridLayout.ts.
+            size={blockSizeForHeight(this.props.appModel!.theGrid.height)}
             key={b.__blockid}
             onClick={handleClick}
             context={b}
@@ -585,15 +601,26 @@ export default class Presenter extends React.Component<{
           </div>
         ) : null}
 
+        {/* Both rosters live on the left now.  Both teams also START on the left
+            (see models/teamAreas.ts), so the panel order matches the board, and
+            the space the old right-hand column took goes to the play area. */}
         <div style={{ margin: "15px" }}>
           <Row className={styles.presenterRow}>
-            <div className={styles.teamColumn} style={{ borderTop: `6px solid ${teamColor("A")}` }}>
-              {renderTeam("A")}
+            <div className={styles.teamColumn}>
+              <div
+                className={styles.teamPanel}
+                style={{ borderTop: `6px solid ${teamColor("A")}` }}
+              >
+                {renderTeam("A")}
+              </div>
+              <div
+                className={styles.teamPanel}
+                style={{ borderTop: `6px solid ${teamColor("B")}` }}
+              >
+                {renderTeam("B")}
+              </div>
             </div>
             <div className={styles.playColumn}>{this.renderPlayArea()}</div>
-            <div className={styles.teamColumn} style={{ borderTop: `6px solid ${teamColor("B")}` }}>
-              {renderTeam("B")}
-            </div>
           </Row>
         </div>
       </UINormalizer>

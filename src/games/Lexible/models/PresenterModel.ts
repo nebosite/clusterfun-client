@@ -4,6 +4,9 @@ import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
+import { TEAM_HOME_SCORE, connectedToHome, homeCells } from "./teamAreas";
+import { DEFAULT_GRID_HEIGHT, gridWidthForHeight, sanitizeGridHeight } from "./gridLayout";
+import { findWordsFrom } from "./wordSearch";
 import {
   ClusterFunPlayer,
   ISessionHelper,
@@ -82,14 +85,9 @@ export enum LexibleGameEvent {
 //--------------------------------------------------------------------------------------
 //
 //--------------------------------------------------------------------------------------
-export enum MapSize {
-  Small = "Small",
-  Medium = "Medium",
-  Large = "Large",
-}
-
 interface LexibleSettings {
-  mapSize: MapSize;
+  /** Rows the host asked for; the column count is derived from it. */
+  gridHeight: number;
   startFromTeamArea: boolean;
 }
 
@@ -182,15 +180,24 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     })();
   }
 
-  @observable private _mapSize = MapSize.Medium;
-  get mapSize() {
-    return this._mapSize;
+  // How many rows the host wants.  The tile size and the column count both fall
+  // out of this and the size of the play area - see gridLayout.ts.  It replaces
+  // the old Small/Medium/Large setting, which set a width from a player-count
+  // guess and left the board not quite filling the screen at most sizes.
+  @observable private _gridHeight = DEFAULT_GRID_HEIGHT;
+  get gridHeight() {
+    return this._gridHeight;
   }
-  set mapSize(value) {
+  set gridHeight(value) {
     action(() => {
-      this._mapSize = value;
+      this._gridHeight = sanitizeGridHeight(value);
       this.saveSettings();
     })();
+  }
+
+  /** The columns that fit beside that many rows. Derived, never stored. */
+  get gridWidth() {
+    return gridWidthForHeight(this._gridHeight);
   }
 
   get gameTimeMinutes() {
@@ -280,7 +287,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     const savedSettingsValue = storage.get(LEXIBLE_SETTINGS_KEY);
     if (savedSettingsValue) {
       const savedSettings = JSON.parse(savedSettingsValue) as LexibleSettings;
-      this.mapSize = savedSettings.mapSize ?? MapSize.Medium;
+      this.gridHeight = savedSettings.gridHeight ?? DEFAULT_GRID_HEIGHT;
       this.startFromTeamArea = savedSettings.startFromTeamArea ?? true;
     }
 
@@ -308,6 +315,42 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     this.theGrid.processBlocks((block) => {
       this.setBlockHandlers(block);
     });
+    // Derived from the board, not saved with it - recompute rather than trust
+    // whatever a checkpoint happened to carry.
+    this.updateHomeConnections();
+  }
+
+  // -------------------------------------------------------------------
+  //  updateHomeConnections - mark which tiles are actually joined to their
+  //  own team's starting area, and which sides of that region face out.
+  //
+  //  Cheap (one flood fill per team over the grid) and only run when the
+  //  board changes, so it is not worth memoising further.
+  // -------------------------------------------------------------------
+  updateHomeConnections() {
+    const connected: Record<string, Set<string>> = {
+      A: connectedToHome(this.theGrid, "A"),
+      B: connectedToHome(this.theGrid, "B"),
+    };
+    const isIn = (team: string, x: number, y: number) =>
+      !!connected[team] && connected[team].has(`${x},${y}`);
+
+    this.theGrid.processBlocks((block) => {
+      const { x, y } = block.coordinates;
+      const team = block.team;
+      if (!isIn(team, x, y)) {
+        block.setHomeConnection(false, 0);
+        return;
+      }
+      // A side gets an edge only where the region stops, so the whole
+      // connected blob ends up with a single outline around it.
+      let mask = 0;
+      if (!isIn(team, x, y - 1)) mask |= 1; // top
+      if (!isIn(team, x + 1, y)) mask |= 2; // right
+      if (!isIn(team, x, y + 1)) mask |= 4; // bottom
+      if (!isIn(team, x - 1, y)) mask |= 8; // left
+      block.setHomeConnection(true, mask);
+    });
   }
 
   //--------------------------------------------------------------------------------------
@@ -315,7 +358,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
   //--------------------------------------------------------------------------------------
   saveSettings() {
     const savedSettings: LexibleSettings = {
-      mapSize: this.mapSize,
+      gridHeight: this.gridHeight,
       startFromTeamArea: this.startFromTeamArea,
     };
     this.storage.set(LEXIBLE_SETTINGS_KEY, JSON.stringify(savedSettings, null, 2));
@@ -384,6 +427,15 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
       else {
         player.teamName = "AB"[Date.now() % 2];
       }
+      // Write it down NOW.  Without this the checkpoint still holds the "X"
+      // default, and a presenter refresh brings the player back teamless: they
+      // vanish from both rosters and every word they submit is rejected,
+      // because handleSubmitWord substitutes '#' for a tile whose team does not
+      // match theirs.  They look fine on their own phone the whole time.
+      //
+      // A returning player takes the onPlayerReturned path rather than this
+      // one, so nothing else would ever re-assign it.
+      this.saveCheckpoint();
     }
 
     Logger.debug(`Joined game state: ${this.gameState}`);
@@ -456,22 +508,9 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
   //  prepareFreshRound - called automatically before every round
   // -------------------------------------------------------------------
   prepareFreshRound = () => {
-    const boardRatio = 34 / 24;
-
-    let boardWidth = 20 + 2 * this.players.length;
-    switch (this.mapSize) {
-      case MapSize.Small:
-        boardWidth *= 0.6;
-        break;
-      case MapSize.Large:
-        boardWidth *= 1.5;
-        break;
-    }
-
-    const newGrid = new LetterGridModel(
-      Math.floor(boardWidth),
-      Math.floor(boardWidth / boardRatio),
-    );
+    // One number from the host - the row count - and the columns follow from
+    // how many tiles of that size fit across the play area.
+    const newGrid = new LetterGridModel(this.gridWidth, this.gridHeight);
 
     const letterCount = newGrid.width * newGrid.height + 20;
     const letterDeck: string[] = [];
@@ -494,9 +533,14 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
     newGrid.populate(letterDeck.map((l) => `${l}_0`).join(""));
     if (this.startFromTeamArea) {
-      for (let y = 0; y < newGrid.height; y++) {
-        newGrid.getBlock(new Vector2(0, y))!.setScore(4, "A");
-        newGrid.getBlock(new Vector2(newGrid.width - 1, y))!.setScore(4, "B");
+      // Both teams start on the left and both run for the right edge, so
+      // neither is handed the easier half of an asymmetric board.  The exact
+      // cells - and why they interleave rather than collide - are in
+      // teamAreas.ts, which the win search and the board border also read.
+      for (const team of ["A", "B"]) {
+        for (const cell of homeCells(newGrid, team)) {
+          newGrid.getBlock(cell)!.setScore(TEAM_HOME_SCORE, team);
+        }
       }
     }
     newGrid.processBlocks((block) => {
@@ -505,6 +549,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
     // done!
     this.theGrid = newGrid;
+    this.updateHomeConnections();
     this.saveCheckpoint();
   };
 
@@ -579,53 +624,13 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
   };
 
   // -------------------------------------------------------------------
-  //  findWords
+  //  findWords - every word spellable from this letter.
+  //
+  //  The search itself is pure and lives in wordSearch.ts, where it can be
+  //  tested against the board without standing a whole presenter up.
   // -------------------------------------------------------------------
   findWords(startBlock: LetterBlockModel) {
-    const selectedBlocks = new Set<number>();
-
-    const findHere = (block: LetterBlockModel, parentSpot: WordTree): string[] => {
-      const output: string[] = [];
-      // ignore blocks off the board or seleced block
-      if (selectedBlocks.has(block.__blockid)) return output;
-
-      let wordSpot: WordTree | undefined = parentSpot;
-      for (let i = 0; i < block.letter.length; i++) {
-        wordSpot = wordSpot?.branch(block.letter[i].toUpperCase());
-      }
-      if (!wordSpot) return output;
-
-      const word = wordSpot.myWord;
-
-      if (word && word.length >= 3) {
-        output.push(word);
-      }
-
-      selectedBlocks.add(block.__blockid);
-
-      for (let x = -1; x <= 1; x++) {
-        for (let y = -1; y <= 1; y++) {
-          const neighborSpot = new Vector2(x, y).add(block.coordinates);
-          const neighborBlock = this.theGrid.getBlock(neighborSpot);
-          if (neighborBlock) {
-            output.push(...findHere(neighborBlock, wordSpot));
-          }
-        }
-      }
-      selectedBlocks.delete(block.__blockid);
-      return output;
-    };
-
-    const words = findHere(startBlock, this.wordTree);
-    const returnMe: string[] = [];
-    words.forEach((w) => {
-      if (!returnMe.find((item) => item === w) && !this.badWords.has(w)) {
-        returnMe.push(w);
-      }
-    });
-    returnMe.sort();
-    returnMe.sort((a, b) => b.length - a.length);
-    return returnMe;
+    return findWordsFrom(this.theGrid, startBlock, this.wordTree, this.badWords);
   }
 
   // -------------------------------------------------------------------
@@ -714,6 +719,9 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     });
 
     if (word.length > player.longestWord.length) player.longestWord = word;
+
+    // Tiles changed hands, so the joined-to-home regions have moved with them.
+    this.updateHomeConnections();
 
     this.sendToEveryone(LexibleBoardUpdateEndpoint, (p, isExited) => {
       return {
