@@ -767,6 +767,12 @@ export class EittrisClientModel extends ClusterfunClientModel {
     });
   }
 
+  // Rewind the piece to where it was when this gesture began.  Refused if it no longer
+  // fits - an attack can paint garbage into the space it came from mid-gesture.
+  snapTo(column: number, row: number) {
+    this.sendCommand({ command: "snapTo", column: Math.round(column), row: Math.round(row) });
+  }
+
   // Pointer-up after a drag: locks only if the piece is resting
   release() {
     this.sendCommand({ command: "release" });

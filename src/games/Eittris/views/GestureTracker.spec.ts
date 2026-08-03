@@ -21,6 +21,7 @@ function fakeModel() {
     hardDrop: () => calls.push({ name: "hardDrop", args: [] }),
     slamLeft: () => calls.push({ name: "slamLeft", args: [] }),
     slamRight: () => calls.push({ name: "slamRight", args: [] }),
+    snapTo: (column: number, row: number) => calls.push({ name: "snapTo", args: [column, row] }),
     rotate: () => calls.push({ name: "rotate", args: [] }),
     rotateLeft: () => calls.push({ name: "rotateLeft", args: [] }),
   } as unknown as EittrisClientModel;
@@ -39,78 +40,75 @@ function drag(tracker: GestureTracker, offsets: [number, number][]) {
   for (const [dx, dy] of offsets) tracker.move(pointer(200 + dx, 200 + dy));
 }
 
-describe("EITtris GestureTracker - a swipe down does not steer", () => {
-  it("keeps the column while the finger goes down and wobbles across", () => {
+/** A flick: far enough and fast enough that `up` treats it as one. */
+function flick(tracker: GestureTracker, steps: [number, number][]) {
+  tracker.down(pointer(200, 200), rect);
+  for (const [dx, dy] of steps) tracker.move(pointer(200 + dx, 200 + dy));
+  const [lastX, lastY] = steps[steps.length - 1];
+  tracker.up({ pointerId: 1, clientX: 200 + lastX, clientY: 200 + lastY, buttons: 0 } as any);
+}
+
+describe("EITtris GestureTracker - a swipe rewinds before it acts", () => {
+  // A swipe is one motion to the player.  To the browser it is a drag that happens to be
+  // fast, and the drag part of it - a thumb wandering on its way down - must not decide
+  // where the piece lands.
+  it("follows the finger while the gesture is still just a drag", () => {
     const { model, calls } = fakeModel();
     const tracker = new GestureTracker(model);
-    // Straight down, with the sideways wobble a thumb always has.  Three quarters of a
-    // cell each way, which is what it takes to move the piece a column - a smaller wobble
-    // would round away and prove nothing.
     drag(tracker, [
       [10, 60],
       [-30, 140],
       [32, 220],
-      [-28, 300],
     ]);
 
     const columns = calls.filter((c) => c.name === "dragTo").map((c) => c.args[0]);
-    expect(columns.length).toBeGreaterThan(0);
-    expect(new Set(columns).size).toBe(1);
-    expect(columns[0]).toBe(5); // where the piece started
+    expect(new Set(columns).size).toBeGreaterThan(1); // it really did steer
   });
 
-  it("still walks the piece down as it goes", () => {
+  it("puts the piece back where the finger went down, then drops it", () => {
     const { model, calls } = fakeModel();
     const tracker = new GestureTracker(model);
-    drag(tracker, [
+    // Down fast, wandering three quarters of a cell each way on the way
+    flick(tracker, [
       [10, 60],
-      [-30, 200],
+      [-30, 140],
+      [32, 260],
     ]);
 
-    const rows = calls.filter((c) => c.name === "dragTo").map((c) => c.args[1]);
-    expect(rows[rows.length - 1]).toBeGreaterThan(rows[0]);
+    const names = calls.map((c) => c.name);
+    expect(names).toContain("snapTo");
+    expect(names.indexOf("snapTo")).toBeLessThan(names.indexOf("hardDrop"));
+    const snap = calls.find((c) => c.name === "snapTo")!;
+    expect(snap.args).toEqual([5, 3]); // exactly where the piece was at pointer-down
   });
 
-  it("does not lock a gesture that is mostly sideways", () => {
+  it("rewinds a sideways flick too", () => {
     const { model, calls } = fakeModel();
     const tracker = new GestureTracker(model);
-    drag(tracker, [
-      [60, 4],
-      [120, 10],
+    flick(tracker, [
+      [-40, 10],
+      [-120, 26],
     ]);
 
-    const columns = calls.filter((c) => c.name === "dragTo").map((c) => c.args[0]);
-    expect(columns[columns.length - 1]).toBeGreaterThan(5);
+    const names = calls.map((c) => c.name);
+    expect(names.indexOf("snapTo")).toBeLessThan(names.indexOf("slamLeft"));
   });
 
-  it("leaves a genuinely diagonal drag alone", () => {
-    // Down AND across in equal measure is somebody steering, not dropping
-    const { model, calls } = fakeModel();
-    const tracker = new GestureTracker(model);
-    drag(tracker, [
-      [40, 40],
-      [90, 90],
-    ]);
-
-    const last = calls.filter((c) => c.name === "dragTo").pop()!;
-    expect(last.args[0]).toBeGreaterThan(5); // moved across
-    expect(last.args[1]).toBeGreaterThan(3); // and down
-  });
-
-  it("holds the column it had reached when the drop began", () => {
-    // Steer two columns right, then swipe down: it drops from there, not from the start.
-    // The swipe has to be decisively downward - measured from where the finger went down,
-    // so a gesture that has already travelled sideways needs to travel further to count.
+  it("does not rewind a slow drag - that is a placement, not a swipe", () => {
     const { model, calls } = fakeModel();
     const tracker = new GestureTracker(model);
     tracker.down(pointer(200, 200), rect);
-    tracker.move(pointer(200 + 2 * CELL, 200));
-    tracker.move(pointer(200 + 2 * CELL + 30, 200 + 260));
-    tracker.move(pointer(200 + 2 * CELL - 28, 200 + 380));
+    tracker.move(pointer(230, 260));
+    tracker.move(pointer(250, 340));
+    // Slower than a flick: pointer-up long after the press began
+    const realNow = performance.now;
+    performance.now = () => realNow.call(performance) + 5000;
+    tracker.up({ pointerId: 1, clientX: 250, clientY: 340, buttons: 0 } as any);
+    performance.now = realNow;
 
-    const columns = calls.filter((c) => c.name === "dragTo").map((c) => c.args[0]);
-    expect(columns[0]).toBe(7);
-    expect(new Set(columns).size).toBe(1);
+    const names = calls.map((c) => c.name);
+    expect(names).not.toContain("snapTo");
+    expect(names).toContain("release");
   });
 
   it("sends nothing at all until the finger has actually moved", () => {
@@ -118,6 +116,16 @@ describe("EITtris GestureTracker - a swipe down does not steer", () => {
     const tracker = new GestureTracker(model);
     drag(tracker, [[1, DRAG_ACTIVATION_PX - 3]]);
     expect(calls.length).toBe(0);
+  });
+
+  it("has nothing to rewind when the finger never moved the piece", () => {
+    // A flick from a standing start sends no drag at all, so there is nothing to undo
+    const { model, calls } = fakeModel();
+    const tracker = new GestureTracker(model);
+    tracker.down(pointer(200, 200), rect);
+    tracker.up({ pointerId: 1, clientX: 200, clientY: 300, buttons: 0 } as any);
+
+    expect(calls.map((c) => c.name)).not.toContain("snapTo");
   });
 });
 

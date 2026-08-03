@@ -872,6 +872,23 @@ export function applyCommand(
       board.piece = dragged.piece;
       break;
     }
+    // Put the piece exactly here, if it fits.  Unlike dragTo this may move it UP, which is
+    // the point: a swipe rewinds the piece to where the finger first went down before
+    // dropping it, so a wandering thumb on the way to the swipe does not change where the
+    // piece lands.  A position that does not fit is simply refused.
+    case "snapTo": {
+      if (message.column === undefined || message.row === undefined) break;
+      const snapped = {
+        ...board.piece,
+        x: Math.round(message.column),
+        y: Math.round(message.row),
+      };
+      if (!collides(board.grid, pieceCells(snapped))) {
+        changed = snapped.x !== board.piece.x || snapped.y !== board.piece.y;
+        board.piece = snapped;
+      }
+      break;
+    }
     case "release": {
       // Pointer-up after a drag: lock only if the piece is resting; an airborne piece
       // just resumes normal gravity

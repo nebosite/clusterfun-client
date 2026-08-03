@@ -38,7 +38,6 @@ import {
 } from "../models/eittrisLogic";
 import {
   DRAG_ACTIVATION_PX,
-  DROP_AXIS_RATIO,
   FLICK_MAX_DURATION_MS,
   FLICK_MIN_DISTANCE_PX,
   FLICK_REARM_MOVES,
@@ -87,9 +86,11 @@ const THUMB_CELL_PX = 3; // target-list thumbnail cell size
 // -------------------------------------------------------------------
 // GestureTracker - classifies pointer input over the board area:
 //   free 2D drag -> dragTo(column, row): the piece follows the finger
-//                   horizontally AND downward at once (never up) - UNLESS the
-//                   gesture is steeply downward, which is a drop, and a drop
-//                   does not steer (see DROP_AXIS_RATIO)
+//                   horizontally AND downward at once (never up)
+//   a flick        -> the piece is first REWOUND to where it was when the finger
+//                   went down, and only then slammed or dropped.  A swipe is one
+//                   motion to the player, but to the browser it is a drag that
+//                   happens to be fast, and the drag part of it must not count.
 //   pointer-up after a drag -> release (locks only if the piece is resting)
 //   fast flick   -> slamLeft/slamRight/hardDrop/rotate by direction
 //   tap          -> rotate (anywhere on the grid - it always acts on the
@@ -113,10 +114,6 @@ export class GestureTracker {
   // input can never leak onto the next piece.
   private stale = false;
   private dragSent = false;
-  // Set once this gesture is decided to be a downward one.  From then on the piece does not
-  // move sideways however much the thumb wanders, and it never unsets: a swipe that has
-  // started going down is going down.
-  private verticalOnly = false;
   private lastSentColumn: number | null = null;
   private lastSentRow: number | null = null;
   private cellWidthPx = CELL_PX;
@@ -148,7 +145,6 @@ export class GestureTracker {
     this.startPieceY = this.model.piece?.y ?? 0;
     this.startPieceSeq = this.model.pieceSeq;
     this.dragSent = false;
-    this.verticalOnly = false;
     this.lastSentColumn = null;
     this.lastSentRow = null;
     // Quantize by the on-screen board size (UINormalizer scales the layout)
@@ -162,7 +158,6 @@ export class GestureTracker {
     this.pointerId = null;
     this.stale = false;
     this.dragSent = false;
-    this.verticalOnly = false;
     this.lastSentColumn = null;
     this.lastSentRow = null;
   }
@@ -196,16 +191,10 @@ export class GestureTracker {
     const dy = e.clientY - this.startY;
     if (!this.dragSent && Math.hypot(dx, dy) < DRAG_ACTIVATION_PX) return;
 
-    // Going down much more than across?  Then this is a drop, and a drop does not steer.
-    // Whatever sideways wobble the thumb has on the way down would otherwise land the piece
-    // a column or two from where the player is looking - and the swipe is the very gesture
-    // that decides where it stops.
-    if (dy > 0 && Math.abs(dy) >= Math.abs(dx) * DROP_AXIS_RATIO) this.verticalOnly = true;
-
-    // Free 2D target: columns follow the finger both ways, rows only downward
-    const targetColumn = this.verticalOnly
-      ? (this.lastSentColumn ?? this.startPieceX)
-      : this.startPieceX + Math.round(dx / this.cellWidthPx);
+    // Free 2D target: columns follow the finger both ways, rows only downward.  Nothing is
+    // held back on suspicion of being a swipe - the piece follows the finger, and if the
+    // gesture turns out to have been a swipe, `up` rewinds it.
+    const targetColumn = this.startPieceX + Math.round(dx / this.cellWidthPx);
     const targetRow = this.startPieceY + Math.max(0, Math.floor(dy / this.cellHeightPx));
     if (targetColumn !== this.lastSentColumn || targetRow !== this.lastSentRow) {
       this.lastSentColumn = targetColumn;
@@ -237,6 +226,11 @@ export class GestureTracker {
       // so a flick that ended off-screen can't fire a second time
       if (this.movesSinceFlick < FLICK_REARM_MOVES) return;
       this.movesSinceFlick = 0;
+      // A swipe is ONE motion to the player: they did not mean to steer the piece on the
+      // way, so put it back where it was when the finger went down and act from there.
+      // Refused if the space it came from has since been filled in, which leaves the piece
+      // where it is rather than anywhere surprising.
+      if (dragSent) this.model.snapTo(this.startPieceX, this.startPieceY);
       if (Math.abs(dx) >= Math.abs(dy)) {
         if (dx < 0) this.model.slamLeft();
         else this.model.slamRight();

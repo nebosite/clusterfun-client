@@ -92,6 +92,7 @@ export const EittrisOnboardClientEndpoint: MessageEndpoint<unknown, EittrisOnboa
 export type EittrisCommandKind =
   | "dragTo"
   | "release"
+  | "snapTo" // put the piece back exactly where it was when a gesture began
   | "hardDrop"
   | "slamLeft"
   | "slamRight"
