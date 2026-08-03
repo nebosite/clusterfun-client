@@ -129,12 +129,10 @@ presenter's live tally re-renders. All model mutations run inside `action(() => 
 
 ## Known limitations (tracked, non-blocking for the MVP)
 
-- **Reconnect mis-attributes photos — live bug.** `photo.authorId` is a stored `playerId`
-  string (`PresenterModel.ts:53,456,598`), and the relay issues a **new playerId** on
-  reconnect. `PartyPixPresenterModel` does not override `onPlayerReturned`, so after a phone
-  sleeps and comes back the author's `youAuthored` goes false and their photos stop earning
-  them credit. See the lifecycle contract in [../../../CLAUDE.md](../../../CLAUDE.md); copy
-  `Eittris/models/PresenterModel.ts:352`.
+- ~~**Reconnect mis-attributes photos**~~ — **fixed.** `photo.authorId` is a stored `playerId`,
+  and player ids are permanent now, so authorship, credits and `youAuthored` all survive a
+  phone going to sleep and coming back. See the lifecycle contract in
+  [../../../CLAUDE.md](../../../CLAUDE.md).
 - **`photos` is unbounded.** Each `PartyPixPhoto` holds a ~133 KB base64 `full` plus a thumb,
   `flaggedPhotos` retains removed ones, and nothing evicts. At `maxPlayers = 50`, an ordinary
   hour (~150 photos) is ~20 MB of strings on the presenter plus decoded bitmaps. Correctly

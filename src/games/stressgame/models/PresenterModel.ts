@@ -4,6 +4,7 @@ import {
   ISessionHelper,
   ClusterFunGameProps,
   ClusterfunPresenterModel,
+  ReconnectInfo,
   ITelemetryLogger,
   IStorage,
   ITypeHelper,
@@ -194,6 +195,15 @@ export class StressatoPresenterModel extends ClusterfunPresenterModel<StressatoP
 
     return newPlayer;
   }
+
+  // -------------------------------------------------------------------
+  //  onPlayerReturned / onPlayerDisconnected - Stressato holds no per-player
+  //  game state at all; every client is just a traffic generator pointed at
+  //  the relay.  A phone that drops stops sending and starts again when it
+  //  comes back, which is exactly the behavior we want to measure.
+  // -------------------------------------------------------------------
+  protected onPlayerReturned(_player: StressatoPlayer, _info: ReconnectInfo) {}
+  protected onPlayerDisconnected(_player: StressatoPlayer) {}
 
   // -------------------------------------------------------------------
   //

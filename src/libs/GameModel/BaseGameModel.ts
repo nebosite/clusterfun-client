@@ -294,8 +294,20 @@ export abstract class BaseGameModel {
     let timeOfLastTick = Date.now();
     this._ticker = setInterval(() => {
       const now = Date.now();
-      this.tick(now - timeOfLastTick);
-      timeOfLastTick = now;
+      // The clock has to advance even if the tick throws.  Without the
+      // finally, one exception in game logic means timeOfLastTick is never
+      // updated, so every following tick reports a bigger delta than the
+      // last - the game clock runs away at hundreds of times real speed and
+      // the freeze looks nothing like the bug that caused it.
+      try {
+        this.tick(now - timeOfLastTick);
+      } catch (err) {
+        // Swallowing this would hide it completely: the ticker is a bare
+        // setInterval, so nothing else is going to report it.
+        Logger.error(`Error in game tick: ${err}`);
+      } finally {
+        timeOfLastTick = now;
+      }
     }, this.tickInterval_ms);
 
     this.telemetryLogger.logPageView(this.name);

@@ -26,17 +26,64 @@ export enum PresenterGameEvent {
   PlayerJoined = "PlayerJoined",
 }
 
+// How long a player can go unheard-from before the host shows them as
+// disconnected.  The phone pings every 10s, so this is three missed pings -
+// long enough to ride out a lift or a wobbly router, short enough that the
+// room can see who has actually dropped.
+export const DISCONNECT_TIMEOUT_MS = 30 * 1000;
+
 export class ClusterFunPlayer {
-  // The private token from the device that owns this seat.  Reconnecting is
-  // matched on it, so nobody can claim a player by typing their name.
+  // The private token from the device that owns this seat: one per
+  // (device, player name).  Reconnecting is matched on it, so nobody can
+  // claim a seat by typing somebody else's name.
   playerToken: string = "";
+
+  // STABLE for the whole game.  Set once, from the connection this player
+  // first arrived on, and never reassigned - so anything a game keys by
+  // playerId (a board, a piece, a photo, a team) survives a reconnect
+  // untouched.  The token is what re-finds the seat; this is what names it.
+  //
+  // Deliberately NOT derived from playerToken: this value travels in every
+  // roster to every phone, while the token is the private proof of who owns
+  // a seat.  Publishing a function of the token would hand everyone in the
+  // room what they need to claim somebody else's seat.
+  //
+  // This is NOT a relay address either.  See connectionId.
   playerId: string = "";
+
+  // Where the relay can reach this player RIGHT NOW.  The relay issues a
+  // fresh id on every connection, so this changes each time the phone comes
+  // back.  Never key game state on it; the base class does the addressing.
+  connectionId: string = "";
+
+  // False once we have not heard from the phone for DISCONNECT_TIMEOUT_MS.
+  // The player keeps their seat and all their state - they are expected
+  // back.  Games should show them greyed out rather than removing them.
+  @observable isConnected: boolean = true;
+
+  // Wall-clock ms of the last message we had from this player.
+  lastSeenMs: number = 0;
+
   @observable name: string = "";
   // The avatar mark the player picked in the lobby (see PlayerAvatar).
   // Games should show this next to the player's name during play.
   @observable avatarId: number = 0;
   // Palette slot the player picked in the lobby (see AVATAR_COLORS)
   @observable avatarColor: number = 0;
+}
+
+// What the host learned about a player coming back, handed to
+// onPlayerReturned so a game can react to the interesting cases.
+export interface ReconnectInfo {
+  // The relay id they had before this reconnect.  Only useful for
+  // debugging now that playerId is stable - kept because it is the one
+  // piece of "what just happened" a game cannot recover otherwise.
+  previousConnectionId: string;
+  // True if they were actually shown as disconnected, rather than just
+  // re-sending a Join over a live connection.
+  wasDisconnected: boolean;
+  // How they proved who they were.
+  matchedBy: "token" | "connection" | "name";
 }
 
 // -------------------------------------------------------------------
@@ -116,14 +163,33 @@ export abstract class ClusterfunPresenterModel<
     return false;
   }
 
-  // Hooks for a game that wants to do something about a player coming and
-  // going mid-match.  Both are no-ops by default.
+  // A player was booted by the host.  They are out of `players` and their
+  // seat is free.  Distinct from disconnecting, which keeps the seat.
   protected onPlayerExited(_player: PlayerType) {}
-  // `previousPlayerId` is what they were known by before this reconnect.  The
-  // relay issues a NEW id on every join, so anything a game keys by player id
-  // - a board, a target, a score row - has to be moved across, or the player
-  // comes back to a seat they can no longer reach.
-  protected onPlayerReturned(_player: PlayerType, _previousPlayerId: string) {}
+
+  // A player has gone quiet - phone asleep, tunnel, flat battery.  They KEEP
+  // their seat and all their state and are expected back, so the useful
+  // things to do here are cosmetic (grey them out) or continuity (hand their
+  // seat to a bot).  Do not delete their state.
+  protected onPlayerDisconnected(_player: PlayerType) {}
+
+  // -------------------------------------------------------------------
+  // onPlayerReturned - a player came back.
+  //
+  // ABSTRACT ON PURPOSE.  Reconnecting mid-game is the most common thing
+  // that happens to a party game, and a game that has not thought about it
+  // is a game that breaks in front of guests.  So every game has to say what
+  // it does here, even if the answer is "nothing" - a one-line body with a
+  // comment explaining why is a real answer, and it will not compile if
+  // somebody forgets.
+  //
+  // `playerId` is STABLE across reconnects, so there is no state to migrate:
+  // boards, pieces, scores and teams keyed by playerId are still theirs.
+  // The base class has already restored their connection and marked them
+  // connected before this runs.  Games mostly use this to hand a seat back
+  // from a bot, or to push fresh state at the returning phone.
+  // -------------------------------------------------------------------
+  protected abstract onPlayerReturned(player: PlayerType, info: ReconnectInfo): void;
 
   // General Game Settings
   minPlayers = 3;
@@ -132,6 +198,10 @@ export abstract class ClusterfunPresenterModel<
   allowedJoinStates: string[] = [PresenterGameState.Gathering];
 
   private _stateBeforePause: string = "";
+  // True when the base class paused the game itself because too many phones
+  // had dropped - as opposed to the host pausing it on purpose.  Only an
+  // automatic pause is automatically undone.
+  private _pausedWaitingForPlayers = false;
   private _fullyInitialized = false;
 
   // Analytics bookkeeping.  Both are plain serializable fields so a host that
@@ -205,10 +275,68 @@ export abstract class ClusterfunPresenterModel<
     });
     this.onTick.subscribe("PresenterState", () => this.manageState());
 
-    this.listenToEndpoint(JoinEndpoint, this.handleJoinMessage);
+    // Join is the one endpoint that must see the RAW relay connection id -
+    // it is what establishes the mapping everything else relies on.
+    this.listenToConnection(JoinEndpoint, this.handleJoinMessage);
     this.listenToEndpoint(QuitEndpoint, this.handlePlayerQuitMessage);
     this.listenToEndpoint(PingEndpoint, this.handlePing);
+
+    // A presenter that just restored from a checkpoint has not heard from
+    // anybody yet.  Give every seat a fresh grace period rather than
+    // declaring the whole room disconnected half a second after a refresh.
+    const now = Date.now();
+    for (const player of this.players) player.lastSeenMs = now;
+
     setTimeout(() => (this._fullyInitialized = true), 500);
+  }
+
+  // -------------------------------------------------------------------
+  // listenToEndpoint - as the base class, but the `sender` handed to a
+  // game's handler is the player's STABLE playerId, not the relay's
+  // connection id.
+  //
+  // This is the pivot that makes stable ids work without every game
+  // rewriting its handlers: `players.find(p => p.playerId === sender)`
+  // keeps meaning what it always meant, and keeps being right after a
+  // reconnect.  Receiving anything from a player also counts as hearing
+  // from them, which is what drives disconnect detection.
+  //
+  // A message from someone holding no seat passes through untranslated, so
+  // a game's lookup simply finds nobody - which is the safe answer.
+  // -------------------------------------------------------------------
+  protected listenToEndpoint<REQUEST, RESPONSE>(
+    endpoint: MessageEndpoint<REQUEST, RESPONSE>,
+    apiCallback: (sender: string, request: REQUEST) => RESPONSE | PromiseLike<RESPONSE>,
+  ) {
+    return super.listenToEndpoint(endpoint, (connectionId: string, request: REQUEST) => {
+      const player = this.playerByConnection(connectionId);
+      if (!player) return apiCallback(connectionId, request);
+      player.lastSeenMs = Date.now();
+      if (!player.isConnected) {
+        // Heard from them again without a Join - the socket outlived the
+        // gap.  Treat it as a return so games get their hook either way.
+        action(() => {
+          player.isConnected = true;
+        })();
+        this.onPlayerReturned(player, {
+          previousConnectionId: connectionId,
+          wasDisconnected: true,
+          matchedBy: "connection",
+        });
+      }
+      return apiCallback(player.playerId, request);
+    });
+  }
+
+  // -------------------------------------------------------------------
+  // listenToConnection - the untranslated form, for the handful of
+  // endpoints that deal in connections rather than players.
+  // -------------------------------------------------------------------
+  protected listenToConnection<REQUEST, RESPONSE>(
+    endpoint: MessageEndpoint<REQUEST, RESPONSE>,
+    apiCallback: (connectionId: string, request: REQUEST) => RESPONSE | PromiseLike<RESPONSE>,
+  ) {
+    return super.listenToEndpoint(endpoint, apiCallback);
   }
 
   // -------------------------------------------------------------------
@@ -222,90 +350,92 @@ export abstract class ClusterfunPresenterModel<
       avatarColor?: number;
       playerToken?: string;
     },
-  ): Promise<{ isRejoin: boolean; didJoin: boolean; joinError?: string }> => {
-    Logger.info(`Join message from ${sender}`);
-
-    // If a player has already joined, any additional Join messages should be idempotent.
-    // Do send an Ack in case it's needed, though.
-    let resendingPlayer = this.players.find((p) => p.playerId === sender) as unknown as PlayerType;
-    // ...or the same person back on a new connection, which the relay gives a
-    // new id.  Their token still names them, so move the seat to the new id.
-    if (!resendingPlayer && message.playerToken) {
-      const sameDevice = this.players.find(
-        (p) => p.playerToken && p.playerToken === message.playerToken,
-      ) as unknown as PlayerType;
-      if (sameDevice) {
-        const previousPlayerId = sameDevice.playerId;
-        action(() => {
-          sameDevice.playerId = sender;
-        })();
-        this.onPlayerReturned(sameDevice, previousPlayerId);
-        this.saveCheckpoint();
-        resendingPlayer = sameDevice;
-      }
-    }
-    if (resendingPlayer) {
-      Logger.debug(`Repeated join message: ${resendingPlayer.name}`);
-      return {
-        didJoin: true,
-        isRejoin: true,
-      };
-    }
+  ): Promise<{
+    isRejoin: boolean;
+    didJoin: boolean;
+    joinError?: string;
+    playerId?: string;
+  }> => {
+    Logger.info(`Join message from connection ${sender}`);
 
     // Finding a returning player, in order of how much we trust the evidence.
     //
-    // The private token comes first: a phone keeps it for itself, so it proves
-    // the device really is the one that held the seat.  The relay hands out a
-    // brand new playerId on every join, so after a genuine disconnect the id
-    // is useless - the token is what makes reconnecting work at all.
-    let matchedByName = false;
+    // The private token comes first: a phone keeps it for itself, so it
+    // proves the device really is the one that holds the seat.  Nobody is
+    // removed from `players` for going quiet, so a returning player is
+    // almost always found right here.
     const token = message.playerToken;
+    let matchedBy: ReconnectInfo["matchedBy"] = "token";
     let returningPlayer = (token
-      ? this._exitedPlayers.find((p) => p.playerToken === token)
+      ? this.findSeat((p) => p.playerToken === token)
       : undefined) as unknown as PlayerType;
 
-    // Then the player id, for a client that never really went away
+    // Then the live connection, for a client that never really went away and
+    // is just re-sending its Join.
     if (!returningPlayer) {
-      returningPlayer = this._exitedPlayers.find(
-        (p) => p.playerId === sender,
-      ) as unknown as PlayerType;
+      returningPlayer = this.findSeat((p) => p.connectionId === sender) as unknown as PlayerType;
+      if (returningPlayer) matchedBy = "connection";
     }
 
     // Name matching is the last resort, and only for a game that asks for it:
-    // names are public - they are on the big screen - so anyone could type one
-    // in and take a seat.  A device that presented a token is never matched
-    // this way, because a token that does not match means it is NOT them.
+    // names are public - they are on the big screen - so anyone could type
+    // one in and take a seat.  A device that presented a token is never
+    // matched this way, because a token that does not match means it is NOT
+    // them.
     if (!returningPlayer && this.allowRejoinOnNameOnly && !token) {
-      returningPlayer = this._exitedPlayers.find(
+      returningPlayer = this.findSeat(
         (p) => p.name === message.playerName,
       ) as unknown as PlayerType;
-      matchedByName = !!returningPlayer;
+      if (returningPlayer) matchedBy = "name";
     }
 
     if (returningPlayer) {
-      Logger.info(`Returning player: ${returningPlayer.name}`);
-      const previousPlayerId = returningPlayer.playerId;
-      // players is observable, so the reseating belongs in an action
+      const wasDisconnected = !returningPlayer.isConnected;
+      const previousConnectionId = returningPlayer.connectionId;
+      Logger.info(
+        `Returning player: ${returningPlayer.name} (matched by ${matchedBy},` +
+          ` was ${wasDisconnected ? "disconnected" : "connected"})`,
+      );
+
+      // Re-point the seat at the new connection.  playerId is deliberately
+      // NOT touched - that is the whole point of it being stable.
       action(() => {
-        returningPlayer.playerId = sender;
+        returningPlayer.connectionId = sender;
+        returningPlayer.isConnected = true;
+        returningPlayer.lastSeenMs = Date.now();
         if (message.playerToken) returningPlayer.playerToken = message.playerToken;
         if (message.avatarId !== undefined) returningPlayer.avatarId = message.avatarId;
         if (message.avatarColor !== undefined) returningPlayer.avatarColor = message.avatarColor;
-        const index = this._exitedPlayers.indexOf(returningPlayer);
-        this._exitedPlayers.splice(index, 1);
-        this.players.push(returningPlayer);
+        // A booted player who talks their way back in rejoins the room.
+        const exitedIndex = this._exitedPlayers.indexOf(returningPlayer);
+        if (exitedIndex >= 0) {
+          this._exitedPlayers.splice(exitedIndex, 1);
+          this.players.push(returningPlayer);
+        }
       })();
+
       this.telemetryLogger.logEvent("Presenter", "JoinRequest", "ApproveRejoin");
-      // A returning player is the lost-connection signal: this branch is only
-      // reached for somebody the host had already lost.  `matchedBy` says
-      // whether their device remembered its id or they had to be found by
-      // name, which is what a full device reboot looks like.
-      this.analytics.playerRejoined(this.players.length, matchedByName ? "name" : "id");
-      this.onPlayerReturned(returningPlayer, previousPlayerId);
+      // Only count it as a rejoin for analytics if they had actually been
+      // lost - a phone re-sending Join over a live socket is not a
+      // reconnection and should not look like one in the numbers.
+      if (wasDisconnected) {
+        this.analytics.playerRejoined(this.players.length, matchedBy === "name" ? "name" : "id");
+      }
+      this.onPlayerReturned(returningPlayer, {
+        previousConnectionId,
+        wasDisconnected,
+        matchedBy,
+      });
+      this.resumeIfEnoughPlayersReturned();
+      this.saveCheckpoint();
       this.invokeEvent(PresenterGameEvent.PlayerJoined, returningPlayer);
       return {
         didJoin: true,
         isRejoin: true,
+        // Tell them the seat's permanent name, which is NOT the connection
+        // they just arrived on.  Without this a reconnected phone would not
+        // recognise itself in anything the host broadcasts.
+        playerId: returningPlayer.playerId,
       };
     } else if (this.allowedJoinStates.find((s) => s === this.gameState) || this.allowsLateJoin()) {
       Logger.info(`New Player`);
@@ -320,8 +450,20 @@ export abstract class ClusterfunPresenterModel<
           this.analytics.joinDenied("name_taken");
           return { didJoin: false, isRejoin: false, joinError: `That name is taken` };
         } else {
+          // The seat's permanent name is the connection id it first arrived
+          // on.  From here it never changes, no matter how many times the
+          // phone reconnects - the token is what re-finds the seat.
+          //
+          // Deliberately NOT derived from playerToken: playerId travels in
+          // every roster to every phone, while the token is the private
+          // proof of who owns a seat.  Publishing a function of the token
+          // would hand every player what they need to claim somebody's seat.
           const entry = this.createFreshPlayerEntry(message.playerName, sender);
+          entry.playerId = sender;
           entry.playerToken = message.playerToken ?? "";
+          entry.connectionId = sender;
+          entry.isConnected = true;
+          entry.lastSeenMs = Date.now();
           entry.avatarId = message.avatarId ?? 0;
           entry.avatarColor = message.avatarColor ?? 0;
           this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve");
@@ -332,7 +474,7 @@ export abstract class ClusterfunPresenterModel<
           this.invokeEvent(PresenterGameEvent.PlayerJoined, entry);
           this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Approve new player");
           this.analytics.playerJoined(this.players.length);
-          return { didJoin: true, isRejoin: false };
+          return { didJoin: true, isRejoin: false, playerId: entry.playerId };
         }
       } else {
         this.telemetryLogger.logEvent("Presenter", "JoinRequest", "Deny (Full)");
@@ -355,29 +497,120 @@ export abstract class ClusterfunPresenterModel<
   };
 
   // -------------------------------------------------------------------
+  //  findSeat - look through everyone who holds a seat, connected or not,
+  //  plus anyone the host booted (so they can be let back in).
+  // -------------------------------------------------------------------
+  private findSeat(match: (p: PlayerType) => boolean): PlayerType | undefined {
+    return this.players.find(match) ?? this._exitedPlayers.find(match);
+  }
+
+  // -------------------------------------------------------------------
+  //  playerByConnection / playerById
+  // -------------------------------------------------------------------
+  protected playerByConnection(connectionId: string): PlayerType | undefined {
+    return this.players.find((p) => p.connectionId === connectionId) as unknown as PlayerType;
+  }
+  public playerById(playerId: string): PlayerType | undefined {
+    return this.players.find((p) => p.playerId === playerId) as unknown as PlayerType;
+  }
+
+  // Everyone we can actually reach right now.
+  public get connectedPlayers(): PlayerType[] {
+    return this.players.filter((p) => p.isConnected) as unknown as PlayerType[];
+  }
+
+  // -------------------------------------------------------------------
   //  handlePlayerQuitMessage
+  //
+  //  A Quit only reaches us when a client tears itself down cleanly, which
+  //  a phone going into a tunnel never does.  Rather than have two kinds of
+  //  "gone" that behave differently, both land in the same place: the seat
+  //  is HELD and the player shows as disconnected.  A host who actually
+  //  wants the seat back calls bootPlayer().
   // -------------------------------------------------------------------
   handlePlayerQuitMessage = (sender: string, message: any) => {
     if (this.gameState === GeneralGameState.Destroyed) return;
     Logger.info("received quit message from " + sender);
     this.telemetryLogger.logEvent("Presenter", "QuitRequest");
-    this.analytics.playerQuit(Math.max(0, this.players.length - 1));
-    const player = this.players.find((p) => p.playerId === sender);
+    const player = this.playerById(sender);
     if (player) {
-      this.players.remove(player);
-      this._exitedPlayers.push(player);
-      this.onPlayerExited(player as unknown as PlayerType);
-
-      if (
-        this.pauseWhenTooFewPlayers &&
-        this.players.length < this.minPlayers &&
-        this.gameState !== PresenterGameState.Gathering
-      ) {
-        this.pauseGame();
-      }
-      this.saveCheckpoint();
+      this.analytics.playerQuit(Math.max(0, this.players.length - 1));
+      this.markDisconnected(player);
     }
   };
+
+  // -------------------------------------------------------------------
+  //  markDisconnected - the player keeps their seat and every scrap of
+  //  their state.  They are expected back.
+  // -------------------------------------------------------------------
+  private markDisconnected(player: PlayerType) {
+    if (!player.isConnected) return;
+    Logger.info(`Player disconnected: ${player.name}`);
+    action(() => {
+      player.isConnected = false;
+    })();
+    this.onPlayerDisconnected(player);
+
+    if (
+      this.pauseWhenTooFewPlayers &&
+      this.connectedPlayers.length < this.minPlayers &&
+      this.gameState !== PresenterGameState.Gathering
+    ) {
+      // Remember that WE paused it, so we know we are allowed to un-pause it
+      // again.  A host who paused the game deliberately keeps it paused.
+      this._pausedWaitingForPlayers = true;
+      this.pauseGame();
+    }
+    this.saveCheckpoint();
+  }
+
+  // -------------------------------------------------------------------
+  //  resumeIfEnoughPlayersReturned - the other half of the rule above.
+  //  Without this a game that paused when somebody's phone slept stays
+  //  paused after they come back, and the room has no idea why.
+  // -------------------------------------------------------------------
+  private resumeIfEnoughPlayersReturned() {
+    if (!this._pausedWaitingForPlayers) return;
+    if (this.connectedPlayers.length < this.minPlayers) return;
+    this._pausedWaitingForPlayers = false;
+    if (this.gameState === GeneralGameState.Paused) this.resumeGame();
+  }
+
+  // -------------------------------------------------------------------
+  //  bootPlayer - the host removes somebody for good: a duplicate, a
+  //  gatecrasher, or a phone that is never coming back and is holding up
+  //  the game.  This is the ONLY way a seat is freed mid-game.
+  // -------------------------------------------------------------------
+  public bootPlayer(player: PlayerType) {
+    if (!this.players.find((p) => p.playerId === player.playerId)) return;
+    Logger.info(`Booting player: ${player.name}`);
+    action(() => {
+      this.players.remove(player);
+      this._exitedPlayers.push(player);
+    })();
+    // Tell them, if we can still reach them, so their phone stops trying.
+    if (player.isConnected) {
+      this.sendToPlayer(TerminateGameEndpoint, player, {});
+    }
+    this.onPlayerExited(player);
+    this.telemetryLogger.logEvent("Presenter", "BootPlayer");
+    this.analytics.playerQuit(this.players.length);
+    this.saveCheckpoint();
+  }
+
+  // -------------------------------------------------------------------
+  //  checkForDisconnectedPlayers - run off the tick.  Anyone we have not
+  //  heard from in DISCONNECT_TIMEOUT_MS has dropped.
+  // -------------------------------------------------------------------
+  private checkForDisconnectedPlayers() {
+    const now = Date.now();
+    for (const player of this.players) {
+      if (!player.isConnected || !player.lastSeenMs) continue;
+      if (now - player.lastSeenMs > DISCONNECT_TIMEOUT_MS) {
+        this.markDisconnected(player as unknown as PlayerType);
+      }
+    }
+  }
 
   // -------------------------------------------------------------------
   //  run a method to check for a state transition
@@ -387,6 +620,7 @@ export abstract class ClusterfunPresenterModel<
       0,
       Math.floor((this.timeOfStageEnd - this.gameTime_ms) / 1000),
     );
+    this.checkForDisconnectedPlayers();
     this.handleTick();
   }
 
@@ -398,10 +632,21 @@ export abstract class ClusterfunPresenterModel<
       this.players.clear();
     }
 
+    // A fresh entry wipes the game's per-player fields, which is the point -
+    // but identity and connection are not game state and must survive, or
+    // every phone in the room is a stranger the moment you play again.
     const players = this.players.slice(0);
     this.players.clear();
     players.forEach((player) => {
-      this.players.push(this.createFreshPlayerEntry(player.name, player.playerId));
+      const entry = this.createFreshPlayerEntry(player.name, player.playerId);
+      entry.playerId = player.playerId;
+      entry.playerToken = player.playerToken;
+      entry.connectionId = player.connectionId;
+      entry.isConnected = player.isConnected;
+      entry.lastSeenMs = player.lastSeenMs;
+      entry.avatarId = player.avatarId;
+      entry.avatarColor = player.avatarColor;
+      this.players.push(entry);
     });
     this.telemetryLogger.logEvent("Presenter", "PlayAgain");
 
@@ -471,7 +716,12 @@ export abstract class ClusterfunPresenterModel<
   //  pauseGame
   // -------------------------------------------------------------------
   pauseGame = () => {
-    this._stateBeforePause = this.gameState;
+    // Pausing an already-paused game must NOT record "Paused" as the state to
+    // go back to, or the game can never be resumed again.  This happens for
+    // real: a second player drops while the first is still away.
+    if (this.gameState !== GeneralGameState.Paused) {
+      this._stateBeforePause = this.gameState;
+    }
     this.gameState = GeneralGameState.Paused;
     this.requestEveryone(PauseGameEndpoint, (p, exited) => ({}));
     this.isPaused = true;
@@ -480,6 +730,9 @@ export abstract class ClusterfunPresenterModel<
   // -------------------------------------------------------------------
   //  handle a ping message from the player
   // -------------------------------------------------------------------
+  // The keepalive itself does nothing here: listenToEndpoint has already
+  // stamped lastSeenMs for whoever sent it, which is the whole point of the
+  // ping.  This just answers so the phone can measure the round trip.
   handlePing = (
     sender: string,
     message: { pingTime: number },
@@ -506,7 +759,7 @@ export abstract class ClusterfunPresenterModel<
           if (request) {
             const promise = this.session.request<REQUEST, RESPONSE>(
               endpoint,
-              player.playerId,
+              player.connectionId,
               request,
             );
             return promise;
@@ -516,7 +769,25 @@ export abstract class ClusterfunPresenterModel<
         }
       };
 
-    return Promise.all(this.players.map(sendToPlayer(false)));
+    // Only ask people we can actually reach.  A disconnected player would
+    // never answer, and this is awaited - one sleeping phone would other-
+    // wise hang the whole round.  They re-sync when they come back.
+    return Promise.all(this.connectedPlayers.map(sendToPlayer(false)));
+  }
+
+  // -------------------------------------------------------------------
+  //  sendToPlayer - fire-and-forget to one player.  Silently does nothing
+  //  if they are not currently reachable; they will pull fresh state when
+  //  they return, which is what requestGameStateFromPresenter is for.
+  // -------------------------------------------------------------------
+  sendToPlayer<MESSAGE>(
+    endpoint: MessageEndpoint<MESSAGE, void>,
+    player: PlayerType,
+    message: MESSAGE,
+  ): void {
+    if (!player.isConnected || !player.connectionId) return;
+    if (player.connectionId === this.session.personalId) return;
+    this.session.sendMessage(endpoint, player.connectionId, message);
   }
 
   // -------------------------------------------------------------------
@@ -532,14 +803,16 @@ export abstract class ClusterfunPresenterModel<
       (isExited: boolean) =>
       async (player: PlayerType): Promise<void> => {
         // Don't send to self
-        if (player.playerId !== this.session.personalId) {
+        if (player.connectionId !== this.session.personalId) {
           const request = generateRequest(player, isExited);
           if (request) {
-            this.session.sendMessage(endpoint, player.playerId, request);
+            this.session.sendMessage(endpoint, player.connectionId, request);
           }
         }
       };
 
-    this.players.forEach(sendToPlayer(false));
+    // Skip anyone we cannot reach - the message would go nowhere, and they
+    // rebuild their state on return anyway.
+    this.connectedPlayers.forEach(sendToPlayer(false));
   }
 }

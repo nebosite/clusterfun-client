@@ -46,7 +46,21 @@ it per tick, and exclude heavy fields via the type helper.
 
 **`sendToEveryone` / `requestEveryone` take `(player, isExited)`.** `player` is real and useful
 for per-recipient payloads. **`isExited` is always `false`** — both methods only ever iterate
-`this.players` (`ClusterfunPresenterModel.ts:519, 543`). Exited players are never messaged.
+connected players. Booted players are never messaged, and disconnected ones are skipped
+(they would not answer, and an awaited `requestEveryone` would hang on them). Use
+`sendToPlayer(endpoint, player, message)` to reach exactly one.
+
+**A player's `playerId` is permanent; `connectionId` is the relay address and moves on every
+reconnect.** Never key game state on `connectionId`. Presenter message handlers receive the
+**stable `playerId`** as `sender` — `listenToEndpoint` translates it — so
+`players.find(p => p.playerId === sender)` survives a reconnect. `listenToConnection` is the
+untranslated form and exists for `Join` alone. The full contract, including disconnect and
+boot semantics, is in [../../CLAUDE.md](../../CLAUDE.md) and pinned by
+`GameModel/PresenterReconnect.spec.ts`.
+
+**`BruteForceSerializer` preserves explicit `null`s** (and `parseData` returns early on them).
+It used to drop any property that normalized to null, which silently turned a stored `null`
+into `undefined` on restore — so `x !== null` took the wrong branch after every refresh.
 
 **Every inbound message is parsed once per registered listener.** `ClusterfunListener` and each
 in-flight `ClusterfunRequest` attach their own raw `"message"` handler and run a full

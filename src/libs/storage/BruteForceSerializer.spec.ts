@@ -131,4 +131,32 @@ describe("BruteForceSerializer", () => {
 
     expect(back.tags).toEqual(["A", "B"]);
   });
+
+  // A null is a value somebody chose, not a missing property.  This used to
+  // be dropped, so a field explicitly set to null came back as `undefined` -
+  // and code that tested `x !== null` then took the wrong branch.  In
+  // OneOhOne that turned every human piece into a bot one round after a
+  // presenter refresh and hung the game with no error anywhere.
+  it("brings an explicit null back as null, not undefined", () => {
+    class Nullable {
+      chosen: string | null = "something";
+    }
+    const helper: ITypeHelper = {
+      rootTypeName: "Nullable",
+      getTypeName: (o) => (o instanceof Nullable ? "Nullable" : undefined),
+      constructType: () => new Nullable(),
+      shouldStringify: () => true,
+      reconstitute: (_t, _p, o) => o,
+    };
+    const serializer = new BruteForceSerializer(helper);
+
+    const model = new Nullable();
+    model.chosen = null;
+    const back = serializer.parse<Nullable>(serializer.stringify(model));
+
+    expect(back.chosen).toBeNull();
+    // ...and specifically NOT the constructor default, which is what a
+    // dropped property silently leaves behind.
+    expect(back.chosen).not.toBe("something");
+  });
 });

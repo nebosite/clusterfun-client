@@ -68,7 +68,8 @@ class PieceCard extends React.Component<{
           {collecting
             ? piece.confirmed
               ? `Locked in: ${piece.guess} ✓`
-              : piece.guess !== null
+              : // eslint-disable-next-line eqeqeq
+                piece.guess != null
                 ? `Picked ${piece.guess} — confirm it!`
                 : "Pick a number:"
             : describeLastMove(piece.lastMove)}
@@ -79,7 +80,8 @@ class PieceCard extends React.Component<{
             className={classNames(styles.confirmButton, {
               [styles.confirmDone]: piece.confirmed,
             })}
-            disabled={!pickable || piece.guess === null}
+            // eslint-disable-next-line eqeqeq
+            disabled={!pickable || piece.guess == null}
             onClick={() => appModel!.confirmGuess(piece.pieceId)}
           >
             {piece.confirmed ? "Confirmed ✓" : "Confirm"}

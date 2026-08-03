@@ -142,9 +142,15 @@ export class BruteForceSerializer {
       if (propertyName === "__proto__") continue;
       if (typeof value === "function") continue;
 
-      // Don't serialize if the value isn't there
+      // Don't serialize if the value isn't there.
+      //
+      // `normalize` returns null for BOTH a real null and an undefined, so
+      // test the original value too: an explicit null is a value somebody
+      // chose and has to come back as null.  Dropping it turned
+      // `attitude: null` (a human) into `undefined` on restore, which read
+      // as a bot and hung the game one round after every presenter refresh.
       const normalized = this.normalize(value, `${path}.${propertyName}`, lookup);
-      if (normalized !== null) output[propertyName] = normalized;
+      if (normalized !== null || value === null) output[propertyName] = normalized;
     }
     return output;
   }
@@ -157,6 +163,11 @@ export class BruteForceSerializer {
     const lookup = new Map<number, object>();
 
     const parseData = (node: any) => {
+      // A stored null is a value, not an object to rebuild.  `typeof null`
+      // is "object", so without this it falls through to the reference
+      // handling below and dies reading __i off it.
+      if (node === null) return null;
+
       // Quick return on simple types
       switch (typeof node) {
         case "string":

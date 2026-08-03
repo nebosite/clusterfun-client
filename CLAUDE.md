@@ -138,33 +138,60 @@ Pause/Resume/Terminate).
 
 ### The lifecycle contract (read before writing any presenter)
 
-Four things happen to every game in the wild. Each has broken at least one game already, and
-none of them are covered by a framework test — so the rule lives here.
+Four things happen to every game in the wild. The rules below are enforced by the base class
+and pinned by `libs/GameModel/PresenterReconnect.spec.ts` — read that spec if anything here
+is ambiguous.
 
-### 1. A player reconnects → **their `playerId` CHANGES**
+### 1. A player's id is PERMANENT; only the connection moves
 
-The relay issues a **new `personalId` on every join**. The base class re-seats the returning
-player (matching in order **playerToken → playerId → name**,
-`libs/GameModel/ClusterfunPresenterModel.ts:255-310`) and then calls:
+Three ids live on `ClusterFunPlayer`, and mixing them up is the classic mistake:
+
+| Field          | Lifetime                           | What it is for                                                  |
+| -------------- | ---------------------------------- | --------------------------------------------------------------- |
+| `playerId`     | **Permanent** for the game         | Keying game state: boards, pieces, photos, teams, scores.       |
+| `connectionId` | Changes on **every** reconnect     | Nothing, in game code — the base class does all the addressing. |
+| `playerToken`  | Permanent, **private** to a device | Proving a returning phone owns a seat. Never publish it.        |
+
+A returning player is matched **token → live connection → name** (name only when
+`allowRejoinOnNameOnly` and no token was offered — a name is public, it is on the big screen).
+Their `playerId` is never reassigned, so **nothing needs migrating**.
+
+> `playerId` is deliberately not derived from `playerToken`: the id travels in every roster to
+> every phone, while the token is the private proof of seat ownership.
+
+**`sender` in a presenter's handler IS the stable `playerId`.** The base class translates the
+relay's connection id before your handler sees it, which is why
+`players.find(p => p.playerId === sender)` keeps working across a reconnect. Use
+`listenToConnection` only if you truly need the raw connection — `Join` is the sole case.
+
+**On the client**, `ClusterfunClientModel.playerId` is the permanent id the host assigns and
+returns in the join ack — _not_ `session.personalId`. Compare against it when deciding whether
+a broadcast is about you.
+
+### 1b. `onPlayerReturned` is abstract — every game must answer
 
 ```ts
-protected onPlayerReturned(player: PlayerType, previousPlayerId: string) {}
+protected abstract onPlayerReturned(player: PlayerType, info: ReconnectInfo): void;
 ```
 
-**It is an empty no-op by default.** Any state you key by a playerId _string_ — piece
-ownership, photo authorship, team membership, a board index — is orphaned unless you override
-this and migrate it.
+It will not compile if you forget, which is the point: reconnecting should be a decision, not
+an oversight. Because ids are stable there is usually nothing to migrate, so an empty body
+**with a comment saying why** is a correct answer. Games that hand a seat back from a bot do
+it here — see `Eittris/models/PresenterModel.ts`. `onPlayerDisconnected(player)` is the
+optional other half.
 
-| Game         | Keys by playerId string?  | Migrates?                                             |
-| ------------ | ------------------------- | ----------------------------------------------------- |
-| Eittris      | yes                       | **yes** (`PresenterModel.ts:352`) — copy this         |
-| OneOhOne     | yes (`ownerId`)           | **no — live bug**, reconnected player has zero pieces |
-| PartyPix     | yes (`authorId`)          | **no — live bug**, credits mis-attribute              |
-| Lexible      | yes (team membership)     | **no**                                                |
-| RetroSpectro | compares live object refs | survives by luck, not design                          |
+### 1c. Dropping out never costs you your seat
 
-Prefer holding the player _object_ over its id where you can. If you must hold ids, override
-`onPlayerReturned` **and write a join → quit → rejoin spec** — nothing else will catch it.
+A player unheard-from for `DISCONNECT_TIMEOUT_MS` (30s — three missed pings) is marked
+`isConnected = false` and **stays in `players` with all their state**. A clean `Quit` does the
+same thing: the two are not distinguished, because a phone in a tunnel never sends one. Show
+them greyed out; delete nothing.
+
+- `sendToEveryone` / `requestEveryone` **skip disconnected players** — a sleeping phone would
+  otherwise hang an awaited round. Use `sendToPlayer(endpoint, player, msg)` for one player.
+- The **only** way a seat is freed mid-game is the host calling `bootPlayer(player)`.
+- If the game auto-paused because connected players fell below `minPlayers`, it **auto-resumes**
+  when enough return. A pause the host asked for is left alone.
 
 ### 2. "Play again" → the phones must reset too
 

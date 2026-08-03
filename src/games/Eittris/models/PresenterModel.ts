@@ -4,6 +4,7 @@ import {
   ISessionHelper,
   ClusterFunGameProps,
   ClusterfunPresenterModel,
+  ReconnectInfo,
   ITelemetryLogger,
   IStorage,
   ITypeHelper,
@@ -336,7 +337,9 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     return Date.now() - this._gameStartedAtMs <= LATE_JOIN_GRACE_MS;
   }
 
-  protected onPlayerExited(player: EittrisPlayer) {
+  // A dropped phone or a booted player both leave a live board with nobody driving it.
+  // A robot picks it up so the round carries on for everybody else.
+  private startRobotTakeover(player: EittrisPlayer) {
     const board = this.boards.find((b) => b.playerId === player.playerId);
     if (!board || !board.alive) return;
     // boards is a deep observable, so these belong in an action
@@ -349,25 +352,22 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
     this.saveCheckpoint();
   }
 
-  protected onPlayerReturned(player: EittrisPlayer, previousPlayerId: string) {
-    // Boards are keyed by player id, and a reconnect arrives on a brand new
-    // one - so the board has to be moved across, along with every other
-    // board's aim at it.  Without this the player rejoins to a seat they
-    // cannot reach: their commands find no board and nothing responds.
-    const board =
-      this.boards.find((b) => b.playerId === previousPlayerId) ??
-      this.boards.find((b) => b.playerId === player.playerId);
+  protected onPlayerExited(player: EittrisPlayer) {
+    this.startRobotTakeover(player);
+  }
+
+  protected onPlayerDisconnected(player: EittrisPlayer) {
+    this.startRobotTakeover(player);
+  }
+
+  protected onPlayerReturned(player: EittrisPlayer, _info: ReconnectInfo) {
+    // Player ids are stable, so the board is still theirs and everyone still aiming at
+    // them is still aiming at the right seat.  All that is left is taking the board back
+    // off the robot and handing it to the phone.
+    const board = this.boards.find((b) => b.playerId === player.playerId);
     if (!board) return;
 
     action(() => {
-      if (previousPlayerId !== player.playerId) {
-        board.playerId = player.playerId;
-        for (const other of this.boards) {
-          if (other.targetId === previousPlayerId) other.targetId = player.playerId;
-        }
-        this.dirtyPlayerIds.add(player.playerId);
-      }
-
       if (board.robotTakeover) {
         board.robotTakeover = false;
         // Back to whatever the player themselves had set, not simply "off"
@@ -375,7 +375,7 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
       }
     })();
     this.dirtyPlayerIds.add(board.playerId);
-    // Hand the board itself back.  From the moment they are a player again the host stops
+    // Hand the board itself back.  From the moment they are reachable again the host stops
     // simulating their board - so if the phone is not given one to run, nobody runs it and
     // the game sits frozen in front of them.
     this.handOverBoard(board);
@@ -548,11 +548,13 @@ export class EittrisPresenterModel extends ClusterfunPresenterModel<EittrisPlaye
   }
 
   // -------------------------------------------------------------------
-  // A board belongs to a phone if a real player is behind it.  Robots have nobody to
-  // run them, so the host does.
+  // A board belongs to a phone if a real player is behind it AND that phone is
+  // actually reachable.  Robots have nobody to run them, so the host does - and so is a
+  // player who has dropped: they keep their seat, but nothing is running their board
+  // until they are back, so the host has to pick it up or it freezes on the big screen.
   // -------------------------------------------------------------------
   private isOwnedByAPhone(board: EittrisBoard): boolean {
-    return this.players.some((p) => p.playerId === board.playerId);
+    return this.players.some((p) => p.playerId === board.playerId && p.isConnected);
   }
 
   // -------------------------------------------------------------------

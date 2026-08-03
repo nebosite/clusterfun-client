@@ -46,12 +46,11 @@ are driven from `handleTick`** (`:319-331`).
 
 ## Traps
 
-1. **Rejoin is broken — this is a live bug.** Pieces key on `ownerId = playerId`
-   (`PresenterModel.ts:258`), the relay issues a new playerId on reconnect, and this model
-   never overrides `onPlayerReturned`. The `p.ownerId === sender` filters (`:403`, `:442`)
-   then match nothing, so **a reconnected player has zero pieces and cannot play**.
-   `DESIGN.md:47-49` claims "rejoin mid-game is supported"; it is not. Fix by overriding
-   `onPlayerReturned` (copy `Eittris/models/PresenterModel.ts:352`).
+1. ~~**Rejoin is broken**~~ — **fixed.** Pieces key on `ownerId = playerId`, and player ids are
+   permanent now, so a reconnecting player comes back to their own pieces and the
+   `p.ownerId === sender` filters still match. Covered by `models/PresenterModel.spec.ts`
+   ("a reconnected player can still play"). `DESIGN.md:47-49` claims rejoin is supported —
+   it finally is.
 2. **`animationPathForMove` hardcodes a bust limit of 111** (`oneOhOneLogic.ts:153`) while the
    real edge is `winPosition + 10`. With a short target the animation runs off the track
    (`Presenter.tsx:41` `pct()` exceeds 100%).

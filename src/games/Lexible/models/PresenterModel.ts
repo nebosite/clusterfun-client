@@ -10,6 +10,7 @@ import {
   ClusterFunGameProps,
   Vector2,
   ClusterfunPresenterModel,
+  ReconnectInfo,
   ITelemetryLogger,
   IStorage,
   GeneralGameState,
@@ -399,6 +400,35 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     newPlayer.name = name;
 
     return newPlayer;
+  }
+
+  // -------------------------------------------------------------------
+  //  onPlayerReturned - their team and their tiles are still theirs.
+  //
+  //  Team membership is filtered by player id, and player ids are stable
+  //  across a reconnect, so a returning player comes back to the same team
+  //  with the same board.  The phone re-onboards on join and is sent the
+  //  whole grid, so there is nothing to push at it here.
+  // -------------------------------------------------------------------
+  protected onPlayerReturned(_player: LexiblePlayer, _info: ReconnectInfo) {}
+
+  // -------------------------------------------------------------------
+  //  onPlayerDisconnected - drop the letters they had part-selected.
+  //
+  //  A half-spelled word is the one bit of per-player state that lives on
+  //  the shared board rather than on the phone, so a dropped player would
+  //  otherwise leave letters glowing as theirs for the rest of the round
+  //  with nobody behind them.  Everything that matters - team, tiles,
+  //  score - is keyed by their stable id and stays exactly where it is.
+  // -------------------------------------------------------------------
+  protected onPlayerDisconnected(player: LexiblePlayer) {
+    action(() => {
+      this.theGrid.processBlocks((block) => {
+        if (block.isSelectedByPlayer(player.playerId)) {
+          block.selectForPlayer(player.playerId, false);
+        }
+      });
+    })();
   }
 
   // -------------------------------------------------------------------

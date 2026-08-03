@@ -232,7 +232,10 @@ export class OneOhOneClientModel extends ClusterfunClientModel {
   // -------------------------------------------------------------------
   async confirmGuess(pieceId: string): Promise<void> {
     const piece = this.myPieces.find((p) => p.pieceId === pieceId);
-    if (!piece || piece.confirmed || piece.guess === null) return;
+    // `== null` catches undefined too - see the note in PresenterModel's
+    // resolveCurrentRound about nulls lost in older checkpoints.
+    // eslint-disable-next-line eqeqeq
+    if (!piece || piece.confirmed || piece.guess == null) return;
 
     const response = await this.session.requestPresenter(OneOhOneSetGuessEndpoint, {
       pieceId,

@@ -93,8 +93,9 @@ rebuilt by `populateWordSet()` on every `reconstitute()`.
    size rather than erroring.
 8. `selectedMap` is a per-block array of playerIds and **nothing clears it on disconnect**, so
    stale highlights persist.
-9. **Team membership is keyed by `playerId`**, which changes on reconnect, and Lexible does not
-   override `onPlayerReturned` — see the lifecycle contract in
+9. **Team membership is keyed by `playerId`** — safe, because player ids are permanent across
+   a reconnect. `onPlayerDisconnected` clears the dropped player's half-selected letters so
+   they do not glow on the shared board with nobody behind them. See the lifecycle contract in
    [../../../CLAUDE.md](../../../CLAUDE.md).
 10. `Presenter.tsx:576` has hidden debug "Win: A" / "Win: B" buttons behind a debug click.
 

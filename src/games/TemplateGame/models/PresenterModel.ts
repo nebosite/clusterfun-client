@@ -5,6 +5,7 @@ import {
   ISessionHelper,
   ClusterFunGameProps,
   ClusterfunPresenterModel,
+  ReconnectInfo,
   ITelemetryLogger,
   IStorage,
   ITypeHelper,
@@ -167,6 +168,33 @@ export class TemplatePresenterModel extends ClusterfunPresenterModel<TemplatePla
 
     return newPlayer;
   }
+
+  // -------------------------------------------------------------------
+  //  onPlayerReturned - a phone that dropped is back.
+  //
+  //  Every game must write this one: the base class declares it abstract
+  //  precisely so that reconnecting - the most common thing that happens to
+  //  a party game - is something you decided rather than something you
+  //  forgot.  "Nothing to do, and here is why" is a perfectly good answer.
+  //
+  //  Player ids are STABLE across a reconnect, so anything this game keys by
+  //  playerId (scores, answers, a seat at the table) is still theirs and
+  //  needs no migration.  The base class has already put them back on the
+  //  new connection and marked them connected, and the phone pulls fresh
+  //  state itself via requestGameStateFromPresenter.  So for a simple
+  //  round-based game like this one, there is genuinely nothing left to do.
+  //
+  //  A game with more to hand back - a board being played by a bot, a turn
+  //  that was skipped - does it here.  See Eittris for a worked example.
+  // -------------------------------------------------------------------
+  protected onPlayerReturned(_player: TemplatePlayer, _info: ReconnectInfo) {}
+
+  // -------------------------------------------------------------------
+  //  onPlayerDisconnected - they keep their seat and all their state; they
+  //  are expected back.  Grey them out, or hand their turn to a bot if the
+  //  game cannot wait.  Do not delete anything.
+  // -------------------------------------------------------------------
+  protected onPlayerDisconnected(_player: TemplatePlayer) {}
 
   // -------------------------------------------------------------------
   //  prepareFreshRound - set up per-round state.  Called by the framework

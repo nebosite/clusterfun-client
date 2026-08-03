@@ -53,8 +53,22 @@ export abstract class ClusterfunClientModel extends BaseGameModel {
   get playerName() {
     return this._playerName;
   }
+  // The permanent name of our seat, handed to us by the host in the join
+  // ack.  Empty until that lands.
+  private _assignedPlayerId: string = "";
+
+  // Who we are as far as the GAME is concerned - stable across reconnects.
+  //
+  // Deliberately not `session.personalId`: that is the relay connection,
+  // and it is a different value every time this phone comes back.  Anything
+  // the host broadcasts about us - a roster entry, an attack target, a
+  // scoreboard row - is keyed by this, so comparing against the connection
+  // id would silently stop matching the moment we reconnect.
+  //
+  // Falls back to the connection id for the brief window before the ack
+  // arrives, and for a host talking to itself.
   get playerId() {
-    return this.session.personalId;
+    return this._assignedPlayerId || this.session.personalId;
   }
   @observable joinError: string | null = null;
   @observable roundNumber: number = 0;
@@ -144,7 +158,15 @@ export abstract class ClusterfunClientModel extends BaseGameModel {
   // -------------------------------------------------------------------
   // handleJoinAckMessage
   // -------------------------------------------------------------------
-  handleJoinAck = (message: { isRejoin: boolean; didJoin: boolean; joinError?: string }) => {
+  handleJoinAck = (message: {
+    isRejoin: boolean;
+    didJoin: boolean;
+    joinError?: string;
+    playerId?: string;
+  }) => {
+    // Take the seat name the host gave us before anything else looks at
+    // playerId - every "is this about me?" check downstream depends on it.
+    if (message.playerId) this._assignedPlayerId = message.playerId;
     // The host reports the authoritative join/rejoin counts; this is the same
     // moment seen from the phone, tagged entity=client.  Filter on entity when
     // reading the reports, or a two-player game looks like four joins.

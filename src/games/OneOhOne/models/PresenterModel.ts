@@ -11,6 +11,7 @@ import {
   ISessionHelper,
   ClusterFunGameProps,
   ClusterfunPresenterModel,
+  ReconnectInfo,
   ITelemetryLogger,
   IStorage,
   ITypeHelper,
@@ -217,6 +218,28 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
   }
 
   // -------------------------------------------------------------------
+  //  onPlayerReturned - their pieces are still theirs.
+  //
+  //  Pieces are owned by `ownerId`, which is the player's id, and player ids
+  //  are stable across a reconnect - so a returning player's pieces are
+  //  waiting for them and every `p.ownerId === sender` lookup still matches.
+  //  The phone re-onboards on join and pulls its pieces back, and
+  //  handleRoundStart re-onboards again if it ever finds itself with none.
+  //
+  //  (This used to be broken: ids changed on reconnect, the ownerId filters
+  //  matched nothing, and a player whose phone slept was left unable to move
+  //  anything for the rest of the game.)
+  // -------------------------------------------------------------------
+  protected onPlayerReturned(_player: OneOhOnePlayer, _info: ReconnectInfo) {}
+
+  // -------------------------------------------------------------------
+  //  onPlayerDisconnected - nothing to do.  Their pieces stay on the board
+  //  and keep their positions; an unconfirmed guess simply times out with
+  //  the round, exactly as it would for a player who is thinking too long.
+  // -------------------------------------------------------------------
+  protected onPlayerDisconnected(_player: OneOhOnePlayer) {}
+
+  // -------------------------------------------------------------------
   // Gathering-screen actions
   // -------------------------------------------------------------------
   addBot(attitude: BotAttitude) {
@@ -339,8 +362,15 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
 
     const rand = () => this.randomDouble(1.0);
     this.pieces.forEach((p) => {
-      if (p.guess === null) {
-        p.guess = p.attitude !== null ? botPickGuess(p.attitude, rand) : randomGuess(rand);
+      // `== null` on purpose, to catch undefined as well as null.  A human
+      // piece stores `attitude: null`, and a checkpoint written before the
+      // serializer learned to keep nulls brings it back as undefined - which
+      // read as "this is a bot" and threw inside botPickGuess, hanging the
+      // whole game one round after a presenter refresh.
+      // eslint-disable-next-line eqeqeq
+      if (p.guess == null) {
+        // eslint-disable-next-line eqeqeq
+        p.guess = p.attitude != null ? botPickGuess(p.attitude, rand) : randomGuess(rand);
       }
     });
 

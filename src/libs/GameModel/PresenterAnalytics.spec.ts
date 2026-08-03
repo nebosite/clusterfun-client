@@ -33,6 +33,7 @@ class TestPresenter extends ClusterfunPresenterModel<TestPlayer> {
   startNextRound(): void {}
   prepareFreshRound(): void {}
   prepareFreshGame(): void {}
+  protected onPlayerReturned(): void {}
 }
 
 function memoryStorage(): IStorage {

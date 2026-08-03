@@ -108,6 +108,12 @@ function makeModel() {
 
 function addPlayer(model: EittrisPresenterModel, id: string, name: string): EittrisPlayer {
   const p = model.createFreshPlayerEntry(name, id);
+  // A player who has really joined is reachable: playerId is their permanent
+  // name and connectionId is where the relay can find them right now.  They
+  // start out the same and only diverge when the phone reconnects.
+  p.connectionId = id;
+  p.isConnected = true;
+  p.lastSeenMs = Date.now();
   runInAction(() => model.players.push(p));
   return p;
 }
@@ -670,8 +676,15 @@ describe("EittrisPresenterModel - checkpoint serialization", () => {
     model.randomDouble = () => 0;
 
     runInAction(() => {
-      model.players.push(model.createFreshPlayerEntry("Alice", "A"));
-      model.players.push(model.createFreshPlayerEntry("Bob", "B"));
+      for (const [name, id] of [
+        ["Alice", "A"],
+        ["Bob", "B"],
+      ]) {
+        const p = model.createFreshPlayerEntry(name, id);
+        p.connectionId = id;
+        p.isConnected = true;
+        model.players.push(p);
+      }
     });
     model.startGame();
     model.gameTime_ms = 0;
@@ -1854,7 +1867,10 @@ describe("EittrisPresenterModel - reconnecting to your own seat", () => {
     expect(ack.didJoin).toBe(true);
     expect(ack.isRejoin).toBe(true);
     const player = model.players.find((p) => p.playerToken === "token-alice")!;
-    expect(player.playerId).toBe("A-new-id"); // the seat moved to the new socket
+    // The seat keeps its permanent name; only the socket underneath moved.
+    expect(player.playerId).toBe("A");
+    expect(player.connectionId).toBe("A-new-id");
+    expect(player.isConnected).toBe(true);
     expect(board.robotTakeover).toBe(false); // and they have it back
   });
 
@@ -1867,13 +1883,16 @@ describe("EittrisPresenterModel - reconnecting to your own seat", () => {
     const ack = await model.handleJoinMessage("imposter", joinAs(alice.name, "token-imposter"));
 
     expect(ack.isRejoin).toBe(false);
-    // Alice's seat is still hers, waiting for her
-    expect(model.players.some((p) => p.playerToken === "token-alice")).toBe(false);
+    // Alice's seat is still hers, held open on her own id, waiting for her
+    const seat = model.players.find((p) => p.playerToken === "token-alice")!;
+    expect(seat.playerId).toBe("A");
+    expect(seat.connectionId).not.toBe("imposter");
   });
 
-  it("moves the seat when the same device reconnects without ever quitting", async () => {
+  it("keeps one seat when the same device reconnects without ever quitting", async () => {
     // A phone that drops its socket and comes straight back: the presenter
-    // never saw a quit, so the player is still in `players` under the old id.
+    // never saw a quit, so the player is still sitting there under the old
+    // connection.  The token has to find that seat rather than make a new one.
     const { model } = startTwoPlayerGame();
     withToken(model, "A", "token-alice");
 
@@ -1882,7 +1901,8 @@ describe("EittrisPresenterModel - reconnecting to your own seat", () => {
     expect(ack.didJoin).toBe(true);
     const seats = model.players.filter((p) => p.playerToken === "token-alice");
     expect(seats.length).toBe(1); // one seat, not two
-    expect(seats[0].playerId).toBe("A-reconnected");
+    expect(seats[0].playerId).toBe("A"); // and it is the same seat
+    expect(seats[0].connectionId).toBe("A-reconnected");
   });
 
   it("still lets a tokenless client rejoin by name, for older clients", async () => {
@@ -1895,11 +1915,11 @@ describe("EittrisPresenterModel - reconnecting to your own seat", () => {
 });
 
 describe("EittrisPresenterModel - a reconnected player can actually play", () => {
-  it("brings the board across to the new connection id", async () => {
-    // The bug this guards: boards are keyed by player id, and a reconnect
-    // arrives on a NEW one.  Without moving the board, the player rejoins to
-    // a seat their commands cannot reach - the game looks joined and does
-    // nothing at all.
+  it("leaves the board exactly where it was", async () => {
+    // The bug this guards: boards are keyed by player id.  Player ids are
+    // stable across a reconnect precisely so that nothing has to be moved -
+    // the seat, the board and everyone's aim all stay valid.  If ids ever
+    // start changing again, this is the test that notices.
     const { model } = startTwoPlayerGame();
     const alice = model.players.find((p) => p.playerId === "A")!;
     alice.playerToken = "token-alice";
@@ -1912,18 +1932,19 @@ describe("EittrisPresenterModel - a reconnected player can actually play", () =>
       playerToken: "token-alice",
     });
 
-    // Same board, now answering to the new id
-    expect(model.boards.find((b) => b.playerId === "A-new")).toBe(board);
-    expect(model.boards.some((b) => b.playerId === "A")).toBe(false);
+    // Same board, still under the same permanent id
+    expect(model.boards.find((b) => b.playerId === "A")).toBe(board);
+    expect(model.boards.some((b) => b.playerId === "A-new")).toBe(false);
     expect(board.rows).toBe(rowsBefore); // their game carried on, not restarted
 
-    // ...and it takes their commands
+    // ...and it takes their commands.  Handlers see the STABLE id: the base
+    // class translates the relay's connection id before a game ever sees it.
     const before = board.piece!.x;
-    model.handleCommand("A-new", { command: "moveLeft" });
+    model.handleCommand("A", { command: "moveLeft" });
     expect(board.piece!.x).toBe(before - 1);
   });
 
-  it("re-aims everyone who was attacking them at the new id", async () => {
+  it("leaves everyone who was attacking them still aimed at them", async () => {
     const { model } = startTwoPlayerGame();
     const alice = model.players.find((p) => p.playerId === "A")!;
     alice.playerToken = "token-alice";
@@ -1936,8 +1957,8 @@ describe("EittrisPresenterModel - a reconnected player can actually play", () =>
       playerToken: "token-alice",
     });
 
-    // Otherwise Bob would be firing at a player id that no longer exists
-    expect(bobBoard.targetId).toBe("A-new");
+    // Nothing to re-aim: Alice is still "A", so Bob is still pointed at her
+    expect(bobBoard.targetId).toBe("A");
   });
 });
 
@@ -1963,7 +1984,11 @@ describe("EittrisPresenterModel - leaving and coming back", () => {
     tickTo(model, 500); // the robot plays a little
     sent.length = 0;
 
-    (model as any).onPlayerReturned(player, "A");
+    (model as any).onPlayerReturned(player, {
+      previousConnectionId: "A",
+      wasDisconnected: true,
+      matchedBy: "token",
+    });
 
     const handovers = sent.filter((m) => String(m.route).includes("start-playing"));
     expect(handovers.length).toBe(1);
@@ -1976,21 +2001,28 @@ describe("EittrisPresenterModel - leaving and coming back", () => {
     expect(board.robotTakeover).toBe(false);
   });
 
-  it("hands the board back to the NEW id when a reconnect brings one", () => {
-    // A reconnect arrives on a brand new player id; the board moves across to it, and the
-    // handover has to follow it there or it reaches nobody.
+  it("sends the handover to the NEW connection when a reconnect brings one", () => {
+    // The seat keeps its id, but the socket underneath it has changed - so the
+    // handover has to be addressed to the new connection or it reaches nobody.
     const { model, sent } = startTwoPlayerGame();
     const player = model.players.find((p) => p.playerId === "A")!;
-    (model as any).onPlayerExited(player);
+    (model as any).onPlayerDisconnected(player);
     sent.length = 0;
-    runInAction(() => (player.playerId = "A2"));
+    runInAction(() => {
+      player.connectionId = "A2";
+      player.isConnected = true;
+    });
 
-    (model as any).onPlayerReturned(player, "A");
+    (model as any).onPlayerReturned(player, {
+      previousConnectionId: "A",
+      wasDisconnected: true,
+      matchedBy: "token",
+    });
 
     const handovers = sent.filter((m) => String(m.route).includes("start-playing"));
     expect(handovers.length).toBe(1);
-    expect(handovers[0].receiverId).toBe("A2");
-    expect(handovers[0].message.board.playerId).toBe("A2");
+    expect(handovers[0].receiverId).toBe("A2"); // the new socket
+    expect(handovers[0].message.board.playerId).toBe("A"); // the same old seat
   });
 
   it("says nothing when nobody is playing yet", () => {
@@ -1998,7 +2030,11 @@ describe("EittrisPresenterModel - leaving and coming back", () => {
     addPlayer(model, "A", "Alice");
     sent.length = 0;
     const player = model.players.find((p) => p.playerId === "A")!;
-    (model as any).onPlayerReturned(player, "A");
+    (model as any).onPlayerReturned(player, {
+      previousConnectionId: "A",
+      wasDisconnected: true,
+      matchedBy: "token",
+    });
     expect(sent.filter((m) => String(m.route).includes("start-playing")).length).toBe(0);
   });
 });

@@ -4,6 +4,7 @@ import {
   ISessionHelper,
   ClusterFunGameProps,
   ClusterfunPresenterModel,
+  ReconnectInfo,
   ITelemetryLogger,
   IStorage,
   ITypeHelper,
@@ -339,6 +340,27 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
     p.name = name;
     return p;
   }
+
+  // -------------------------------------------------------------------
+  //  onPlayerReturned - their photos are still theirs.
+  //
+  //  `photo.authorId` is a player id, and player ids are stable across a
+  //  reconnect, so authorship, credits and the "you took this one" flag all
+  //  survive untouched.  The phone pulls its whole state back through the
+  //  Onboard request on join, so there is nothing to push at it here.
+  //
+  //  (This used to be broken: a reconnect handed out a new id, so a
+  //  returning player stopped being credited for their own photos and
+  //  `youAuthored` went false for pictures they had taken.)
+  // -------------------------------------------------------------------
+  protected onPlayerReturned(_player: PartyPixPlayer, _info: ReconnectInfo) {}
+
+  // -------------------------------------------------------------------
+  //  onPlayerDisconnected - nothing to do.  Their photos stay in the show
+  //  and keep earning them credits while they are away, which is what you
+  //  would want: the slideshow is the party, not the phone.
+  // -------------------------------------------------------------------
+  protected onPlayerDisconnected(_player: PartyPixPlayer) {}
 
   prepareFreshGame = () => {
     action(() => {

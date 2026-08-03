@@ -3,6 +3,7 @@ import {
   ClusterFunGameProps,
   ClusterFunPlayer,
   ClusterfunPresenterModel,
+  ReconnectInfo,
   GeneralGameState,
   ISessionHelper,
   ITypeHelper,
@@ -473,6 +474,23 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
 
     return newPlayer;
   }
+
+  // -------------------------------------------------------------------
+  //  onPlayerReturned - their ideas are still theirs.
+  //
+  //  Answers hold a reference to the player object rather than copying an
+  //  id, so they were never at risk from a reconnect; and player ids are
+  //  stable now in any case.  A returning phone re-onboards and is told the
+  //  current stage, which is all it renders.
+  // -------------------------------------------------------------------
+  protected onPlayerReturned(_player: RetroSpectroPlayer, _info: ReconnectInfo) {}
+
+  // -------------------------------------------------------------------
+  //  onPlayerDisconnected - nothing to do.  A retro is not a race: the
+  //  ideas they already submitted stay in the sort, and the facilitator can
+  //  add time or move on without them.
+  // -------------------------------------------------------------------
+  protected onPlayerDisconnected(_player: RetroSpectroPlayer) {}
 
   // -------------------------------------------------------------------
   //  resetGame
