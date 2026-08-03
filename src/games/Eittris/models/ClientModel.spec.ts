@@ -23,6 +23,8 @@ import {
   defaultSettings,
   emptyGrid,
   encodeGrid,
+  PIECE_COUNT,
+  pieceCells,
   makeBoard,
   SpecialType,
 } from "./eittrisLogic";
@@ -924,5 +926,69 @@ describe("EittrisClientModel - the stack coming down after a quake", () => {
     const snapshot = (model as any).snapshotOfOwnBoard(undefined);
     expect(typeof snapshot.quakeFall.drops).toBe("string");
     expect(decodeDrops(snapshot.quakeFall.drops)[(BOARD_HEIGHT - 1) * BOARD_WIDTH]).toBe(2);
+  });
+});
+
+describe("EittrisClientModel - dragging to the wall", () => {
+  // The phone had a clamp of its own, in front of the simulator's: it folded the requested
+  // column into 0..9 before the command was even built, so a piece whose box has to sit off
+  // the board to touch the left wall - a vertical I at -2 - could never be asked to.
+  function playing() {
+    const model = makeClient();
+    (model as any).handleStartPlaying({ settings: defaultSettings(), round: 1, targetId: null });
+    return model;
+  }
+
+  it("gets a vertical I to the left wall", () => {
+    const model = playing();
+    const board = (model as any).board;
+    board.piece = { type: 1, rot: 1, x: 3, y: 2 };
+
+    model.dragTo(-8, 2);
+
+    expect(pieceCells(board.piece).every((c) => c.x === 0)).toBe(true);
+  });
+
+  it("gets every rotation of every piece to the left wall", () => {
+    const model = playing();
+    const board = (model as any).board;
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      for (let rot = 0; rot < 4; rot++) {
+        board.piece = { type, rot, x: 4, y: 2 };
+        model.dragTo(-20, 2);
+        expect(Math.min(...pieceCells(board.piece).map((c) => c.x))).toBe(0);
+      }
+    }
+  });
+
+  it("gets every rotation of every piece to the right wall", () => {
+    const model = playing();
+    const board = (model as any).board;
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      for (let rot = 0; rot < 4; rot++) {
+        board.piece = { type, rot, x: 4, y: 2 };
+        model.dragTo(20, 2);
+        expect(Math.max(...pieceCells(board.piece).map((c) => c.x))).toBe(BOARD_WIDTH - 1);
+      }
+    }
+  });
+
+  it("never lets a block leave the grid", () => {
+    // The rule in one assertion: any position is fine as long as every block is on the board
+    const model = playing();
+    const board = (model as any).board;
+    for (let type = 0; type < PIECE_COUNT; type++) {
+      for (let rot = 0; rot < 4; rot++) {
+        for (const column of [-30, -3, 0, 5, 9, 30]) {
+          board.piece = { type, rot, x: 4, y: 2 };
+          model.dragTo(column, 2);
+          for (const c of pieceCells(board.piece)) {
+            expect(c.x).toBeGreaterThanOrEqual(0);
+            expect(c.x).toBeLessThan(BOARD_WIDTH);
+            expect(c.y).toBeLessThan(BOARD_HEIGHT);
+          }
+        }
+      }
+    }
   });
 });

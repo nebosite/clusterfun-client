@@ -752,12 +752,18 @@ export class EittrisClientModel extends ClusterfunClientModel {
     this.mirrorBoard();
   }
 
-  // Free 2D drag: aim the piece at a board cell (never up; presenter clamps)
+  // Free 2D drag: aim the piece at a board cell (never up).
+  //
+  // Sent unclamped on purpose.  A piece's x is the corner of its BOX, and a box often has
+  // to sit off the edge of the board for the piece inside it to touch the wall - a vertical
+  // I needs -2.  Clamping to 0..9 here is what stopped the red piece, the T and the L and S
+  // shapes reaching the left wall on their sides.  The simulator folds the request into
+  // whatever this particular piece can actually do; it is the only thing that knows.
   dragTo(column: number, row: number) {
     this.sendCommand({
       command: "dragTo",
-      column: Math.max(0, Math.min(BOARD_WIDTH - 1, Math.round(column))),
-      row: Math.max(0, Math.min(BOARD_HEIGHT - 1, Math.round(row))),
+      column: Math.round(column),
+      row: Math.round(row),
     });
   }
 
