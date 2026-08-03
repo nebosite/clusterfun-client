@@ -2,7 +2,7 @@
 
 A ClusterFun game (presenter + client on one shared module). Read [DESIGN.md](DESIGN.md) first for
 the product flow, economy, and visual spec; this file is how the code implements it. Built from the
-`TestGame` template (since renamed to `TemplateGame`).
+template now called `TemplateGame`.
 
 ## The loop
 
@@ -122,12 +122,26 @@ presenter's live tally re-renders. All model mutations run inside `action(() => 
 ## Running / testing
 
 - Dev Test Lobby: `npm start` → pick **PartyPix**. On desktop the camera input becomes a file
-  picker, so you can test the whole loop without a phone. PartyPix is registered in the **debug**
-  game list (`gamesListDebug.ts`), so it's dev-only until added to the server manifest + release list.
+  picker, so you can test the whole loop without a phone. **PartyPix ships** — it is in
+  `gamesListRelease.ts` and in the server manifest. (Note the manifest tags it `"alpha"` while
+  the client tags it with nothing, and the server's tags win in production.)
 - Tests: `npm test`. Pure rules in `partyPixLogic.spec.ts`; image fit in `imageUtil.spec.ts`.
 
 ## Known limitations (tracked, non-blocking for the MVP)
 
+- **Reconnect mis-attributes photos — live bug.** `photo.authorId` is a stored `playerId`
+  string (`PresenterModel.ts:53,456,598`), and the relay issues a **new playerId** on
+  reconnect. `PartyPixPresenterModel` does not override `onPlayerReturned`, so after a phone
+  sleeps and comes back the author's `youAuthored` goes false and their photos stop earning
+  them credit. See the lifecycle contract in [../../../CLAUDE.md](../../../CLAUDE.md); copy
+  `Eittris/models/PresenterModel.ts:352`.
+- **`photos` is unbounded.** Each `PartyPixPhoto` holds a ~133 KB base64 `full` plus a thumb,
+  `flaggedPhotos` retains removed ones, and nothing evicts. At `maxPlayers = 50`, an ordinary
+  hour (~150 photos) is ~20 MB of strings on the presenter plus decoded bitmaps. Correctly
+  excluded from the checkpoint, but not from memory.
+- **`SlidePush` is O(N²) on the wire.** A ~10 KB per-recipient thumb goes to every player on
+  every slide change, every 6 s. At 20 players that is ~200 KB per 6 s each way through the Pi,
+  sustained.
 - **Moderation state is session-only.** `flaggedPhotos`, `approved`, and `bannedHashes` are not
   persisted. With a disk folder connected, a **flagged photo can reappear in rotation after a
   presenter refresh**: `pullToFlagged` doesn't hide its file, so `loadPhotosFromDisk` reloads it into

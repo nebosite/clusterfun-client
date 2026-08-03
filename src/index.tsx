@@ -2,7 +2,7 @@ import Logger from "js-logger";
 import { createRoot } from "react-dom/client";
 import { GLOBALS } from "./Globals";
 import { getGameListPromise } from "GameChooser";
-import { GameDescriptor, GameManifestItem } from "games/lists/GameDescriptor";
+import { GameManifestItem, LobbyGame } from "games/lists/GameDescriptor";
 import { fetchPopularity, sortGamesByPopularity } from "games/lists/gamePopularity";
 import { GameInstanceProperties } from "libs/config/GameInstanceProperties";
 import { WebSocketMessageThing } from "libs/messaging/MessageThing";
@@ -106,11 +106,9 @@ if (quickTest) {
 
     const gameTestModel = new GameTestModel(4, getStorage("clusterfun_test"), factory);
 
-    const games: GameDescriptor[] = gameList.map((g) => {
-      const item = { ...g };
-      item.tags = [];
-      return item;
-    });
+    // No server manifest outside production, so nothing is badged and
+    // every game the build knows about is visible.
+    const games: LobbyGame[] = gameList.map((g) => ({ ...g, tags: [] }));
 
     root.render(<GameTestComponent gameTestModel={gameTestModel} games={games} />);
   })();
@@ -183,16 +181,17 @@ else {
           (g) => g.name.toLowerCase() === serverItem.name.toLowerCase(),
         );
         if (foundGame) {
-          const addMe = { ...foundGame };
+          // The manifest is the authority: it decides the label the lobby
+          // shows, and may override the client's display name.
+          const addMe: LobbyGame = { ...foundGame, tags: serverItem.tags };
           if (serverItem.displayName) addMe.displayName = serverItem.displayName;
-          addMe.tags = serverItem.tags;
           return addMe;
         } else {
           Logger.warn(`Server specified a game I don't know about: ${serverItem.name}`);
           return undefined;
         }
       })
-      .filter((i) => i !== undefined) as GameDescriptor[];
+      .filter((i) => i !== undefined) as LobbyGame[];
 
     root.render(
       <LobbyMainPage lobbyModel={lobbyModel} games={sortGamesByPopularity(gameList, popularity)} />,

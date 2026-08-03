@@ -35,11 +35,15 @@ src/
   games/
     lists/               The game REGISTRY (see below).
     TemplateGame/        The template game ("Template"). Copy this to start a new game.
-                         See its README.md (manual steps + how to prompt Claude) and
-                         CLAUDE.md (design-interview workflow for building a new game).
-    Lexible/             A real word game.
-    RetroSpectro/        A retrospective/sorting game.
-    stressgame/          "Stressato" — load/stress test game.
+                         See its README.md (manual steps) and CLAUDE.md (design-interview
+                         workflow). Debug-only.
+    Eittris/             Versus-tetris, 16 boards. BIGGEST game (~15k lines) and the arcade
+                         reference. Has CLAUDE.md — read it, it INVERTS the authority rule.
+    Lexible/             Two-team territory word game. The flagship. Has CLAUDE.md.
+    OneOhOne/            "101" — small round-based racing game. Has CLAUDE.md.
+    PartyPix/            Photo slideshow + voting. Camera/base64 reference. Has CLAUDE.md.
+    RetroSpectro/        A retrospective/sorting work tool. Has CLAUDE.md (mostly its skin).
+    stressgame/          "Stressato" — relay throughput load test. Debug-only.
   lobby/                 Real lobby: pick a game, start/join a room, host the running game.
   testLobby/             Serverless dev harness: presenter + 4 clients + virtual server on one page.
   libs/                  The framework all games build on (see below).
@@ -132,7 +136,56 @@ Pause/Resume/Terminate).
   component (from `libs`) wherever players appear — join lists, scoreboards, winner screens,
   and the phone's own header (client models expose `avatarId` too).
 
-### Save / restore (this is a headline feature)
+### The lifecycle contract (read before writing any presenter)
+
+Four things happen to every game in the wild. Each has broken at least one game already, and
+none of them are covered by a framework test — so the rule lives here.
+
+### 1. A player reconnects → **their `playerId` CHANGES**
+
+The relay issues a **new `personalId` on every join**. The base class re-seats the returning
+player (matching in order **playerToken → playerId → name**,
+`libs/GameModel/ClusterfunPresenterModel.ts:255-310`) and then calls:
+
+```ts
+protected onPlayerReturned(player: PlayerType, previousPlayerId: string) {}
+```
+
+**It is an empty no-op by default.** Any state you key by a playerId _string_ — piece
+ownership, photo authorship, team membership, a board index — is orphaned unless you override
+this and migrate it.
+
+| Game         | Keys by playerId string?  | Migrates?                                             |
+| ------------ | ------------------------- | ----------------------------------------------------- |
+| Eittris      | yes                       | **yes** (`PresenterModel.ts:352`) — copy this         |
+| OneOhOne     | yes (`ownerId`)           | **no — live bug**, reconnected player has zero pieces |
+| PartyPix     | yes (`authorId`)          | **no — live bug**, credits mis-attribute              |
+| Lexible      | yes (team membership)     | **no**                                                |
+| RetroSpectro | compares live object refs | survives by luck, not design                          |
+
+Prefer holding the player _object_ over its id where you can. If you must hold ids, override
+`onPlayerReturned` **and write a join → quit → rejoin spec** — nothing else will catch it.
+
+### 2. "Play again" → the phones must reset too
+
+Replay reuses the room and the player list. A presenter that resets its own state but doesn't
+re-onboard the clients leaves phones showing the previous game. Broadcast `InvalidateState`
+and let each client rebuild via `requestGameStateFromPresenter()`. Counters the client uses to
+detect a new round (Eittris's `currentRound`) **must keep incrementing across games**, not
+reset to zero — otherwise round 1 of game 2 looks like a stale repeat.
+
+### 3. Mid-game join
+
+`Gathering` is not the only state a player can arrive in. Decide explicitly what a late joiner
+gets (a seat, spectator, refused) and make `requestGameStateFromPresenter` return enough to
+render it.
+
+### 4. Refresh-resume
+
+Both roles checkpoint. See below — and note that a restored model's private timers may be
+_ahead_ of `gameTime_ms`, which every ticking game must guard against.
+
+## Save / restore (this is a headline feature)
 
 `BaseGameModel.saveCheckpoint()` serializes the whole model to `IStorage` (localStorage) via
 the game's `ITypeHelper`. On load, `instantiateGame` restores it unless the state was
@@ -148,16 +201,42 @@ types like `ClusterFunPlayer`.
 
 ## The game registry (`src/games/lists/`)
 
-- `GameDescriptor.ts` — the shape: `name`, `displayName?`, `tags`, `logoName`, `importThunk`
-  (returns the lazy game component).
-- `gamesListRelease.ts` — games shipped in production.
-- `gamesListDebug.ts` — release games **plus** debug-only games (Template, Stressato).
-- `GameChooser.tsx` picks debug vs release list based on `REACT_APP_SHOW_DEBUG_GAMES`, and
-  lazy-loads a game's component by name.
+- `GameDescriptor.ts` — three types, and the split matters:
+  - `GameDescriptor` — a **registry** entry: `name`, `displayName?`, `logoName`, `importThunk`.
+    **Carries no tags.**
+  - `GameManifestItem` — what the **server** serves: `name`, `displayName?`, `tags`.
+  - `LobbyGame` — a registry entry with the manifest folded in. What the lobby renders.
+- `gamesListRelease.ts` — games shipped in production: Eittris, OneOhOne, PartyPix, Lexible,
+  RetroSpectro.
+- `gamesListDebug.ts` — `releaseGames.concat(...)` **plus** Stressato and Template.
+- `gamePopularity.ts` — fetches `GET /api/game_popularity` and sorts descending by score, ties
+  broken by registry index. Any failure silently keeps registry order.
+- `GameChooser.tsx` picks debug vs release list based on `REACT_APP_SHOW_DEBUG_GAMES`.
 
-> In **production** the lobby intersects this registry with the server's hardcoded
-> `game_manifest` — a game must be in _both_ to appear. In dev/test lobby the manifest is
-> bypassed and the debug list is used directly.
+### Registering a game — five places, not one
+
+1. `src/games/<Name>/` — the folder. `views/GameComponent.tsx` is the default-export target;
+   `assets/Assets.ts` must export `images.logo`.
+2. `src/games/lists/gamesListDebug.ts` → add to `debugOnlyGames` while developing.
+3. `src/games/lists/gamesListRelease.ts` → move it here to ship (debug list picks it up).
+4. `src/lobby/LobbyPresentation.ts` → a `KNOWN[<name>]` card (category, blurb, players,
+   playTime, thumbKind). There are defaults, but every shipped game has one — without it the
+   lobby renders fallback art.
+5. `clusterfun-server/src/apis/ApiHandlers.ts` → `getGameManifest`, **with the tag you want**
+   (`alpha` / `beta` / `debug`, or none for a full release). **Requires a server deploy.**
+   Without this the game does not appear in production at all.
+
+> ### The server manifest is the sole authority on tags
+>
+> The client registry deliberately **has no tags**. `index.tsx` builds the production list from
+> the manifest, matches case-insensitively by name, and takes the manifest's `tags` (and its
+> `displayName`, when set). Outside production there is no manifest, so tags are empty and
+> every game the build knows about is visible.
+>
+> So **badging a game is a server-side edit and a server deploy** — you cannot promote a game
+> from alpha to release by changing the client. The lobby renders a badge for `beta`, `alpha`
+> and `debug`, and hides any game whose tags don't intersect `showTags` (default `production`,
+> `beta`, `alpha` — so a `debug`-tagged game needs `?show=debug`).
 
 ## Lobby vs Test Lobby (`index.tsx` chooses)
 
@@ -174,7 +253,7 @@ The primary way to develop a game. `GameTestModel` builds **one presenter `Lobby
 client `LobbyModels`** on a single page, wired to a **virtual server**:
 
 - `serverCall(url, payload)` is a local function that fakes `/api/startgame`, `/api/joingame`,
-  `/api/terminategame`, `/api/am_i_healthy` — no HTTP.
+  `/api/terminategame`, `/api/am_i_healthy` and `/api/health_data` — no HTTP.
 - Transport is `LocalMessageThing` (in `libs/messaging/MessageThing.ts`), which routes
   messages through an in-memory `Map` of room inhabitants with simulated latency, instead of
   a WebSocket.
@@ -369,6 +448,12 @@ to keep the presenter/client/serialization machinery from silently breaking as g
 
 ## `.d.ts` files in `src`
 
-Several `libs` components have committed `.d.ts` files alongside `.tsx`. These are build
-artifacts from the library-packaging webpack configs (`lib-webpack*.config.js`, driven by the
-`lib` npm entry). For normal app development you edit the `.ts/.tsx` sources.
+Nine `libs` files have committed `.d.ts` files alongside their `.ts/.tsx`. They are stale
+artifacts of an **abandoned** effort to publish `libs` as an npm package: the
+`lib-webpack*.config.js` files still exist but **no npm script runs them** (there is no `lib`
+entry in `package.json`), and `.env.lib` is orphaned. Always edit the `.ts/.tsx` source; the
+`.d.ts` can drift and silently win resolution.
+
+> **Exception — do not delete `libs/Media/sam-js.d.ts`.** It looks identical in kind but is
+> hand-written: an ambient `declare module "sam-js"` for an untyped package that Lexible's
+> presenter imports. Removing it breaks the build.

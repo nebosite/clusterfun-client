@@ -22,10 +22,11 @@ deploy, so the folder has to exist in a fresh clone — that is what `hosted_con
 is for. The music itself is large and is not source, so it stays out of git and travels with the
 deploy instead.
 
-> **Deploys carry the music.** Roughly 40MB of songs is 40MB in every deploy tarball. That is
-> the trade for having no second place to manage and no separate upload step. If deploys ever
-> get too slow, point `CLUSTERFUN_MUSIC_PATH` at a folder outside the deploy on the Pi and copy
-> music there by hand instead — nothing else changes.
+> **Deploys carry the music** — currently ~150MB of it. That is the trade for having no second
+> place to manage and no separate upload step, and rsync means an unchanged library costs
+> nothing after the first push. If it ever does get in the way, point `CLUSTERFUN_MUSIC_PATH`
+> at a folder outside the deploy on the Pi and copy music there by hand instead — nothing else
+> changes.
 
 Leave `REACT_APP_MUSIC_BASE_URL` **unset** for a build that should have no music. The code
 treats an unset base URL as "music is off": it never calls the network, logs nothing, and the

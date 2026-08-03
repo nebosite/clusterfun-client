@@ -4,7 +4,7 @@ import { GameTestModel } from "../models/GameTestModel";
 import { LobbyMainPage } from "../../lobby/views/LobbyMainPage";
 import { LobbyModel } from "../../lobby/models/LobbyModel";
 import styles from "./GameTestComponent.module.css";
-import { GameDescriptor } from "games/lists/GameDescriptor";
+import { LobbyGame } from "games/lists/GameDescriptor";
 import { action, makeAutoObservable } from "mobx";
 
 const HD_RATIO = 1080 / 1920;
@@ -56,7 +56,7 @@ class ClientComponent extends React.Component<
   {
     gameTestModel: GameTestModel;
     clientModel: LobbyModel;
-    games: GameDescriptor[];
+    games: LobbyGame[];
     clientNumber: number;
     sizeAdjust: number;
   },
@@ -127,7 +127,7 @@ class ClientComponent extends React.Component<
 
 export interface GameTestComponentProps {
   gameTestModel: GameTestModel;
-  games: GameDescriptor[];
+  games: LobbyGame[];
 }
 
 // -------------------------------------------------------------------

@@ -15,7 +15,7 @@ import {
   UINormalizer,
 } from "libs";
 import Logger from "js-logger";
-import { GameDescriptor } from "games/lists/GameDescriptor";
+import { LobbyGame } from "games/lists/GameDescriptor";
 import { PartyBurstLogo } from "./PartyBurstLogo";
 import { ScaleToWidth } from "./ScaleToWidth";
 import { GameThumbnail } from "./GameThumbnail";
@@ -25,7 +25,7 @@ import { CATEGORIES, TILE_PALETTE, presentationFor, GamePresentation } from "../
 const AVATAR_IDS = Array.from({ length: AVATAR_COUNT }, (_, i) => i);
 
 interface DecoratedGame {
-  game: GameDescriptor;
+  game: LobbyGame;
   pres: GamePresentation;
 }
 
@@ -82,7 +82,7 @@ function shuffled<T>(items: T[], seed: number): T[] {
 class PresenterComponent extends React.Component<
   {
     lobbyModel?: LobbyModel;
-    games: GameDescriptor[];
+    games: LobbyGame[];
   },
   { activeCategory: string }
 > {
@@ -91,7 +91,7 @@ class PresenterComponent extends React.Component<
   // the lobby but does not reshuffle under their finger every time the view re-renders.
   private readonly shuffleSeed = Math.floor(Math.random() * 0xffffffff);
 
-  constructor(props: { lobbyModel?: LobbyModel; games: GameDescriptor[] }) {
+  constructor(props: { lobbyModel?: LobbyModel; games: LobbyGame[] }) {
     super(props);
     this.state = { activeCategory: "All" };
     const showParam = this._urlParams.get("show");
@@ -603,7 +603,7 @@ class RoomCodeField extends React.Component<{ lobbyModel: LobbyModel }, { caret:
 interface LobbyComponentProps {
   lobbyModel?: LobbyModel;
   uiProperties: UIProperties;
-  games: GameDescriptor[];
+  games: LobbyGame[];
 }
 
 // -------------------------------------------------------------------

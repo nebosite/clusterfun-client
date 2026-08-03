@@ -6,10 +6,10 @@ import { LobbyComponent } from "../Components/LobbyComponent";
 import { getGameComponent } from "../../GameChooser";
 import { SafeBrowser } from "libs/Browser/SafeBrowser";
 import Logger from "js-logger";
-import { GameDescriptor } from "games/lists/GameDescriptor";
+import { LobbyGame } from "games/lists/GameDescriptor";
 
 export interface LobbyMainPageProps {
-  games: GameDescriptor[];
+  games: LobbyGame[];
   lobbyModel: LobbyModel;
   size?: () => { width: number; height: number };
   /**

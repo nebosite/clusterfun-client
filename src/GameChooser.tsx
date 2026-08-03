@@ -1,6 +1,6 @@
 import { ClusterFunGameProps } from "./libs";
 import React from "react";
-import { GameDescriptor, GameManifestItem } from "games/lists/GameDescriptor";
+import { GameDescriptor } from "games/lists/GameDescriptor";
 
 const gameListPromise: Promise<{ default: GameDescriptor[] }> = process.env
   .REACT_APP_SHOW_DEBUG_GAMES
@@ -17,7 +17,9 @@ export async function getGameListPromise(): Promise<GameDescriptor[]> {
 // -------------------------------------------------------------------
 // getGameComponent
 // -------------------------------------------------------------------
-export function getGameComponent(descriptor: GameManifestItem, config: ClusterFunGameProps) {
+// Looks the game up in the registry by name, so it accepts anything
+// named - a registry entry, a manifest item, or a merged LobbyGame.
+export function getGameComponent(descriptor: { name: string }, config: ClusterFunGameProps) {
   //Logger.debug(`Creating component for ${descriptor.name} ${config.gameProperties.role} ${config.gameProperties.personalId}`)
   if (!lazyTypeCache.has(descriptor.name)) {
     lazyTypeCache.set(
