@@ -1,6 +1,6 @@
 import logo from "./images/icon.png";
 import lightbulb from "./images/lightbulb.png";
-import ding from "./sounds/ding.wav";
+import ding from "./sounds/ding.m4a";
 import hello from "./sounds/hello.mp3";
 import response from "./sounds/response.mp3";
 

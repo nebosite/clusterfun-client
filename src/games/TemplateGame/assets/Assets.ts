@@ -1,11 +1,11 @@
 // Asset manifest.  Import every image/sound here and reference them through
 // this object so webpack bundles them and games never hard-code asset paths.
 import logo from "./images/Logo.png";
-import ding from "./sounds/ding.wav";
+import ding from "./sounds/ding.m4a";
 import hello from "./sounds/hello.mp3";
 import response from "./sounds/response.mp3";
-import score from "./sounds/score.wav";
-import winner from "./sounds/winner.wav";
+import score from "./sounds/score.m4a";
+import winner from "./sounds/winner.m4a";
 
 const TemplateAssets = {
   images: {

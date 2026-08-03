@@ -2,7 +2,7 @@ import logo from "./images/Lexible.png";
 import instructions1 from "./images/instructions1.png";
 import instructions2 from "./images/instructions2.png";
 import instructions3 from "./images/instructions3.png";
-import ding from "./sounds/ding.wav";
+import ding from "./sounds/ding.m4a";
 import hello from "./sounds/hello.mp3";
 import response from "./sounds/response.mp3";
 

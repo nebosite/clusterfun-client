@@ -322,7 +322,7 @@ export default class Presenter extends React.Component<{
         appModel!.secondsLeftInStage <= 10
       ) {
         timeAlertLoaded = false;
-        this.media.repeatSound("ding.wav", 5, 100);
+        this.media.repeatSound(TemplateAssets.sounds.ding, 5, 100);
       }
     });
 

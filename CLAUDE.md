@@ -314,8 +314,15 @@ npm install
 npm start          # .env.dev → development → Test Lobby at http://localhost:3000
 npm run startlocal # .env.local variant
 npm run build      # production build → build/  (served by the relay server / deploy)
+npm run analyze    # build with --stats, then open the bundle analyzer
 npm test           # react-scripts (Jest) test runner, single pass
 ```
+
+> `build` deliberately does **not** pass `--stats`: that wrote a 23MB `bundle-stats.json` into
+> every build, which the deploy then shipped to the Pi and served publicly. `analyze` (via
+> `build:stats`) produces it on demand instead. Source maps are still generated — the deploy
+> excludes them rather than the build skipping them, so a stack trace off a real phone can
+> still be symbolicated locally.
 
 Env files (CRA `REACT_APP_*`):
 
@@ -476,10 +483,9 @@ to keep the presenter/client/serialization machinery from silently breaking as g
 ## `.d.ts` files in `src`
 
 Nine `libs` files have committed `.d.ts` files alongside their `.ts/.tsx`. They are stale
-artifacts of an **abandoned** effort to publish `libs` as an npm package: the
-`lib-webpack*.config.js` files still exist but **no npm script runs them** (there is no `lib`
-entry in `package.json`), and `.env.lib` is orphaned. Always edit the `.ts/.tsx` source; the
-`.d.ts` can drift and silently win resolution.
+artifacts of an **abandoned** effort to publish `libs` as an npm package; the webpack configs,
+`.env.lib`, the `watch` script and the packaging dependencies that went with it have all been
+deleted. Always edit the `.ts/.tsx` source; the `.d.ts` can drift and silently win resolution.
 
 > **Exception — do not delete `libs/Media/sam-js.d.ts`.** It looks identical in kind but is
 > hand-written: an ambient `declare module "sam-js"` for an untyped package that Lexible's
