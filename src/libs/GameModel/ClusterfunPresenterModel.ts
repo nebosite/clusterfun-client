@@ -625,16 +625,20 @@ export abstract class ClusterfunPresenterModel<
   }
 
   // -------------------------------------------------------------------
-  //  playAgain - reset the player list and start the game over
+  //  resetPlayersForReplay - give every player a fresh game-state entry
+  //  while keeping who they are.
+  //
+  //  A fresh entry wipes the game's per-player fields, which is the whole
+  //  point of playing again.  But identity and connection are NOT game
+  //  state: drop those and every phone in the room becomes a stranger the
+  //  moment you replay - the host has no address to send to and no token to
+  //  recognise them by.
+  //
+  //  Protected because a game with its own playAgain must call this rather
+  //  than rebuild the list itself.  RetroSpectro did rebuild it itself, and
+  //  silently lost every token and connection on replay.
   // -------------------------------------------------------------------
-  playAgain(resetPlayerList: boolean) {
-    if (resetPlayerList) {
-      this.players.clear();
-    }
-
-    // A fresh entry wipes the game's per-player fields, which is the point -
-    // but identity and connection are not game state and must survive, or
-    // every phone in the room is a stranger the moment you play again.
+  protected resetPlayersForReplay() {
     const players = this.players.slice(0);
     this.players.clear();
     players.forEach((player) => {
@@ -648,6 +652,17 @@ export abstract class ClusterfunPresenterModel<
       entry.avatarColor = player.avatarColor;
       this.players.push(entry);
     });
+  }
+
+  // -------------------------------------------------------------------
+  //  playAgain - reset the player list and start the game over
+  // -------------------------------------------------------------------
+  playAgain(resetPlayerList: boolean) {
+    if (resetPlayerList) {
+      this.players.clear();
+    }
+
+    this.resetPlayersForReplay();
     this.telemetryLogger.logEvent("Presenter", "PlayAgain");
 
     this.prepareFreshGame();

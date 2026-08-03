@@ -440,13 +440,13 @@ export class RetroSpectroPresenterModel extends ClusterfunPresenterModel<RetroSp
   // -------------------------------------------------------------------
   //  playAgain
   // -------------------------------------------------------------------
+  // RetroSpectro replays straight into startGame rather than going back through
+  // prepareFreshGame, which is why it has its own playAgain.  The player list
+  // still has to be rebuilt by the base helper: doing it by hand here dropped
+  // every playerToken and connectionId, so after a replay the host had no
+  // address to send to and no way to recognise a returning phone.
   playAgain() {
-    const players = this.players.slice(0);
-    this.players.clear();
-
-    players.forEach((player) => {
-      this.players.push(this.createFreshPlayerEntry(player.name, player.playerId));
-    });
+    this.resetPlayersForReplay();
     this.telemetryLogger.logEvent("Presenter", "PlayAgain");
 
     this.startGame();

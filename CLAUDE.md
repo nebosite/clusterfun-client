@@ -486,6 +486,21 @@ to keep the presenter/client/serialization machinery from silently breaking as g
   and any new serializable types (a serializer round-trip test catches type-helper mistakes
   that would otherwise only surface as a broken save/restore mid-game).
 
+### The cross-game net (`libs/GameModel/AllGamesLifecycle.spec.ts`)
+
+Runs the lifecycle every game must survive — join → serializer round-trip → drop → rejoin →
+play again → shut down — against **every game's real presenter and real type helper**. It
+knows nothing about any game's rules.
+
+**Add your game to its `GAMES` list.** That is the whole maintenance burden, and it buys the
+serializer round-trip for free: a type helper that has forgotten a class is otherwise invisible
+until somebody refreshes mid-game and the party restarts. It found a live bug the first time it
+ran — RetroSpectro's own `playAgain` rebuilt the player list by hand and dropped every
+`playerToken` and `connectionId`, so after a replay the host had no address to send to.
+
+A game with its own `playAgain` must call `resetPlayersForReplay()` rather than rebuilding
+`players` itself.
+
 ## Conventions
 
 - **MobX everywhere.** Models use `@observable` + `makeObservable`/`makeAutoObservable`;
