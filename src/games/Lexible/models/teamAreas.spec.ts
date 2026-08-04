@@ -1,5 +1,5 @@
 import { LetterGridModel } from "./LetterGridModel";
-import { connectedToHome, goalX, homeCells, isHomeCell } from "./teamAreas";
+import { connectedToLeftEdge, goalX, homeCells, isHomeCell } from "./teamAreas";
 
 // The connected-region calculation is what the board's outline is drawn from, and the whole
 // point of that outline is to show a team where its chain is BROKEN.  A region that reports
@@ -18,15 +18,15 @@ function own(g: LetterGridModel, team: string, cells: [number, number][]) {
 
 const keys = (set: Set<string>) => Array.from(set).sort();
 
-describe("connectedToHome", () => {
+describe("connectedToLeftEdge", () => {
   it("finds nothing when the team owns nothing", () => {
-    expect(keys(connectedToHome(grid(5, 4), "A"))).toEqual([]);
+    expect(keys(connectedToLeftEdge(grid(5, 4), "A"))).toEqual([]);
   });
 
   it("includes a home square the team still holds", () => {
     const g = grid(5, 4);
     own(g, "A", [[0, 1]]); // A's home: column 0, odd rows
-    expect(keys(connectedToHome(g, "A"))).toEqual(["0,1"]);
+    expect(keys(connectedToLeftEdge(g, "A"))).toEqual(["0,1"]);
   });
 
   it("walks outwards through the team's own tiles", () => {
@@ -36,7 +36,7 @@ describe("connectedToHome", () => {
       [1, 1],
       [2, 1],
     ]);
-    expect(keys(connectedToHome(g, "A"))).toEqual(["0,1", "1,1", "2,1"]);
+    expect(keys(connectedToLeftEdge(g, "A"))).toEqual(["0,1", "1,1", "2,1"]);
   });
 
   it("leaves out an island that does not reach home", () => {
@@ -49,7 +49,7 @@ describe("connectedToHome", () => {
       [4, 1], // island - gap at x=2,3
       [5, 1],
     ]);
-    expect(keys(connectedToHome(g, "A"))).toEqual(["0,1", "1,1"]);
+    expect(keys(connectedToLeftEdge(g, "A"))).toEqual(["0,1", "1,1"]);
   });
 
   it("does not connect through a diagonal", () => {
@@ -60,7 +60,7 @@ describe("connectedToHome", () => {
       [0, 1],
       [1, 2],
     ]);
-    expect(keys(connectedToHome(g, "A"))).toEqual(["0,1"]);
+    expect(keys(connectedToLeftEdge(g, "A"))).toEqual(["0,1"]);
   });
 
   it("does not connect through an enemy tile", () => {
@@ -70,7 +70,7 @@ describe("connectedToHome", () => {
       [2, 1],
     ]);
     own(g, "B", [[1, 1]]);
-    expect(keys(connectedToHome(g, "A"))).toEqual(["0,1"]);
+    expect(keys(connectedToLeftEdge(g, "A"))).toEqual(["0,1"]);
   });
 
   it("drops the whole branch when the home square itself is captured", () => {
@@ -82,7 +82,7 @@ describe("connectedToHome", () => {
       [2, 1],
     ]);
     own(g, "B", [[0, 1]]); // A's home square, taken
-    expect(keys(connectedToHome(g, "A"))).toEqual([]);
+    expect(keys(connectedToLeftEdge(g, "A"))).toEqual([]);
   });
 
   it("keeps the two teams' regions separate", () => {
@@ -92,11 +92,31 @@ describe("connectedToHome", () => {
       [1, 1],
     ]);
     own(g, "B", [
+      [0, 0],
       [1, 0],
-      [2, 0],
     ]);
-    expect(keys(connectedToHome(g, "A"))).toEqual(["0,1", "1,1"]);
-    expect(keys(connectedToHome(g, "B"))).toEqual(["1,0", "2,0"]);
+    expect(keys(connectedToLeftEdge(g, "A"))).toEqual(["0,1", "1,1"]);
+    expect(keys(connectedToLeftEdge(g, "B"))).toEqual(["0,0", "1,0"]);
+  });
+
+  it("anchors on ANY owned square on the left edge, not just the seeded ones", () => {
+    // A's starting squares are odd rows, but if A captures an even row on the
+    // left edge it has genuinely reached the edge and the outline must say so.
+    const g = grid(5, 4);
+    own(g, "A", [
+      [0, 0], // an even row - not one of A's starting squares
+      [1, 0],
+    ]);
+    expect(keys(connectedToLeftEdge(g, "A"))).toEqual(["0,0", "1,0"]);
+  });
+
+  it("counts nothing when the team owns tiles but none touch the left edge", () => {
+    const g = grid(5, 4);
+    own(g, "A", [
+      [2, 1],
+      [3, 1],
+    ]);
+    expect(keys(connectedToLeftEdge(g, "A"))).toEqual([]);
   });
 
   it("can reach the goal column, which is what winning looks like", () => {
@@ -107,21 +127,31 @@ describe("connectedToHome", () => {
       [2, 1],
       [3, 1],
     ]);
-    const reached = connectedToHome(g, "A");
+    const reached = connectedToLeftEdge(g, "A");
     expect(reached.has(`${goalX(g)},1`)).toBe(true);
   });
 });
 
 describe("home cell geometry", () => {
-  it("gives both teams cells, on opposite row parities", () => {
+  it("puts both teams in column 0, on opposite row parities", () => {
     const g = grid(6, 6);
     for (const cell of homeCells(g, "A")) {
       expect(cell.x).toBe(0);
       expect(cell.y % 2).toBe(1);
     }
     for (const cell of homeCells(g, "B")) {
-      expect(cell.x).toBe(1);
+      expect(cell.x).toBe(0);
       expect(cell.y % 2).toBe(0);
+    }
+  });
+
+  it("interleaves them so every start has a neutral square to its right", () => {
+    const g = grid(6, 6);
+    for (const team of ["A", "B"]) {
+      for (const cell of homeCells(g, team)) {
+        expect(isHomeCell("A", cell.x + 1, cell.y)).toBe(false);
+        expect(isHomeCell("B", cell.x + 1, cell.y)).toBe(false);
+      }
     }
   });
 

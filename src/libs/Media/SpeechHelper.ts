@@ -85,9 +85,47 @@ async function defaultLoader(): Promise<KokoroLike> {
   const module: any = await import(/* webpackIgnore: true */ url);
   const KokoroTTS = module.KokoroTTS ?? module.default?.KokoroTTS;
   if (!KokoroTTS) throw new Error("kokoro-js did not export KokoroTTS");
-  return (await KokoroTTS.from_pretrained(KOKORO_MODEL_ID, {
+
+  // Pick the backend BEFORE loading, and only load once.
+  //
+  // Trying webgpu and falling back to wasm on failure does not work:
+  // onnxruntime-web caches its backend registration after the first
+  // from_pretrained in a page, so a second attempt inherits the failed webgpu
+  // backend and reports the webgpu error again.  A browser with no GPU adapter
+  // therefore got no speech at all - worse than never trying webgpu.
+  //
+  // Asking navigator.gpu for an adapter first is cheap and decides it cleanly.
+  const device = await pickSpeechDevice();
+  const started = performance.now();
+  const tts = (await KokoroTTS.from_pretrained(KOKORO_MODEL_ID, {
     dtype: KOKORO_DTYPE,
+    device,
   })) as KokoroLike;
+  Logger.info(`Speech model ready on ${device} in ${Math.round(performance.now() - started)}ms`);
+  if (device === "wasm") {
+    // Worth saying out loud: on wasm the ONNX call is one long synchronous
+    // block on the MAIN THREAD, so the presenter stops rendering for as long as
+    // a word takes to synthesise - measured at roughly two seconds per word.
+    Logger.warn(
+      "Speech is running on WASM (no GPU adapter). Synthesis blocks the presenter " +
+        "for a second or two per word; a machine with WebGPU is much smoother.",
+    );
+  }
+  return tts;
+}
+
+/** WebGPU if this browser really has an adapter, otherwise WASM. */
+export async function pickSpeechDevice(): Promise<"webgpu" | "wasm"> {
+  try {
+    const gpu = (navigator as any)?.gpu;
+    if (gpu?.requestAdapter) {
+      const adapter = await gpu.requestAdapter();
+      if (adapter) return "webgpu";
+    }
+  } catch {
+    // An adapter request that throws is simply a browser without WebGPU.
+  }
+  return "wasm";
 }
 
 export class SpeechHelper implements ISpeechHelper {
@@ -164,10 +202,15 @@ export class SpeechHelper implements ISpeechHelper {
 
     void (async () => {
       try {
+        // Timed because this is the entire perceived lag between a word being
+        // accepted and the room hearing it, and the number is the only way to
+        // tell a slow backend from a slow network.
+        const started = performance.now();
         const result = await this.tts!.generate(words, {
           voice: options.voice ?? DEFAULT_VOICE_A,
           speed: options.speed ?? 1,
         });
+        Logger.info(`Spoke "${words}" in ${Math.round(performance.now() - started)}ms`);
         const url = audioUrlFor(result);
         if (!url) {
           this.safeFallback(words);

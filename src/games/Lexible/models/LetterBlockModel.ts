@@ -40,9 +40,9 @@ export class LetterBlockModel {
   // its team's tiles?  A tile that is not is an island: it counts for nothing
   // towards crossing the board.  The presenter outlines the joined region so a
   // gap in the chain is obvious from across the room - see teamAreas.ts.
-  @observable private _connectedToHome = false;
-  get connectedToHome() {
-    return this._connectedToHome;
+  @observable private _connectedToLeftEdge = false;
+  get connectedToLeftEdge() {
+    return this._connectedToLeftEdge;
   }
 
   // Which SIDES of this tile face out of that region: bit 1 top, 2 right,
@@ -55,9 +55,9 @@ export class LetterBlockModel {
   }
 
   setHomeConnection(connected: boolean, edgeMask: number) {
-    if (this._connectedToHome === connected && this._homeEdgeMask === edgeMask) return;
+    if (this._connectedToLeftEdge === connected && this._homeEdgeMask === edgeMask) return;
     action(() => {
-      this._connectedToHome = connected;
+      this._connectedToLeftEdge = connected;
       this._homeEdgeMask = edgeMask;
     })();
   }

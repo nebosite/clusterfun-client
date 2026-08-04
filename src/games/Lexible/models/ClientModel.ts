@@ -227,6 +227,24 @@ export class LexibleClientModel extends ClusterfunClientModel {
   }
 
   // -------------------------------------------------------------------
+  //  canDragFrom - would starting a drag on this letter DO anything?
+  //
+  //  This is what decides spell-vs-scroll on touch-down, and it is not the
+  //  same question as canStartWordAt.  Once a word is in progress
+  //  canStartWordAt is true for every letter on the board, so using it here
+  //  meant that after one drag EVERY press was captured for spelling and the
+  //  board could not be scrolled again until the word was submitted.
+  //
+  //  A press only spells if it would actually extend or retract the word.
+  //  Anything else belongs to the scroller.
+  // -------------------------------------------------------------------
+  canDragFrom(block: LetterBlockModel): boolean {
+    const chain = this.letterChain.map((l) => l.coordinates);
+    const action = chainActionFor(chain, block.coordinates, this.canStartWordAt(block));
+    return action.kind !== "none";
+  }
+
+  // -------------------------------------------------------------------
   //  dragSelectTo - the finger has moved onto this letter mid-drag.
   //
   //  Adds it, or takes the last one off if the finger has retraced.  Doing

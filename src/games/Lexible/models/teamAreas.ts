@@ -9,22 +9,22 @@ import { LetterGridModel } from "./LetterGridModel";
 // at on a shared screen, the grids are not symmetric once letters are dealt, and whichever
 // side happened to get the friendlier letters won the orientation lottery.
 //
-// Now both teams start on the LEFT, interleaved, and both race to the RIGHT edge:
+// Now both teams start in the LEFT-HAND COLUMN, interleaved by row, and both race to the
+// RIGHT edge:
 //
-//     col 0   col 1
-//   y=0  .      B          A owns column 0 on ODD rows
-//   y=1  A      .          B owns column 1 on EVEN rows
-//   y=2  .      B
-//   y=3  A      .
+//     col 0
+//   y=0   B          A owns column 0 on ODD rows
+//   y=1   A          B owns column 0 on EVEN rows
+//   y=2   B
+//   y=3   A
 //
-// They interleave rather than collide: A's cells are odd-row, B's are even-row, so A can
-// always step right out of (0, odd) into a neutral (1, odd), and B out of (1, even) into a
-// neutral (2, even).  Neither team is walled in by the other at the start, and both face the
-// identical journey to the same goal - which is the whole point.
+// They interleave rather than collide: every starting square has a neutral square to its
+// right, so neither team is walled in, and both face the identical journey to the same goal -
+// which is the whole point.
 //
 // One definition, used by three things that must agree: the seeding in prepareFreshRound, the
-// win search in findHotPathInGrid, and the connected-region border on the presenter.  When
-// they disagreed in the past it showed up as a team that could not win a board it had already
+// win search in findHotPathInGrid, and the region outline on the presenter.  When they
+// disagreed in the past it showed up as a team that could not win a board it had already
 // crossed.
 // ==========================================================================================
 
@@ -33,8 +33,9 @@ export const TEAM_HOME_SCORE = 4;
 
 /** Is this square part of the given team's starting area? */
 export function isHomeCell(team: string, x: number, y: number): boolean {
-  if (team === "A") return x === 0 && y % 2 === 1;
-  if (team === "B") return x === 1 && y % 2 === 0;
+  if (x !== 0) return false;
+  if (team === "A") return y % 2 === 1;
+  if (team === "B") return y % 2 === 0;
   return false;
 }
 
@@ -43,7 +44,6 @@ export function homeCells(grid: LetterGridModel, team: string): Vector2[] {
   const cells: Vector2[] = [];
   for (let y = 0; y < grid.height; y++) {
     if (isHomeCell(team, 0, y)) cells.push(new Vector2(0, y));
-    if (isHomeCell(team, 1, y)) cells.push(new Vector2(1, y));
   }
   return cells;
 }
@@ -54,21 +54,25 @@ export function goalX(grid: LetterGridModel): number {
 }
 
 /**
- * The squares a team owns that are actually JOINED to its starting area, walking only through
- * its own squares, four-way.  Everything else the team owns is a detached island: it counts
- * for nothing towards winning, and the point of drawing it differently is that a gap in the
- * chain is otherwise very hard to spot on a big board from across the room.
+ * The squares a team owns that are actually JOINED to the LEFT EDGE, walking only through its
+ * own squares, four-way.  Everything else the team owns is a detached island: it counts for
+ * nothing towards crossing the board, and the point of drawing it differently is that a gap
+ * in the chain is otherwise very hard to spot on a big board from across the room.
+ *
+ * The anchor is any owned square in column 0 - not just the seeded starting squares.  A team
+ * that captures a fresh square on the left edge has genuinely reached the edge, and the
+ * outline should say so.
  *
  * Returned as a set of "x,y" keys - cheap to test per block while rendering.
  */
-export function connectedToHome(grid: LetterGridModel, team: string): Set<string> {
+export function connectedToLeftEdge(grid: LetterGridModel, team: string): Set<string> {
   const key = (x: number, y: number) => `${x},${y}`;
   const reached = new Set<string>();
   const queue: Vector2[] = [];
 
-  for (const cell of homeCells(grid, team)) {
+  for (let y = 0; y < grid.height; y++) {
+    const cell = new Vector2(0, y);
     const block = grid.getBlock(cell);
-    // A home square that has been captured is no longer a way in.
     if (!block || block.team !== team) continue;
     if (reached.has(key(cell.x, cell.y))) continue;
     reached.add(key(cell.x, cell.y));

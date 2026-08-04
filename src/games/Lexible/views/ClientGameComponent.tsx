@@ -69,8 +69,9 @@ export default class LexibleClientGameComponent extends React.Component<ClientGa
   // Drag-to-spell.
   //
   // Which it is - spelling or scrolling - is decided once, on touch-down, by
-  // the letter under the finger.  A letter you may start a word from spells;
-  // anything else falls through to the Slider and pans, exactly as before.
+  // whether the letter under the finger would actually change the word.  If it
+  // would, we spell; otherwise the event falls through to the Slider and pans,
+  // exactly as before.
   //
   // The decision has to be made here rather than on the tile, because it works
   // by NOT letting the event reach the Slider: Touchable listens for
@@ -78,15 +79,50 @@ export default class LexibleClientGameComponent extends React.Component<ClientGa
   // the way up is what keeps the board still while a word is being spelled.
   // -------------------------------------------------------------------
   private selectDragging = false;
+  /** Where the finger was last sampled, so the gap can be filled in. */
+  private lastDragPoint?: { x: number; y: number };
+  /** Measured from a real tile the first time one is resolved. */
+  private measuredTileSize = 0;
 
-  /** The tile under a screen point, via the data-cell attribute on each tile. */
-  private blockAtPoint(clientX: number, clientY: number): LetterBlockModel | undefined {
+  /**
+   * A letter only counts once the finger is near the MIDDLE of it.
+   *
+   * Tiles are squares that touch at the corners, so a diagonal drag clips the
+   * corner of the two tiles it passes between and picks up letters the player
+   * never aimed at.  Requiring the finger inside a circle covering the middle
+   * of the tile means a diagonal has to genuinely pass through a letter to
+   * take it.
+   */
+  private static readonly CENTRE_FRACTION = 0.38;
+
+  /**
+   * The tile under a screen point.
+   *
+   * `requireCentre` is off for the initial press - putting a finger anywhere
+   * on a letter should start a word - and on for every sample after it.
+   */
+  private blockAtPoint(
+    clientX: number,
+    clientY: number,
+    requireCentre: boolean,
+  ): LetterBlockModel | undefined {
     const { appModel } = this.props;
     if (!appModel) return undefined;
     const element = document.elementFromPoint(clientX, clientY);
     const cellHost = element?.closest("[data-cell]");
     const cell = cellHost?.getAttribute("data-cell");
-    if (!cell) return undefined;
+    if (!cell || !cellHost) return undefined;
+
+    const rect = cellHost.getBoundingClientRect();
+    if (rect.width > 0) this.measuredTileSize = rect.width;
+
+    if (requireCentre) {
+      const dx = clientX - (rect.left + rect.width / 2);
+      const dy = clientY - (rect.top + rect.height / 2);
+      const radius = Math.min(rect.width, rect.height) * LexibleClientGameComponent.CENTRE_FRACTION;
+      if (dx * dx + dy * dy > radius * radius) return undefined;
+    }
+
     const [x, y] = cell.split(",").map((n) => parseInt(n, 10));
     if (Number.isNaN(x) || Number.isNaN(y)) return undefined;
     return appModel.theGrid.getBlock(new Vector2(x, y)) ?? undefined;
@@ -105,13 +141,16 @@ export default class LexibleClientGameComponent extends React.Component<ClientGa
     if (!appModel) return;
     const point = this.pointOf(ev);
     if (!point) return;
-    const block = this.blockAtPoint(point.x, point.y);
-    // Not a letter, or not a letter this player may begin on: leave the event
-    // alone and let the board scroll.
-    if (!block || !appModel.canStartWordAt(block)) return;
+    const block = this.blockAtPoint(point.x, point.y, false);
+    // Not a letter, or a letter that would do nothing to the word in progress:
+    // leave the event alone and let the board scroll.  Deliberately NOT
+    // canStartWordAt - that is true everywhere once a word exists, which used
+    // to make the board unscrollable after the first drag.
+    if (!block || !appModel.canDragFrom(block)) return;
 
     ev.stopPropagation();
     this.selectDragging = true;
+    this.lastDragPoint = point;
     // The tile's own pointerup would toggle the letter straight back off again;
     // the existing click guard is exactly the right tool for that.
     this.canClick = false;
@@ -131,12 +170,35 @@ export default class LexibleClientGameComponent extends React.Component<ClientGa
     if (!source) return;
     // Stops the page itself from scrolling under the finger on a phone.
     if (ev.cancelable) ev.preventDefault();
-    const block = this.blockAtPoint(source.clientX, source.clientY);
-    if (block) appModel.dragSelectTo(block, this.props.playerId);
+
+    const to = { x: source.clientX, y: source.clientY };
+    const from = this.lastDragPoint ?? to;
+
+    // Walk the gap between this sample and the last one rather than only
+    // testing where the finger happens to be now.  Move events arrive maybe
+    // every 16ms, and a quick flick across the board covers two or three tiles
+    // in that time - sampling only the endpoints skips the letters in between
+    // and the word comes out with holes in it.
+    const step = Math.max(4, (this.measuredTileSize || 40) * 0.3);
+    const distance = Math.hypot(to.x - from.x, to.y - from.y);
+    const samples = Math.max(1, Math.ceil(distance / step));
+
+    for (let i = 1; i <= samples; i++) {
+      const t = i / samples;
+      const block = this.blockAtPoint(
+        from.x + (to.x - from.x) * t,
+        from.y + (to.y - from.y) * t,
+        true,
+      );
+      if (block) appModel.dragSelectTo(block, this.props.playerId);
+    }
+
+    this.lastDragPoint = to;
   };
 
   private handleSelectDragEnd = () => {
     this.selectDragging = false;
+    this.lastDragPoint = undefined;
     window.removeEventListener("mousemove", this.handleSelectDragMove);
     window.removeEventListener("touchmove", this.handleSelectDragMove);
     window.removeEventListener("mouseup", this.handleSelectDragEnd);

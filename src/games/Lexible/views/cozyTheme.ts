@@ -35,14 +35,20 @@ export function teamColor(team: string): string {
 // shift".  Every claimed tile used to be the flat team colour, which told you
 // who owned the board but nothing about where it was soft.
 //
-// Saturation carries it: a 3 is barely tinted, a 9 or more is the full team
-// colour, and everything between is interpolated. Only saturation moves -
-// hue stays so the team is never in doubt, and lightness stays so the white
-// letter on top keeps the same contrast at every strength.
+// The tile is a MIX OF WHITE AND THE TEAM COLOUR: a 3 is 20% team colour on
+// 80% white, a 9 or more is the full team colour, and everything between is
+// interpolated.  Mixing towards white rather than scaling HSL saturation is
+// deliberate - desaturating alone keeps the original lightness, so a weak
+// tile came out a muddy mid-grey that was hard to tell from a strong one at
+// a distance.  Against a cream board, "pale" reads instantly.
+//
+// The letter colour has to follow: white text on a nearly-white tile is
+// invisible, so weak tiles take the dark ink instead (see letterColorForScore).
 // -------------------------------------------------------------------
 export const MIN_STRENGTH_SCORE = 3;
 export const FULL_STRENGTH_SCORE = 9;
-export const MIN_SATURATION_SCALE = 0.2;
+/** How much team colour a minimum-strength tile shows. */
+export const MIN_TEAM_MIX = 0.2;
 
 /** 0..1: how far along the weak-to-strong ramp a score sits. */
 export function strengthFraction(score: number): number {
@@ -51,46 +57,39 @@ export function strengthFraction(score: number): number {
   return Math.max(0, Math.min(1, t));
 }
 
-/** The fraction of the team colour's saturation a tile at this score shows. */
-export function saturationScaleForScore(score: number): number {
-  return MIN_SATURATION_SCALE + strengthFraction(score) * (1 - MIN_SATURATION_SCALE);
+/** The proportion of team colour (vs white) a tile at this score shows. */
+export function teamMixForScore(score: number): number {
+  return MIN_TEAM_MIX + strengthFraction(score) * (1 - MIN_TEAM_MIX);
 }
 
-/** The team colour for a tile, faded towards grey as the tile gets weaker. */
+/** The team colour for a tile, mixed towards white as the tile gets weaker. */
 export function teamColorForScore(team: string, score: number): string {
   const base = teamColor(team);
   if (team !== "A" && team !== "B") return base;
-  return scaleSaturation(base, saturationScaleForScore(score));
+  return mixWithWhite(base, teamMixForScore(score));
 }
 
-// -------------------------------------------------------------------
-// scaleSaturation - hex in, hsl() out, with saturation multiplied.
-// -------------------------------------------------------------------
-export function scaleSaturation(hex: string, scale: number): string {
-  const { h, s, l } = hexToHsl(hex);
-  const scaled = Math.max(0, Math.min(1, s * scale));
-  return `hsl(${Math.round(h)}, ${(scaled * 100).toFixed(1)}%, ${(l * 100).toFixed(1)}%)`;
+/**
+ * The letter on top of that tile.  Below about half strength the tile is pale
+ * enough that white text disappears into it, so the dark ink takes over.
+ */
+export function letterColorForScore(score: number): string {
+  return teamMixForScore(score) >= 0.55 ? "rgba(255,255,255,0.97)" : COZY.ink;
 }
 
-export function hexToHsl(hex: string): { h: number; s: number; l: number } {
+/** `amount` of the colour, the rest white. 1 is the colour itself. */
+export function mixWithWhite(hex: string, amount: number): string {
+  const t = Math.max(0, Math.min(1, amount));
+  const { r, g, b } = hexToRgb(hex);
+  const mix = (channel: number) => Math.round(255 + (channel - 255) * t);
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+}
+
+export function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const clean = hex.replace("#", "");
-  const r = parseInt(clean.substring(0, 2), 16) / 255;
-  const g = parseInt(clean.substring(2, 4), 16) / 255;
-  const b = parseInt(clean.substring(4, 6), 16) / 255;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  const delta = max - min;
-
-  if (delta === 0) return { h: 0, s: 0, l };
-
-  const s = delta / (1 - Math.abs(2 * l - 1));
-  let h: number;
-  if (max === r) h = 60 * (((g - b) / delta) % 6);
-  else if (max === g) h = 60 * ((b - r) / delta + 2);
-  else h = 60 * ((r - g) / delta + 4);
-  if (h < 0) h += 360;
-
-  return { h, s, l };
+  return {
+    r: parseInt(clean.substring(0, 2), 16),
+    g: parseInt(clean.substring(2, 4), 16),
+    b: parseInt(clean.substring(4, 6), 16),
+  };
 }

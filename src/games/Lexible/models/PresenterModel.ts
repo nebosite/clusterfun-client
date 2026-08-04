@@ -4,7 +4,7 @@ import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
-import { TEAM_HOME_SCORE, connectedToHome, homeCells } from "./teamAreas";
+import { TEAM_HOME_SCORE, connectedToLeftEdge, homeCells } from "./teamAreas";
 import { DEFAULT_GRID_HEIGHT, gridWidthForHeight, sanitizeGridHeight } from "./gridLayout";
 import { findWordsFrom } from "./wordSearch";
 import {
@@ -48,6 +48,12 @@ import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicE
 
 const LEXIBLE_SETTINGS_KEY = "lexible_settings";
 const SEND_RECENT_LETTERS_INTERVAL_MS = 200;
+/**
+ * How long an accepted submission is remembered so a resend of it is ignored.  Comfortably
+ * longer than the endpoint's 2s retry interval, and short enough that a player who genuinely
+ * plays the same letters again later is not blocked.
+ */
+const SUBMISSION_MEMORY_MS = 15000;
 
 export enum LexiblePlayerStatus {
   Unknown = "Unknown",
@@ -329,8 +335,8 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
   // -------------------------------------------------------------------
   updateHomeConnections() {
     const connected: Record<string, Set<string>> = {
-      A: connectedToHome(this.theGrid, "A"),
-      B: connectedToHome(this.theGrid, "B"),
+      A: connectedToLeftEdge(this.theGrid, "A"),
+      B: connectedToLeftEdge(this.theGrid, "B"),
     };
     const isIn = (team: string, x: number, y: number) =>
       !!connected[team] && connected[team].has(`${x},${y}`);
@@ -793,12 +799,37 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     );
   };
 
+  // Submissions already answered, so a resend is not scored twice.  Keyed by
+  // player and the exact letters; see handleSubmitWordMessage.
+  private _recentSubmissions = new Map<
+    string,
+    { at: number; response: LexibleWordSubmissionResponse }
+  >();
+
   handleSubmitWordMessage = (
     sender: string,
     request: LexibleWordSubmissionRequest,
   ): LexibleWordSubmissionResponse => {
     const player = this.players.find((p) => p.playerId === sender);
     if (!player) throw Error("Unknown player attempted to submit a word");
+
+    // Answering the same submission twice claims the tiles twice and scores it
+    // twice.  That is not hypothetical: LexibleSubmitWordEndpoint retries after
+    // 2s, and speaking a word on the WASM backend blocks this thread for about
+    // as long - so the phone gives up waiting and resends while the presenter
+    // is still mid-synthesis.  Replay the original answer instead.
+    const key = `${sender}|${request.letters
+      .map((l) => `${l.coordinates.x},${l.coordinates.y}`)
+      .join("-")}`;
+    const now = Date.now();
+    for (const [seen, entry] of this._recentSubmissions) {
+      if (now - entry.at > SUBMISSION_MEMORY_MS) this._recentSubmissions.delete(seen);
+    }
+    const alreadyAnswered = this._recentSubmissions.get(key);
+    if (alreadyAnswered) {
+      Logger.info(`Ignoring a repeated submission from ${player.name}`);
+      return alreadyAnswered.response;
+    }
 
     let scoreTooLow = false;
     const word = request.letters
@@ -819,10 +850,12 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
 
     if (!scoreTooLow && this.wordSet.has(word.toUpperCase())) {
       this.placeSuccessfulWord(request, word, player);
-      return {
+      const response = {
         success: true,
         letters: request.letters,
       };
+      this._recentSubmissions.set(key, { at: now, response });
+      return response;
     } else {
       Logger.info(`Failed word '${word}' because ${scoreTooLow ? "Low score" : "Not found"}`);
       return {

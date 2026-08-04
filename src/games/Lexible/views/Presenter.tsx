@@ -526,7 +526,7 @@ export default class Presenter extends React.Component<{
     return (
       <div className={classNames(styles.divRow)}>
         <button className={classNames(styles.quitButton)} onClick={() => appModel.quitApp()}>
-          X
+          Quit
         </button>
         <div className={classNames(styles.roomCode)}>
           <div>Room Code:</div>

@@ -16,7 +16,7 @@ import {
 } from "libs";
 import LexibleClientGameComponent from "./ClientGameComponent";
 import { InstructionDemo } from "./InstructionDemo";
-import { COZY, teamColor } from "./cozyTheme";
+import { COZY, teamColor, mixWithWhite } from "./cozyTheme";
 
 interface InstructionsComponentProps {
   appModel?: LexibleClientModel;
@@ -189,10 +189,15 @@ export default class Client extends React.Component<{
       this.uiState.mouseScale = 0.5 / scale;
     };
 
-    // Keep the page cream so the tiles read well; the team color is used only
-    // as a slim accent (the top bar's top border + the team pill dot).
-    const pageBackground = COZY.bg;
+    // The whole phone wears the team's colour.  Which team you are on is the
+    // thing you most need to keep straight while playing - it decides which
+    // letters you may start from and which tiles are worth taking - and a slim
+    // accent stripe was easy to miss on a device you glance at.  The page is a
+    // pale wash of the colour rather than the colour itself, so the tiles and
+    // the text on top of it keep their contrast.
+    const onATeam = appModel.myTeam === "A" || appModel.myTeam === "B";
     const teamAccent = teamColor(appModel.myTeam ?? "");
+    const pageBackground = onATeam ? mixWithWhite(teamAccent, 0.22) : COZY.bg;
 
     return (
       <div style={{ background: pageBackground }}>
@@ -205,9 +210,17 @@ export default class Client extends React.Component<{
           <div className={styles.gameclient} style={{ background: pageBackground }}>
             <div
               className={classNames(styles.divRow, styles.topbar)}
-              style={{ borderTop: `8px solid ${teamAccent}` }}
+              style={
+                onATeam
+                  ? { background: teamAccent, color: "#fff", borderTop: `8px solid ${teamAccent}` }
+                  : { borderTop: `8px solid ${teamAccent}` }
+              }
             >
-              <span className={classNames(styles.gametitle)}>Lexible</span>
+              {/* The team, in the team's colour, at the top of the screen -
+                  the one fact a player needs to keep straight while playing. */}
+              <span className={classNames(styles.gametitle)}>
+                {onATeam ? `TEAM ${appModel.myTeam}` : "Lexible"}
+              </span>
               <span>{appModel.playerName}</span>
               <button className={classNames(styles.quitbutton)} onClick={() => appModel.quitApp()}>
                 X

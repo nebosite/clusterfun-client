@@ -17,7 +17,14 @@
 // ==========================================================================================
 
 export const PLAY_AREA_WIDTH = 1535;
-export const PLAY_AREA_HEIGHT = 980;
+
+/**
+ * Breathing room above and below the board.  The play column is 980 tall, but a board that
+ * runs edge to edge in it collides with the round badge and sits uncomfortably against the
+ * panel above, so the fillable area is inset by this much top and bottom.
+ */
+export const PLAY_AREA_VERTICAL_MARGIN = 50;
+export const PLAY_AREA_HEIGHT = 980 - PLAY_AREA_VERTICAL_MARGIN * 2;
 
 export const MIN_GRID_HEIGHT = 8;
 export const MAX_GRID_HEIGHT = 30;

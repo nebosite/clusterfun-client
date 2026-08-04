@@ -9,9 +9,9 @@ import { goalX, homeCells, isHomeCell } from "./teamAreas";
 // they ran at each other, which meant the two teams were never playing the same board - the
 // letters on your half were the letters you got.  See teamAreas.ts.
 //
-// These tests deliberately restate the geometry (A = column 0 on odd rows, B = column 1 on
-// even rows) rather than importing it as gospel, so that quietly changing the rule fails here
-// instead of silently changing the game.
+// These tests deliberately restate the geometry (both in column 0; A on odd rows, B on even)
+// rather than importing it as gospel, so that quietly changing the rule fails here instead of
+// silently changing the game.
 
 function generateUniformlyFilledGrid(
   width: number,
@@ -47,17 +47,17 @@ function generateFullyRandomGrid(width: number, height: number, nextRandom: () =
   return grid;
 }
 
-/** The column a team's starting squares sit in: A on the far left, B one in. */
-const startColumnFor = (team: string) => (team === "A" ? 0 : 1);
+/** Both teams start in the left-hand column now; only the row parity differs. */
+const START_COLUMN = 0;
 
 describe("Team starting areas", () => {
-  it("puts A in column 0 on odd rows and B in column 1 on even rows", () => {
+  it("puts both teams in column 0, A on odd rows and B on even rows", () => {
     expect(isHomeCell("A", 0, 1)).equals(true);
     expect(isHomeCell("A", 0, 0)).equals(false);
     expect(isHomeCell("A", 1, 1)).equals(false);
-    expect(isHomeCell("B", 1, 0)).equals(true);
-    expect(isHomeCell("B", 1, 1)).equals(false);
-    expect(isHomeCell("B", 0, 0)).equals(false);
+    expect(isHomeCell("B", 0, 0)).equals(true);
+    expect(isHomeCell("B", 0, 1)).equals(false);
+    expect(isHomeCell("B", 1, 0)).equals(false);
   });
 
   it("never gives the same square to both teams", () => {
@@ -70,8 +70,8 @@ describe("Team starting areas", () => {
   });
 
   it("leaves each team a neutral square to step into, so neither is walled in", () => {
-    // A at (0, odd) steps right into (1, odd), which is not B's - B holds even
-    // rows there.  B at (1, even) steps right into (2, even), which is nobody's.
+    // Both start in column 0, interleaved by row, so the square to the right of
+    // every starting square belongs to nobody.
     const grid = new LetterGridModel(6, 9);
     for (const cell of homeCells(grid, "A")) {
       expect(isHomeCell("B", cell.x + 1, cell.y)).equals(false);
@@ -116,9 +116,9 @@ describe("LetterGridPathFinder tests", () => {
         const team = testCase[0];
         const path = findHotPathInGrid(grid, team as "A" | "B");
 
-        // Straight across from the team's own starting column to the right edge.
-        // B starts one column in, so B's shortest crossing is one square shorter.
-        const expectedLength = GRID_WIDTH - startColumnFor(team);
+        // Straight across from the left-hand column to the right edge.  Both
+        // teams start in the same column, so both face the identical distance.
+        const expectedLength = GRID_WIDTH - START_COLUMN;
         expect(path.nodes.length).equals(expectedLength);
         for (const k of ["neutral", "ally", "enemy"]) {
           if (k === testCase[2]) {
@@ -134,7 +134,7 @@ describe("LetterGridPathFinder tests", () => {
       for (const team of ["A", "B"] as const) {
         const grid = generateUniformlyFilledGrid(GRID_WIDTH, GRID_HEIGHT, team, "4", Math.random);
         const path = findHotPathInGrid(grid, team);
-        expect(path.nodes[0].x).equals(startColumnFor(team));
+        expect(path.nodes[0].x).equals(START_COLUMN);
         expect(isHomeCell(team, path.nodes[0].x, path.nodes[0].y)).equals(true);
         expect(path.nodes[path.nodes.length - 1].x).equals(goalX(grid));
       }

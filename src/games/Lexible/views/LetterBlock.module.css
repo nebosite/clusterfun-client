@@ -60,7 +60,9 @@
   position: absolute;
   right: 0;
   bottom: 0;
-  transform: translate(22%, 22%);
+  /* Position comes from LetterBlock.tsx, which computes the corner overhang in
+     pixels from the tile size.  An inline transform replaces this one rather
+     than adding to it, so there must not be a competing offset here. */
   display: flex;
   justify-content: center;
   align-items: center;

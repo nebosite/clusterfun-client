@@ -1,4 +1,10 @@
-import { SpeechHelper, encodeWavBuffer, KokoroLike, RawAudioLike } from "./SpeechHelper";
+import {
+  SpeechHelper,
+  encodeWavBuffer,
+  pickSpeechDevice,
+  KokoroLike,
+  RawAudioLike,
+} from "./SpeechHelper";
 
 // ==========================================================================================
 // The speech system sits in front of a neural network that is tens of megabytes and may not
@@ -223,5 +229,39 @@ describe("encodeWav", () => {
     const view = new DataView(encodeWavBuffer(new Float32Array([1.5, -1.5]), 24000));
     expect(view.getInt16(44, true)).toBe(0x7fff);
     expect(view.getInt16(46, true)).toBe(-0x7fff);
+  });
+});
+
+describe("choosing a backend", () => {
+  const originalGpu = (navigator as any).gpu;
+  afterEach(() => {
+    (navigator as any).gpu = originalGpu;
+  });
+
+  it("uses wasm when the browser has no WebGPU at all", async () => {
+    (navigator as any).gpu = undefined;
+    expect(await pickSpeechDevice()).toBe("wasm");
+  });
+
+  it("uses wasm when WebGPU exists but has no adapter", async () => {
+    // Exactly the headless / no-GPU case.  Getting this wrong meant trying
+    // webgpu first, poisoning onnxruntime's backend registration, and leaving
+    // the machine with no speech at all rather than falling back.
+    (navigator as any).gpu = { requestAdapter: async () => null };
+    expect(await pickSpeechDevice()).toBe("wasm");
+  });
+
+  it("uses wasm when asking for an adapter throws", async () => {
+    (navigator as any).gpu = {
+      requestAdapter: async () => {
+        throw new Error("no gpu here");
+      },
+    };
+    expect(await pickSpeechDevice()).toBe("wasm");
+  });
+
+  it("uses webgpu when an adapter really is available", async () => {
+    (navigator as any).gpu = { requestAdapter: async () => ({ name: "fake adapter" }) };
+    expect(await pickSpeechDevice()).toBe("webgpu");
   });
 });

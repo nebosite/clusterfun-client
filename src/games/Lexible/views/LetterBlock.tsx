@@ -2,7 +2,7 @@ import { observer } from "mobx-react";
 import React from "react";
 import { LetterBlockModel } from "../models/LetterBlockModel";
 import styles from "./LetterBlock.module.css";
-import { COZY, teamColor, teamColorForScore } from "./cozyTheme";
+import { COZY, teamColor, teamColorForScore, letterColorForScore } from "./cozyTheme";
 
 export interface LetterBlockProps {
   context: LetterBlockModel;
@@ -63,11 +63,11 @@ export default class LetterBlock extends React.Component<LetterBlockProps> {
         "0 0 0 6px rgba(255,255,255,0.95), 0 0 0 12px #F4B740, 0 8px 16px rgba(0,0,0,0.22)";
       stateStyle = { transform: "scale(1.04)", zIndex: 5 };
     } else if (claimed) {
-      // Colour carries how hard the tile is to take: a 3 is barely tinted, a 9
-      // or more is the full team colour.  Only saturation moves, so the hue
-      // still names the team and the white letter keeps its contrast.
+      // Colour carries how hard the tile is to take: a 3 is 20% team colour on
+      // white, a 9 or more is the full team colour.  The letter follows the
+      // tile - white text vanishes on a nearly-white one.
       background = teamColorForScore(context.team, context.score);
-      letterColor = "rgba(255,255,255,0.97)";
+      letterColor = letterColorForScore(context.score);
       boxShadow = "inset 0 -5px 0 rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.12)";
     } else {
       background = COZY.tile;
@@ -82,19 +82,24 @@ export default class LetterBlock extends React.Component<LetterBlockProps> {
       ...stateStyle,
     };
 
-    // A team-coloured outline around the tiles that are actually JOINED to that
-    // team's starting area.  Only the outward-facing sides are drawn, so a
-    // connected blob gets one outline rather than a box per tile - and the
-    // break in it is exactly where the team is not getting across the board.
+    // A team-coloured outline around the whole set of tiles joined to the left
+    // edge - ONE shape around the region, not a box per tile.
+    //
+    // Two things make it read as a single outline.  Only the sides that FACE
+    // OUT of the region are drawn, so nothing is drawn between two members.
+    // And it goes on the OUTER div, which includes the gutter between tiles:
+    // drawn on the inner tile surface the segments are separated by that
+    // gutter, and a run of them looks like a row of boxes rather than a border.
     const edgeMask = context.homeEdgeMask;
-    if (context.connectedToHome && edgeMask) {
-      const line = `${Math.max(2, size * 0.08)}px solid ${teamColor(context.team)}`;
-      if (edgeMask & 1) innerStyle.borderTop = line;
-      if (edgeMask & 2) innerStyle.borderRight = line;
-      if (edgeMask & 4) innerStyle.borderBottom = line;
-      if (edgeMask & 8) innerStyle.borderLeft = line;
-      // Keep the tile the same size whichever sides gained a border.
-      innerStyle.boxSizing = "border-box";
+    const outlineStyle: React.CSSProperties = {};
+    if (context.connectedToLeftEdge && edgeMask) {
+      const line = `${Math.max(3, size * 0.09)}px solid ${teamColor(context.team)}`;
+      if (edgeMask & 1) outlineStyle.borderTop = line;
+      if (edgeMask & 2) outlineStyle.borderRight = line;
+      if (edgeMask & 4) outlineStyle.borderBottom = line;
+      if (edgeMask & 8) outlineStyle.borderLeft = line;
+      // Inside the tile's footprint, so adding it does not shift the grid.
+      outlineStyle.boxSizing = "border-box";
     }
 
     let fontSize = size * 0.7;
@@ -112,23 +117,25 @@ export default class LetterBlock extends React.Component<LetterBlockProps> {
 
     let badgeUI: JSX.Element | null = null;
     if (claimed && this.props.showBadge) {
-      // Two pixels smaller and two pixels further into the corner than it used
-      // to be: at these tile sizes the badge was sitting on top of the letter
-      // and the letter is the thing people are actually reading.
-      const badgeDim = size * 0.46 - 2;
+      // The letter is the thing people are reading; the badge is a footnote.
+      // So it is small and pushed well into the corner, hanging off the tile
+      // rather than sitting on it.
+      //
+      // The corner overhang is computed here in PIXELS rather than left to the
+      // stylesheet's percentage.  An inline transform overrides the class
+      // outright - it cannot add to it - so leaving the two to interact was how
+      // the badge previously ended up back on top of the letter.  One place
+      // owns the position, and it is this one.
+      const badgeDim = size * 0.368 - 2; // 20% smaller than it was
+      const overhang = badgeDim * 0.3 + 2;
       const badgeStyle: React.CSSProperties = {
         minWidth: `${badgeDim}px`,
         height: `${badgeDim}px`,
-        padding: `0 ${size * 0.08}px`,
-        fontSize: `${size * 0.32}px`,
+        padding: `0 ${size * 0.06}px`,
+        fontSize: `${size * 0.26}px`,
         fontFamily: "'Nunito', sans-serif",
         fontWeight: 800,
-        // ADDS to the stylesheet's corner offset rather than replacing it.  An
-        // inline transform overrides the class outright, so setting a bare
-        // translate(2px,2px) here silently cancelled the translate(22%,22%) in
-        // LetterBlock.module.css and dragged the badge back over the letter -
-        // the opposite of the intent.  Keep the two in step if either changes.
-        transform: "translate(calc(22% + 2px), calc(22% + 2px))",
+        transform: `translate(${overhang}px, ${overhang}px)`,
       };
       badgeUI = (
         <div className={styles.badge} style={badgeStyle}>
@@ -143,7 +150,7 @@ export default class LetterBlock extends React.Component<LetterBlockProps> {
     return (
       <div
         className={styles.letterBlock}
-        style={blockStyle}
+        style={{ ...blockStyle, ...outlineStyle }}
         key={context.__blockid}
         // Lets a drag work out which letter is under the finger with
         // elementFromPoint, rather than every tile needing its own listener.

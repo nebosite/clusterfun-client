@@ -70,18 +70,23 @@
   border-color: transparent;
 }
 
+/* Upper LEFT, and it says what it does.  A bare "X" in a corner is ambiguous
+   on a screen a room is watching - it reads as "close this box" as easily as
+   "end the game", and it is not a button anybody should press by accident. */
 .gamepresenter .quitButton {
   position: absolute;
-  font-size: 80%;
+  font-size: 70%;
   font-weight: 800;
   top: 10px;
-  right: 30px;
-  width: 60px;
-  height: 60px;
-  border-radius: 20px;
+  left: 30px;
+  padding: 0 22px;
+  height: 56px;
+  border-radius: 18px;
   background: rgba(0, 0, 0, 0.05);
   color: var(--sub);
   box-shadow: none;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .gamepresenter .debugtext {

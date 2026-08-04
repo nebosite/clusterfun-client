@@ -106,3 +106,44 @@ describe("chainActionFor", () => {
     expect(chainActionFor(chain, at(0, 1), true)).toEqual({ kind: "retract" });
   });
 });
+
+describe("spell or scroll - the decision made on touch-down", () => {
+  // canDragFrom on the client model is `chainActionFor(...).kind !== "none"`.
+  // The bug this pins: the decision used to be "could a word START here", which
+  // is true of EVERY letter once a word is in progress - so after one drag the
+  // board could not be scrolled again until the word was submitted.
+  const wouldSpell = (
+    chain: { x: number; y: number }[],
+    target: { x: number; y: number },
+    canStart: boolean,
+  ) => chainActionFor(chain, target, canStart).kind !== "none";
+
+  it("spells from a letter a word may start on", () => {
+    expect(wouldSpell([], at(0, 1), true)).toBe(true);
+  });
+
+  it("scrolls from a letter a word may not start on", () => {
+    expect(wouldSpell([], at(4, 4), false)).toBe(false);
+  });
+
+  it("scrolls from a far-away letter even while a word is in progress", () => {
+    // The regression: with a word going, every letter looked startable.
+    const chain = [at(1, 1), at(2, 1)];
+    expect(wouldSpell(chain, at(9, 9), true)).toBe(false);
+  });
+
+  it("still spells from a letter that continues the word", () => {
+    const chain = [at(1, 1), at(2, 1)];
+    expect(wouldSpell(chain, at(3, 1), true)).toBe(true);
+  });
+
+  it("still spells from the letter that retraces it", () => {
+    const chain = [at(1, 1), at(2, 1), at(3, 1)];
+    expect(wouldSpell(chain, at(2, 1), true)).toBe(true);
+  });
+
+  it("scrolls from a letter already used in the middle of the word", () => {
+    const chain = [at(1, 1), at(2, 1), at(3, 1)];
+    expect(wouldSpell(chain, at(1, 1), true)).toBe(false);
+  });
+});

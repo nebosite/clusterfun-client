@@ -4,8 +4,9 @@ Two-team territory word game on a shared letter grid. Players spell contiguous w
 dragging across letters on their phone; a valid word claims each tile **at that word's
 length**, and a tile can only be stolen by a **strictly longer** word.
 
-**Both teams start on the LEFT and both race to the RIGHT edge.** Team A owns column 0 on odd
-rows, team B column 1 on even rows — interleaved, so neither is walled in by the other. They
+**Both teams start in COLUMN 0 and both race to the RIGHT edge.** Team A owns the odd rows,
+team B the even rows — interleaved, so every starting square has a neutral one to its right
+and neither team is walled in. They
 used to own opposite edges and run at each other, which meant the two teams were never playing
 the same board. The one definition lives in `models/teamAreas.ts` and is read by three things
 that must agree: the seeding, the win search, and the board outline.
@@ -87,20 +88,28 @@ rebuilt by `populateWordSet()` on every `reconstitute()`.
    tile size (rows fill the play area's height) and the column count (columns fill its width).
    The old Small/Medium/Large setting is gone. The presenter's `.playColumn` CSS width and
    `PLAY_AREA_WIDTH` must stay in step.
-2. **A drag that starts on a letter you may begin a word from SPELLS; anything else SCROLLS.**
-   Decided once, on touch-down, in `ClientGameComponent.handleSelectDragStart`, and enforced by
-   not letting the event reach the Slider — `Touchable` listens on its own container, so
-   `stopPropagation` is what keeps the board still. Retracing the drag removes letters.
-3. **Tile colour encodes strength**, not just ownership: saturation ramps from 20% at score 3
-   to full at 9+ (`cozyTheme.teamColorForScore`). Only saturation moves, so hue still names the
-   team and the white letter keeps its contrast.
-4. **The team-coloured outline** marks tiles genuinely joined to that team's home, four-way,
-   through its own tiles. Only outward-facing edges are drawn, so a region gets one outline
-   rather than a box per tile. Recomputed by `updateHomeConnections()` whenever the board
-   changes — call it if you add another way to change tile ownership.
-5. **An inline `transform` on the badge overrides the stylesheet's corner offset.** The badge's
-   position comes from `translate(22%, 22%)` in `LetterBlock.module.css`; the inline nudge must
-   ADD to it (`calc(22% + 2px)`), not replace it. Replacing it drags the badge over the letter.
+2. **A drag SPELLS if the letter under the finger would change the word; otherwise it
+   SCROLLS.** Decided once, on touch-down, by `ClientModel.canDragFrom` — deliberately NOT
+   `canStartWordAt`, which is true of every letter once a word exists and made the board
+   unscrollable after the first drag. Enforced by not letting the event reach the Slider:
+   `Touchable` listens on its own container, so `stopPropagation` is what holds the board
+   still. A letter only registers when the finger is near its CENTRE (tiles touch at the
+   corners, so a diagonal drag otherwise grabs letters it merely clipped), and moves are
+   interpolated so a fast drag does not skip letters between samples.
+3. **Tile colour encodes strength**, not just ownership: a score of 3 is 20% team colour on
+   white, 9+ is the full colour (`cozyTheme.teamColorForScore`). It mixes towards WHITE rather
+   than desaturating — desaturating keeps the original lightness and a weak tile came out a
+   muddy grey. The letter follows (`letterColorForScore`): white text vanishes on a pale tile,
+   so weak tiles take the dark ink.
+4. **The team-coloured outline** marks tiles joined to the **left edge**, four-way, through
+   the team's own tiles — anchored on any owned square in column 0, not only the seeded ones.
+   Two things make it read as one shape rather than a box per tile: only outward-facing edges
+   are drawn, and the border goes on the tile's OUTER div so adjacent segments meet across the
+   gutter. Recomputed by `updateHomeConnections()` whenever the board changes.
+5. **The badge's position is computed in `LetterBlock.tsx`, in pixels, and nowhere else.** An
+   inline transform REPLACES a stylesheet one rather than adding to it, so having both was how
+   the badge kept ending up back on top of the letter. The stylesheet deliberately sets no
+   offset.
 6. **There is effectively no round timer.** `PLAYTIME_MS = 900000000` (~250 hours) and
    `handleTick` never checks `timeOfStageEnd`. "Timed game" is an unimplemented TODO — do not
    assume the stage-timer machinery is wired up here.
@@ -142,6 +151,14 @@ Now ~80 tests across five specs:
 and the `#` desync path, team assignment and switching, and the grid
 `serialize`/`deserialize` round-trip (the wire format).
 
+## Submissions are deduplicated
+
+`LexibleSubmitWordEndpoint` retries after 2s, and speaking a word on the WASM speech backend
+blocks the presenter for about as long — so a phone gives up waiting and resends mid-synthesis.
+The score survives that (a word cannot beat its own score), but everything else in
+`placeSuccessfulWord` runs again, and the room hears the word read out twice. The presenter
+remembers accepted submissions for 15s and replays the original answer.
+
 ## Speech
 
 `libs/Media/SpeechHelper.ts`, replacing SAM (a 1982 formant synth that was frequently
@@ -151,6 +168,15 @@ Kokoro-82M runs in the browser, but **neither the library nor the model is bundl
 `kokoro-js` pulls in transformers.js, which pulls in a 20.6MB ONNX WebAssembly binary, and
 bundling it took the deploy from 6MB to 29MB. Both are fetched from a CDN on first use and
 cached by the browser thereafter. `REACT_APP_KOKORO_URL` overrides the library URL.
+
+The backend is chosen by probing `navigator.gpu.requestAdapter()` **before** loading, not by
+trying WebGPU and falling back — onnxruntime caches its backend registration after the first
+`from_pretrained`, so a failed WebGPU attempt poisons the WASM retry and a machine without a
+GPU gets no speech at all.
+
+**On WASM, synthesis blocks the presenter's main thread for roughly two seconds per word**
+(measured: 1.8–2.9s, with zero frames rendered throughout). WebGPU keeps the main thread free.
+That freeze is what the submission dedupe above exists to survive.
 
 Three rules it is built on: it is lazy (nothing is fetched until something speaks), it never
 blocks (`speak()` returns immediately and plays the caller's fallback sound while the model is
