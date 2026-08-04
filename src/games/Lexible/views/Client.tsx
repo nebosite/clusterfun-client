@@ -57,25 +57,28 @@ class InstructionsComponent extends React.Component<InstructionsComponentProps> 
         <p>
           <b>How to play</b>
         </p>
+        {/* Rule on the LEFT, the board doing it on the RIGHT.  The caption is short
+            enough to live in a narrow column, which buys the animation the width it
+            needs to be watched rather than squinted at. */}
         <div className={styles.instructionsRow}>
-          <p>
-            1. Claim tiles by spelling a word with adjacent letters. Tiles you claim will get a
-            point value equal to the length of the word.
+          <p className={styles.instructionParagraph}>
+            1. Claim tiles by finding words, starting from your team's territory.
           </p>
-          <InstructionDemo step={1} size={64} />
+          <InstructionDemo step={1} size={66} />
         </div>
         <div className={styles.instructionsRow}>
-          <p>
-            2. You can claim the other team's tiles, but make sure your word is long enough! If the
-            word is not longer than a tile's score, it will not be claimed.
+          <p className={styles.instructionParagraph}>
+            2. Capture tiles if your word score is bigger than the letter score.
           </p>
-          <InstructionDemo step={2} size={64} />
+          <InstructionDemo step={2} size={66} />
         </div>
-        <p>
-          3. TO WIN: Build a bridge of tiles that connect your team's side to the other side of the
-          grid.{" "}
-        </p>
-        <InstructionDemo step={3} size={70} />
+        <div className={styles.instructionsRow}>
+          <p className={styles.instructionParagraph}>
+            3. To win, be the first team to build a bridge to the other side! Tiles connect only if
+            they share a side.
+          </p>
+          <InstructionDemo step={3} size={66} />
+        </div>
       </div>
     );
   }

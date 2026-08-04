@@ -3,7 +3,6 @@ import {
   MIN_STRENGTH_SCORE,
   MIN_TEAM_MIX,
   hexToRgb,
-  letterColorForScore,
   mixWithWhite,
   teamColorForScore,
   teamMixForScore,
@@ -72,15 +71,5 @@ describe("teamColorForScore", () => {
 
   it("leaves a neutral tile alone", () => {
     expect(teamColorForScore("_", 5)).toBe(teamColorForScore("_", 9));
-  });
-});
-
-describe("letterColorForScore", () => {
-  it("uses dark ink on a pale tile, where white would vanish", () => {
-    expect(letterColorForScore(MIN_STRENGTH_SCORE)).not.toContain("255,255,255");
-  });
-
-  it("uses white on a strong tile", () => {
-    expect(letterColorForScore(FULL_STRENGTH_SCORE)).toContain("255,255,255");
   });
 });

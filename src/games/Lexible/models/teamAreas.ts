@@ -23,9 +23,9 @@ import { LetterGridModel } from "./LetterGridModel";
 // which is the whole point.
 //
 // One definition, used by three things that must agree: the seeding in prepareFreshRound, the
-// win search in findHotPathInGrid, and the region outline on the presenter.  When they
-// disagreed in the past it showed up as a team that could not win a board it had already
-// crossed.
+// win check, and the region outline on the presenter.  They now share the SAME flood fill
+// rather than each deciding for itself - the outline a team can see is, exactly, the thing
+// that wins them the round when it touches the far side.
 // ==========================================================================================
 
 /** The score a home cell is seeded with - low enough that a decent word can take it. */
@@ -51,6 +51,64 @@ export function homeCells(grid: LetterGridModel, team: string): Vector2[] {
 /** The column both teams are trying to reach. */
 export function goalX(grid: LetterGridModel): number {
   return grid.width - 1;
+}
+
+/**
+ * Mark every block with whether it is joined to the left edge, and which of its sides face
+ * out of that region.  Only outward-facing edges get drawn, which is what makes the whole
+ * blob read as one outline instead of a box around each tile.
+ *
+ * Lives here, and is called by BOTH models, because the presenter and the phones drawing
+ * different borders from the same board would be a lie about who is about to win.
+ *
+ * Returns the regions so a caller that also wants the win answer does not walk the board
+ * twice.
+ */
+export function applyHomeConnections(grid: LetterGridModel): Record<string, Set<string>> {
+  const connected: Record<string, Set<string>> = {
+    A: connectedToLeftEdge(grid, "A"),
+    B: connectedToLeftEdge(grid, "B"),
+  };
+  // Unclaimed tiles have team "_", which is not a key here, so they never join a region.
+  const isIn = (team: string, x: number, y: number) =>
+    !!connected[team] && connected[team].has(`${x},${y}`);
+
+  grid.processBlocks((block) => {
+    const { x, y } = block.coordinates;
+    const team = block.team;
+    if (!isIn(team, x, y)) {
+      block.setHomeConnection(false, 0);
+      return;
+    }
+    let mask = 0;
+    if (!isIn(team, x, y - 1)) mask |= 1; // top
+    if (!isIn(team, x + 1, y)) mask |= 2; // right
+    if (!isIn(team, x, y + 1)) mask |= 4; // bottom
+    if (!isIn(team, x - 1, y)) mask |= 8; // left
+    block.setHomeConnection(true, mask);
+  });
+
+  return connected;
+}
+
+/**
+ * Has this team crossed the board?  Yes exactly when the region joined to the left edge
+ * reaches the goal column - the flood fill below IS the win condition, not an approximation
+ * of it.
+ *
+ * Pass `reached` if you already have the fill, which the presenter does: it recomputes the
+ * regions on every board change to draw the outline, and the win is then a set lookup.
+ */
+export function hasCrossedBoard(
+  grid: LetterGridModel,
+  team: string,
+  reached: Set<string> = connectedToLeftEdge(grid, team),
+): boolean {
+  const x = goalX(grid);
+  for (let y = 0; y < grid.height; y++) {
+    if (reached.has(`${x},${y}`)) return true;
+  }
+  return false;
 }
 
 /**

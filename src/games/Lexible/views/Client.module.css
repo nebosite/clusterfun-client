@@ -60,9 +60,27 @@
 
 /* Overall Formatting */
 
+/* Rule on the left, the board doing it on the right.  The demo tiles are 50% bigger
+   than they were, and the width for that comes from the caption column being narrow. */
 .gameclient .instructionsRow {
   display: flex;
-  flex-wrap: nowrap;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+/* 20% smaller, so the animation gets the room instead. */
+.gameclient .instructionParagraph {
+  font-size: 80%;
+  margin: 0;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Never shrink the board to make room for words - it is the part being watched. */
+.gameclient .instructionsRow > div {
+  flex: 0 0 auto;
 }
 
 .gameclient .divRow {

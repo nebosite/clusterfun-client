@@ -2,7 +2,31 @@ import { observer } from "mobx-react";
 import React from "react";
 import { LetterBlockModel } from "../models/LetterBlockModel";
 import styles from "./LetterBlock.module.css";
-import { COZY, teamColor, teamColorForScore, letterColorForScore } from "./cozyTheme";
+import { COZY, teamColor, teamColorForScore } from "./cozyTheme";
+
+// ==========================================================================================
+// The capture firework.
+//
+// Thirty sparks thrown three tiles in every direction, white-hot at the core with the
+// capturing team's colour glowing off them.  It is deliberately loud, which is affordable
+// only because it is rare: a tile TAKEN OFF THE OTHER TEAM sets it off, and claiming neutral
+// ground - most of what happens in a round - does not.
+//
+// The variation between sparks is hashed off the spark's index rather than random, so a burst
+// looks scattered but is identical on the presenter and on every phone.  A real firework is
+// not a ring: the reach, the size and the launch delay all vary, and without that the thirty
+// sparks arrive as one expanding circle.
+// ==========================================================================================
+const SPARK_COUNT = 30;
+
+/** How far the furthest sparks travel, in TILES. */
+const SPARK_REACH_TILES = 3;
+
+/** Deterministic 0..1 from a small integer. Same burst everywhere, no Math.random. */
+function sparkNoise(index: number, salt: number): number {
+  const h = Math.sin(index * 12.9898 + salt * 78.233) * 43758.5453;
+  return h - Math.floor(h);
+}
 
 export interface LetterBlockProps {
   context: LetterBlockModel;
@@ -38,6 +62,9 @@ export default class LetterBlock extends React.Component<LetterBlockProps> {
       height: `${size}px`,
       padding: `${size * 0.1}px`,
       background: "transparent",
+      // Sparks reach three tiles out, and tiles are siblings in a flex row: without
+      // this the burst is painted under every tile that comes after it.
+      ...(context.captureSeq > 0 ? { zIndex: 20 } : {}),
     };
 
     // Cozy tile surface + soft bevel, by state (see the reskin spec).
@@ -64,10 +91,15 @@ export default class LetterBlock extends React.Component<LetterBlockProps> {
       stateStyle = { transform: "scale(1.04)", zIndex: 5 };
     } else if (claimed) {
       // Colour carries how hard the tile is to take: a 3 is 20% team colour on
-      // white, a 9 or more is the full team colour.  The letter follows the
-      // tile - white text vanishes on a nearly-white one.
+      // white, a 9 or more is the full team colour.
+      //
+      // The letter stays DARK at every strength.  It used to flip to white once
+      // the tile passed about half strength, which was correct about contrast
+      // and wrong about reading: scanning the board, a scatter of white letters
+      // among dark ones looks like a state you are meant to notice, and it is
+      // not one - the tile colour already says how strong it is.
       background = teamColorForScore(context.team, context.score);
-      letterColor = letterColorForScore(context.score);
+      letterColor = COZY.ink;
       boxShadow = "inset 0 -5px 0 rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.12)";
     } else {
       background = COZY.tile;
@@ -144,8 +176,45 @@ export default class LetterBlock extends React.Component<LetterBlockProps> {
       );
     }
 
-    let innerClassName = styles.letterBlockInner;
-    if (context.onPath) innerClassName += " " + styles.highlight;
+    // A tile taken off the other team: firework.
+    //
+    // Keyed on the capture counter so a new capture re-mounts the element and the CSS
+    // animation replays from the top - re-using the element would leave a finished animation
+    // sitting there doing nothing.  Each spark gets its own angle, reach, size and delay here;
+    // the motion, the fade and the afterglow live in the stylesheet.
+    let sparkUI: JSX.Element | null = null;
+    if (context.captureSeq > 0) {
+      const glow = teamColor(context.team);
+      sparkUI = (
+        <div className={styles.sparkBurst} key={context.captureSeq}>
+          {Array.from({ length: SPARK_COUNT }, (_, i) => {
+            // Spread evenly and then jitter, so it is neither a ring nor a clump.
+            const angle = (360 / SPARK_COUNT) * i + (sparkNoise(i, 1) - 0.5) * 10;
+            const reach = size * SPARK_REACH_TILES * (0.45 + sparkNoise(i, 2) * 0.55);
+            const dot = Math.max(2, size * (0.07 + sparkNoise(i, 3) * 0.07));
+            return (
+              <span
+                key={i}
+                className={styles.spark}
+                style={
+                  {
+                    "--spark-angle": `${angle}deg`,
+                    "--spark-reach": `${reach}px`,
+                    "--spark-size": `${dot}px`,
+                    "--spark-glow": glow,
+                    // A staggered launch is what makes it read as a burst rather than a
+                    // shockwave; the longest delay is inside CAPTURE_SPARK_MS.
+                    animationDelay: `${Math.round(sparkNoise(i, 4) * 130)}ms`,
+                  } as React.CSSProperties
+                }
+              />
+            );
+          })}
+        </div>
+      );
+    }
+
+    const innerClassName = styles.letterBlockInner;
 
     return (
       <div
@@ -161,6 +230,7 @@ export default class LetterBlock extends React.Component<LetterBlockProps> {
             {context.letter}
           </div>
           {badgeUI}
+          {sparkUI}
         </div>
       </div>
     );

@@ -14,7 +14,7 @@ import {
   ITypeHelper,
 } from "libs";
 import Logger from "js-logger";
-import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
+import { applyHomeConnections } from "./teamAreas";
 import {
   LexibleBoardUpdateEndpoint,
   LexibleBoardUpdateNotification,
@@ -75,8 +75,12 @@ export const getLexibleClientTypeHelper = (
     shouldStringify(typeName: string, propertyName: string, object: any): boolean {
       switch (propertyName) {
         case "__blockid":
-          return false;
-        case "failFade":
+        // Transient animation state.  The names must be the PRIVATE fields: the
+        // serializer walks real properties, so "failFade" (the getter) never
+        // matched and a checkpoint taken mid-flash restored a tile stuck red
+        // with no animator left running to clear it.
+        case "_failFade":
+        case "_captureSeq":
           return false;
       }
 
@@ -299,50 +303,42 @@ export class LexibleClientModel extends ClusterfunClientModel {
   }
 
   // -------------------------------------------------------------------
-  //  checkForWin - a win is when there is a contiguous line of blocks
-  //                from one side to the other for a single team.
-  //                Blocks are not continguous through corners.
+  //  updateHomeConnections - redraw the team outlines after the board moves.
+  //
+  //  The same call the presenter makes, so the phone in your hand and the
+  //  screen the room is watching agree about where your chain is broken.
+  //
+  //  This replaced a copy of the presenter's A* "hot path" animation, which
+  //  each phone ran on EVERY accepted word, glowing one tile per 50ms along a
+  //  route that ran through unclaimed and enemy squares.
   // -------------------------------------------------------------------
-  async updateWinningPaths() {
-    this.theGrid.processBlocks((b) => {
-      b.onPath = false;
-    });
-    await this.waitForRealTime(0); // allow mobx to clear animations
-    const paths: Record<"A" | "B", LetterGridPath> = {
-      A: findHotPathInGrid(this.theGrid, "A"),
-      B: findHotPathInGrid(this.theGrid, "B"),
-    };
-    let pathsToDraw: Array<"A" | "B"> = ["A", "B"];
-    for (const team of ["A", "B"] as Array<"A" | "B">) {
-      const path = paths[team];
-      if (path.cost.enemy === 0 && path.cost.neutral === 0) {
-        pathsToDraw = [team];
-      }
-    }
-    for (let i = 0; i < this.theGrid.width * 4; i++) {
-      let paintedOne = false;
-      for (const team of pathsToDraw) {
-        if (paths[team].nodes.length > i) {
-          paintedOne = true;
-          this.theGrid.getBlock(paths[team].nodes[i])!.onPath = true;
-        }
-      }
-      if (!paintedOne) {
-        break;
-      } else {
-        await this.waitForRealTime(50);
-      }
-    }
+  updateHomeConnections() {
+    applyHomeConnections(this.theGrid);
   }
 
   protected handleBoardUpdateMessage = (message: LexibleBoardUpdateNotification) => {
+    let capturedCount = 0;
     message.letters.forEach((l) => {
       const block = this.theGrid.getBlock(l.coordinates);
-      if (!block) Logger.warn(`WEIRD: No block at ${l.coordinates}`);
-      else block.setScore(Math.max(message.score, block.score), message.scoringTeam);
+      if (!block) {
+        Logger.warn(`WEIRD: No block at ${l.coordinates}`);
+        return;
+      }
+      // The presenter sends every letter of the word, including tiles that did not
+      // move.  The firework is only for tiles taken off the OTHER TEAM, which is
+      // the same rule the presenter applies - so the phones and the big screen
+      // celebrate the same moments.
+      const stolen =
+        block.team !== "_" && block.team !== message.scoringTeam && message.score > block.score;
+      block.setScore(Math.max(message.score, block.score), message.scoringTeam);
+      if (stolen) {
+        block.capture();
+        capturedCount++;
+      }
     });
-    this.updateWinningPaths();
+    this.updateHomeConnections();
     this.saveCheckpoint();
+    if (capturedCount > 0) this.invokeEvent(LexibleGameEvent.TilesCaptured, capturedCount);
     this.invokeEvent(LexibleGameEvent.WordAccepted);
   };
 

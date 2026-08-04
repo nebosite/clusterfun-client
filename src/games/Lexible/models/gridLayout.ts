@@ -27,7 +27,13 @@ export const PLAY_AREA_VERTICAL_MARGIN = 50;
 export const PLAY_AREA_HEIGHT = 980 - PLAY_AREA_VERTICAL_MARGIN * 2;
 
 export const MIN_GRID_HEIGHT = 8;
-export const MAX_GRID_HEIGHT = 30;
+
+/**
+ * 20 rows, not 30.  Past twenty the tiles are under 45 virtual pixels and the board runs to
+ * fifty-odd columns - too small to read from across the room, which is the only place the
+ * presenter is ever read from.
+ */
+export const MAX_GRID_HEIGHT = 20;
 export const DEFAULT_GRID_HEIGHT = 18;
 
 /** Keep a height inside the slider's range, and whole. */

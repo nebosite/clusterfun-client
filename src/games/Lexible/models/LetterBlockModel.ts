@@ -5,6 +5,12 @@ import { action, makeObservable, observable } from "mobx";
 export type BlockSelectHandler = (playerId: string, selectedValue: boolean) => void;
 export type BlockSelectAuthroizer = (block: LetterBlockModel) => boolean;
 
+/**
+ * How long the capture firework lasts. Must be at least as long as the `spark` keyframes,
+ * including the slowest spark's delay, or the element unmounts mid-flight.
+ */
+export const CAPTURE_SPARK_MS = 1100;
+
 let blockIdSeed = Date.now();
 export class LetterBlockModel {
   __blockid = blockIdSeed++;
@@ -36,6 +42,19 @@ export class LetterBlockModel {
     action(() => (this._failFade = value))();
   }
 
+  // Bumped every time this tile is STOLEN FROM THE OTHER TEAM, and dropped back to 0 when the
+  // burst has finished.  The VIEW keys the spark element on this number, so a
+  // fresh value re-mounts the element and CSS replays the animation - which is
+  // why it is a counter and not a boolean.  A tile taken twice in quick
+  // succession sparks twice; a boolean would silently swallow the second.
+  //
+  // Deliberately NOT a per-frame fade like failFade: that runs a 30ms MobX
+  // write per tile, and a six-letter word lights six of them at once.
+  @observable private _captureSeq = 0;
+  get captureSeq() {
+    return this._captureSeq;
+  }
+
   // Is this tile joined to its own team's starting area, walking only through
   // its team's tiles?  A tile that is not is an island: it counts for nothing
   // towards crossing the board.  The presenter outlines the joined region so a
@@ -59,16 +78,6 @@ export class LetterBlockModel {
     action(() => {
       this._connectedToLeftEdge = connected;
       this._homeEdgeMask = edgeMask;
-    })();
-  }
-
-  @observable private _onPath = false;
-  get onPath() {
-    return this._onPath;
-  }
-  set onPath(value) {
-    action(() => {
-      this._onPath = value;
     })();
   }
 
@@ -119,6 +128,26 @@ export class LetterBlockModel {
       this._score = value;
       this.team = team;
     })();
+  }
+
+  // -------------------------------------------------------------------
+  // capture - this tile was just taken OFF THE OTHER TEAM: throw a firework.
+  //
+  // Both roles call it, from the same board update, so the burst goes off on
+  // the shared screen and in every player's hand at once.
+  //
+  // Deliberately NOT fired for claiming neutral ground, which is most of what
+  // happens in a round.  A firework this big every few seconds is wallpaper;
+  // saved for taking something off the other team, it means something.
+  // -------------------------------------------------------------------
+  capture(durationMs: number = CAPTURE_SPARK_MS) {
+    action(() => this._captureSeq++)();
+    const seq = this._captureSeq;
+    setTimeout(() => {
+      // Only clear if nothing has been captured since - otherwise this timer
+      // would cut a newer burst short.
+      if (this._captureSeq === seq) action(() => (this._captureSeq = 0))();
+    }, durationMs);
   }
 
   // -------------------------------------------------------------------

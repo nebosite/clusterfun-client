@@ -4,7 +4,7 @@ import { PLAYTIME_MS } from "./GameSettings";
 import { LetterBlockModel } from "./LetterBlockModel";
 import { WordTree } from "./WordTree";
 import { LetterGridModel } from "./LetterGridModel";
-import { TEAM_HOME_SCORE, connectedToLeftEdge, homeCells } from "./teamAreas";
+import { TEAM_HOME_SCORE, applyHomeConnections, hasCrossedBoard, homeCells } from "./teamAreas";
 import { DEFAULT_GRID_HEIGHT, gridWidthForHeight, sanitizeGridHeight } from "./gridLayout";
 import { findWordsFrom } from "./wordSearch";
 import {
@@ -22,7 +22,8 @@ import {
   ITypeHelper,
 } from "libs";
 import Logger from "js-logger";
-import { findHotPathInGrid, LetterGridPath } from "./LetterGridPath";
+import type { SpeechEngineId } from "libs/Media/speech";
+import { DEFAULT_SPEECH_ENGINE, isSpeechEngineId } from "libs/Media/speech";
 import {
   LetterChain,
   LexibleBoardUpdateEndpoint,
@@ -85,6 +86,8 @@ export enum LexibleGameState {
 export enum LexibleGameEvent {
   ResponseReceived = "ResponseReceived",
   WordAccepted = "WordAccepted",
+  /** Tiles actually changed hands. Carries how many. The view makes the noise. */
+  TilesCaptured = "TilesCaptured",
   TeamWon = "TeamWon",
 }
 
@@ -95,6 +98,8 @@ interface LexibleSettings {
   /** Rows the host asked for; the column count is derived from it. */
   gridHeight: number;
   startFromTeamArea: boolean;
+  /** Which text-to-speech engine reads the words out. */
+  speechEngine: SpeechEngineId;
 }
 
 // -------------------------------------------------------------------
@@ -140,7 +145,12 @@ export const getLexiblePresenterTypeHelper = (
     shouldStringify(typeName: string, propertyName: string, object: any): boolean {
       switch (propertyName) {
         case "__blockid":
-        case "failFade":
+        // Transient animation state.  The names must be the PRIVATE fields: the
+        // serializer walks real properties, so "failFade" (the getter) never
+        // matched and a checkpoint taken mid-flash restored a tile stuck red
+        // with no animator left running to clear it.
+        case "_failFade":
+        case "_captureSeq":
         case "wordTree":
         case "wordSet":
           return false;
@@ -197,6 +207,22 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
   set gridHeight(value) {
     action(() => {
       this._gridHeight = sanitizeGridHeight(value);
+      this.saveSettings();
+    })();
+  }
+
+  // Which engine reads the words out.  A host setting rather than a build-time choice: the
+  // right answer depends on the machine driving the screen, and the only way to find out is
+  // to try one.  Everything about an engine - including whether anything is downloaded at
+  // all - lives behind ISpeechEngine, so switching here costs nothing for the ones not
+  // chosen.  See libs/Media/speech.
+  @observable private _speechEngine: SpeechEngineId = DEFAULT_SPEECH_ENGINE;
+  get speechEngine() {
+    return this._speechEngine;
+  }
+  set speechEngine(value) {
+    action(() => {
+      this._speechEngine = isSpeechEngineId(value) ? value : DEFAULT_SPEECH_ENGINE;
       this.saveSettings();
     })();
   }
@@ -295,6 +321,11 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
       const savedSettings = JSON.parse(savedSettingsValue) as LexibleSettings;
       this.gridHeight = savedSettings.gridHeight ?? DEFAULT_GRID_HEIGHT;
       this.startFromTeamArea = savedSettings.startFromTeamArea ?? true;
+      // Anything we no longer recognise falls back to the default rather than leaving the
+      // presenter asking for an engine that does not exist.
+      this.speechEngine = isSpeechEngineId(savedSettings.speechEngine)
+        ? savedSettings.speechEngine
+        : DEFAULT_SPEECH_ENGINE;
     }
 
     makeObservable(this);
@@ -332,31 +363,12 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
   //
   //  Cheap (one flood fill per team over the grid) and only run when the
   //  board changes, so it is not worth memoising further.
+  //
+  //  Returns the two regions, because checkForWin wants exactly this and there
+  //  is no reason to walk the board twice.
   // -------------------------------------------------------------------
-  updateHomeConnections() {
-    const connected: Record<string, Set<string>> = {
-      A: connectedToLeftEdge(this.theGrid, "A"),
-      B: connectedToLeftEdge(this.theGrid, "B"),
-    };
-    const isIn = (team: string, x: number, y: number) =>
-      !!connected[team] && connected[team].has(`${x},${y}`);
-
-    this.theGrid.processBlocks((block) => {
-      const { x, y } = block.coordinates;
-      const team = block.team;
-      if (!isIn(team, x, y)) {
-        block.setHomeConnection(false, 0);
-        return;
-      }
-      // A side gets an edge only where the region stops, so the whole
-      // connected blob ends up with a single outline around it.
-      let mask = 0;
-      if (!isIn(team, x, y - 1)) mask |= 1; // top
-      if (!isIn(team, x + 1, y)) mask |= 2; // right
-      if (!isIn(team, x, y + 1)) mask |= 4; // bottom
-      if (!isIn(team, x - 1, y)) mask |= 8; // left
-      block.setHomeConnection(true, mask);
-    });
+  updateHomeConnections(): Record<string, Set<string>> {
+    return applyHomeConnections(this.theGrid);
   }
 
   //--------------------------------------------------------------------------------------
@@ -366,6 +378,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     const savedSettings: LexibleSettings = {
       gridHeight: this.gridHeight,
       startFromTeamArea: this.startFromTeamArea,
+      speechEngine: this.speechEngine,
     };
     this.storage.set(LEXIBLE_SETTINGS_KEY, JSON.stringify(savedSettings, null, 2));
   }
@@ -640,39 +653,29 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
   }
 
   // -------------------------------------------------------------------
-  //  checkForWin - a win is when there is a contiguous line of blocks
-  //                from one side to the other for a single team.
-  //                Blocks are not continguous through corners.
+  //  checkForWin - a win is when a team's tiles form a contiguous chain from
+  //                the left edge to the right one.  Four-way: blocks are not
+  //                contiguous through corners.
+  //
+  //  This is the outline the board is already drawing.  A team has crossed when
+  //  the region joined to the left edge reaches the goal column, so the check is
+  //  a lookup on a fill we just did rather than a search of its own.
+  //
+  //  It used to be an A* "hot path" - the cheapest crossing, counting enemy and
+  //  neutral squares - which was a different question that happened to give the
+  //  same answer, at a much higher price.  It also painted the path it found one
+  //  tile per 50ms, and since that path runs through UNCLAIMED and ENEMY tiles it
+  //  read as a white wave sweeping over squares that had nothing to do with
+  //  anybody's territory.  On a wide board the loop was bounded at width*4 steps,
+  //  so a single word could hold the board glowing for ten seconds - and a second
+  //  word landing meanwhile re-entered the whole thing.
   // -------------------------------------------------------------------
-  async checkForWin() {
-    this.theGrid.processBlocks((b) => {
-      b.onPath = false;
-    });
-    await this.waitForRealTime(0); // allow mobx to clear animations
-    const paths: Record<"A" | "B", LetterGridPath> = {
-      A: findHotPathInGrid(this.theGrid, "A"),
-      B: findHotPathInGrid(this.theGrid, "B"),
-    };
-    let pathsToDraw: Array<"A" | "B"> = ["A", "B"];
-    for (const team of ["A", "B"] as Array<"A" | "B">) {
-      const path = paths[team];
-      if (path.cost.enemy === 0 && path.cost.neutral === 0) {
+  checkForWin(connected?: Record<string, Set<string>>) {
+    const regions = connected ?? this.updateHomeConnections();
+    for (const team of ["A", "B"]) {
+      if (hasCrossedBoard(this.theGrid, team, regions[team])) {
         this.handleGameWin(team);
-        pathsToDraw = [team];
-      }
-    }
-    for (let i = 0; i < this.theGrid.width * 4; i++) {
-      let paintedOne = false;
-      for (const team of pathsToDraw) {
-        if (paths[team].nodes.length > i) {
-          paintedOne = true;
-          this.theGrid.getBlock(paths[team].nodes[i])!.onPath = true;
-        }
-      }
-      if (!paintedOne) {
-        break;
-      } else {
-        await this.waitForRealTime(50);
+        return;
       }
     }
   }
@@ -704,6 +707,7 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
   // -------------------------------------------------------------------
   placeSuccessfulWord(data: LexibleWordSubmissionRequest, word: string, player: LexiblePlayer) {
     const placedLetters: LetterChain = [];
+    let capturedCount = 0;
     data.letters.forEach((l) => {
       const block = this.theGrid.getBlock(l.coordinates);
       if (!block) {
@@ -712,10 +716,17 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
       }
       // only capture this block if the score is high enough
       if (word.length > block.score) {
-        if (block.team !== "_" && block.team !== player.teamName) {
+        // Taken off the OTHER TEAM, as opposed to claimed from nobody.  That is
+        // the moment the firework is for - see LetterBlockModel.capture.
+        const stolen = block.team !== "_" && block.team !== player.teamName;
+        if (stolen) {
           player.captures++;
         }
         block.setScore(Math.max(word.length, block.score), player.teamName);
+        if (stolen) {
+          block.capture();
+          capturedCount++;
+        }
         placedLetters.push(l);
       }
       // however, do mark redundant word submissions
@@ -727,7 +738,8 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
     if (word.length > player.longestWord.length) player.longestWord = word;
 
     // Tiles changed hands, so the joined-to-home regions have moved with them.
-    this.updateHomeConnections();
+    // The same fill answers "has anybody crossed?" below.
+    const connected = this.updateHomeConnections();
 
     this.sendToEveryone(LexibleBoardUpdateEndpoint, (p, isExited) => {
       return {
@@ -738,9 +750,10 @@ export class LexiblePresenterModel extends ClusterfunPresenterModel<LexiblePlaye
       };
     });
 
+    if (capturedCount > 0) this.invokeEvent(LexibleGameEvent.TilesCaptured, capturedCount);
     this.invokeEvent(LexibleGameEvent.WordAccepted, word.toLowerCase(), player);
     if (player.teamName === "A" || player.teamName === "B") {
-      this.checkForWin();
+      this.checkForWin(connected);
     } else {
       Logger.warn("WEIRD: Player with unknown teamname");
     }

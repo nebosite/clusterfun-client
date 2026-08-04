@@ -1,17 +1,13 @@
 import logo from "./images/Lexible.png";
-import instructions1 from "./images/instructions1.png";
-import instructions2 from "./images/instructions2.png";
-import instructions3 from "./images/instructions3.png";
 import ding from "./sounds/ding.m4a";
 import hello from "./sounds/hello.mp3";
 import response from "./sounds/response.mp3";
 
+// The three instructions*.png diagrams are gone: the instructions now animate a real 6x6
+// board (views/InstructionDemo.tsx), and the pictures were 474KB nothing referenced.
 const LexibleAssets = {
   images: {
     logo,
-    instructions1,
-    instructions2,
-    instructions3,
   },
   sounds: {
     ding,

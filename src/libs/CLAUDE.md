@@ -20,7 +20,7 @@ Two categories, and the distinction matters:
 | `storage/`                                    | `BruteForceSerializer.ts`, `StorageHelper.ts`                                                                                                                    | Class-aware (de)serialization driven by each game's `ITypeHelper`; `IStorage` over localStorage.                                                                   |
 | `components/`                                 | `ClusterfunGameComponent`, `UINormalizer`, `PlayerAvatar`, `ClusterCanvas`, `Touchable`, `Slider`, `DragScroller`, `DevUIComponent`, `ErrorBoundary`, `LabelBox` | Shared React. **Check here before building a UI primitive** — games have re-invented several of these.                                                             |
 | `Input/`                                      | `GameInputController`, `ActionRepeater`                                                                                                                          | Declarative keyboard/gamepad binding tables.                                                                                                                       |
-| `Media/`                                      | `SoundHelper`, `MediaHelper`, `MusicLibrary`, `MusicPlayer`, `VolumePreferences`                                                                                 | Sound + the server-hosted music stack. Only Eittris uses the full set.                                                                                             |
+| `Media/`                                      | `SoundHelper`, `MediaHelper`, `MusicLibrary`, `MusicPlayer`, `VolumePreferences`, `SpeechHelper`, `speech/`, `SoundEffects`                                      | Sound, the server-hosted music stack, and text-to-speech. See the speech note below.                                                                               |
 | `Animation/`, `types/`, `Browser/`, `config/` | `AnimationController`, `Vector2`, `SafeBrowser`                                                                                                                  | Support utilities.                                                                                                                                                 |
 | `telemetry/`                                  | `TelemetryLogger`, `MockTelemetryLogger`, `GameAnalytics`                                                                                                        | GA4 in prod, console mock in dev. Reached via `this.analytics`.                                                                                                    |
 | `debugging/`                                  | `serialization.ts`                                                                                                                                               | Effectively dead — its only export has no callers.                                                                                                                 |
@@ -57,6 +57,17 @@ reconnect.** Never key game state on `connectionId`. Presenter message handlers 
 untranslated form and exists for `Join` alone. The full contract, including disconnect and
 boot semantics, is in [../../CLAUDE.md](../../CLAUDE.md) and pinned by
 `GameModel/PresenterReconnect.spec.ts`.
+
+**Speech engines load lazily and must stay that way.** `Media/speech` puts every synthesiser
+behind `ISpeechEngine` (`initialize`/`speak`/`dispose`), reached ONLY through a dynamic
+`import()` in `SpeechEngines.ts`, so an unchosen engine's module is never parsed. Two engines
+ship today (`browser` via `speechSynthesis`, and `wahwah`), and neither fetches anything — but
+two neural ones (Kokoro, KittenTTS) lived here and were dropped for costing tens of megabytes
+and a ~2s main-thread freeze per word without a GPU. The lazy structure is what made both the
+adding and the dropping cheap, and `speech/lazyLoading.spec.ts` reads the source to keep it,
+because converting a dynamic import to a static one passes every behavioural test while
+silently bundling the lot. `SpeechHelper` holds the policy (lazy, non-blocking, never fatal,
+one word at a time) and knows nothing about making sound.
 
 **`BruteForceSerializer` preserves explicit `null`s** (and `parseData` returns early on them).
 It used to drop any property that normalized to null, which silently turned a stored `null`

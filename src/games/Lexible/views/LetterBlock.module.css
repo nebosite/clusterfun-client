@@ -24,25 +24,6 @@
     box-shadow 0.12s ease;
 }
 
-/* Highlight ring for tiles on the winning path — a soft white pulse that reads
-   over both team colors and the cream board. (Class + trigger kept as-is.) */
-.letterBlock .highlight {
-  animation: glow 2s infinite alternate;
-}
-
-@keyframes glow {
-  from {
-    box-shadow:
-      0 0 0 5px rgba(255, 255, 255, 0.95),
-      0 0 18px 8px rgba(255, 255, 255, 0.55);
-  }
-  to {
-    box-shadow:
-      0 0 0 4px rgba(255, 255, 255, 0.7),
-      0 0 8px 4px rgba(255, 255, 255, 0.3);
-  }
-}
-
 .letterBlock .letterBlockText {
   font-family: "Fredoka", sans-serif;
   font-weight: 700;
@@ -66,11 +47,71 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #fffdf7;
+  /* Half-transparent, so the badge stops hiding the corner of the letter it
+     overhangs - the letter is what people are reading. */
+  background: rgba(255, 253, 247, 0.5);
   color: #4a4038;
   border-radius: 999px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   line-height: 1;
   z-index: 6;
   pointer-events: none;
+}
+
+/* Capture firework — thirty sparks thrown three tiles out from a tile that has
+   just been taken off the OTHER TEAM.  Loud on purpose, and affordable because it
+   is rare: claiming neutral ground does not set it off.
+
+   Purely decorative, so it must never affect layout or swallow a touch: absolutely
+   positioned at the tile's centre with pointer-events none all the way down, and
+   zero width/height so it cannot push anything around.
+
+   Mounted by LetterBlock.tsx only while the burst is running and keyed on the
+   capture counter, so a re-capture restarts it.  Total duration + the longest
+   animation-delay must stay inside CAPTURE_SPARK_MS in LetterBlockModel.ts, which
+   is when the element unmounts. */
+.letterBlock .sparkBurst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 7;
+}
+
+/* White-hot core, team-coloured afterglow.  The core is what carries three tiles
+   across a room; the glow is what says WHO took the tile. */
+.letterBlock .spark {
+  position: absolute;
+  width: var(--spark-size, 4px);
+  height: var(--spark-size, 4px);
+  margin-left: calc(var(--spark-size, 4px) / -2);
+  margin-top: calc(var(--spark-size, 4px) / -2);
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow:
+    0 0 6px 2px var(--spark-glow, #ffffff),
+    0 0 16px 6px var(--spark-glow, #ffffff);
+  pointer-events: none;
+  animation: spark 900ms cubic-bezier(0.12, 0.7, 0.3, 1) forwards;
+}
+
+@keyframes spark {
+  from {
+    transform: rotate(var(--spark-angle, 0deg)) translateX(0) scale(1.6);
+    opacity: 1;
+  }
+  /* Fast out, then coast: a firework decelerates, it does not travel at a
+     constant speed and stop. */
+  35% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.7;
+  }
+  to {
+    transform: rotate(var(--spark-angle, 0deg)) translateX(var(--spark-reach, 60px)) scale(0.15);
+    opacity: 0;
+  }
 }

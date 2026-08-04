@@ -1,71 +1,74 @@
-import {
-  SpeechHelper,
-  encodeWavBuffer,
-  pickSpeechDevice,
-  KokoroLike,
-  RawAudioLike,
-} from "./SpeechHelper";
+import { SpeechHelper } from "./SpeechHelper";
+import { ISpeechEngine, SpeechEngineId, SpeechVoiceOptions } from "./speech/ISpeechEngine";
 
 // ==========================================================================================
-// The speech system sits in front of a neural network that is tens of megabytes and may not
-// arrive at all.  What matters is not that it speaks - it is that the GAME never waits for it
-// and never breaks because of it:
+// SpeechHelper owns POLICY, not sound.  It sits in front of an engine that may be a neural
+// network tens of megabytes big, or the operating system, or nothing at all.  What matters is
+// not that it speaks - it is that the GAME never waits for it and never breaks because of it:
 //
 //   * speak() returns immediately, always
 //   * anything that is not speech-right-now makes the fallback noise instead
-//   * no failure inside it reaches game code
+//   * no failure inside an engine reaches game code
+//   * exactly one word is ever being said at a time
+//
+// Everything here drives a FAKE engine, so no test touches the network or the audio hardware.
 // ==========================================================================================
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+const tick = async (times = 8) => {
+  for (let i = 0; i < times; i++) await flush();
+};
 
-// jsdom has no object-URL API, and the real one is a browser concern anyway.
-beforeAll(() => {
-  (URL as any).createObjectURL = () => "blob:fake";
-  (URL as any).revokeObjectURL = () => {};
-});
-
-function fakeAudio(): RawAudioLike {
-  return { toBlob: () => new Blob(["fake"], { type: "audio/wav" }) };
-}
-
-function fakeTts(onGenerate?: (text: string, options?: any) => void): KokoroLike {
+/** An engine that records what it was asked to say and finishes instantly. */
+function fakeEngine(said: string[], id: SpeechEngineId = "wahwah"): ISpeechEngine {
   return {
-    generate: (text, options) => {
-      onGenerate?.(text, options);
-      return Promise.resolve(fakeAudio());
+    id,
+    initialize: async () => {},
+    speak: async (text) => {
+      said.push(text);
     },
+    dispose: () => {},
   };
 }
 
-describe("SpeechHelper before the model has arrived", () => {
+/** An engine whose speak() only completes when the test releases it. */
+function gatedEngine() {
+  const inFlight: string[] = [];
+  const releases: (() => void)[] = [];
+  const engine: ISpeechEngine = {
+    id: "wahwah",
+    initialize: async () => {},
+    speak: (text: string) => {
+      inFlight.push(text);
+      return new Promise<void>((resolve) => releases.push(resolve));
+    },
+    dispose: () => {},
+  };
+  return { engine, inFlight, releaseNext: async () => (releases.shift()!(), flush()) };
+}
+
+describe("SpeechHelper before an engine is ready", () => {
   it("makes the fallback noise instead of waiting", () => {
     const spoken: string[] = [];
-    // A loader that never settles: the model is still downloading.
+    // A factory that never settles: the engine is still loading.
     const helper = new SpeechHelper(
       (text) => spoken.push(text),
+      "wahwah",
       () => new Promise(() => {}),
     );
 
+    const start = Date.now();
     helper.speak("hello");
 
     expect(spoken).toEqual(["hello"]);
-    expect(helper.isReady).toBe(false);
-  });
-
-  it("returns straight away rather than blocking on the download", () => {
-    const helper = new SpeechHelper(
-      () => {},
-      () => new Promise(() => {}),
-    );
-    const start = Date.now();
-    helper.speak("hello");
     expect(Date.now() - start).toBeLessThan(50);
   });
 
-  it("starts the download only once, however much is said", async () => {
+  it("starts loading only once, however much is said", async () => {
     let loads = 0;
     const helper = new SpeechHelper(
       () => {},
+      "wahwah",
       () => {
         loads++;
         return new Promise(() => {});
@@ -75,193 +78,413 @@ describe("SpeechHelper before the model has arrived", () => {
     helper.speak("one");
     helper.speak("two");
     helper.speak("three");
-    await flush();
+    await tick();
 
     expect(loads).toBe(1);
   });
+
+  it("asks the factory for the engine the caller chose", async () => {
+    const asked: SpeechEngineId[] = [];
+    const helper = new SpeechHelper(
+      () => {},
+      "browser",
+      async (id) => {
+        asked.push(id);
+        return fakeEngine([], id);
+      },
+    );
+    helper.warmUp();
+    await tick();
+
+    expect(asked).toEqual(["browser"]);
+    expect(helper.currentEngineId).toBe("browser");
+  });
 });
 
-describe("SpeechHelper once the model is loaded", () => {
+describe("SpeechHelper once an engine is ready", () => {
   it("speaks, and stops using the fallback", async () => {
     const spoken: string[] = [];
-    const played: string[] = [];
     const said: string[] = [];
     const helper = new SpeechHelper(
-      (text) => spoken.push(text),
-      async () => fakeTts((text) => said.push(text)),
-      (url) => played.push(url),
+      (t) => spoken.push(t),
+      "wahwah",
+      async () => fakeEngine(said),
     );
 
     helper.warmUp();
-    await flush();
+    await tick();
     expect(helper.isReady).toBe(true);
 
     helper.speak("cat");
-    await flush();
-    await flush();
+    await tick();
 
     expect(said).toEqual(["cat"]);
-    expect(played.length).toBe(1);
     expect(spoken).toEqual([]); // no fallback needed once it can really speak
   });
 
   it("passes the voice and speed through, so the teams sound different", async () => {
-    const options: any[] = [];
+    const options: SpeechVoiceOptions[] = [];
+    const engine: ISpeechEngine = {
+      id: "wahwah",
+      initialize: async () => {},
+      speak: async (_t, o) => {
+        options.push(o);
+      },
+      dispose: () => {},
+    };
     const helper = new SpeechHelper(
       () => {},
-      async () => fakeTts((_text, o) => options.push(o)),
-      () => {},
+      "wahwah",
+      async () => engine,
     );
     helper.warmUp();
-    await flush();
+    await tick();
 
-    helper.speak("word", { voice: "am_michael", speed: 1.2 });
-    await flush();
+    helper.speak("word", { voice: "second", speed: 1.2 });
+    await tick();
 
-    expect(options[0].voice).toBe("am_michael");
+    expect(options[0].voice).toBe("second");
     expect(options[0].speed).toBe(1.2);
   });
 });
 
 describe("SpeechHelper when things go wrong", () => {
-  it("falls back for good when the model will not load", async () => {
+  it("falls back for good when the engine will not load", async () => {
     const spoken: string[] = [];
+    let attempts = 0;
     const helper = new SpeechHelper(
-      (text) => spoken.push(text),
+      (t) => spoken.push(t),
+      "browser",
       async () => {
+        attempts++;
         throw new Error("offline");
       },
     );
 
     helper.speak("first");
-    await flush();
+    await tick();
     helper.speak("second");
-    await flush();
+    await tick();
 
     expect(spoken).toEqual(["first", "second"]);
+    // The point of giving up: a hopeless download is not retried on every word.
+    expect(attempts).toBe(1);
+  });
+
+  it("falls back when initialize throws, not just the import", async () => {
+    const spoken: string[] = [];
+    const helper = new SpeechHelper(
+      (t) => spoken.push(t),
+      "browser",
+      async () => ({
+        id: "browser" as SpeechEngineId,
+        initialize: async () => {
+          throw new Error("no voices installed");
+        },
+        speak: async () => {},
+        dispose: () => {},
+      }),
+    );
+
+    helper.speak("hello");
+    await tick();
+    expect(spoken).toEqual(["hello"]);
     expect(helper.isReady).toBe(false);
   });
 
-  it("does not retry a hopeless download on every word", async () => {
-    let loads = 0;
-    const helper = new SpeechHelper(
-      () => {},
-      async () => {
-        loads++;
-        throw new Error("offline");
-      },
-    );
-
-    helper.speak("one");
-    await flush();
-    helper.speak("two");
-    await flush();
-    helper.speak("three");
-    await flush();
-
-    expect(loads).toBe(1);
-  });
-
-  it("falls back when generating the audio throws", async () => {
+  it("beeps and keeps going when one word fails to synthesise", async () => {
     const spoken: string[] = [];
+    const said: string[] = [];
     const helper = new SpeechHelper(
-      (text) => spoken.push(text),
+      (t) => spoken.push(t),
+      "wahwah",
       async () => ({
-        generate: () => Promise.reject(new Error("synthesis blew up")),
+        id: "wahwah" as SpeechEngineId,
+        initialize: async () => {},
+        speak: async (text: string) => {
+          if (text === "bad") throw new Error("nope");
+          said.push(text);
+        },
+        dispose: () => {},
       }),
-      () => {},
     );
     helper.warmUp();
-    await flush();
+    await tick();
 
-    helper.speak("boom");
-    await flush();
-    await flush();
+    helper.speak("bad");
+    helper.speak("good");
+    await tick();
 
-    expect(spoken).toEqual(["boom"]);
+    expect(spoken).toEqual(["bad"]);
+    expect(said).toEqual(["good"]);
   });
 
   it("does not throw when the fallback itself throws", () => {
     const helper = new SpeechHelper(
       () => {
-        throw new Error("no sound either");
+        throw new Error("no sound card");
       },
+      "wahwah",
       () => new Promise(() => {}),
     );
-    // Nothing about speech is worth taking a game down for.
     expect(() => helper.speak("hello")).not.toThrow();
   });
 
   it("ignores empty text without touching anything", () => {
-    let loads = 0;
-    const spoken: string[] = [];
+    let calls = 0;
     const helper = new SpeechHelper(
-      (t) => spoken.push(t),
-      () => {
-        loads++;
-        return new Promise(() => {});
-      },
+      () => calls++,
+      "wahwah",
+      () => new Promise(() => {}),
     );
-
     helper.speak("");
     helper.speak("   ");
-
-    expect(spoken).toEqual([]);
-    expect(loads).toBe(0);
+    expect(calls).toBe(0);
   });
 });
 
-describe("encodeWav", () => {
-  it("writes a RIFF/WAVE header the browser will accept", () => {
-    const bytes = new Uint8Array(encodeWavBuffer(new Float32Array([0, 0.5, -0.5]), 24000));
-    const text = (from: number, length: number) =>
-      String.fromCharCode(...Array.from(bytes.slice(from, from + length)));
+// ==========================================================================================
+// One word at a time.
+//
+// Two syntheses in flight share the engine's runtime and come back interleaved, and two clips
+// started together simply play over each other.  Either way the room hears mush.  In Lexible
+// this is the common case, not the rare one: both teams score constantly, and the win taunt
+// is a whole sentence fired off while a word is still being read.
+// ==========================================================================================
+describe("SpeechHelper serialises speech", () => {
+  it("never has two words in flight at once", async () => {
+    const gate = gatedEngine();
+    const helper = new SpeechHelper(
+      () => {},
+      "wahwah",
+      async () => gate.engine,
+    );
+    helper.warmUp();
+    await tick();
 
-    expect(text(0, 4)).toBe("RIFF");
-    expect(text(8, 4)).toBe("WAVE");
-    expect(text(36, 4)).toBe("data");
-    // 44-byte header plus two bytes per sample.
-    expect(bytes.length).toBe(44 + 3 * 2);
+    helper.speak("first");
+    helper.speak("second");
+    await tick();
+
+    // The mutation this catches: drop the `draining` guard and both start here.
+    expect(gate.inFlight).toEqual(["first"]);
+
+    await gate.releaseNext();
+    await tick();
+    expect(gate.inFlight).toEqual(["first", "second"]);
   });
 
-  it("clamps rather than wrapping, so a hot sample does not crack", () => {
-    // 1.5 scaled directly would overflow int16 and come out as a loud click.
-    const view = new DataView(encodeWavBuffer(new Float32Array([1.5, -1.5]), 24000));
-    expect(view.getInt16(44, true)).toBe(0x7fff);
-    expect(view.getInt16(46, true)).toBe(-0x7fff);
+  it("speaks them in the order they were said", async () => {
+    const said: string[] = [];
+    const helper = new SpeechHelper(
+      () => {},
+      "wahwah",
+      async () => fakeEngine(said),
+    );
+    helper.warmUp();
+    await tick();
+
+    helper.speak("alpha");
+    helper.speak("beta");
+    helper.speak("gamma");
+    await tick(12);
+
+    expect(said).toEqual(["alpha", "beta", "gamma"]);
+  });
+
+  it("beeps rather than queues once the backlog is full", async () => {
+    const beeped: string[] = [];
+    const gate = gatedEngine();
+    const helper = new SpeechHelper(
+      (t) => beeped.push(t),
+      "wahwah",
+      async () => gate.engine,
+    );
+    helper.warmUp();
+    await tick();
+
+    // "a" starts speaking; b and c fill the queue; d and e push the oldest out.
+    for (const word of ["a", "b", "c", "d", "e"]) helper.speak(word);
+    await flush();
+
+    expect(beeped).toEqual(["b", "c"]);
+    expect(helper.pendingCount).toBe(2);
+  });
+
+  it("recovers when an engine never finishes a word", async () => {
+    // A blocked autoplay policy, or an utterance whose "end" never fires, leaves the promise
+    // hanging forever.  Without the timeout the queue wedges and the game is silent for the
+    // rest of the night.
+    jest.useFakeTimers();
+    try {
+      const said: string[] = [];
+      const helper = new SpeechHelper(
+        () => {},
+        "wahwah",
+        async () => ({
+          id: "wahwah" as SpeechEngineId,
+          initialize: async () => {},
+          speak: (text: string) => {
+            said.push(text);
+            return new Promise<void>(() => {});
+          },
+          dispose: () => {},
+        }),
+      );
+      helper.warmUp();
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+
+      helper.speak("stuck");
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+      expect(said).toEqual(["stuck"]);
+
+      jest.advanceTimersByTime(20000);
+      for (let i = 0; i < 20; i++) await Promise.resolve();
+
+      // The queue let go of it, so a word said now is still spoken.
+      helper.speak("later");
+      for (let i = 0; i < 20; i++) await Promise.resolve();
+      expect(said).toEqual(["stuck", "later"]);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 
-describe("choosing a backend", () => {
-  const originalGpu = (navigator as any).gpu;
-  afterEach(() => {
-    (navigator as any).gpu = originalGpu;
-  });
-
-  it("uses wasm when the browser has no WebGPU at all", async () => {
-    (navigator as any).gpu = undefined;
-    expect(await pickSpeechDevice()).toBe("wasm");
-  });
-
-  it("uses wasm when WebGPU exists but has no adapter", async () => {
-    // Exactly the headless / no-GPU case.  Getting this wrong meant trying
-    // webgpu first, poisoning onnxruntime's backend registration, and leaving
-    // the machine with no speech at all rather than falling back.
-    (navigator as any).gpu = { requestAdapter: async () => null };
-    expect(await pickSpeechDevice()).toBe("wasm");
-  });
-
-  it("uses wasm when asking for an adapter throws", async () => {
-    (navigator as any).gpu = {
-      requestAdapter: async () => {
-        throw new Error("no gpu here");
+describe("SpeechHelper switching engines", () => {
+  it("loads the new engine and drops the old one", async () => {
+    const disposed: SpeechEngineId[] = [];
+    const asked: SpeechEngineId[] = [];
+    const said: string[] = [];
+    const helper = new SpeechHelper(
+      () => {},
+      "wahwah",
+      async (id) => {
+        asked.push(id);
+        return {
+          id,
+          initialize: async () => {},
+          speak: async (t: string) => {
+            said.push(`${id}:${t}`);
+          },
+          dispose: () => disposed.push(id),
+        };
       },
-    };
-    expect(await pickSpeechDevice()).toBe("wasm");
+    );
+    helper.warmUp();
+    await tick();
+    helper.speak("before");
+    await tick();
+
+    helper.setEngine("browser");
+    expect(disposed).toEqual(["wahwah"]);
+    expect(helper.isReady).toBe(false);
+
+    helper.warmUp();
+    await tick();
+    helper.speak("after");
+    await tick();
+
+    expect(asked).toEqual(["wahwah", "browser"]);
+    expect(said).toEqual(["wahwah:before", "browser:after"]);
   });
 
-  it("uses webgpu when an adapter really is available", async () => {
-    (navigator as any).gpu = { requestAdapter: async () => ({ name: "fake adapter" }) };
-    expect(await pickSpeechDevice()).toBe("webgpu");
+  it("does nothing when asked for the engine it already has", async () => {
+    let loads = 0;
+    const helper = new SpeechHelper(
+      () => {},
+      "wahwah",
+      async (id) => {
+        loads++;
+        return fakeEngine([], id);
+      },
+    );
+    helper.warmUp();
+    await tick();
+
+    helper.setEngine("wahwah");
+    helper.warmUp();
+    await tick();
+
+    expect(loads).toBe(1);
+    expect(helper.isReady).toBe(true);
+  });
+
+  it("lets a failed engine be retried by choosing another one", async () => {
+    const spoken: string[] = [];
+    const said: string[] = [];
+    const helper = new SpeechHelper(
+      (t) => spoken.push(t),
+      "browser",
+      async (id) => {
+        if (id === "browser") throw new Error("CDN blocked");
+        return fakeEngine(said, id);
+      },
+    );
+    helper.speak("nope");
+    await tick();
+    expect(spoken).toEqual(["nope"]);
+
+    helper.setEngine("wahwah");
+    helper.warmUp();
+    await tick();
+    helper.speak("yes");
+    await tick();
+
+    expect(said).toEqual(["yes"]);
+  });
+
+  it("discards an engine that finished loading after the host changed their mind", async () => {
+    // The slow one must not win a race it started first.
+    let releaseSlow: ((e: ISpeechEngine) => void) | undefined;
+    const disposed: SpeechEngineId[] = [];
+    const helper = new SpeechHelper(
+      () => {},
+      "browser",
+      (id) => {
+        if (id === "browser") {
+          return new Promise<ISpeechEngine>((resolve) => (releaseSlow = resolve));
+        }
+        return Promise.resolve(fakeEngine([], id));
+      },
+    );
+    helper.warmUp();
+    await tick();
+
+    helper.setEngine("wahwah");
+    helper.warmUp();
+    await tick();
+    expect(helper.currentEngineId).toBe("wahwah");
+
+    releaseSlow!({
+      id: "browser",
+      initialize: async () => {},
+      speak: async () => {},
+      dispose: () => disposed.push("browser"),
+    });
+    await tick();
+
+    expect(disposed).toEqual(["browser"]);
+    expect(helper.currentEngineId).toBe("wahwah");
+  });
+
+  it("shutdown lets go of the engine", async () => {
+    const disposed: SpeechEngineId[] = [];
+    const helper = new SpeechHelper(
+      () => {},
+      "wahwah",
+      async (id) => ({
+        id,
+        initialize: async () => {},
+        speak: async () => {},
+        dispose: () => disposed.push(id),
+      }),
+    );
+    helper.warmUp();
+    await tick();
+
+    helper.shutdown();
+    expect(disposed).toEqual(["wahwah"]);
+    expect(helper.isReady).toBe(false);
   });
 });

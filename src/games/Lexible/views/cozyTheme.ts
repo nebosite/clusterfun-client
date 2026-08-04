@@ -42,8 +42,9 @@ export function teamColor(team: string): string {
 // tile came out a muddy mid-grey that was hard to tell from a strong one at
 // a distance.  Against a cream board, "pale" reads instantly.
 //
-// The letter colour has to follow: white text on a nearly-white tile is
-// invisible, so weak tiles take the dark ink instead (see letterColorForScore).
+// The LETTER does not follow.  It is COZY.ink at every strength: a scatter of
+// white letters among dark ones reads as a state you are meant to notice, and
+// there is no such state - the tile colour already carries the strength.
 // -------------------------------------------------------------------
 export const MIN_STRENGTH_SCORE = 3;
 export const FULL_STRENGTH_SCORE = 9;
@@ -70,12 +71,11 @@ export function teamColorForScore(team: string, score: number): string {
 }
 
 /**
- * The letter on top of that tile.  Below about half strength the tile is pale
- * enough that white text disappears into it, so the dark ink takes over.
+ * How much team colour the presenter's roster panels carry.  Low: player names and the
+ * disconnected grey both have to stay readable on top of it, and the board beside it is where
+ * the eye is meant to go.
  */
-export function letterColorForScore(score: number): string {
-  return teamMixForScore(score) >= 0.55 ? "rgba(255,255,255,0.97)" : COZY.ink;
-}
+export const TEAM_PANEL_TINT = 0.14;
 
 /** `amount` of the colour, the rest white. 1 is the colour itself. */
 export function mixWithWhite(hex: string, amount: number): string {

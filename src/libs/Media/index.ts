@@ -7,3 +7,6 @@ export * from "./DirectMusicSource";
 export * from "./CachedMusicSource";
 export * from "./VolumePreferences";
 export * from "./SpeechHelper";
+export * from "./speech";
+export * from "./SoundEffects";
+export * from "./audioContext";
