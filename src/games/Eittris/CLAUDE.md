@@ -30,20 +30,21 @@ owns everything _between_ boards — rounds, targeting, attack delivery, death, 
 
 ## The wordmark
 
-`views/EittrisLogo.tsx` — all caps, a red-to-yellow gradient top to bottom, and the **R upside
-down**. It is TEXT with `background-clip: text`, not an image, because it lands in a phone
-header, a presenter corner and a version tag at three different sizes and has to stay crisp in
-all of them; it takes its size from whatever it is dropped into. The gradient leaves nothing for
-a screen reader to find, so the component carries `aria-label="EITTRIS"`.
+`views/EittrisLogo.tsx` renders `assets/images/EittrisLogo.png` - all caps, a red-to-yellow
+gradient, and the R upside down. It is ARTWORK, not type: an earlier version painted a
+gradient through live text with `background-clip: text`, which looked close but depended on
+the machine's fonts and lost the R entirely, because the `transform` that flips it gives the
+element its own paint context and it is no longer painted through the parent's clip. The
+wordmark rendered as "EITT&nbsp;&nbsp;&nbsp;IS".
 
 Use it anywhere the name would otherwise be spelled out. `GameVersionTag`'s `title` takes a
 ReactNode for exactly this.
 
-**The upside-down R needs its OWN copy of the gradient.** A `transform` gives an element its
-own paint context, so the R is no longer painted through the parent's `background-clip: text` -
-with only the inherited transparent fill it renders as a hole, and the wordmark reads
-"EITT&nbsp;&nbsp;&nbsp;IS". Its copy runs `to top` with the same stops, because the rotation
-flips the axis.
+**Size it by WIDTH, not by em height.** The art is 4.27:1, so width is always the binding
+constraint in a phone header - and a fixed height under a width constraint LETTERBOXES an
+image inside its own box, which is how it once painted at a fifth of the size its rule asked
+for. `.logo` uses `max-height` with both dimensions `auto`; the phone's copy
+(`Client.module.css .clientLogo`) sets an explicit width in canvas pixels.
 
 **The lobby card cannot use it.** `GameDescriptor.displayName` is a `string`, and in production
 it comes from the server manifest anyway - so the tile says "EITTRIS" in plain type. Making it

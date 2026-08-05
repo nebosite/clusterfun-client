@@ -9,22 +9,22 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0.3em 0.45em;
-  /* Tight. Five column gaps at 0.4em cost Lexible 120 of its 1026 usable pixels, which
-     was most of the 48 it was over by. */
-  gap: 0.25em;
+  /* A flat 10px, not an em. In em this scales with the header font, so the games with the
+     biggest type - the ones already short of room - paid the most for their spacing. */
+  gap: 10px;
   overflow: hidden;
 }
 
 /* The two flexible gaps. Equal basis, so the row divides the leftover width evenly however
    long the game's name or the player's name happens to be.
 
-   They are also the FIRST thing to give way. The order in which this row surrenders space is
-   deliberate: gaps, then the player's name (which ellipsizes), then the team chip - and the
-   game's title never. A logo that has been cut in half tells you nothing; a gap that has
-   closed up costs nothing. */
+   They are also the FIRST thing to give way, and they bottom out at 10px. The order in which
+   this row surrenders space is deliberate: gaps, then the player's name (which ellipsizes),
+   and the game's title never. A logo cut in half tells you nothing; a gap that has closed up
+   to 10px costs nothing. */
 .gap {
   flex: 1 1 0;
-  min-width: 0.15em;
+  min-width: 10px;
 }
 
 /* NEVER cut. No ceiling and no shrink: whatever the title needs, it gets, and the row finds
@@ -71,6 +71,9 @@
   border-radius: 999px;
   font-weight: 700;
   white-space: nowrap;
+  /* Smaller than the row's type. Which team you are on is one letter of information; it does
+     not need to be set at the same size as the game's name. */
+  font-size: 0.62em;
 }
 .team:not(:empty) {
   padding: 0.15em 0.7em;
@@ -96,11 +99,13 @@
    336px at EITtris' header font, for content that needed 194, and that alone pushed the quit
    button off the end of the row. */
 .playerName {
+  /* Smaller than the row's type, for the same reason as the team chip: you know your own
+     name, and the width it gives back goes to the thing you cannot infer. */
+  font-size: 0.62em;
   /* NO floor. A floor here is worse than none: if it is wider than the space left, the name
      never starts ellipsizing and .who clips it mid-glyph instead - Lexible cut "Alice" to
      "Ali" with no dots. Zero means the ellipsis always engages, which is the readable way to
-     run out of room. Games that want the name whole should size their header down, the way
-     EITtris does, rather than reserve width the row does not have. */
+     run out of room. */
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -128,4 +133,16 @@
 .quitPlaceholder {
   flex: 0 0 auto;
   width: 1.6em;
+}
+
+/* The version, in the bottom-right corner of the phone. See ClientHeader.tsx for why it is
+   not in the top strip and why `fixed` is the right positioning here. */
+.versionCorner {
+  position: fixed;
+  right: 12px;
+  bottom: 8px;
+  z-index: 5;
+  font-size: 0.55em;
+  opacity: 0.75;
+  pointer-events: none;
 }

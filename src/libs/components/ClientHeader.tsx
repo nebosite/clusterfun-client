@@ -45,11 +45,7 @@ export function ClientHeader(props: ClientHeaderProps) {
   return (
     <div className={[styles.header, props.className].filter(Boolean).join(" ")} style={props.style}>
       <span className={styles.brand}>
-        {/* The title is the only thing in here that may be squeezed. Clipping was on the
-            brand as a whole before, and since the version is its LAST child that is exactly
-            what got cut - EITtris and Lexible showed a wordmark and no version at all. */}
         <span className={styles.titleSlot}>{props.title}</span>
-        <GameVersionTag history={props.history} className={styles.version} />
       </span>
 
       <span className={styles.gap} />
@@ -83,6 +79,17 @@ export function ClientHeader(props: ClientHeaderProps) {
       ) : (
         <span className={styles.quitPlaceholder} />
       )}
+
+      {/* The version sits in the BOTTOM-RIGHT of the phone, not in this row.
+          It is worth having and it is not worth a single pixel of the top strip: at EITtris'
+          header font "v0.1.0" cost 178 of the row's 1060, which is a third of the game's
+          wordmark. Down here it competes with nothing.
+
+          `fixed` rather than `absolute`: the client is drawn inside UINormalizer's CSS
+          transform, and a transform is a containing block for fixed positioning - so this
+          lands in the corner of the PHONE's canvas rather than the browser window, which is
+          also what keeps four of them apart in the Test Lobby. */}
+      <GameVersionTag history={props.history} className={styles.versionCorner} />
     </div>
   );
 }
