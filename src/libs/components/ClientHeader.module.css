@@ -9,40 +9,43 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0.3em 0.45em;
-  gap: 0.4em;
+  /* Tight. Five column gaps at 0.4em cost Lexible 120 of its 1026 usable pixels, which
+     was most of the 48 it was over by. */
+  gap: 0.25em;
   overflow: hidden;
 }
 
 /* The two flexible gaps. Equal basis, so the row divides the leftover width evenly however
-   long the game's name or the player's name happens to be. */
+   long the game's name or the player's name happens to be.
+
+   They are also the FIRST thing to give way. The order in which this row surrenders space is
+   deliberate: gaps, then the player's name (which ellipsizes), then the team chip - and the
+   game's title never. A logo that has been cut in half tells you nothing; a gap that has
+   closed up costs nothing. */
 .gap {
   flex: 1 1 0;
-  min-width: 0.5em;
+  min-width: 0.15em;
 }
 
-/* Capped, and allowed to SHRINK. It used to be `flex: 0 0 auto` with no ceiling, so a game
-   with a big title - EITtris' wordmark, or Lexible at a 60px header font - ate the row and
-   every bit of shrink landed on the player's own name: Lexible rendered "Alice" as "A", and
-   EITtris rendered the name at zero pixels wide. */
+/* NEVER cut. No ceiling and no shrink: whatever the title needs, it gets, and the row finds
+   the room elsewhere. A 42% cap lived here for a while and did exactly what a cap does - it
+   sliced the ends off RetroSpectro's name and EITtris' wordmark rather than closing up a gap
+   that had space to give. */
 .brand {
   display: inline-flex;
   align-items: center;
   gap: 0.3em;
-  flex: 0 1 auto;
-  max-width: 42%;
-  min-width: 0;
+  flex: 0 0 auto;
   font-weight: 700;
   white-space: nowrap;
 }
 
-/* The clipping lives HERE, on the title alone, not on .brand - the version is .brand's last
-   child, so clipping the parent cut the version rather than the long title that caused it. */
+/* No overflow and no shrink. This used to clip, which is how a wordmark ended up with its
+   last letters missing. */
 .titleSlot {
   display: inline-flex;
   align-items: center;
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
+  flex: 0 0 auto;
 }
 
 /* "smaller, clear to read": small enough to be secondary, solid enough to actually read
@@ -56,15 +59,15 @@
 
 /* The team slot. Always rendered - an empty one still holds its share of the row - so the
    player's own name sits in the same place in every game. */
+/* Never shrinks, never clips. A 26% ceiling used to slice the A off Lexible's "TEAM A";
+   removing the ceiling without ALSO refusing to shrink just moved the failure, because a
+   starved chip with no clipping spills - "TEAM A" painted straight over the avatar. A chip is
+   two words, so it takes its two words' width and the row finds the room elsewhere. */
 .team {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   min-width: 0.5em;
-  /* Capped for the same reason as the brand - a long team name must not cost the player
-     their own name. */
-  max-width: 26%;
-  overflow: hidden;
   border-radius: 999px;
   font-weight: 700;
   white-space: nowrap;
@@ -75,19 +78,29 @@
 }
 
 /* Avatar and name, hard against each other - they are one thing. */
-/* Guaranteed a share of the row. Without the floor, a crowded header shrank this to nothing
-   and the player could not see their own name at all. */
+/* Guaranteed a share of the row - without the floor, a crowded header shrank this to nothing
+   and the player could not see their own name at all. Below that floor the name ellipsizes,
+   which is a readable degradation in a way a half-drawn logo is not. */
 .who {
   flex: 0 1 auto;
   display: inline-flex;
   align-items: center;
   gap: 0.3em;
-  min-width: 5em;
+  min-width: 0;
   overflow: hidden;
 }
 
-/* Takes all the shrink, so a long name ellipsizes instead of pushing the quit button off. */
+/* Takes all the shrink, so a long name ellipsizes instead of pushing the quit button off -
+   but never below a few characters' worth.
+   The floor lives HERE and not on .who, which also holds the avatar: 6em on .who came to
+   336px at EITtris' header font, for content that needed 194, and that alone pushed the quit
+   button off the end of the row. */
 .playerName {
+  /* NO floor. A floor here is worse than none: if it is wider than the space left, the name
+     never starts ellipsizing and .who clips it mid-glyph instead - Lexible cut "Alice" to
+     "Ali" with no dots. Zero means the ellipsis always engages, which is the readable way to
+     run out of room. Games that want the name whole should size their header down, the way
+     EITtris does, rather than reserve width the row does not have. */
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

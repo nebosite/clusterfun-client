@@ -102,6 +102,10 @@
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  /* Smaller than the client's 60px body text, because this row carries the most of any game
+     in the set: a title, a version, a TEAM chip, an avatar, a name and a quit button. At 60
+     its natural width was ~1138 in a 1080 header, so the name was the thing that lost. */
+  font-size: 42px;
   background: var(--panel);
   padding: 14px 18px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);

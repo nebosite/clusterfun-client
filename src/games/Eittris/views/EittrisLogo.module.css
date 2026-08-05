@@ -6,14 +6,18 @@
    so a 1em box renders letters noticeably shorter than the text beside them. */
 .logo {
   display: inline-block;
-  height: 1.15em;
+  /* max-height + auto, not a fixed height. A fixed height with a width constraint is what
+     letterboxes an image inside its own box: the box narrows, the height does not, and the
+     artwork paints at a fraction of the size the rule asks for. With both dimensions auto
+     under a pair of maximums it simply scales, and is never squashed or cropped. */
+  max-height: 1.15em;
+  max-width: 100%;
+  height: auto;
   width: auto;
   vertical-align: -0.2em;
-  /* May shrink to fit a crowded row, but only proportionally - object-fit keeps the artwork
-     from being squashed, which is what `flex: 0 0 auto` used to prevent by refusing to
-     shrink at all (and pushing the player's name out of the header instead). */
-  flex: 0 1 auto;
-  max-width: 100%;
-  object-fit: contain;
+  /* Never shrinks. It did for a while, and because `object-fit: contain` letterboxes inside
+     the shrunken box the artwork painted at a fifth of the height it was asked for - the
+     logo looked tiny for reasons nothing in the size rule explained. */
+  flex: 0 0 auto;
   user-select: none;
 }
