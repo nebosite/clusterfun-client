@@ -223,7 +223,6 @@ export default class Client extends React.Component<{
               history={TEMPLATE_VERSION_HISTORY}
               avatarId={appModel?.avatarId ?? 0}
               avatarColor={appModel?.avatarColor}
-              avatarSize={40}
               playerName={appModel?.playerName}
               onQuit={() => appModel?.quitApp()}
             />

@@ -24,11 +24,11 @@
   font-weight: 800;
 }
 
+/* Arrangement belongs to the shared ClientHeader (libs/components/ClientHeader.module.css).
+   Padding and gap here changed the fixed region widths - and `.gameclient .topbar` TIES the
+   shared `.header.header` on specificity, so it won on source order. Deleting is the fix;
+   escalating to a third class would only move the fight. */
 .gameclient .topbar {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding-top: 15px;
 }
 
 .gameclient .quitbutton {

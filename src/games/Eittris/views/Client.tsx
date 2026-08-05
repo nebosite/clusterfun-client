@@ -1014,11 +1014,10 @@ export default class Client extends React.Component<{
                 which pushed the quit button clean off the right-hand edge. */}
             <ClientHeader
               className={styles.topbar}
-              title={<EittrisLogo className={styles.clientLogo} />}
+              title={<EittrisLogo />}
               history={EITTRIS_VERSION_HISTORY}
               avatarId={appModel?.avatarId ?? 0}
               avatarColor={appModel?.avatarColor}
-              avatarSize={80}
               playerName={appModel?.playerName}
               onQuit={() => appModel?.quitApp()}
             />

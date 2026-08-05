@@ -1,148 +1,203 @@
-/* The phone's top strip, shared by every game. See ClientHeader.tsx for the layout rule.
+/* The phone's top strip, shared by every game.
 
-   Everything is sized in EM so one control works across seven games whose client canvases
-   and root font sizes differ. Colour is inherited on purpose: each game sets its own
-   background and text colour on the element, and this only owns the arrangement. */
-.header {
+   This is a FIXED GEOMETRY, not a flex negotiation, and that is the point. It spent several
+   rounds as a row of shrinkable slots, and every fix moved the failure somewhere else: cap
+   the title and it clips, uncap it and the quit button falls off the end, floor the name and
+   it stops ellipsizing and gets cut mid-glyph instead. Three fixed regions cannot do that.
+
+     |<-- 360 -->|<--------- the rest --------->|<-- 120 -->|
+     |   title   |  avatar + name  (+ team)     |   quit    |     120 tall, always
+
+   Every number here is in the client canvas's own pixels. Each game draws its phone on a
+   1080-wide UINormalizer canvas, so these are the same on every device - and deliberately NOT
+   in em, because em made the strip depend on each game's body font, which is exactly how the
+   games with the biggest type ended up with the least room. */
+.header.header {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  height: 120px;
+  box-sizing: border-box;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  /* Anchors every em below, so a game's own font size cannot reach in here. */
+  font-size: 40px;
+}
+
+/* ---- The title: the leftmost 360, with 5px of air all round ---------------------------- */
+.brand.brand {
+  flex: 0 0 360px;
+  width: 360px;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 5px;
   display: flex;
   align-items: center;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.3em 0.45em;
-  /* A flat 10px, not an em. In em this scales with the header font, so the games with the
-     biggest type - the ones already short of room - paid the most for their spacing. */
-  gap: 10px;
+  justify-content: flex-start;
   overflow: hidden;
 }
 
-/* The two flexible gaps. Equal basis, so the row divides the leftover width evenly however
-   long the game's name or the player's name happens to be.
-
-   They are also the FIRST thing to give way, and they bottom out at 10px. The order in which
-   this row surrenders space is deliberate: gaps, then the player's name (which ellipsizes),
-   and the game's title never. A logo cut in half tells you nothing; a gap that has closed up
-   to 10px costs nothing. */
-.gap {
-  flex: 1 1 0;
-  min-width: 10px;
-}
-
-/* NEVER cut. No ceiling and no shrink: whatever the title needs, it gets, and the row finds
-   the room elsewhere. A 42% cap lived here for a while and did exactly what a cap does - it
-   sliced the ends off RetroSpectro's name and EITtris' wordmark rather than closing up a gap
-   that had space to give. */
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3em;
-  flex: 0 0 auto;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-/* No overflow and no shrink. This used to clip, which is how a wordmark ended up with its
-   last letters missing. */
 .titleSlot {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  flex: 0 0 auto;
-}
-
-/* "smaller, clear to read": small enough to be secondary, solid enough to actually read
-   across a room. The tag's own default is fainter than that.
-
-   NEVER shrinks. Whatever room the header is short of comes out of the title. */
-.version {
-  opacity: 0.85;
-  flex: 0 0 auto;
-}
-
-/* The team slot. Always rendered - an empty one still holds its share of the row - so the
-   player's own name sits in the same place in every game. */
-/* Never shrinks, never clips. A 26% ceiling used to slice the A off Lexible's "TEAM A";
-   removing the ceiling without ALSO refusing to shrink just moved the failure, because a
-   starved chip with no clipping spills - "TEAM A" painted straight over the avatar. A chip is
-   two words, so it takes its two words' width and the row finds the room elsewhere. */
-.team {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  min-width: 0.5em;
-  border-radius: 999px;
+  max-width: 100%;
+  max-height: 100%;
+  /* A word rather than a wordmark. An image title genuinely scales to fill the region (see
+     below); TEXT cannot in CSS alone, so this is the largest size at which the longest name
+     in the set - "RetroSpectro", 12 characters - still keeps its 5px of padding in 350px. */
+  font-size: 52px;
   font-weight: 700;
+  line-height: 1;
   white-space: nowrap;
-  /* Smaller than the row's type. Which team you are on is one letter of information; it does
-     not need to be set at the same size as the game's name. */
-  font-size: 0.62em;
-}
-.team:not(:empty) {
-  padding: 0.15em 0.7em;
-  margin-right: 0.5em;
 }
 
-/* Avatar and name, hard against each other - they are one thing. */
-/* Guaranteed a share of the row - without the floor, a crowded header shrank this to nothing
-   and the player could not see their own name at all. Below that floor the name ellipsizes,
-   which is a readable degradation in a way a half-drawn logo is not. */
+/* An image title scales to the largest it can be inside the box - both dimensions auto under
+   a pair of maximums, which is what lets it grow AND stops it letterboxing. */
+.titleSlot img {
+  max-width: 100%;
+  max-height: 110px;
+  width: auto;
+  height: auto;
+}
+
+/* ---- The middle: whatever is left between the two fixed ends --------------------------- */
+.middle.middle {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* No team: one section, the whole 120 tall, 15px of padding. */
+.middleSolo {
+  padding: 15px;
+}
+.middleSolo .who {
+  /* The content box, not a hard 90: Lexible paints an 8px team border on the strip, which
+     with box-sizing leaves 112 of content rather than 120, and a fixed child hung out of it. */
+  height: 100%;
+  font-size: 46px;
+}
+.middleSolo .avatarSlot {
+  width: 80px;
+  height: 80px;
+}
+
+/* With a team: two stacked sections of 60, each with 5px of padding. */
+.middleStacked {
+  padding: 0;
+}
+.middleStacked .who,
+.middleStacked .team {
+  height: 50%;
+  box-sizing: border-box;
+  padding: 5px;
+  font-size: 34px;
+}
+.middleStacked .avatarSlot {
+  width: 48px;
+  height: 48px;
+}
+
 .who {
-  flex: 0 1 auto;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.3em;
+  gap: 10px;
   min-width: 0;
   overflow: hidden;
+  font-weight: 700;
 }
 
-/* Takes all the shrink, so a long name ellipsizes instead of pushing the quit button off -
-   but never below a few characters' worth.
-   The floor lives HERE and not on .who, which also holds the avatar: 6em on .who came to
-   336px at EITtris' header font, for content that needed 194, and that alone pushed the quit
-   button off the end of the row. */
+.avatarSlot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Takes all the shrink, and ellipsizes rather than being cut mid-glyph. No minimum: a floor
+   wider than the room left is what stops the ellipsis engaging at all. */
 .playerName {
-  /* Smaller than the row's type, for the same reason as the team chip: you know your own
-     name, and the width it gives back goes to the thing you cannot infer. */
-  font-size: 0.62em;
-  /* NO floor. A floor here is worse than none: if it is wider than the space left, the name
-     never starts ellipsizing and .who clips it mid-glyph instead - Lexible cut "Alice" to
-     "Ali" with no dots. Zero means the ellipsis always engages, which is the readable way to
-     run out of room. */
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.quit {
-  flex: 0 0 auto;
-  font-weight: 800;
-  font-size: 1em;
-  line-height: 1;
-  padding: 0.15em 0.55em;
+.team {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.teamChip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 14px;
+  border-radius: 999px;
+}
+
+/* ---- The quit button: the rightmost 120x120, inset 10 all round ------------------------ */
+.quitFrame.quitFrame {
+  flex: 0 0 120px;
+  width: 120px;
+  height: 100%;
+  max-height: 120px;
+  box-sizing: border-box;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Must stand out from whatever the game paints behind it - a header this size in seven
+   different colour schemes cannot rely on inheriting something readable. */
+.quit.quit {
+  width: 100px;
+  height: 100px;
+  box-sizing: border-box;
   margin: 0;
-  border: none;
-  border-radius: 0.35em;
-  background: rgba(0, 0, 0, 0.12);
-  color: inherit;
+  padding: 0;
+  font-size: 54px;
+  font-weight: 900;
+  line-height: 1;
+  color: #ffffff;
+  background: #c0392b;
+  border: 4px solid #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   cursor: pointer;
 }
-.quit:hover {
-  background: rgba(0, 0, 0, 0.2);
+.quit.quit:hover {
+  background: #e04b39;
 }
 
-/* Holds the quit button's width when a game has no quit, so the rest does not shift. */
-.quitPlaceholder {
-  flex: 0 0 auto;
-  width: 1.6em;
-}
+/* The version, in the bottom-right corner of the phone rather than in the strip - it was
+   costing a quarter of the row's width to say something nobody reads mid-round.
 
-/* The version, in the bottom-right corner of the phone. See ClientHeader.tsx for why it is
-   not in the top strip and why `fixed` is the right positioning here. */
+   `fixed` rather than `absolute`: the client is drawn inside UINormalizer's CSS transform,
+   and a transform is a containing block for fixed positioning, so this lands in the corner of
+   the PHONE's canvas rather than the browser window. That is also what keeps four of them in
+   four separate corners in the Test Lobby.
+
+   100px here because GameVersionTag sets its number at 0.6em - so the number itself lands at
+   60, twice the ~30 it used to be. */
 .versionCorner {
   position: fixed;
   right: 12px;
   bottom: 8px;
   z-index: 5;
-  font-size: 0.55em;
+  font-size: 100px;
   opacity: 0.75;
   pointer-events: none;
 }

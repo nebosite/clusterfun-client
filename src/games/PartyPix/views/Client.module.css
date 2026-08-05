@@ -43,7 +43,9 @@
   align-items: center;
   gap: 18px;
   padding: 28px 32px;
-  border-bottom: 1px solid var(--border);
+  /* Inset shadow, not a border - a border shrinks the content box the fixed header
+     regions are measured against. */
+  box-shadow: inset 0 -1px 0 var(--border);
 }
 .wordmark {
   font-family: var(--display);

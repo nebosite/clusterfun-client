@@ -47,12 +47,9 @@
   font-weight: 800;
 }
 
+/* Arrangement belongs to the shared ClientHeader; this only says what colour it is. */
 .gameclient .topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  padding: 5px 10px 0 10px;
+  padding: 0;
 }
 
 /* Stands in for the title in dev, so the row starts clear of the floating panel */
@@ -679,29 +676,7 @@
   opacity: 0.5;
 }
 
-/* The wordmark on the phone, ~2.9x the size it used to SHOW.
-
-   It was painting 240 canvas px wide - not the 432 its rule asked for, because a fixed height
-   under a width constraint letterboxes an image inside its own box.
-
-   The room came out of the rest of the strip: the version moved to the bottom-right corner of
-   the phone, the flexible gaps bottom out at 10px, and the name and team chip set at 0.62em.
-   MEASURED, on a 1080 canvas with 1060 usable:
-     logo 700 + column gaps 50 + flex gaps 20 + team 17.4 + avatar/name 172 + quit 73.6
-     + quit margins 10 = 1043.
-   The quit margins are the easy 10 to forget - they come from `.gameclient button`, which
-   outranks the shared header's `margin: 0` on specificity. At 720 the row came to 1063 and
-   the player's name was the only thing that could give, so "Alice" ellipsized to "Al...".
-
-   Sized in WIDTH because width is what the row is short of; at 4.27:1 height never was. */
-.gameclient .topbar {
-  font-size: 56px;
-  /* Beats the 20px set on .topbar higher up, which outranks the shared header's 10px on
-     specificity - five gaps at 20px is 100 of the row's 1060 pixels. */
-  gap: 10px;
-}
-.gameclient .clientLogo {
-  max-height: none;
-  width: 700px;
-  height: auto;
-}
+/* The wordmark scales itself to the shared header's 360px title region now - see
+   libs/components/ClientHeader.module.css. It used to carry an explicit width here, back when
+   the strip was a flex negotiation and the logo had to be sized against everything else in
+   the row by hand. */

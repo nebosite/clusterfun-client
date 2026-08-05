@@ -218,10 +218,18 @@ export default class Client extends React.Component<{
                 is the one fact a player has to keep straight while playing. */}
             <ClientHeader
               className={styles.topbar}
+              // The team accent is an INSET SHADOW, not a border. A border shrinks the
+              // strip's content box, and the header's regions are a fixed 120px measured
+              // against it - with a border the quit button lost 4px of its 10px inset and
+              // the team chip was clipped at the bottom.
               style={
                 onATeam
-                  ? { background: teamAccent, color: "#fff", borderTop: `8px solid ${teamAccent}` }
-                  : { borderTop: `8px solid ${teamAccent}` }
+                  ? {
+                      background: teamAccent,
+                      color: "#fff",
+                      boxShadow: `inset 0 8px 0 ${teamAccent}`,
+                    }
+                  : { boxShadow: `inset 0 8px 0 ${teamAccent}` }
               }
               title="Lexible"
               history={LEXIBLE_VERSION_HISTORY}

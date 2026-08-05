@@ -59,15 +59,17 @@
 }
 
 /* ---- Header ---- */
+/* Arrangement belongs to the shared ClientHeader (libs/components/ClientHeader.module.css).
+   Padding and gap here changed the fixed region widths - and `.gameclient .topbar` TIES the
+   shared `.header.header` on specificity, so it won on source order. Deleting is the fix;
+   escalating to a third class would only move the fight. */
 .gameclient .topbar {
   flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 20px;
   height: 120px;
-  padding: 0 40px;
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  /* Inset shadow, not a border: a border shrinks the content box and the fixed 120px
+     regions inside it stop fitting. */
+  box-shadow: inset 0 -1px 0 var(--border);
 }
 .gameclient .gametitle {
   font-weight: 700;
