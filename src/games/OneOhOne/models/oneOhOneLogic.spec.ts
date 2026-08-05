@@ -2,7 +2,7 @@ import {
   animationPathForMove,
   BotAttitude,
   botPickGuess,
-  BUST_LIMIT,
+  BUST_LIMIT_DEFAULT,
   computeRevealDurationMs,
   maxPiecesPerHuman,
   MAX_GUESS,
@@ -13,6 +13,7 @@ import {
   WIN_POSITION,
   bustLimitFor,
   MIN_WIN_POSITION,
+  TARGET_OPTIONS,
   sanitizeWinPosition,
 } from "./oneOhOneLogic";
 
@@ -55,36 +56,56 @@ describe("resolveRound", () => {
 
   it("declares a win on landing exactly on 101", () => {
     const moves = resolveRound([{ pieceId: "a", position: WIN_POSITION - 6, guess: 6 }]);
-    expect(move(moves, "a")).toMatchObject({ newPosition: WIN_POSITION, won: true });
+    expect(move(moves, "a")).toMatchObject({
+      newPosition: WIN_POSITION,
+      won: true,
+      bonus: 0,
+      potShare: 0,
+    });
   });
 
-  it("does NOT win on passing 101 (overshoot into the danger zone)", () => {
-    const moves = resolveRound([{ pieceId: "a", position: 99, guess: 8 }]);
-    expect(move(moves, "a")).toMatchObject({ newPosition: 107, won: false, busted: false });
+  it("does NOT win on passing the target (overshoot into the danger zone)", () => {
+    const moves = resolveRound([{ pieceId: "a", position: WIN_POSITION - 2, guess: 8 }]);
+    expect(move(moves, "a")).toMatchObject({
+      newPosition: WIN_POSITION + 6,
+      won: false,
+      busted: false,
+    });
   });
 
   it("wins when a collision knocks a piece back onto exactly 101", () => {
     const moves = resolveRound([
-      { pieceId: "a", position: 103, guess: 4 },
-      { pieceId: "b", position: 50, guess: 4 },
+      { pieceId: "a", position: WIN_POSITION + 2, guess: 4 },
+      { pieceId: "b", position: 10, guess: 4 },
     ]);
-    expect(move(moves, "a")).toMatchObject({ newPosition: WIN_POSITION, won: true });
+    expect(move(moves, "a")).toMatchObject({
+      newPosition: WIN_POSITION,
+      won: true,
+      bonus: 0,
+      potShare: 0,
+    });
   });
 
   it("busts to 0 when moving past 111", () => {
-    const moves = resolveRound([{ pieceId: "a", position: BUST_LIMIT - 3, guess: 4 }]);
-    expect(move(moves, "a")).toMatchObject({ newPosition: 0, busted: true, won: false });
+    const moves = resolveRound([{ pieceId: "a", position: BUST_LIMIT_DEFAULT - 3, guess: 4 }]);
+    expect(move(moves, "a")).toMatchObject({
+      newPosition: 0,
+      busted: true,
+      won: false,
+      bonus: 0,
+      potShare: 0,
+    });
   });
 
   it("allows landing exactly on 111 without busting", () => {
-    const moves = resolveRound([{ pieceId: "a", position: BUST_LIMIT - 4, guess: 4 }]);
-    expect(move(moves, "a")).toMatchObject({ newPosition: BUST_LIMIT, busted: false });
+    const moves = resolveRound([{ pieceId: "a", position: BUST_LIMIT_DEFAULT - 4, guess: 4 }]);
+    expect(move(moves, "a")).toMatchObject({ newPosition: BUST_LIMIT_DEFAULT, busted: false });
   });
 
   it("supports simultaneous winners", () => {
     const moves = resolveRound([
-      { pieceId: "a", position: 95, guess: 6 },
-      { pieceId: "b", position: 94, guess: 7 },
+      { pieceId: "a", position: WIN_POSITION - 6, guess: 6 },
+      { pieceId: "b", position: WIN_POSITION - 7, guess: 7 },
     ]);
     expect(moves.filter((m) => m.won).length).toBe(2);
   });
@@ -130,7 +151,14 @@ describe("randomGuess", () => {
 });
 
 describe("animationPathForMove", () => {
-  const baseMove = { pieceId: "a", collidedCount: 0, busted: false, won: false };
+  const baseMove = {
+    pieceId: "a",
+    collidedCount: 0,
+    busted: false,
+    won: false,
+    bonus: 0,
+    potShare: 0,
+  };
 
   it("steps forward one position at a time", () => {
     const path = animationPathForMove({ ...baseMove, guess: 4, delta: 4, newPosition: 14 });
@@ -149,15 +177,26 @@ describe("animationPathForMove", () => {
   });
 
   it("runs to the track edge then snaps to 0 on a bust", () => {
-    // old position 109, guess 6 -> bust (109+6 = 115 > 111)
+    // Two short of the edge, guessing 6: it runs to the edge and drops off.
+    const edge = BUST_LIMIT_DEFAULT;
     const path = animationPathForMove({
       ...baseMove,
       guess: 6,
-      delta: -109,
+      delta: -(edge - 2),
       newPosition: 0,
       busted: true,
     });
-    expect(path).toEqual([110, 111, 0]);
+    expect(path).toEqual([edge - 1, edge, 0]);
+  });
+
+  it("stops at THIS game's edge, not a hardcoded one", () => {
+    // The bug: the edge was fixed at 111 whatever the target, so on a short track the
+    // animation walked a piece off the end of the board before snapping it back.
+    const path = animationPathForMove(
+      { ...baseMove, guess: 6, delta: -19, newPosition: 0, busted: true },
+      21,
+    );
+    expect(path).toEqual([20, 21, 0]);
   });
 
   it("is empty for a zero-delta move (collision at position 0)", () => {
@@ -183,6 +222,8 @@ describe("computeRevealDurationMs", () => {
         collidedCount: 0,
         busted: false,
         won: false,
+        bonus: 0,
+        potShare: 0,
       },
       {
         pieceId: "b",
@@ -192,6 +233,8 @@ describe("computeRevealDurationMs", () => {
         collidedCount: 2,
         busted: false,
         won: false,
+        bonus: 0,
+        potShare: 0,
       },
     ];
     // piece a: 3 steps; piece b: inactive
@@ -208,6 +251,8 @@ describe("computeRevealDurationMs", () => {
         collidedCount: 2,
         busted: false,
         won: false,
+        bonus: 0,
+        potShare: 0,
       },
       {
         pieceId: "b",
@@ -217,6 +262,8 @@ describe("computeRevealDurationMs", () => {
         collidedCount: 2,
         busted: false,
         won: false,
+        bonus: 0,
+        potShare: 0,
       },
     ];
     // 2 pieces x 2 steps + 2 gaps + 2 collision pauses + buffer
@@ -243,26 +290,30 @@ describe("piece allotment", () => {
 describe("oneOhOneLogic - a host-chosen target", () => {
   it("defaults to the game's namesake", () => {
     expect(sanitizeWinPosition(undefined)).toBe(WIN_POSITION);
-    expect(WIN_POSITION).toBe(101);
+    expect(WIN_POSITION).toBe(41);
   });
 
-  it("keeps the host inside 11..101", () => {
+  it("snaps whatever it is given to one of the offered targets", () => {
+    // The slider is gone: the host picks from a short list, so anything else - a stale
+    // checkpoint, a hand-edited setting - has to land on a real option rather than between
+    // two of them.
+    for (const option of TARGET_OPTIONS) expect(sanitizeWinPosition(option)).toBe(option);
     expect(sanitizeWinPosition(5)).toBe(MIN_WIN_POSITION);
-    expect(sanitizeWinPosition(11)).toBe(11);
-    expect(sanitizeWinPosition(50)).toBe(50);
-    expect(sanitizeWinPosition(500)).toBe(WIN_POSITION);
+    expect(sanitizeWinPosition(500)).toBe(TARGET_OPTIONS[TARGET_OPTIONS.length - 1]);
     expect(sanitizeWinPosition(NaN)).toBe(WIN_POSITION);
-    expect(sanitizeWinPosition(20.6)).toBe(21);
+    expect(sanitizeWinPosition(101)).toBe(51); // the old namesake target, snapped
+    expect(sanitizeWinPosition(36)).toBe(31); // exactly between two options: takes the first
   });
 
   it("keeps the overshoot risk one full guess past the target, whatever it is", () => {
-    expect(bustLimitFor(101)).toBe(BUST_LIMIT);
+    expect(bustLimitFor(41)).toBe(BUST_LIMIT_DEFAULT);
     expect(bustLimitFor(11)).toBe(21);
+    expect(bustLimitFor(21, 13)).toBe(34); // and it follows the field-sized range
   });
 
   it("wins on the chosen target, not on 101", () => {
     const moves = resolveRound([{ pieceId: "a", position: 25, guess: 5 }], 30);
-    expect(move(moves, "a")).toMatchObject({ newPosition: 30, won: true });
+    expect(move(moves, "a")).toMatchObject({ newPosition: 30, won: true, bonus: 0, potShare: 0 });
   });
 
   it("does not win by reaching 101 when the target is shorter", () => {

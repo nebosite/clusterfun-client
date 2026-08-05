@@ -38,6 +38,8 @@ export interface OneOhOneOnboardClientMessage {
   gameState: string;
   // The host picks how far the track runs, so the phone cannot assume 101.
   winPosition: number;
+  /** The biggest number a piece may pick this game. Grows with the field - see maxGuessFor. */
+  maxGuess: number;
   roundNumber: number;
   phase: OneOhOneRoundPhase;
   secondsLeft: number;

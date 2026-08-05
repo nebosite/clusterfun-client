@@ -32,8 +32,9 @@ import { OneOhOneMoveSummary, OneOhOneRoundPhase } from "../models/oneOhOneEndpo
 import {
   animationPathForMove,
   BotAttitude,
-  MIN_WIN_POSITION,
+  TARGET_OPTIONS,
   GamePiece,
+  MAX_GUESS,
   MAX_PIECES,
   WIN_POSITION,
 } from "../models/oneOhOneLogic";
@@ -46,18 +47,22 @@ const pct = (position: number, bustLimit: number) =>
 export function describeMove(piece: GamePiece): string {
   const move = piece.lastMove;
   if (!move) return "";
-  if (move.won) return `picked ${move.guess} → 🏆 101!`;
+  if (move.won) return `picked ${move.guess} → 🏆 WIN!`;
   if (move.busted) return `picked ${move.guess} → BUST! back to 0`;
   if (move.collidedCount > 0) return `picked ${move.guess} ×${move.collidedCount} → ${move.delta}`;
   return `picked ${move.guess} → +${move.delta}`;
 }
 
-const RULES = [
-  "Pick a number from 1-10 each round",
-  "Your number is unique? Move forward that many spaces",
-  "Same number as someone else? Everyone who picked it goes BACK by how many picked it",
-  "Land exactly on 101 to win — overshoot past 111 and you restart at 0!",
-];
+// The range and the target both depend on the room, so the rules are built rather than
+// written out - they used to say "1-10" and "101" whatever the host had actually chosen.
+function rulesFor(winPosition: number, maxGuess: number): string[] {
+  return [
+    `Pick a number from 1-${maxGuess} each round`,
+    "Your number is unique? Move forward that many spaces",
+    "Same number as someone else? Everyone who picked it goes BACK by how many picked it",
+    `Land exactly on ${winPosition} to win — overshoot past ${winPosition + maxGuess} and you restart at 0!`,
+  ];
+}
 
 // -------------------------------------------------------------------
 // RevealAnimator - view-layer controller that walks pieces to their new
@@ -143,13 +148,15 @@ class RevealAnimator {
 
 @inject("appModel")
 @observer
-class InstructionsBox extends React.Component<{}> {
+class InstructionsBox extends React.Component<{ appModel?: OneOhOnePresenterModel }> {
   render() {
+    const { appModel } = this.props;
+    const rules = rulesFor(appModel?.winPosition ?? WIN_POSITION, appModel?.maxGuess ?? MAX_GUESS);
     return (
       <div className={styles.instructions}>
         <div style={{ fontWeight: 700 }}>How to play:</div>
         <ul>
-          {RULES.map((rule, i) => (
+          {rules.map((rule, i) => (
             <li key={i}>{rule}</li>
           ))}
         </ul>
@@ -209,19 +216,23 @@ class GatheringPlayersPage extends React.Component<{ appModel?: OneOhOnePresente
           ))}
         </div>
 
+        {/* Four lengths rather than a slider over every number in between.  The in-between
+            values were a false choice - nobody wants to race to 37 - and the slider fired a
+            checkpoint save and an InvalidateState broadcast on every input event while the
+            host dragged it. */}
         <div className={styles.setupRow}>
           <span>Race to:</span>
-          <input
-            type="range"
-            className={styles.targetSlider}
-            min={MIN_WIN_POSITION}
-            max={WIN_POSITION}
-            step={1}
-            value={appModel.winPosition}
-            aria-label="Target number"
-            onChange={(ev) => (appModel.winPosition = Number(ev.target.value))}
-          />
-          <span className={styles.targetValue}>{appModel.winPosition}</span>
+          {TARGET_OPTIONS.map((target) => (
+            <button
+              key={target}
+              className={classNames(styles.setupButton, {
+                [styles.setupSelected]: appModel.winPosition === target,
+              })}
+              onClick={() => (appModel.winPosition = target)}
+            >
+              {target}
+            </button>
+          ))}
         </div>
 
         <div className={styles.setupRow}>

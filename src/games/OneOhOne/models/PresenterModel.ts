@@ -37,6 +37,7 @@ import {
   computeRevealDurationMs,
   GamePiece,
   MAX_GUESS,
+  maxGuessFor,
   MAX_PIECES,
   maxPiecesPerHuman,
   MIN_GUESS,
@@ -132,8 +133,20 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
     this.saveCheckpoint();
     this.sendToEveryone(InvalidateStateEndpoint, () => ({}));
   }
+  /**
+   * The biggest number anybody may pick this game: five wider than the field.  A fixed 1-10
+   * made 101 two different games - with three pieces a collision was bad luck, with sixteen
+   * it was nearly unavoidable and the whole field slid backwards every round.
+   *
+   * PIECES, not people: a player with four pieces is four things picking numbers, and it is
+   * the pickers that collide.
+   */
+  get maxGuess() {
+    return maxGuessFor(this.pieces.length);
+  }
+
   get bustLimit() {
-    return bustLimitFor(this._winPosition);
+    return bustLimitFor(this._winPosition, this.maxGuess);
   }
 
   @observable private _piecesPerHuman = 1;
@@ -370,7 +383,10 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
       // eslint-disable-next-line eqeqeq
       if (p.guess == null) {
         // eslint-disable-next-line eqeqeq
-        p.guess = p.attitude != null ? botPickGuess(p.attitude, rand) : randomGuess(rand);
+        p.guess =
+          p.attitude != null
+            ? botPickGuess(p.attitude, rand, this.maxGuess)
+            : randomGuess(rand, this.maxGuess);
       }
     });
 
@@ -445,6 +461,7 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
     return {
       gameState: this.gameState,
       winPosition: this.winPosition,
+      maxGuess: this.maxGuess,
       roundNumber: this.currentRound,
       phase: this.roundPhase,
       secondsLeft: Math.max(0, this.secondsLeftInStage),
@@ -466,8 +483,8 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
     ) {
       return { accepted: false, reason: "Not collecting picks right now" };
     }
-    if (request.guess < MIN_GUESS || request.guess > MAX_GUESS) {
-      return { accepted: false, reason: `Pick must be ${MIN_GUESS}-${MAX_GUESS}` };
+    if (request.guess < MIN_GUESS || request.guess > this.maxGuess) {
+      return { accepted: false, reason: `Pick must be ${MIN_GUESS}-${this.maxGuess}` };
     }
     const piece = this.pieces.find((p) => p.pieceId === request.pieceId && p.ownerId === sender);
     if (!piece) {

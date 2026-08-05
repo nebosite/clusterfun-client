@@ -22,7 +22,7 @@ import {
   OneOhOneRoundPhase,
   PieceSnapshot,
 } from "../models/oneOhOneEndpoints";
-import { MAX_GUESS, MIN_GUESS } from "../models/oneOhOneLogic";
+import { MIN_GUESS } from "../models/oneOhOneLogic";
 
 // Short summary of what happened to a piece last round
 function describeLastMove(move: OneOhOneMoveSummary | PieceSnapshot["lastMove"]): string {
@@ -43,8 +43,10 @@ class PieceCard extends React.Component<{
     const { appModel, piece } = this.props;
     const collecting = appModel!.phase === OneOhOneRoundPhase.Collecting;
     const pickable = collecting && !piece.confirmed;
+    // The range comes from the host, because it depends on how many pieces are racing.
+    const maxGuess = appModel!.maxGuess;
     const buttons = [];
-    for (let n = MIN_GUESS; n <= MAX_GUESS; n++) {
+    for (let n = MIN_GUESS; n <= maxGuess; n++) {
       buttons.push(
         <button
           key={n}
