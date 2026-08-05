@@ -316,7 +316,11 @@ class GameClientComponent extends React.Component<
           </div>
         ) : null}
 
-        <PartyBurstLogo size={26} fontSize={45} />
+        {/* The phone's first screen is a join form and nothing else, so the logo may as
+            well be the size of the phone: it is the only thing telling a player they are in
+            the right place. Sized from CSS so it tracks the screen width rather than a
+            number picked against one device. */}
+        <PartyBurstLogo className={styles.heroLogo} size="1em" fontSize="1em" />
 
         <div className={styles.joinCard}>
           {/* Room code first - it is the one thing you cannot play without */}

@@ -9,7 +9,7 @@ import {
   GeneralClientGameState,
   UINormalizer,
   ErrorBoundary,
-  GameVersionTag,
+  ClientHeader,
 } from "libs";
 import { PartyPixClientModel, PartyPixClientState } from "../models/ClientModel";
 import { fileToUploadPair } from "./imageUtil";
@@ -312,14 +312,16 @@ export default class Client extends React.Component<
     return (
       <UINormalizer uiProperties={this.props.uiProperties} virtualHeight={1920} virtualWidth={1080}>
         <div className={styles.gameclient}>
-          <div className={styles.header}>
-            <Wordmark />
-            <GameVersionTag history={PARTY_PIX_VERSION_HISTORY} />
-            <span className={styles.headerName}>{appModel?.playerName}</span>
-            <button className={styles.quit} onClick={() => appModel?.quitApp()}>
-              ✕
-            </button>
-          </div>
+          <ClientHeader
+            className={styles.header}
+            title={<Wordmark />}
+            history={PARTY_PIX_VERSION_HISTORY}
+            avatarId={appModel?.avatarId ?? 0}
+            avatarColor={appModel?.avatarColor}
+            avatarSize={40}
+            playerName={appModel?.playerName}
+            onQuit={() => appModel?.quitApp()}
+          />
           <ErrorBoundary>{this.renderSubScreen()}</ErrorBoundary>
           {toast ? (
             <div className={classNames(styles.toast, { [styles.toastError]: toast.error })}>

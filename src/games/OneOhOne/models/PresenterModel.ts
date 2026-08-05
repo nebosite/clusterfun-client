@@ -142,7 +142,10 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
    * the pickers that collide.
    */
   get maxGuess() {
-    return maxGuessFor(this.pieces.length);
+    // Before the game starts `pieces` is empty, so fall back to what the host has SET UP.
+    // Without that, the gathering screen advertised "pick a number from 1-6" for a
+    // sixteen-piece field, and the range jumped the moment the round began.
+    return maxGuessFor(this.pieces.length || this.totalPlannedPieces);
   }
 
   get bustLimit() {

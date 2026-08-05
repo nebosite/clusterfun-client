@@ -14,7 +14,7 @@ import {
   UINormalizer,
   ErrorBoundary,
   Row,
-  GameVersionTag,
+  ClientHeader,
 } from "libs";
 import LexibleClientGameComponent from "./ClientGameComponent";
 import { InstructionDemo } from "./InstructionDemo";
@@ -213,24 +213,25 @@ export default class Client extends React.Component<{
           onScaleCalc={reportScale}
         >
           <div className={styles.gameclient} style={{ background: pageBackground }}>
-            <div
-              className={classNames(styles.divRow, styles.topbar)}
+            {/* The shared strip every game uses, so the quit button is in the same place
+                whichever game you are playing. Lexible's own contribution is the team, which
+                is the one fact a player has to keep straight while playing. */}
+            <ClientHeader
+              className={styles.topbar}
               style={
                 onATeam
                   ? { background: teamAccent, color: "#fff", borderTop: `8px solid ${teamAccent}` }
                   : { borderTop: `8px solid ${teamAccent}` }
               }
-            >
-              {/* Left to right, edge to edge: the game, its version, your TEAM (the one fact
-                  a player has to keep straight while playing), who you are, and the way out. */}
-              <span className={classNames(styles.gametitle)}>Lexible</span>
-              <GameVersionTag history={LEXIBLE_VERSION_HISTORY} />
-              {onATeam ? <span className={styles.teamBadge}>TEAM {appModel.myTeam}</span> : null}
-              <span className={styles.playerName}>{appModel.playerName}</span>
-              <button className={classNames(styles.quitbutton)} onClick={() => appModel.quitApp()}>
-                X
-              </button>
-            </div>
+              title="Lexible"
+              history={LEXIBLE_VERSION_HISTORY}
+              team={onATeam ? `TEAM ${appModel.myTeam}` : undefined}
+              teamColor="rgba(255,255,255,0.28)"
+              avatarId={appModel.avatarId}
+              avatarColor={appModel.avatarColor}
+              playerName={appModel.playerName}
+              onQuit={() => appModel.quitApp()}
+            />
             <ErrorBoundary>{this.renderSubScreen()}</ErrorBoundary>
           </div>
         </UINormalizer>

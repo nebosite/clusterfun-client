@@ -419,6 +419,31 @@
 .client .logoRow {
   justify-content: center;
 }
+
+/* The client lobby's hero logo: the lockup fills 90% of the phone's width.
+   Everything inside is sized in em off this one font-size, and the font-size is in vw, so
+   the whole thing scales with the screen instead of being right on one device. The 7.4em
+   divisor is the lockup's own width - roughly one em of icon plus ten Bungee capitals. */
+.client .heroLogo {
+  /* Full content width, centred, with the SIZE doing the filling. A `width: 90%` here does
+     not mean 90% of the phone: .client carries 44px of horizontal padding, so 90% of the
+     content box measured 81% of the screen. Driving it from font-size hits the real target
+     and cannot be thrown off by a padding change. */
+  width: 100%;
+  margin: 10px auto 4px auto;
+  justify-content: center;
+  gap: 0.16em;
+  /* CANVAS pixels, not vw. The client lobby is drawn on a fixed-width canvas that is then
+     scaled to the device, so a vw value measures the browser WINDOW - right in production,
+     where the canvas is the window, and wrong in the Test Lobby, where four phones share
+     one. A constant here is 90% of the phone on every device and in every harness.
+     The 130 is the lockup's own width: about 7.4em of icon plus ten Bungee capitals. */
+  font-size: 130px;
+}
+.client .heroLogo .wordmark {
+  font-size: 1em;
+  white-space: nowrap;
+}
 .client .wordmark {
   font-size: calc(34px * var(--fs));
 }

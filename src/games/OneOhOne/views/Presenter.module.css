@@ -195,3 +195,33 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+/* The host's setup knobs, parked in the lower-right corner of the gathering screen.
+   They used to run down the middle, above the room code and the list of who had joined -
+   which put the two things the ROOM needs to see behind the things only the HOST cares
+   about. */
+.settingsBox {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  max-width: 620px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  text-align: left;
+  font-size: 70%;
+}
+
+.settingsHeader {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+  opacity: 0.7;
+  margin-bottom: 6px;
+}
+.settingsHeader:hover {
+  opacity: 1;
+}

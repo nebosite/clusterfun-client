@@ -1,31 +1,28 @@
 import React from "react";
+import logo from "../assets/images/EittrisLogo.png";
 import styles from "./EittrisLogo.module.css";
 
 // ==========================================================================================
 // The EITTRIS wordmark.
 //
-// All caps, a red-to-yellow gradient running top to bottom, and the R upside down - the
-// joke being a piece that landed the wrong way up and nobody can rotate it any more.
+// An artwork PNG, not type: the letterforms, the gradient and the upside-down R are all
+// drawn, so nothing here has to reproduce them.  It replaced a CSS version that painted a
+// gradient through live text - which looked close but was at the mercy of whatever font the
+// machine had, and lost the R entirely wherever a transform broke the background-clip.
 //
-// Text rather than an image, on purpose: it lands in a phone header, a presenter corner and a
-// version tag, at three different sizes, and it has to stay crisp in all of them. It takes
-// its size from whatever it is dropped into, so callers set font-size and this follows.
+// It is sized by HEIGHT in em, so it scales with the surrounding text exactly like the word
+// it replaces: drop it anywhere the game's name would have been written out and it takes the
+// size of its context.
 // ==========================================================================================
 
 export function EittrisLogo(props: { className?: string }) {
   return (
-    <span
+    <img
+      src={logo}
+      // The wordmark is the game's name, so it reads as the name rather than as decoration.
+      alt="EITTRIS"
       className={[styles.logo, props.className].filter(Boolean).join(" ")}
-      // The gradient is painted through the glyphs, which leaves nothing for a screen
-      // reader or a copy-paste to find - so the real word goes here.
-      aria-label="EITTRIS"
-      role="img"
-    >
-      <span aria-hidden="true">EITT</span>
-      <span aria-hidden="true" className={styles.upsideDownR}>
-        R
-      </span>
-      <span aria-hidden="true">IS</span>
-    </span>
+      draggable={false}
+    />
   );
 }

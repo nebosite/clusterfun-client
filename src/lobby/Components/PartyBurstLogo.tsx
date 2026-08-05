@@ -6,11 +6,13 @@ import styles from "./LobbyComponent.module.css";
 // magenta, Bungee) preceded by a confetti-burst icon. Purely visual;
 // `size` scales the SVG geometry, `fontSize` scales the wordmark.
 // -------------------------------------------------------------------
-export const PartyBurstLogo: React.FC<{ size?: number; fontSize?: number }> = ({
-  size = 34,
-  fontSize = 26,
-}) => (
-  <div className={styles.logoRow}>
+export const PartyBurstLogo: React.FC<{
+  size?: number | string;
+  fontSize?: number | string;
+  /** Lets a caller size the whole lockup from CSS - see the client lobby's hero. */
+  className?: string;
+}> = ({ size = 34, fontSize = 26, className }) => (
+  <div className={[styles.logoRow, className].filter(Boolean).join(" ")}>
     <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden="true">
       <circle cx="33" cy="20" r="3" fill="#22e0ff" />
       <circle cx="26.5" cy="31.3" r="3" fill="#ff3ea5" />

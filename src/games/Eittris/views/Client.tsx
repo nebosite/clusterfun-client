@@ -16,7 +16,7 @@ import {
   UINormalizer,
   ErrorBoundary,
   PlayerAvatar,
-  GameVersionTag,
+  ClientHeader,
 } from "libs";
 import {
   BOARD_HEIGHT,
@@ -1008,36 +1008,20 @@ export default class Client extends React.Component<{
                 </label>
               </div>
             ) : null}
-            <div className={classNames(styles.divRow, styles.topbar)}>
-              {/* Wordmark, version, who you are, quit - edge to edge.
-                  While the dev panel is up it floats over this corner, so the title stands
-                  aside and leaves a gap the width of the panel; the version still fits at
-                  the gap's right edge, because the Test Lobby should not be the one place
-                  you cannot see which version you are testing. */}
-              {showDevControls ? (
-                // No version here. The dev panel is 683 of the header's 1080 virtual pixels
-                // wide, so a version placed to clear it lands on the panel's own "CPU"
-                // label - and there is no room left for the player's name either way. The
-                // wordmark and version are on screen for the whole gathering stage, which
-                // is when anybody is reading them.
-                <span className={styles.devSpacer} />
-              ) : (
-                <span className={classNames(styles.gametitle)}>
-                  <GameVersionTag title={<EittrisLogo />} history={EITTRIS_VERSION_HISTORY} />
-                </span>
-              )}
-              <span className={styles.whoami}>
-                <PlayerAvatar
-                  avatarId={appModel?.avatarId ?? 0}
-                  colorIndex={appModel?.avatarColor}
-                  size={80}
-                />{" "}
-                {appModel?.playerName}
-              </span>
-              <button className={classNames(styles.quitbutton)} onClick={() => appModel?.quitApp()}>
-                X
-              </button>
-            </div>
+            {/* The shared strip every game uses. The dev panel floats over the left of it
+                while a round is running - Test Lobby only, and unavoidable at 683 of the
+                header's 1080 pixels. It used to stand a 700px spacer here to dodge that,
+                which pushed the quit button clean off the right-hand edge. */}
+            <ClientHeader
+              className={styles.topbar}
+              title={<EittrisLogo />}
+              history={EITTRIS_VERSION_HISTORY}
+              avatarId={appModel?.avatarId ?? 0}
+              avatarColor={appModel?.avatarColor}
+              avatarSize={80}
+              playerName={appModel?.playerName}
+              onQuit={() => appModel?.quitApp()}
+            />
             {/* 5px at the top: every pixel above the board is one the board does not get,
                 and the board is the game.  The sides keep their margin - that is what makes
                 the 1000px-wide board row sit centred in the 1080px screen. */}

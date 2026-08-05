@@ -1,0 +1,118 @@
+/* The phone's top strip, shared by every game. See ClientHeader.tsx for the layout rule.
+
+   Everything is sized in EM so one control works across seven games whose client canvases
+   and root font sizes differ. Colour is inherited on purpose: each game sets its own
+   background and text colour on the element, and this only owns the arrangement. */
+.header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.3em 0.45em;
+  gap: 0.4em;
+  overflow: hidden;
+}
+
+/* The two flexible gaps. Equal basis, so the row divides the leftover width evenly however
+   long the game's name or the player's name happens to be. */
+.gap {
+  flex: 1 1 0;
+  min-width: 0.5em;
+}
+
+/* Capped, and allowed to SHRINK. It used to be `flex: 0 0 auto` with no ceiling, so a game
+   with a big title - EITtris' wordmark, or Lexible at a 60px header font - ate the row and
+   every bit of shrink landed on the player's own name: Lexible rendered "Alice" as "A", and
+   EITtris rendered the name at zero pixels wide. */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  flex: 0 1 auto;
+  max-width: 42%;
+  min-width: 0;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* The clipping lives HERE, on the title alone, not on .brand - the version is .brand's last
+   child, so clipping the parent cut the version rather than the long title that caused it. */
+.titleSlot {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* "smaller, clear to read": small enough to be secondary, solid enough to actually read
+   across a room. The tag's own default is fainter than that.
+
+   NEVER shrinks. Whatever room the header is short of comes out of the title. */
+.version {
+  opacity: 0.85;
+  flex: 0 0 auto;
+}
+
+/* The team slot. Always rendered - an empty one still holds its share of the row - so the
+   player's own name sits in the same place in every game. */
+.team {
+  flex: 0 1 auto;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0.5em;
+  /* Capped for the same reason as the brand - a long team name must not cost the player
+     their own name. */
+  max-width: 26%;
+  overflow: hidden;
+  border-radius: 999px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.team:not(:empty) {
+  padding: 0.15em 0.7em;
+  margin-right: 0.5em;
+}
+
+/* Avatar and name, hard against each other - they are one thing. */
+/* Guaranteed a share of the row. Without the floor, a crowded header shrank this to nothing
+   and the player could not see their own name at all. */
+.who {
+  flex: 0 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  min-width: 5em;
+  overflow: hidden;
+}
+
+/* Takes all the shrink, so a long name ellipsizes instead of pushing the quit button off. */
+.playerName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quit {
+  flex: 0 0 auto;
+  font-weight: 800;
+  font-size: 1em;
+  line-height: 1;
+  padding: 0.15em 0.55em;
+  margin: 0;
+  border: none;
+  border-radius: 0.35em;
+  background: rgba(0, 0, 0, 0.12);
+  color: inherit;
+  cursor: pointer;
+}
+.quit:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Holds the quit button's width when a game has no quit, so the rest does not shift. */
+.quitPlaceholder {
+  flex: 0 0 auto;
+  width: 1.6em;
+}

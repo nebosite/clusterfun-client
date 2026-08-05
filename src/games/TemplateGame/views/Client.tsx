@@ -16,7 +16,7 @@ import {
   UINormalizer,
   ErrorBoundary,
   PlayerAvatar,
-  GameVersionTag,
+  ClientHeader,
 } from "libs";
 import Logger from "js-logger";
 
@@ -217,22 +217,16 @@ export default class Client extends React.Component<{
           virtualWidth={1080}
         >
           <div className={styles.gameclient}>
-            <div className={classNames(styles.divRow, styles.topbar)}>
-              <span className={classNames(styles.gametitle)}>
-                <GameVersionTag title="Template" history={TEMPLATE_VERSION_HISTORY} />
-              </span>
-              <span>
-                <PlayerAvatar
-                  avatarId={appModel?.avatarId ?? 0}
-                  colorIndex={appModel?.avatarColor}
-                  size={40}
-                />{" "}
-                {appModel?.playerName}
-              </span>
-              <button className={classNames(styles.quitbutton)} onClick={() => appModel?.quitApp()}>
-                X
-              </button>
-            </div>
+            <ClientHeader
+              className={styles.topbar}
+              title="Template"
+              history={TEMPLATE_VERSION_HISTORY}
+              avatarId={appModel?.avatarId ?? 0}
+              avatarColor={appModel?.avatarColor}
+              avatarSize={40}
+              playerName={appModel?.playerName}
+              onQuit={() => appModel?.quitApp()}
+            />
             <div style={{ margin: "100px" }}>
               <ErrorBoundary>{this.renderSubScreen()}</ErrorBoundary>
             </div>

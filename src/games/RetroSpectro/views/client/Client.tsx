@@ -12,7 +12,7 @@ import {
   UINormalizer,
   GeneralGameState,
   GeneralClientGameState,
-  GameVersionTag,
+  ClientHeader,
 } from "libs";
 import styles from "./Client.module.css";
 import { ErrorBoundary } from "libs/components/ErrorBoundary";
@@ -172,15 +172,16 @@ export default class Client extends React.Component<{
           virtualWidth={1080}
         >
           <div className={styles.gameclient}>
-            <div className={styles.topbar}>
-              <span className={styles.gametitle}>
-                <GameVersionTag title="RetroSpectro" history={RETROSPECTRO_VERSION_HISTORY} />
-              </span>
-              <span className={styles.playerName}>{appModel.playerName}</span>
-              <button className={styles.quitbutton} onClick={() => appModel.quitApp()}>
-                ✕
-              </button>
-            </div>
+            <ClientHeader
+              className={styles.topbar}
+              title="RetroSpectro"
+              history={RETROSPECTRO_VERSION_HISTORY}
+              avatarId={appModel.avatarId ?? 0}
+              avatarColor={appModel.avatarColor}
+              avatarSize={40}
+              playerName={appModel.playerName}
+              onQuit={() => appModel.quitApp()}
+            />
             <div className={styles.content}>
               <ErrorBoundary>{this.renderSubScreen()}</ErrorBoundary>
             </div>

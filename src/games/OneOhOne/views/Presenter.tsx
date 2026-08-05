@@ -165,6 +165,114 @@ class InstructionsBox extends React.Component<{ appModel?: OneOhOnePresenterMode
   }
 }
 
+// -------------------------------------------------------------------
+// SetupBox - the host's knobs, tucked into the lower-right corner.
+//
+// They used to run down the middle of the gathering screen, above the room code and the list
+// of who had joined - which put the two things a ROOM needs to see behind the handful of
+// things only the HOST cares about. Same controls, out of the way, and openable at a glance.
+// -------------------------------------------------------------------
+@inject("appModel")
+@observer
+class SetupBox extends React.Component<{ appModel?: OneOhOnePresenterModel }> {
+  @observable private open = true;
+
+  constructor(props: { appModel?: OneOhOnePresenterModel }) {
+    super(props);
+    makeObservable(this);
+  }
+
+  render() {
+    const { appModel } = this.props;
+    if (!appModel) return null;
+    const toggle = action(() => (this.open = !this.open));
+
+    return (
+      <div className={styles.settingsBox}>
+        <div className={styles.settingsHeader} onClick={toggle}>
+          Setup {this.open ? "▾" : "▸"}
+        </div>
+        {this.open ? (
+          <div>
+            <div className={styles.setupRow}>
+              <span>Pieces per player:</span>
+              {[1, 2, 3, 4].map((n) => (
+                <button
+                  key={n}
+                  className={classNames(styles.setupButton, {
+                    [styles.setupSelected]: appModel.piecesPerHuman === n,
+                  })}
+                  disabled={n > appModel.maxPiecesPerHumanNow}
+                  onClick={() => (appModel.piecesPerHuman = n)}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+
+            {/* Four lengths rather than a slider over every number in between.  The in-between
+              values were a false choice - nobody wants to race to 37 - and the slider fired a
+              checkpoint save and an InvalidateState broadcast on every input event while the
+              host dragged it. */}
+            <div className={styles.setupRow}>
+              <span>Race to:</span>
+              {TARGET_OPTIONS.map((target) => (
+                <button
+                  key={target}
+                  className={classNames(styles.setupButton, {
+                    [styles.setupSelected]: appModel.winPosition === target,
+                  })}
+                  onClick={() => (appModel.winPosition = target)}
+                >
+                  {target}
+                </button>
+              ))}
+            </div>
+
+            <div className={styles.setupRow}>
+              <span>Add a bot:</span>
+              {[BotAttitude.Aggressive, BotAttitude.Moderate, BotAttitude.Cautious].map(
+                (attitude) => (
+                  <button
+                    key={attitude}
+                    className={styles.setupButton}
+                    disabled={appModel.totalPlannedPieces >= MAX_PIECES}
+                    onClick={() => appModel.addBot(attitude)}
+                  >
+                    {attitude}
+                  </button>
+                ),
+              )}
+            </div>
+
+            {appModel.bots.length > 0 ? (
+              <div className={styles.setupRow}>
+                <span>Bots:</span>
+                {appModel.bots.map((attitude, i) => (
+                  <button
+                    key={i}
+                    className={styles.setupButton}
+                    title="Click to remove"
+                    onClick={() => appModel.removeBot(i)}
+                  >
+                    {attitude} ✕
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <div className={styles.setupRow}>
+              <span>
+                Pieces on the track: {appModel.totalPlannedPieces}/{MAX_PIECES}
+              </span>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+}
+
 @inject("appModel")
 @observer
 class GatheringPlayersPage extends React.Component<{ appModel?: OneOhOnePresenterModel }> {
@@ -200,76 +308,7 @@ class GatheringPlayersPage extends React.Component<{ appModel?: OneOhOnePresente
           <div>Waiting for players to join...</div>
         )}
 
-        <div className={styles.setupRow}>
-          <span>Pieces per player:</span>
-          {[1, 2, 3, 4].map((n) => (
-            <button
-              key={n}
-              className={classNames(styles.setupButton, {
-                [styles.setupSelected]: appModel.piecesPerHuman === n,
-              })}
-              disabled={n > appModel.maxPiecesPerHumanNow}
-              onClick={() => (appModel.piecesPerHuman = n)}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-
-        {/* Four lengths rather than a slider over every number in between.  The in-between
-            values were a false choice - nobody wants to race to 37 - and the slider fired a
-            checkpoint save and an InvalidateState broadcast on every input event while the
-            host dragged it. */}
-        <div className={styles.setupRow}>
-          <span>Race to:</span>
-          {TARGET_OPTIONS.map((target) => (
-            <button
-              key={target}
-              className={classNames(styles.setupButton, {
-                [styles.setupSelected]: appModel.winPosition === target,
-              })}
-              onClick={() => (appModel.winPosition = target)}
-            >
-              {target}
-            </button>
-          ))}
-        </div>
-
-        <div className={styles.setupRow}>
-          <span>Add a bot:</span>
-          {[BotAttitude.Aggressive, BotAttitude.Moderate, BotAttitude.Cautious].map((attitude) => (
-            <button
-              key={attitude}
-              className={styles.setupButton}
-              disabled={appModel.totalPlannedPieces >= MAX_PIECES}
-              onClick={() => appModel.addBot(attitude)}
-            >
-              {attitude}
-            </button>
-          ))}
-        </div>
-
-        {appModel.bots.length > 0 ? (
-          <div className={styles.setupRow}>
-            <span>Bots:</span>
-            {appModel.bots.map((attitude, i) => (
-              <button
-                key={i}
-                className={styles.setupButton}
-                title="Click to remove"
-                onClick={() => appModel.removeBot(i)}
-              >
-                {attitude} ✕
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        <div className={styles.setupRow}>
-          <span>
-            Pieces on the track: {appModel.totalPlannedPieces}/{MAX_PIECES}
-          </span>
-        </div>
+        <SetupBox />
 
         {appModel.canStart ? (
           <button className={styles.presenterButton} onClick={() => appModel.startGame()}>
@@ -397,8 +436,8 @@ class PlayingPage extends React.Component<{
             : `Round ${appModel.currentRound} results...`}
         </div>
         <div className={styles.rulesReminder}>
-          Unique pick = forward · matched pick = back · land exactly on 101 to win · past 111 =
-          restart
+          Unique pick = forward · matched pick = back · land exactly on {appModel.winPosition} to
+          win · past {appModel.bustLimit} = restart
         </div>
         <RaceTrack animator={animator} />
       </div>

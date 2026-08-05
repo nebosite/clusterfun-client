@@ -12,3 +12,4 @@ export * from "./UINormalizer";
 export * from "./URLSearchParams";
 export * from "./DragScroller";
 export * from "./GameVersionTag";
+export * from "./ClientHeader";
