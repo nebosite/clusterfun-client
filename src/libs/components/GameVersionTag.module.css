@@ -1,0 +1,120 @@
+/* Game name + version, shared by every game on both the shared screen and the phones.
+
+   Sized in EM throughout: this lands inside seven different games whose root font sizes
+   range from a phone's 16px to the presenter's 40px, and a hard pixel size would be
+   invisible in one and shouting in another. */
+.tag {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+  white-space: nowrap;
+  /* Space from whatever precedes it.  `gap` only separates the tag's OWN children, so with
+     the title omitted the tag has a single child and the gap never applies - which is how
+     Lexible's phone header came out reading "TEAM Av0.1.0". */
+  margin-left: 0.35em;
+}
+
+.title {
+  font-weight: 700;
+}
+
+/* "small text to the right of the game title" - 60% and faded, so it is available
+   without competing with anything. */
+.version {
+  font-size: 0.6em;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Title and version, side by side.  ALWAYS applied - it used to live on .clickable, so a
+   phone (where the tag is not clickable) rendered "RetroSpectrov0.1.0" with no gap at all. */
+.pair {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+}
+
+.clickable {
+  cursor: pointer;
+}
+.clickable:hover .version {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* `fixed` rather than `absolute` on purpose. The presenter is drawn inside UINormalizer's
+   CSS transform, and a transform is a containing block for fixed positioning - so this
+   covers the normalized 1920x1080 canvas rather than the raw browser window, and lands in
+   the right place at any window size. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: pointer;
+}
+
+.panel {
+  background: #ffffff;
+  color: #222222;
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+  padding: 1em 1.2em;
+  max-width: 70%;
+  max-height: 70%;
+  overflow-y: auto;
+  cursor: default;
+  text-align: left;
+  font-weight: 400;
+
+  /* The panel is a DOM DESCENDANT of the tag, so .tag's `nowrap` inherits into it and every
+     bullet becomes one unwrappable line - and because overflow-y:auto forces overflow-x to
+     auto, the result was a horizontal scrollbar with the longest changes clipped off the
+     right rather than any visible error. */
+  white-space: normal;
+
+  /* An ABSOLUTE size, not relative to the tag that opened it.
+     Every presenter is a 1080-tall UINormalizer canvas, so 24 virtual px is the same
+     readable size on all of them.  Inheriting instead meant the panel took the size of
+     whatever corner the version happened to sit in - PartyPix's footer is 14px, so its
+     changelog came out at 9.8px on a television. */
+  font-size: 24px;
+  line-height: 1.4;
+}
+
+.panelHead {
+  font-weight: 800;
+  font-size: 1.3em;
+  margin-bottom: 0.6em;
+}
+.panelVersion {
+  font-weight: 400;
+  opacity: 0.55;
+}
+
+.entry + .entry {
+  margin-top: 0.9em;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 0.7em;
+}
+
+.entryVersion {
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.changes {
+  margin: 0.25em 0 0 0;
+  padding-left: 1.2em;
+  line-height: 1.45;
+}
+
+.dismiss {
+  margin-top: 1em;
+  font-size: 0.8em;
+  opacity: 0.45;
+  text-align: center;
+}

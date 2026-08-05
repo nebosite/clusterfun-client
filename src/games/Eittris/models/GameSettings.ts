@@ -1,5 +1,21 @@
+import { GameVersionEntry, currentVersion } from "libs";
+
+// Version + change history. The version IS the newest entry here, so the two cannot drift
+// and no version can be bumped without saying what changed - see libs/config/GameVersion.ts.
+export const EITTRIS_VERSION_HISTORY: GameVersionEntry[] = [
+  {
+    version: "0.1.0",
+    changes: [
+      "First tracked version - the numbering starts over here, on top of ClusterFun 0.5.0.",
+      "Versus tetris for up to 16 players, each phone playing its own board on the shared screen.",
+      "Keyboard and controller support, with hold-to-repeat tuned per action.",
+      "Computer players take over a seat when somebody drops, and hand it back when they return.",
+    ],
+  },
+];
+export const EittrisVersion = currentVersion(EITTRIS_VERSION_HISTORY);
+
 // Game-wide tuning constants.  Board/rule constants live in eittrisLogic.ts.
-export const EittrisVersion = "0.1.0";
 
 // Gesture classification on the phone (see Client.tsx)
 export const FLICK_MAX_DURATION_MS = 300; // faster than this + far enough = a flick

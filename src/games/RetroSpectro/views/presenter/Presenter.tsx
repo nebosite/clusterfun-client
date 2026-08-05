@@ -14,13 +14,14 @@ import {
   GeneralGameState,
   PresenterGameEvent,
   PresenterGameState,
+  GameVersionTag,
 } from "libs";
 import styles from "./Presenter.module.css";
 import classNames from "classnames";
 import { MediaHelper } from "libs/Media/MediaHelper";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { RetroSpectroVersion } from "../../models/GameSettings";
+import { RETROSPECTRO_VERSION_HISTORY } from "../../models/GameSettings";
 import RetroSpectroAssets from "../../assets/Assets";
 import AnswerSortingBox from "./AnswerSortingBox";
 import { DiscussionPage } from "./DiscussionPage";
@@ -418,8 +419,7 @@ export default class Presenter extends React.Component<{
       <div className={styles.navbar}>
         <img src={RetroSpectroAssets.images.logo} alt="RetroSpectro" className={styles.icon} />
         <div className={styles.brand}>
-          <span className={styles.appTitle}>RetroSpectro</span>
-          <span className={styles.appVersion}>v{RetroSpectroVersion}</span>
+          <GameVersionTag title="RetroSpectro" history={RETROSPECTRO_VERSION_HISTORY} showChanges />
         </div>
         <div className={styles.roomCode}>
           Room code <span className={styles.roomCodeValue}>{appModel.roomId}</span>

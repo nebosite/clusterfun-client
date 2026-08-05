@@ -1,3 +1,4 @@
+import { TEMPLATE_VERSION_HISTORY } from "../models/GameSettings";
 // The player's phone view.  One sub-screen per client game state, chosen by
 // renderSubScreen().  Keep this thin - it captures input and shows feedback;
 // the presenter owns the real game.
@@ -15,6 +16,7 @@ import {
   UINormalizer,
   ErrorBoundary,
   PlayerAvatar,
+  GameVersionTag,
 } from "libs";
 import Logger from "js-logger";
 
@@ -216,7 +218,9 @@ export default class Client extends React.Component<{
         >
           <div className={styles.gameclient}>
             <div className={classNames(styles.divRow, styles.topbar)}>
-              <span className={classNames(styles.gametitle)}>Template</span>
+              <span className={classNames(styles.gametitle)}>
+                <GameVersionTag title="Template" history={TEMPLATE_VERSION_HISTORY} />
+              </span>
               <span>
                 <PlayerAvatar
                   avatarId={appModel?.avatarId ?? 0}

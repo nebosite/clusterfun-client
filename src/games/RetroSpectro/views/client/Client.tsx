@@ -1,3 +1,4 @@
+import { RETROSPECTRO_VERSION_HISTORY } from "../../models/GameSettings";
 // App Navigation handled here
 import React from "react";
 import { observer, inject } from "mobx-react";
@@ -6,7 +7,13 @@ import {
   RetroSpectroClientModel,
   RetroSpectroClientState,
 } from "../../models/ClientModel";
-import { UIProperties, UINormalizer, GeneralGameState, GeneralClientGameState } from "libs";
+import {
+  UIProperties,
+  UINormalizer,
+  GeneralGameState,
+  GeneralClientGameState,
+  GameVersionTag,
+} from "libs";
 import styles from "./Client.module.css";
 import { ErrorBoundary } from "libs/components/ErrorBoundary";
 import { SafeBrowser } from "libs/Browser/SafeBrowser";
@@ -166,7 +173,9 @@ export default class Client extends React.Component<{
         >
           <div className={styles.gameclient}>
             <div className={styles.topbar}>
-              <span className={styles.gametitle}>RetroSpectro</span>
+              <span className={styles.gametitle}>
+                <GameVersionTag title="RetroSpectro" history={RETROSPECTRO_VERSION_HISTORY} />
+              </span>
               <span className={styles.playerName}>{appModel.playerName}</span>
               <button className={styles.quitbutton} onClick={() => appModel.quitApp()}>
                 ✕

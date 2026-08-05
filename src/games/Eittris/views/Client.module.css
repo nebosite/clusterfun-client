@@ -56,8 +56,13 @@
 }
 
 /* Stands in for the title in dev, so the row starts clear of the floating panel */
+/* Room for the dev floating panel that sits on top of this - MEASURED at ~684px, where
+   this used to reserve 520 and let the panel cover the player's own name. */
 .gameclient .devSpacer {
-  flex: 0 0 520px;
+  flex: 0 0 700px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 /* Who you are, at a size that reads across a table */

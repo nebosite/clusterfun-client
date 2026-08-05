@@ -4,7 +4,7 @@ import { observer, inject } from "mobx-react";
 import styles from "./Presenter.module.css";
 import classNames from "classnames";
 import LexibleAssets from "../assets/Assets";
-import { LexibleVersion } from "../models/GameSettings";
+import { LEXIBLE_VERSION_HISTORY } from "../models/GameSettings";
 import { LetterBlockModel } from "../models/LetterBlockModel";
 import LetterBlock from "./LetterBlock";
 import { InstructionDemo } from "./InstructionDemo";
@@ -29,6 +29,7 @@ import {
   SPEECH_ENGINE_LIST,
   DEFAULT_SPEECH_ENGINE,
   playExplosion,
+  GameVersionTag,
 } from "libs";
 import type { SpeechEngineId, SpeechVoice } from "libs";
 import { action, makeAutoObservable } from "mobx";
@@ -623,7 +624,9 @@ export default class Presenter extends React.Component<{
             {appModel.currentRound}/{appModel.totalRounds}
           </div>
         </div>
-        <div className={classNames(styles.version)}>v{LexibleVersion}</div>
+        <div className={classNames(styles.version)}>
+          <GameVersionTag title="Lexible" history={LEXIBLE_VERSION_HISTORY} showChanges />
+        </div>
       </div>
     );
   }

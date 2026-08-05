@@ -14,7 +14,10 @@ import OneOhOneAssets from "games/OneOhOne/assets/Assets";
 const releaseGames: GameDescriptor[] = [
   {
     name: "Eittris",
-    displayName: "EITtris",
+    // The lobby card is a plain string, so it cannot carry the wordmark itself (see
+    // views/EittrisLogo.tsx) - the caps at least match it. NOTE: in production the
+    // displayName comes from the SERVER manifest, so changing it here only affects dev.
+    displayName: "EITTRIS",
     logoName: EittrisAssets.images.logo,
     importThunk: () => import("../Eittris/views/GameComponent"),
   },

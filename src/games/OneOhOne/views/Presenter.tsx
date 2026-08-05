@@ -8,7 +8,7 @@ import { action, makeObservable, observable, reaction } from "mobx";
 import OneOhOneAssets from "../assets/Assets";
 import {
   COLLISION_PAUSE_MS,
-  OneOhOneVersion,
+  ONE_OH_ONE_VERSION_HISTORY,
   PIECE_GAP_MS,
   STEP_ANIMATION_MS,
 } from "../models/GameSettings";
@@ -21,6 +21,7 @@ import {
   DevUI,
   UINormalizer,
   PlayerAvatar,
+  GameVersionTag,
 } from "libs";
 import {
   OneOhOnePresenterModel,
@@ -532,7 +533,9 @@ export default class Presenter extends React.Component<{
         </button>
         <div className={classNames(styles.roomCode)}>Room Code: {appModel.roomId}</div>
         <DevUI context={appModel} children={<div></div>} />
-        <div style={{ marginLeft: "50px" }}>v{OneOhOneVersion}</div>
+        <div style={{ marginLeft: "50px" }}>
+          <GameVersionTag title="101" history={ONE_OH_ONE_VERSION_HISTORY} showChanges />
+        </div>
       </div>
     );
   }

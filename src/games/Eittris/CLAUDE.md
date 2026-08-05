@@ -28,6 +28,27 @@ This is the opposite of the usual ClusterFun rule that the presenter owns all st
 deliberate: a 30 Hz tetris board cannot round-trip input through a relay. The presenter still
 owns everything _between_ boards — rounds, targeting, attack delivery, death, ranking.
 
+## The wordmark
+
+`views/EittrisLogo.tsx` — all caps, a red-to-yellow gradient top to bottom, and the **R upside
+down**. It is TEXT with `background-clip: text`, not an image, because it lands in a phone
+header, a presenter corner and a version tag at three different sizes and has to stay crisp in
+all of them; it takes its size from whatever it is dropped into. The gradient leaves nothing for
+a screen reader to find, so the component carries `aria-label="EITTRIS"`.
+
+Use it anywhere the name would otherwise be spelled out. `GameVersionTag`'s `title` takes a
+ReactNode for exactly this.
+
+**The upside-down R needs its OWN copy of the gradient.** A `transform` gives an element its
+own paint context, so the R is no longer painted through the parent's `background-clip: text` -
+with only the inherited transparent fill it renders as a hole, and the wordmark reads
+"EITT&nbsp;&nbsp;&nbsp;IS". Its copy runs `to top` with the same stops, because the rotation
+flips the axis.
+
+**The lobby card cannot use it.** `GameDescriptor.displayName` is a `string`, and in production
+it comes from the server manifest anyway - so the tile says "EITTRIS" in plain type. Making it
+a wordmark would mean changing a contract shared with the server.
+
 ## File map
 
 | File                          | Lines | Owns                                                                                                                                                                      |

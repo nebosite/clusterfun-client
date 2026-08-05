@@ -3,8 +3,16 @@ import React from "react";
 import { observer, inject } from "mobx-react";
 import styles from "./Presenter.module.css";
 import classNames from "classnames";
-import { StressatoVersion } from "../models/GameSettings";
-import { MediaHelper, UIProperties, PresenterGameState, DevUI, UINormalizer, Row } from "libs";
+import { STRESSATO_VERSION_HISTORY } from "../models/GameSettings";
+import {
+  MediaHelper,
+  UIProperties,
+  PresenterGameState,
+  DevUI,
+  UINormalizer,
+  Row,
+  GameVersionTag,
+} from "libs";
 import { StressatoPresenterModel, StressatoGameState } from "../models/PresenterModel";
 
 @inject("appModel")
@@ -142,7 +150,9 @@ export default class Presenter extends React.Component<{
         </button>
         <div className={classNames(styles.roomCode)}>Room Code: {appModel.roomId}</div>
         <DevUI context={appModel} children={<div></div>} />
-        <div style={{ marginLeft: "50px" }}>v{StressatoVersion}</div>
+        <div style={{ marginLeft: "50px" }}>
+          <GameVersionTag title="Stressato" history={STRESSATO_VERSION_HISTORY} showChanges />
+        </div>
       </div>
     );
   }

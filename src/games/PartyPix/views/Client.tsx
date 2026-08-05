@@ -9,6 +9,7 @@ import {
   GeneralClientGameState,
   UINormalizer,
   ErrorBoundary,
+  GameVersionTag,
 } from "libs";
 import { PartyPixClientModel, PartyPixClientState } from "../models/ClientModel";
 import { fileToUploadPair } from "./imageUtil";
@@ -21,6 +22,7 @@ import {
   JPEG_QUALITY_STEP,
   THUMB_JPEG_QUALITY,
   UPLOAD_COST,
+  PARTY_PIX_VERSION_HISTORY,
 } from "../models/GameSettings";
 
 const Wordmark: React.FC = () => (
@@ -312,6 +314,7 @@ export default class Client extends React.Component<
         <div className={styles.gameclient}>
           <div className={styles.header}>
             <Wordmark />
+            <GameVersionTag history={PARTY_PIX_VERSION_HISTORY} />
             <span className={styles.headerName}>{appModel?.playerName}</span>
             <button className={styles.quit} onClick={() => appModel?.quitApp()}>
               ✕

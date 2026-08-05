@@ -9,9 +9,10 @@ import {
   PresenterGameState,
   GeneralGameState,
   UINormalizer,
+  GameVersionTag,
 } from "libs";
 import PartyPixAssets from "../assets/Assets";
-import { PartyPixVersion } from "../models/GameSettings";
+import { PARTY_PIX_VERSION_HISTORY } from "../models/GameSettings";
 import {
   PartyPixPresenterModel,
   PartyPixGameState,
@@ -433,7 +434,9 @@ export default class Presenter extends React.Component<{
         <div className={styles.frameRoom}>
           Room <b>{appModel.roomId}</b>
         </div>
-        <div className={styles.frameVersion}>v{PartyPixVersion}</div>
+        <div className={styles.frameVersion}>
+          <GameVersionTag title="PartyPix" history={PARTY_PIX_VERSION_HISTORY} showChanges />
+        </div>
       </div>
     );
   }

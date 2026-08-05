@@ -1,3 +1,4 @@
+import { LEXIBLE_VERSION_HISTORY } from "../models/GameSettings";
 // App Navigation handled here
 import React from "react";
 import { observer, inject } from "mobx-react";
@@ -13,6 +14,7 @@ import {
   UINormalizer,
   ErrorBoundary,
   Row,
+  GameVersionTag,
 } from "libs";
 import LexibleClientGameComponent from "./ClientGameComponent";
 import { InstructionDemo } from "./InstructionDemo";
@@ -219,12 +221,12 @@ export default class Client extends React.Component<{
                   : { borderTop: `8px solid ${teamAccent}` }
               }
             >
-              {/* The team, in the team's colour, at the top of the screen -
-                  the one fact a player needs to keep straight while playing. */}
-              <span className={classNames(styles.gametitle)}>
-                {onATeam ? `TEAM ${appModel.myTeam}` : "Lexible"}
-              </span>
-              <span>{appModel.playerName}</span>
+              {/* Left to right, edge to edge: the game, its version, your TEAM (the one fact
+                  a player has to keep straight while playing), who you are, and the way out. */}
+              <span className={classNames(styles.gametitle)}>Lexible</span>
+              <GameVersionTag history={LEXIBLE_VERSION_HISTORY} />
+              {onATeam ? <span className={styles.teamBadge}>TEAM {appModel.myTeam}</span> : null}
+              <span className={styles.playerName}>{appModel.playerName}</span>
               <button className={classNames(styles.quitbutton)} onClick={() => appModel.quitApp()}>
                 X
               </button>

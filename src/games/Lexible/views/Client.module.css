@@ -93,13 +93,38 @@
   font-weight: 700;
 }
 
+/* Edge to edge: title, version, team, name, quit - in that order, with the space
+   between them rather than around them, so the title starts at the left edge and the
+   quit button ends at the right. `space-around` used to leave a margin at both ends
+   and float the whole row in the middle. */
 .gameclient .topbar {
   display: flex;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: center;
+  gap: 10px;
   background: var(--panel);
   padding: 14px 18px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Your team, in a chip so it reads as a badge rather than as more of the title. */
+.gameclient .teamBadge {
+  font-family: "Fredoka", sans-serif;
+  font-weight: 700;
+  padding: 4px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  white-space: nowrap;
+}
+
+/* Takes the slack, so the name can be long without pushing the quit button off. */
+.gameclient .playerName {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .gameclient .quitbutton {

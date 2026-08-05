@@ -7,7 +7,7 @@ import styles from "./Presenter.module.css";
 import classNames from "classnames";
 import { makeObservable, observable } from "mobx";
 import TemplateAssets from "../assets/Assets";
-import { TemplateVersion } from "../models/GameSettings";
+import { TEMPLATE_VERSION_HISTORY } from "../models/GameSettings";
 import {
   BaseAnimationController,
   MediaHelper,
@@ -18,6 +18,7 @@ import {
   DevUI,
   UINormalizer,
   PlayerAvatar,
+  GameVersionTag,
 } from "libs";
 import {
   TemplatePresenterModel,
@@ -394,7 +395,9 @@ export default class Presenter extends React.Component<{
         </button>
         <div className={classNames(styles.roomCode)}>Room Code: {appModel.roomId}</div>
         <DevUI context={appModel} children={<div></div>} />
-        <div style={{ marginLeft: "50px" }}>v{TemplateVersion}</div>
+        <div style={{ marginLeft: "50px" }}>
+          <GameVersionTag title="Template" history={TEMPLATE_VERSION_HISTORY} showChanges />
+        </div>
       </div>
     );
   }

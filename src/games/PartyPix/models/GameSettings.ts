@@ -1,8 +1,23 @@
+import { GameVersionEntry, currentVersion } from "libs";
+
+// Version + change history. The version IS the newest entry here, so the two cannot drift
+// and no version can be bumped without saying what changed - see libs/config/GameVersion.ts.
+export const PARTY_PIX_VERSION_HISTORY: GameVersionEntry[] = [
+  {
+    version: "0.1.0",
+    changes: [
+      "First tracked version - the numbering starts over here, on top of ClusterFun 0.5.0.",
+      "Take photos on your phone, vote on everybody else's, and watch the slideshow on the big screen.",
+      "Photo credits are earned back as your pictures get upvoted.",
+      "Anybody can flag a photo out of rotation; the presenter decides whether it comes back.",
+    ],
+  },
+];
+export const PartyPixVersion = currentVersion(PARTY_PIX_VERSION_HISTORY);
+
 // PartyPix tuning constants. The economy rules that consume these live in
 // partyPixLogic.ts (pure + unit-tested); the image sizes are used by the
 // client's imageUtil when downscaling before upload.
-
-export const PartyPixVersion = "0.1.0";
 
 // --- Economy ---
 export const START_CREDITS = 3; // photo credits every player begins with

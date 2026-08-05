@@ -1,3 +1,4 @@
+import { ONE_OH_ONE_VERSION_HISTORY } from "../models/GameSettings";
 // The phone view for 101: one card per piece the player controls, each with
 // 1-10 pick buttons and a confirm button.  Plain visuals - awaiting the
 // design pass.
@@ -14,6 +15,7 @@ import {
   UINormalizer,
   ErrorBoundary,
   PlayerAvatar,
+  GameVersionTag,
 } from "libs";
 import {
   OneOhOneMoveSummary,
@@ -250,7 +252,9 @@ export default class Client extends React.Component<{
         >
           <div className={styles.gameclient}>
             <div className={classNames(styles.divRow, styles.topbar)}>
-              <span className={classNames(styles.gametitle)}>101</span>
+              <span className={classNames(styles.gametitle)}>
+                <GameVersionTag title="101" history={ONE_OH_ONE_VERSION_HISTORY} />
+              </span>
               <span>
                 <PlayerAvatar
                   avatarId={appModel?.avatarId ?? 0}

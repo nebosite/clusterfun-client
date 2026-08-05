@@ -226,6 +226,44 @@ wrapping arrays back into MobX `observable`). The base class helpers
 (`getPresenterTypeHelper`/`getClientTypeHelper`) wrap the game's helper to add framework
 types like `ClusterFunPlayer`.
 
+## Versions
+
+Two of them, on purpose.
+
+**The platform version** is `package.json` (0.5.0), surfaced as `GLOBALS.Version` and shown in
+the lobby. It says which build of ClusterFun is running.
+
+**Each game has its own version, on top of that** — all at 0.1.0. A player says "Lexible did
+X"; "which version?" now has an answer per game rather than one number for the whole app.
+
+A game's version is **not a bare string**: it is the newest entry of a change history in its
+`GameSettings.ts`, and the number is derived from it.
+
+```ts
+export const LEXIBLE_VERSION_HISTORY: GameVersionEntry[] = [
+  { version: "0.1.0", changes: ["...", "..."] }, // newest FIRST
+];
+export const LexibleVersion = currentVersion(LEXIBLE_VERSION_HISTORY);
+```
+
+That is the whole point: the version and the changelog cannot drift, and there is no way to
+bump a number without saying what changed. `libs/config/GameVersion.spec.ts` checks every
+game's history at once — well-formed numbers, newest first, no duplicates, and **no entry with
+an empty change list**.
+
+`<GameVersionTag>` (in `libs/components`) renders the name with the version small and faded to
+its right, and every game uses it on both surfaces:
+
+- **Presenter** — pass `showChanges`; clicking opens the change list. The panel is
+  `position: fixed`, which inside `UINormalizer`'s CSS transform means it covers the
+  **normalized 1080-tall canvas** rather than the browser window — which is what makes it land
+  correctly at any window size. Its font-size is **absolute (24px)** rather than inherited: it
+  used to take the size of whatever corner the tag sat in, and PartyPix's 14px footer produced
+  a 9.8px changelog on a television.
+- **Client** — no `showChanges`. A modal over a player's controls mid-round is a bug.
+- `title` is optional. Lexible's phone header already says which TEAM you are on, which is
+  worth more than the game's name, so it passes the history alone and only the version renders.
+
 ## The game registry (`src/games/lists/`)
 
 - `GameDescriptor.ts` — three types, and the split matters:

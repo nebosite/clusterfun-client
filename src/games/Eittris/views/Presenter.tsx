@@ -6,7 +6,8 @@ import { observer, inject } from "mobx-react";
 import styles from "./Presenter.module.css";
 import classNames from "classnames";
 import EittrisAssets from "../assets/Assets";
-import { EittrisVersion } from "../models/GameSettings";
+import { EITTRIS_VERSION_HISTORY } from "../models/GameSettings";
+import { EittrisLogo } from "./EittrisLogo";
 import {
   MediaHelper,
   UIProperties,
@@ -22,6 +23,7 @@ import {
   CachedMusicSource,
   ResolvedTrack,
   VolumePreferences,
+  GameVersionTag,
 } from "libs";
 import {
   EittrisPresenterModel,
@@ -261,7 +263,9 @@ class GatheringPlayersPage extends React.Component<{ appModel?: EittrisPresenter
               start button lower still - over his portrait, where the eye ends
               up anyway.  No status line: the button's presence says it all. */}
           <div className={styles.cornerStack}>
-            <h3 className={styles.cornerTitle}>Welcome to EITtris</h3>
+            <h3 className={styles.cornerTitle}>
+              Welcome to <EittrisLogo />
+            </h3>
             {appModel.canStart ? (
               <button
                 className={classNames(styles.presenterButton, styles.startOverPortrait)}
@@ -294,7 +298,9 @@ class PausedGamePage extends React.Component<{ appModel?: EittrisPresenterModel 
     if (!appModel) return <div>NO APP MODEL</div>;
     return (
       <div>
-        <p>EITtris is paused</p>
+        <p>
+          <EittrisLogo /> is paused
+        </p>
         <button className={styles.button} onClick={() => appModel.resumeGame()}>
           Resume Game
         </button>
@@ -698,7 +704,9 @@ export default class Presenter extends React.Component<
         </button>
         <div className={classNames(styles.roomCode)}>Room Code: {appModel.roomId}</div>
         <DevUI context={appModel} children={<div></div>} />
-        <div style={{ marginLeft: "50px" }}>v{EittrisVersion}</div>
+        <div style={{ marginLeft: "50px" }}>
+          <GameVersionTag title={<EittrisLogo />} history={EITTRIS_VERSION_HISTORY} showChanges />
+        </div>
       </div>
     );
   }

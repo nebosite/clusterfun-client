@@ -1,0 +1,46 @@
+/* EITTRIS: all caps, red at the top fading to yellow at the bottom, with an upside-down R.
+
+   The gradient is painted through the letterforms with background-clip, which is why the
+   colour is on the background and the text itself is transparent. Every browser this app
+   runs on needs the -webkit- prefix as well as the standard property. */
+.logo {
+  display: inline-block;
+  font-family: "Fredoka", "Nunito", sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  white-space: nowrap;
+
+  background-image: linear-gradient(to bottom, #e8281e 0%, #f26a1b 45%, #ffd21e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+
+  /* A hairline dark edge so the yellow end still reads on a light background - without it
+     the bottom of every glyph disappears into a cream presenter. */
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.35));
+}
+
+/* The joke: one piece landed the wrong way up. `inline-block` is required - a transform
+   does nothing to an inline element.
+
+   It needs its OWN copy of the gradient, and this is not belt-and-braces: a transform gives
+   the element its own paint context, so it is no longer painted through the parent's
+   `background-clip: text`. With only the inherited transparent fill and no background of its
+   own, the R rendered as a hole - the wordmark read "EITT   IS".
+
+   The copy runs `to top` rather than `to bottom`, with the same stops. The rotation flips the
+   axis, so a stop N% up from this element's bottom lands N% down from the visual top - which
+   is exactly where the parent puts it. Red at the top, yellow at the bottom, matching. */
+.upsideDownR {
+  display: inline-block;
+  transform: rotate(180deg);
+
+  background-image: linear-gradient(to top, #e8281e 0%, #f26a1b 45%, #ffd21e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}

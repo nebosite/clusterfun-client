@@ -6,6 +6,7 @@ import React from "react";
 import { observer, inject } from "mobx-react";
 import { EittrisClientModel, EittrisClientState } from "../models/ClientModel";
 import styles from "./Client.module.css";
+import { EittrisLogo } from "./EittrisLogo";
 import classNames from "classnames";
 import {
   UIProperties,
@@ -15,6 +16,7 @@ import {
   UINormalizer,
   ErrorBoundary,
   PlayerAvatar,
+  GameVersionTag,
 } from "libs";
 import {
   BOARD_HEIGHT,
@@ -43,6 +45,7 @@ import {
   FLICK_REARM_MOVES,
   TAP_MAX_DISTANCE_PX,
   TAP_MAX_DURATION_MS,
+  EITTRIS_VERSION_HISTORY,
 } from "../models/GameSettings";
 import EittrisAssets from "../assets/Assets";
 import BoardGrid from "./BoardGrid";
@@ -943,6 +946,13 @@ export default class Client extends React.Component<{
   // -------------------------------------------------------------------
   render() {
     const { appModel } = this.props;
+    // Dev controls belong to a game in progress.  Before the round starts there is nothing
+    // to force a powerup ONTO, and the panel was covering the wordmark and the version on
+    // the one screen where a player has time to read them.
+    const inPlay =
+      appModel?.gameState === EittrisClientState.Playing ||
+      appModel?.gameState === EittrisClientState.Dead;
+    const showDevControls = IS_DEV && inPlay;
     return (
       <div>
         <UINormalizer
@@ -962,7 +972,7 @@ export default class Client extends React.Component<{
                 it made the whole strip taller and, once the text grew, wide enough to shove
                 the player's own name off the screen - a debugging tool rearranging the game
                 it is there to debug. */}
-            {IS_DEV ? (
+            {showDevControls ? (
               <div className={styles.devOverlay}>
                 <select
                   className={styles.devSelect}
@@ -999,13 +1009,22 @@ export default class Client extends React.Component<{
               </div>
             ) : null}
             <div className={classNames(styles.divRow, styles.topbar)}>
-              {/* In dev the floating panel covers this corner, so the title stands aside and
-                  leaves a gap the width of the panel - otherwise the player's own name ends
-                  up underneath it. */}
-              {IS_DEV ? (
+              {/* Wordmark, version, who you are, quit - edge to edge.
+                  While the dev panel is up it floats over this corner, so the title stands
+                  aside and leaves a gap the width of the panel; the version still fits at
+                  the gap's right edge, because the Test Lobby should not be the one place
+                  you cannot see which version you are testing. */}
+              {showDevControls ? (
+                // No version here. The dev panel is 683 of the header's 1080 virtual pixels
+                // wide, so a version placed to clear it lands on the panel's own "CPU"
+                // label - and there is no room left for the player's name either way. The
+                // wordmark and version are on screen for the whole gathering stage, which
+                // is when anybody is reading them.
                 <span className={styles.devSpacer} />
               ) : (
-                <span className={classNames(styles.gametitle)}>EITtris</span>
+                <span className={classNames(styles.gametitle)}>
+                  <GameVersionTag title={<EittrisLogo />} history={EITTRIS_VERSION_HISTORY} />
+                </span>
               )}
               <span className={styles.whoami}>
                 <PlayerAvatar
