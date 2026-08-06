@@ -19,9 +19,13 @@
 }
 
 /* "small text to the right of the game title" - 60% and faded, so it is available
-   without competing with anything. */
+   without competing with anything.
+
+   `--gvt-version-size` lets a host pin an ABSOLUTE size instead. The phones use it: the
+   version sits alone in a corner there with no title beside it to be 60% of, so a relative
+   size just tracked whatever the corner happened to inherit. */
 .version {
-  font-size: 0.6em;
+  font-size: var(--gvt-version-size, 0.6em);
   opacity: 0.6;
   font-variant-numeric: tabular-nums;
 }

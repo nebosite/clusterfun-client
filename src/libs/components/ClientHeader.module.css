@@ -192,14 +192,16 @@
    the PHONE's canvas rather than the browser window. That is also what keeps four of them in
    four separate corners in the Test Lobby.
 
-   100px here because GameVersionTag sets its number at 0.6em - so the number itself lands at
-   60, twice the ~30 it used to be. */
+   40px, pinned with --gvt-version-size rather than left at GameVersionTag's 0.6em: the
+   version stands alone here with no title next to it, so a relative size was 60% of nothing
+   in particular. The same number on every game's phone. */
 .versionCorner {
   position: fixed;
   right: 12px;
   bottom: 8px;
   z-index: 5;
-  font-size: 100px;
+  --gvt-version-size: 40px;
+  font-size: 40px;
   opacity: 0.75;
   pointer-events: none;
 }

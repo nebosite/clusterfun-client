@@ -111,32 +111,29 @@ export default class Client extends React.Component<
   };
 
   // -------------------------------------------------------------------
-  // Capture view
+  // The top 400: what this player has, and the two ways to add a picture.
   // -------------------------------------------------------------------
-  private renderCapture() {
+  private renderTopZone() {
     const { appModel } = this.props;
     if (!appModel) return null;
-    const { review, busy } = this.state;
+    const { busy } = this.state;
     const canAfford = appModel.credits >= UPLOAD_COST;
-
-    if (review) {
-      return (
-        <>
-          <img className={styles.reviewImg} src={review.full} alt="your shot" />
-          <div className={styles.reviewActions}>
-            <button className={styles.retake} onClick={this.retake} disabled={busy}>
-              Retake
-            </button>
-            <button className={styles.upload} onClick={this.doUpload} disabled={busy || !canAfford}>
-              {busy ? "Sending…" : "Upload −1 credit"}
-            </button>
-          </div>
-        </>
-      );
-    }
 
     return (
       <>
+        <div className={styles.creditStrip}>
+          <span className={styles.creditCount}>
+            🎞️ {appModel.credits} {appModel.credits === 1 ? "credit" : "credits"}
+          </span>
+          <span className={styles.creditNext}>
+            {appModel.untilNextCredit > 0
+              ? `next credit in ${appModel.untilNextCredit} upvote${
+                  appModel.untilNextCredit === 1 ? "" : "s"
+                }`
+              : "all credit rewards earned"}
+          </span>
+        </div>
+
         {canAfford ? (
           <>
             {/* Side by side, and both offered on every device. A phone that can only reach
@@ -192,9 +189,10 @@ export default class Client extends React.Component<
   }
 
   // -------------------------------------------------------------------
-  // Vote view
+  // The middle: everything between the two fixed zones is the picture, scaled as big as it
+  // will go inside it, plus the flag button in its corner and the flag confirmation over it.
   // -------------------------------------------------------------------
-  private renderVote() {
+  private renderPhotoZone() {
     const { appModel } = this.props;
     if (!appModel) return null;
     const slide = appModel.currentSlide;
@@ -211,22 +209,35 @@ export default class Client extends React.Component<
 
     return (
       <>
-        <div className={styles.voteLabel}>Now showing</div>
-        <div className={styles.voteThumbWrap}>
-          <img className={styles.voteThumb} src={slide.thumb} alt="now showing" />
-          {/* Upper right, on the photo, and red - it is the one destructive control here.
-              It only STAGES the flag; the list at the bottom is where it is confirmed. */}
-          <button
-            className={classNames(styles.flagCorner, {
-              [styles.flagCornerOn]: appModel.hasStagedOrFlaggedCurrent,
-            })}
-            onClick={() => appModel.stageFlag()}
-            aria-label="Flag this photo"
-            title="Flag this photo"
-          >
-            ⚑
-          </button>
-        </div>
+        <img className={styles.voteThumb} src={slide.thumb} alt="now showing" />
+        {/* Upper right, on the photo, and red - it is the one destructive control here.
+            It only STAGES the flag; the dialog over the picture is where it is confirmed. */}
+        <button
+          className={classNames(styles.flagCorner, {
+            [styles.flagCornerOn]: appModel.hasStagedOrFlaggedCurrent,
+          })}
+          onClick={() => appModel.stageFlag()}
+          aria-label="Flag this photo"
+          title="Flag this photo"
+        >
+          <span className={styles.flagGlyph}>⚑</span> Flag
+        </button>
+        {this.renderFlagConfirm()}
+      </>
+    );
+  }
+
+  // -------------------------------------------------------------------
+  // The bottom 300: whose picture it is, and what this player thinks of it.
+  // -------------------------------------------------------------------
+  private renderBottomZone() {
+    const { appModel } = this.props;
+    if (!appModel) return null;
+    const slide = appModel.currentSlide;
+    if (!slide) return null;
+
+    return (
+      <>
         <div className={styles.voteAuthor}>📸 {slide.authorName}</div>
 
         {slide.youAuthored ? (
@@ -267,27 +278,17 @@ export default class Client extends React.Component<
     if (!appModel) return null;
     return (
       <>
-        {/* Credits stay visible on every tab, including while voting. */}
-        <div className={styles.creditStrip}>
-          <span className={styles.creditCount}>
-            🎞️ {appModel.credits} {appModel.credits === 1 ? "credit" : "credits"}
-          </span>
-          <span className={styles.creditNext}>
-            {appModel.untilNextCredit > 0
-              ? `next credit in ${appModel.untilNextCredit} upvote${
-                  appModel.untilNextCredit === 1 ? "" : "s"
-                }`
-              : "all credit rewards earned"}
-          </span>
-        </div>
-        {/* ONE screen, not two tabs: taking part on top, what is on the big screen below.
-            Split across tabs, whichever one you were looking at hid the other - a player on
-            Capture never saw the photo they were meant to be voting on, and a player on Vote
-            had to go looking for the shutter. */}
+        {/* ONE screen, not two tabs, and three fixed bands rather than a scroll:
+              top 400 - what you have and how to add a picture
+              middle  - the picture, as big as the space allows
+              bottom 300 - whose it is and what you think of it
+            Everything used to share one scrolling column, so the picture was whatever height
+            was left over and the vote buttons could be below the fold. */}
         <div className={styles.body}>
-          <div className={styles.captureSection}>{this.renderCapture()}</div>
-          <div className={styles.voteSection}>{this.renderVote()}</div>
-          {this.renderPendingFlags()}
+          <div className={styles.topZone}>{this.renderTopZone()}</div>
+          <div className={styles.photoZone}>{this.renderPhotoZone()}</div>
+          <div className={styles.bottomZone}>{this.renderBottomZone()}</div>
+          {this.renderReview()}
         </div>
         {this.renderNotice()}
       </>
@@ -295,36 +296,61 @@ export default class Client extends React.Component<
   }
 
   // -------------------------------------------------------------------
-  // Flags waiting to be confirmed.
-  //
-  // Nothing here has been sent yet. A flag pulls a photo out of rotation for the whole room on
-  // the first one, which is too much to hang off a single tap next to the vote buttons.
+  // Reviewing a shot you just took. An overlay over all three bands, because the decision is
+  // "is this the picture?" and it needs the whole screen to be answerable - it does not fit in
+  // the 400px band the shutter lives in.
   // -------------------------------------------------------------------
-  private renderPendingFlags() {
+  private renderReview() {
     const { appModel } = this.props;
-    if (!appModel || appModel.pendingFlags.length === 0) return null;
+    const { review, busy } = this.state;
+    if (!appModel || !review) return null;
+    const canAfford = appModel.credits >= UPLOAD_COST;
 
     return (
-      <div className={styles.pendingFlags}>
-        <div className={styles.pendingFlagsTitle}>Flag these photos?</div>
-        {appModel.pendingFlags.map((pending) => (
-          <div className={styles.pendingFlagRow} key={pending.photoId}>
-            <img className={styles.pendingFlagThumb} src={pending.thumb} alt="flagged" />
-            <span className={styles.pendingFlagName}>{pending.authorName}</span>
+      <div className={styles.reviewOverlay}>
+        <img className={styles.reviewImg} src={review.full} alt="your shot" />
+        <div className={styles.reviewActions}>
+          <button className={styles.retake} onClick={this.retake} disabled={busy}>
+            Retake
+          </button>
+          <button className={styles.upload} onClick={this.doUpload} disabled={busy || !canAfford}>
+            {busy ? "Sending…" : "Upload −1 credit"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------
+  // The flag confirmation, over the picture it is about.
+  //
+  // Nothing has been sent yet. A flag pulls a photo out of rotation for the whole room on the
+  // first one, which is too much to hang off a single tap. It carries its own thumbnail and
+  // stays put when the slideshow rotates on underneath it, so what is being flagged is never
+  // in question.
+  // -------------------------------------------------------------------
+  private renderFlagConfirm() {
+    const { appModel } = this.props;
+    const pending = appModel?.pendingFlag;
+    if (!appModel || !pending) return null;
+
+    return (
+      <div className={styles.flagConfirm}>
+        <div className={styles.flagConfirmCard}>
+          <img className={styles.flagConfirmThumb} src={pending.thumb} alt="the photo to flag" />
+          <div className={styles.flagConfirmTitle}>Flag {pending.authorName}'s photo?</div>
+          <div className={styles.flagConfirmActions}>
             <button
               className={styles.confirmFlag}
               onClick={() => appModel.confirmFlag(pending.photoId)}
             >
               Yes, Flag
             </button>
-            <button
-              className={styles.cancelFlag}
-              onClick={() => appModel.cancelFlag(pending.photoId)}
-            >
+            <button className={styles.cancelFlag} onClick={() => appModel.cancelFlag()}>
               Whoops, No
             </button>
           </div>
-        ))}
+        </div>
       </div>
     );
   }

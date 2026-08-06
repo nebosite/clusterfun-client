@@ -26,7 +26,6 @@
   background: var(--bg);
   color: var(--text);
   font-family: var(--ui);
-  font-size: 34px;
   display: flex;
   flex-direction: column;
 }
@@ -53,16 +52,19 @@
    which reads fine on a monitor in the Test Lobby and is squinting distance on a phone held at
    arm's length in a lit room.
 
-   --pp-text is that size. The wordmark is a quarter larger, the version a quarter smaller, and
-   nothing else on the phone sets a size of its own.
+   --pp-text is that size. The wordmark is a quarter larger, and --pp-min is the FLOOR: nothing
+   on this phone is allowed to be smaller than 40px, which is also what the shared header's
+   version corner uses. Labels that used to sit at 24 and 26 were the ones nobody could read.
    ========================================================================================== */
 .gameclient {
   --pp-text: 52px;
   --pp-logo: 65px; /* 52 x 1.25 */
-  --pp-version: 39px; /* 52 x 0.75 */
+  --pp-min: 40px; /* the floor for every piece of text on this screen */
+  --pp-version: 40px;
   /* The player's name is drawn by the SHARED header, so it needs a hook rather than a rule -
      see libs/components/ClientHeader.module.css. */
   --client-name-size: var(--pp-text);
+  font-size: var(--pp-min);
 }
 
 .wordmark {
@@ -73,66 +75,70 @@
 .wordmark .pix {
   color: var(--magenta);
 }
-.quit {
-  flex: 0 0 auto;
-  width: 68px;
-  height: 68px;
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--dim);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  cursor: pointer;
-}
 
-/* Tabs */
-.tabs {
-  flex: 0 0 auto;
-  display: flex;
-  gap: 14px;
-  padding: 24px 32px 8px;
-}
-.tab {
-  flex: 1;
-  font-family: var(--ui);
-  font-weight: 700;
-  font-size: 30px;
-  color: var(--dim);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 22px;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-}
-.tabActive {
-  background: var(--cyan);
-  color: #08080d;
-  border-color: var(--cyan);
-}
+/* ==========================================================================================
+   THREE FIXED BANDS, not one scrolling column.
 
+     |  120  |  the shared header
+     |  400  |  what you have, and the two ways to add a picture
+     |  rest |  THE PICTURE - scaled as big as it will go, 5px of air all round
+     |  300  |  whose picture it is, and what you think of it
+
+   Everything shared one scrolling column before this, so the picture got whatever height was
+   left over and the vote buttons could land below the fold - on the screen whose entire job is
+   looking at a photo and deciding what you think of it.
+   ========================================================================================== */
 .body {
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
-  padding: 30px 32px 40px;
+  position: relative; /* the review overlay covers exactly this area */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 26px;
 }
 
-/* ---- Persistent credits (visible on every tab) ---- */
+.topZone {
+  flex: 0 0 400px;
+  height: 400px;
+  min-height: 0;
+  overflow: hidden;
+  padding: 12px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.photoZone {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative; /* the flag button and its confirmation belong to THIS box */
+  overflow: hidden;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bottomZone {
+  flex: 0 0 300px;
+  height: 300px;
+  min-height: 0;
+  overflow: hidden;
+  padding: 12px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: inset 0 1px 0 var(--border);
+}
+
+/* ---- Persistent credits ---- */
 .creditStrip {
   flex: 0 0 auto;
   display: flex;
   align-items: baseline;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 8px 20px;
-  padding: 20px 32px 0;
+  gap: 4px 20px;
 }
 .creditCount {
   font-family: var(--mono);
@@ -142,17 +148,18 @@
   letter-spacing: 0.04em;
 }
 .creditNext {
-  font-size: 24px;
+  font-size: var(--pp-min);
   color: var(--dim);
 }
 
 /* ---- Capture ---- */
 .takePhoto {
   width: 100%;
-  min-height: 320px;
+  height: 100%;
+  min-height: 0;
   font-family: var(--ui);
   font-weight: 800;
-  font-size: 52px;
+  font-size: 46px;
   color: #08080d;
   background: var(--lime);
   border: none;
@@ -163,7 +170,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 8px;
 }
 .takePhoto:disabled {
   opacity: 0.35;
@@ -171,43 +178,65 @@
   cursor: not-allowed;
 }
 .cameraGlyph {
-  font-size: 90px;
+  font-size: 64px;
+  line-height: 1;
 }
 .costNote {
+  flex: 0 0 auto;
   text-align: center;
-  font-size: 26px;
+  font-size: var(--pp-min);
   color: var(--faint);
 }
 .hiddenInput {
   display: none;
 }
 .outOfCredits {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
   text-align: center;
   background: rgba(255, 210, 26, 0.08);
   border: 1px solid rgba(255, 210, 26, 0.4);
   border-radius: 20px;
-  padding: 30px;
+  padding: 24px;
   color: var(--yellow);
   font-weight: 700;
-  font-size: 34px;
+  font-size: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 .outOfCredits .sub {
   color: var(--dim);
   font-weight: 400;
-  font-size: 26px;
-  margin-top: 10px;
+  font-size: var(--pp-min);
 }
 
-/* ---- Review ---- */
+/* ---- Reviewing a shot you just took -----------------------------------------------------
+   An overlay over all three bands. "Is this the picture?" needs the whole screen to answer,
+   and it certainly does not fit in the 400px band the shutter lives in. */
+.reviewOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px 32px;
+}
 .reviewImg {
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  max-height: 900px;
   object-fit: contain;
   border-radius: 20px;
-  border: 1px solid var(--border);
   background: #000;
 }
 .reviewActions {
+  flex: 0 0 auto;
   display: flex;
   gap: 18px;
 }
@@ -215,7 +244,7 @@
   flex: 1;
   font-family: var(--ui);
   font-weight: 700;
-  font-size: 32px;
+  font-size: var(--pp-min);
   color: var(--text);
   background: transparent;
   border: 2px solid var(--border);
@@ -227,7 +256,7 @@
   flex: 2;
   font-family: var(--ui);
   font-weight: 800;
-  font-size: 34px;
+  font-size: 44px;
   color: #08080d;
   background: var(--lime);
   border: none;
@@ -242,55 +271,46 @@
   cursor: not-allowed;
 }
 
-/* ---- Vote ---- */
-.voteLabel {
-  text-align: center;
-  font-family: var(--mono);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 24px;
-  color: var(--faint);
-}
-/* `relative`, so the flag button can sit in the photo's own corner. */
-.voteThumbWrap {
-  position: relative;
-  display: flex;
-  justify-content: center;
-}
-/* Roughly three times the area it had. The phone's whole job while it is not shooting is
-   looking at this picture and deciding what it thinks of it. */
+/* ---- The picture ------------------------------------------------------------------------
+   width AND height at 100% under object-fit, not a pair of maximums: the phone only ever gets
+   the ~256px thumbnail, and maximums alone would draw it at 256px in the middle of a
+   thousand-pixel band. This scales it up to the band and keeps its aspect. */
 .voteThumb {
-  max-width: 100%;
-  max-height: 1320px;
   width: 100%;
+  height: 100%;
   object-fit: contain;
   border-radius: 20px;
-  border: 1px solid var(--border);
   background: #000;
 }
 .voteAuthor {
+  flex: 0 0 auto;
   text-align: center;
   font-size: var(--pp-text);
   font-weight: 600;
 }
 .voteRow {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   gap: 18px;
 }
 .voteBtn {
   flex: 1;
+  height: 100%;
+  min-height: 0;
   font-family: var(--ui);
   font-weight: 700;
-  font-size: 30px;
+  font-size: var(--pp-min);
   color: var(--text);
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: 20px;
-  padding: 30px 10px;
+  padding: 12px 10px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   transition: transform 0.12s ease;
 }
@@ -314,13 +334,18 @@
   background: rgba(255, 210, 26, 0.12);
 }
 .ownBadge {
+  flex: 1 1 auto;
+  min-height: 0;
   text-align: center;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 20px;
-  padding: 36px;
-  font-size: 34px;
+  padding: 20px;
+  font-size: 44px;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .ownBadge .up {
   color: var(--lime);
@@ -328,8 +353,7 @@
 .voteEmpty {
   text-align: center;
   color: var(--dim);
-  font-size: 34px;
-  margin-top: 120px;
+  font-size: 44px;
 }
 
 /* Toast + misc */
@@ -338,10 +362,10 @@
   left: 50%;
   bottom: 60px;
   transform: translateX(-50%);
-  z-index: 10;
+  z-index: 40;
   font-family: var(--ui);
   font-weight: 700;
-  font-size: 30px;
+  font-size: var(--pp-min);
   color: #08080d;
   background: var(--lime);
   border-radius: 16px;
@@ -353,14 +377,14 @@
 }
 .wait_text {
   text-align: center;
-  font-size: 40px;
+  font-size: var(--pp-min);
   color: var(--dim);
   margin-top: 160px;
 }
 .primaryButton {
   font-family: var(--ui);
   font-weight: 700;
-  font-size: 34px;
+  font-size: 44px;
   color: #08080d;
   background: var(--cyan);
   border: none;
@@ -383,6 +407,8 @@
 
 /* ---- Two ways in: the camera, and the album -------------------------------------------- */
 .captureButtons {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   gap: 16px;
   width: 100%;
@@ -394,10 +420,11 @@
 
 /* The album button is the quieter of the two - taking a NEW photo is the game. */
 .uploadPhoto {
-  min-height: 320px;
+  height: 100%;
+  min-height: 0;
   font-family: var(--ui);
   font-weight: 800;
-  font-size: var(--pp-text);
+  font-size: 46px;
   color: var(--text);
   background: rgba(255, 255, 255, 0.08);
   border: 2px solid var(--border);
@@ -406,7 +433,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 8px;
   cursor: pointer;
 }
 .uploadPhoto:disabled {
@@ -414,32 +441,25 @@
   cursor: not-allowed;
 }
 
-/* ---- One screen: shooting on top, the slideshow below ---------------------------------- */
-.captureSection {
-  flex: 0 0 auto;
-}
-.voteSection {
-  /* `0 0 auto`, not `1 1 auto`. Growing to fill pushed this section under the staged-flag
-     panel below it, and the vote buttons ended up behind it - you could not vote while a flag
-     was waiting to be confirmed. The body scrolls instead. */
-  flex: 0 0 auto;
-  min-height: 0;
-  margin-top: 28px;
-  padding-top: 24px;
-  box-shadow: inset 0 1px 0 var(--border);
-}
-
-/* ---- The flag, in the photo's upper-right corner --------------------------------------- */
+/* ---- The flag, in the picture's upper-right corner --------------------------------------
+   It says "Flag" as well as showing the pennant. A lone glyph on a red square is the one
+   control here that removes a photo from the whole room's slideshow, and that is too much to
+   leave to a symbol nobody has seen before. */
 .flagCorner {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 96px;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
   height: 96px;
-  font-size: 52px;
-  line-height: 1;
-  padding: 0;
+  padding: 0 24px;
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--ui);
+  font-size: var(--pp-min);
+  font-weight: 800;
+  line-height: 1;
   color: #ffffff;
   background: #c0392b;
   border: 3px solid rgba(255, 255, 255, 0.9);
@@ -447,51 +467,62 @@
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
   cursor: pointer;
 }
+.flagGlyph {
+  font-size: 52px;
+  line-height: 1;
+}
 .flagCornerOn {
   background: #7c1d13;
 }
 
-/* ---- Flags waiting to be confirmed ----------------------------------------------------- */
-.pendingFlags {
-  flex: 0 0 auto;
-  margin-top: 24px;
-  padding: 20px;
-  border-radius: 20px;
-  background: rgba(192, 57, 43, 0.12);
-  border: 2px solid rgba(192, 57, 43, 0.5);
-}
-.pendingFlagsTitle {
-  font-size: var(--pp-text);
-  font-weight: 800;
-  margin-bottom: 14px;
-}
-.pendingFlagRow {
+/* ---- The flag confirmation, over the picture it is about ------------------------------- */
+.flagConfirm {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 12px;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.72);
 }
-.pendingFlagThumb {
-  width: 110px;
-  height: 110px;
-  object-fit: cover;
-  border-radius: 12px;
-  flex: 0 0 auto;
-}
-.pendingFlagName {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: var(--pp-text);
+.flagConfirmCard {
+  max-width: 100%;
+  max-height: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 28px;
+  border-radius: 24px;
+  background: #14141c;
+  border: 3px solid rgba(192, 57, 43, 0.7);
+  text-align: center;
+}
+.flagConfirmThumb {
+  flex: 0 0 auto;
+  width: 240px;
+  height: 240px;
+  object-fit: cover;
+  border-radius: 16px;
+}
+.flagConfirmTitle {
+  font-size: var(--pp-text);
+  font-weight: 800;
+  line-height: 1.2;
+}
+.flagConfirmActions {
+  display: flex;
+  gap: 16px;
 }
 .confirmFlag,
 .cancelFlag {
   flex: 0 0 auto;
-  font-size: var(--pp-version);
+  font-family: var(--ui);
+  font-size: var(--pp-min);
   font-weight: 800;
-  padding: 14px 20px;
+  padding: 18px 26px;
   border-radius: 16px;
   border: none;
   cursor: pointer;

@@ -63,7 +63,7 @@ export const getPartyPixClientTypeHelper = (
     shouldStringify(typeName: string, propertyName: string, object: any): boolean {
       if (object instanceof PartyPixClientModel) {
         if (
-          ["currentSlide", "myVotes", "myFlags", "pendingFlags", "notice"].indexOf(propertyName) !==
+          ["currentSlide", "myVotes", "myFlags", "pendingFlag", "notice"].indexOf(propertyName) !==
           -1
         ) {
           return false;
@@ -115,8 +115,16 @@ export class PartyPixClientModel extends ClusterfunClientModel {
     action(() => (this.notice = { kind: message.kind, text }))();
   };
 
-  /** Flags this player has tapped but not yet confirmed. Never sent, never checkpointed. */
-  pendingFlags = observable<{ photoId: string; thumb: string; authorName: string }>([]);
+  /**
+   * The flag this player has tapped but not yet confirmed - at most one at a time, because it
+   * is answered in a dialog over the picture rather than queued in a list. Never sent to the
+   * presenter, never checkpointed.
+   *
+   * It deliberately carries its own thumb and author name and OUTLIVES a slide change: the
+   * show rotates every few seconds, and a confirmation that vanished out from under a player
+   * mid-decision would be worse than one that keeps showing what it is about.
+   */
+  @observable pendingFlag: { photoId: string; thumb: string; authorName: string } | null = null;
 
   constructor(
     sessionHelper: ISessionHelper,
@@ -223,9 +231,7 @@ export class PartyPixClientModel extends ClusterfunClientModel {
   get hasStagedOrFlaggedCurrent(): boolean {
     const slide = this.currentSlide;
     if (!slide) return false;
-    return (
-      this.myFlags.has(slide.photoId) || this.pendingFlags.some((p) => p.photoId === slide.photoId)
-    );
+    return this.myFlags.has(slide.photoId) || this.pendingFlag?.photoId === slide.photoId;
   }
 
   get hasFlaggedCurrent(): boolean {
@@ -261,20 +267,20 @@ export class PartyPixClientModel extends ClusterfunClientModel {
   //
   //  The flag button sits on the photo, where a thumb reaches it - which is exactly where a
   //  mis-tap lands too, and the first flag pulls a photo out of rotation for everybody. So the
-  //  button only STAGES the flag; nothing goes to the presenter until the player confirms it
-  //  in the list at the bottom of their screen.
+  //  button only STAGES the flag; nothing goes to the presenter until the player answers the
+  //  confirmation that opens over the picture.
   // -------------------------------------------------------------------
   stageFlag(): void {
     const slide = this.currentSlide;
     if (!slide) return;
     if (this.myFlags.has(slide.photoId)) return;
-    if (this.pendingFlags.some((p) => p.photoId === slide.photoId)) return;
+    if (this.pendingFlag) return; // one at a time - the dialog is answered before the next
     action(() => {
-      this.pendingFlags.push({
+      this.pendingFlag = {
         photoId: slide.photoId,
         thumb: slide.thumb,
         authorName: slide.authorName,
-      });
+      };
     })();
   }
 
@@ -282,7 +288,7 @@ export class PartyPixClientModel extends ClusterfunClientModel {
   async confirmFlag(photoId: string): Promise<void> {
     action(() => {
       this.myFlags.add(photoId);
-      this.dropPendingFlag(photoId);
+      if (this.pendingFlag?.photoId === photoId) this.pendingFlag = null;
     })();
     try {
       await this.session.requestPresenter(PartyPixVoteEndpoint, { photoId, kind: "delete" });
@@ -292,13 +298,8 @@ export class PartyPixClientModel extends ClusterfunClientModel {
   }
 
   /** "Whoops, No" - it never left the phone. */
-  cancelFlag(photoId: string): void {
-    action(() => this.dropPendingFlag(photoId))();
-  }
-
-  private dropPendingFlag(photoId: string) {
-    const at = this.pendingFlags.findIndex((p) => p.photoId === photoId);
-    if (at >= 0) this.pendingFlags.splice(at, 1);
+  cancelFlag(): void {
+    action(() => (this.pendingFlag = null))();
   }
 
   // -------------------------------------------------------------------

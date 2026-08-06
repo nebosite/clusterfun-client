@@ -129,15 +129,45 @@ memory-tight device the page can be discarded. PartyPix is the game in the set t
 sends a player away and expects them back, so its client listens for `visibilitychange` and
 re-onboards rather than trusting what it was holding when it went away.
 
-**One text size.** `--pp-text` on `.gameclient`, taken from the shutter button, which was the
-only thing on the phone already set large enough to read at arm's length. The wordmark is a
-quarter larger and the version a quarter smaller; nothing else sets a size of its own.
+**One text size, and a floor.** `--pp-text` (52px) on `.gameclient`, taken from the shutter
+button, which was the only thing on the phone already set large enough to read at arm's length.
+The wordmark is a quarter larger. **`--pp-min` is 40px and nothing on this screen goes below
+it** — the labels that were unreadable were the 24s and 26s, and a floor is the only rule that
+stops them drifting back. 40 is also the version size in the shared header's corner, which is
+pinned for every game via `--gvt-version-size` (see `libs/components/ClientHeader.module.css`).
 
-**Flagging is two steps.** The flag sits in the photo's own upper-right corner, in red, where a
-thumb reaches it — which is exactly where a mis-tap lands too, and the first flag pulls a photo
-out of rotation for everybody. So the button only STAGES it: nothing reaches the presenter until
-the player confirms in the list at the bottom (**Yes, Flag** / **Whoops, No**). `pendingFlags`
-is local, never sent and never checkpointed.
+**Three fixed bands, not a scrolling column** (`.body`):
+
+| Band          | Height | Holds                                              |
+| ------------- | ------ | -------------------------------------------------- |
+| header        | 120    | The shared `ClientHeader`.                         |
+| `.topZone`    | 400    | Credits, and the two ways to add a picture.        |
+| `.photoZone`  | rest   | **The picture**, 5px of air, plus the flag button. |
+| `.bottomZone` | 300    | Whose picture it is, and the vote controls.        |
+
+The picture is `width: 100%; height: 100%; object-fit: contain` — **both** dimensions, not a
+pair of maximums: the phone only ever receives the ~256px thumbnail, so maximums alone would
+draw it at 256px in the middle of a thousand-pixel band. It scales up, which means it is soft;
+that is the cost of not shipping the full image to every phone.
+
+Everything shared one scrolling column before this, so the picture got whatever height was left
+over and the vote buttons could land below the fold — on the screen whose whole job is looking
+at a photo and deciding what you think of it.
+
+**Reviewing a shot is an overlay** over all three bands (`.reviewOverlay`), because "is this the
+picture?" needs the screen and does not fit in the 400px band the shutter lives in.
+
+**Flagging is two steps.** The flag sits in the picture's own upper-right corner, in red, where
+a thumb reaches it — which is exactly where a mis-tap lands too, and the first flag pulls a
+photo out of rotation for everybody. So the button only STAGES it, and a **confirmation dialog
+opens over the picture** (**Yes, Flag** / **Whoops, No**). It says "⚑ Flag", not a bare pennant:
+the one control that removes a photo from the whole room's show should not rely on a symbol
+nobody has seen before.
+
+`pendingFlag` is a single value, not a list — the dialog is answered before another can be
+staged. It carries its own thumbnail and author name and **outlives a slide change**, because
+the show rotates every few seconds and a confirmation that vanished mid-decision would be worse
+than one that keeps showing what it is about. Local, never sent, never checkpointed.
 
 ## Notices — moments, not numbers
 
