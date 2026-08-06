@@ -110,7 +110,8 @@ class JoinPage extends React.Component<{ appModel?: PartyPixPresenterModel }> {
               Include photos already in the folder
             </label>
             <span className={styles.folderNote}>
-              Saves photos so the slideshow survives a refresh. Optional.
+              Photos are saved here, so the slideshow survives a refresh and the party's pictures
+              are still yours afterwards. <b>Pick a folder to begin.</b>
             </span>
           </>
         );
@@ -309,7 +310,7 @@ class SlideshowPage extends React.Component<
             className={styles.controlButton}
             onClick={() => this.setState({ mode: "thumbs" })}
           >
-            ▦ Thumbnails
+            ▦ Thumbnails: {appModel.photos.length}
           </button>
           <button
             className={classNames(styles.controlButton, {

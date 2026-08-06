@@ -59,6 +59,11 @@ function makeModel() {
     clear: () => {},
   };
   const model = new PartyPixPresenterModel(session, logger, storage);
+  // The show does not start until the host has settled the photo-folder question, and these
+  // tests skip reconstitute() - which is what normally probes for File System Access support
+  // and lands on "unsupported" in a browser without it (jsdom included). Set it here so the
+  // handlers under test see the same world a real presenter does.
+  runInAction(() => (model.folderStatus = "unsupported"));
   return { model, sent };
 }
 

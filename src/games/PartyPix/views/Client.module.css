@@ -47,9 +47,24 @@
      regions are measured against. */
   box-shadow: inset 0 -1px 0 var(--border);
 }
+/* ==========================================================================================
+   ONE TEXT SIZE for the phone, and it is the size the shutter button was already using.
+   Everything else on this screen had drifted smaller - 24px labels, 28px names, 32px captions -
+   which reads fine on a monitor in the Test Lobby and is squinting distance on a phone held at
+   arm's length in a lit room.
+
+   --pp-text is that size. The wordmark is a quarter larger, the version a quarter smaller, and
+   nothing else on the phone sets a size of its own.
+   ========================================================================================== */
+.gameclient {
+  --pp-text: 52px;
+  --pp-logo: 65px; /* 52 x 1.25 */
+  --pp-version: 39px; /* 52 x 0.75 */
+}
+
 .wordmark {
   font-family: var(--display);
-  font-size: 40px;
+  font-size: var(--pp-logo);
   letter-spacing: 0.5px;
 }
 .wordmark .pix {
@@ -57,7 +72,7 @@
 }
 .headerName {
   margin-left: auto;
-  font-size: 28px;
+  font-size: var(--pp-text);
   color: var(--dim);
   max-width: 360px;
   overflow: hidden;
@@ -242,13 +257,18 @@
   font-size: 24px;
   color: var(--faint);
 }
+/* `relative`, so the flag button can sit in the photo's own corner. */
 .voteThumbWrap {
+  position: relative;
   display: flex;
   justify-content: center;
 }
+/* Roughly three times the area it had. The phone's whole job while it is not shooting is
+   looking at this picture and deciding what it thinks of it. */
 .voteThumb {
   max-width: 100%;
-  max-height: 760px;
+  max-height: 1320px;
+  width: 100%;
   object-fit: contain;
   border-radius: 20px;
   border: 1px solid var(--border);
@@ -256,7 +276,7 @@
 }
 .voteAuthor {
   text-align: center;
-  font-size: 32px;
+  font-size: var(--pp-text);
   font-weight: 600;
 }
 .voteRow {
@@ -365,4 +385,168 @@
   .gameclient * {
     transition: none !important;
   }
+}
+
+/* ---- Two ways in: the camera, and the album -------------------------------------------- */
+.captureButtons {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+.captureButtons > button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* The album button is the quieter of the two - taking a NEW photo is the game. */
+.uploadPhoto {
+  min-height: 320px;
+  font-family: var(--ui);
+  font-weight: 800;
+  font-size: var(--pp-text);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid var(--border);
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.uploadPhoto:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ---- One screen: shooting on top, the slideshow below ---------------------------------- */
+.captureSection {
+  flex: 0 0 auto;
+}
+.voteSection {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 28px;
+  padding-top: 24px;
+  box-shadow: inset 0 1px 0 var(--border);
+}
+
+/* ---- The flag, in the photo's upper-right corner --------------------------------------- */
+.flagCorner {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 96px;
+  height: 96px;
+  font-size: 52px;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+  color: #ffffff;
+  background: #c0392b;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+.flagCornerOn {
+  background: #7c1d13;
+}
+
+/* ---- Flags waiting to be confirmed ----------------------------------------------------- */
+.pendingFlags {
+  flex: 0 0 auto;
+  margin-top: 24px;
+  padding: 20px;
+  border-radius: 20px;
+  background: rgba(192, 57, 43, 0.12);
+  border: 2px solid rgba(192, 57, 43, 0.5);
+}
+.pendingFlagsTitle {
+  font-size: var(--pp-text);
+  font-weight: 800;
+  margin-bottom: 14px;
+}
+.pendingFlagRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.pendingFlagThumb {
+  width: 110px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 12px;
+  flex: 0 0 auto;
+}
+.pendingFlagName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--pp-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.confirmFlag,
+.cancelFlag {
+  flex: 0 0 auto;
+  font-size: var(--pp-version);
+  font-weight: 800;
+  padding: 14px 20px;
+  border-radius: 16px;
+  border: none;
+  cursor: pointer;
+}
+.confirmFlag {
+  color: #ffffff;
+  background: #c0392b;
+}
+.cancelFlag {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ---- A moment worth interrupting for ---------------------------------------------------
+   `fixed` inside UINormalizer's transform, so it covers this PHONE's canvas rather than the
+   browser window - the same trick the version corner uses. */
+.noticeBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 40px;
+}
+.noticeCard {
+  max-width: 90%;
+  padding: 44px 40px;
+  border-radius: 28px;
+  background: #14141c;
+  border: 2px solid var(--border);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+  text-align: center;
+}
+.noticeGlyph {
+  font-size: 120px;
+  line-height: 1;
+  margin-bottom: 20px;
+}
+.noticeText {
+  font-size: var(--pp-text);
+  line-height: 1.35;
+  margin-bottom: 32px;
+}
+.noticeDismiss {
+  font-size: var(--pp-text);
+  font-weight: 800;
+  padding: 20px 48px;
+  border-radius: 20px;
+  border: none;
+  color: #08080d;
+  background: var(--lime);
+  cursor: pointer;
 }

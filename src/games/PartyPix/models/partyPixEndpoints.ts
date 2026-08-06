@@ -70,3 +70,19 @@ export const PartyPixCreditsPushEndpoint: MessageEndpoint<
 > = {
   route: "/games/partypix/push/credits",
 };
+
+// ==========================================================================================
+// A one-off message to ONE player about their own photos.
+//
+// Separate from CreditsPush, which is a standing report of where your credits are. These are
+// moments - somebody flagged your photo, your first upvote landed, the whole room liked one -
+// and a moment shown as a number nobody was watching is a moment missed.
+// ==========================================================================================
+export type PartyPixNoticeKind = "flagged" | "firstUpvote" | "sweep";
+
+export const PartyPixNoticeEndpoint: MessageEndpoint<
+  { kind: PartyPixNoticeKind; authorName?: string },
+  void
+> = {
+  route: "/games/partypix/push/notice",
+};

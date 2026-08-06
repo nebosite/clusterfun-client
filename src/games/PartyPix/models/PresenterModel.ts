@@ -17,6 +17,7 @@ import {
   PartyPixVoteEndpoint,
   PartyPixSlidePushEndpoint,
   PartyPixCreditsPushEndpoint,
+  PartyPixNoticeEndpoint,
   PartyPixSlideInfo,
 } from "./partyPixEndpoints";
 import { SLIDE_INTERVAL_MS, START_CREDITS, UPLOAD_COST } from "./GameSettings";
@@ -204,6 +205,19 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
   // PhotoStore, so a same-session refresh reconnects silently.
   private photoStore = new PhotoStore();
   @observable folderStatus: "unsupported" | "none" | "needsReconnect" | "connected" = "none";
+
+  /**
+   * Whether the host has settled the photo folder question, one way or the other.
+   *
+   * The setup screen will not hand over to the slideshow until this is true. Photos live in
+   * that folder: start without one and the party's pictures exist only in the presenter tab,
+   * and the first refresh takes them all. "unsupported" counts as settled - on a browser
+   * without the File System Access API there is no folder to choose, and blocking there would
+   * make the game unplayable rather than careful.
+   */
+  get folderDecided(): boolean {
+    return this.folderStatus === "connected" || this.folderStatus === "unsupported";
+  }
   @observable folderName = "";
   @observable includeExistingChoice = true;
   // Preview of image files found in a just-picked folder (before starting).
@@ -329,7 +343,9 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
       this.currentIndex = 0;
       this._nextSlideAt = this.gameTime_ms + SLIDE_INTERVAL_MS;
       this.gameState =
-        this.photos.length > 0 ? PartyPixGameState.Slideshow : PresenterGameState.Gathering;
+        this.photos.length > 0 && this.folderDecided
+          ? PartyPixGameState.Slideshow
+          : PresenterGameState.Gathering;
     })();
     this.pushSlide();
   };
@@ -435,7 +451,7 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
       this.currentIndex = this.photos.length - 1; // show the newcomer right away
       this._nextSlideAt = this.gameTime_ms + SLIDE_INTERVAL_MS;
       if (this.gameState === PresenterGameState.Gathering) {
-        this.gameState = PartyPixGameState.Slideshow;
+        if (this.folderDecided) this.gameState = PartyPixGameState.Slideshow;
       }
     })();
 
@@ -477,14 +493,24 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
     const kind = message.kind;
     const author = this.players.find((p) => p.playerId === photo.authorId);
     let creditGranted = false;
+    let firstUpvote = false;
+    let swept = false;
 
     action(() => {
       const result = applyVote(photo, sender, photo.authorId, kind);
       if (!result.ok) return;
       photo.syncCounts();
 
+      // Everybody who COULD upvote this photo has - its author cannot vote on their own, so
+      // the ceiling is one less than the room. Worth saying out loud; it never happens twice
+      // for the same photo because the count only reaches the ceiling once.
+      if (kind === "up" && this.players.length > 1 && photo.up === this.players.length - 1) {
+        swept = true;
+      }
+
       if (result.countsForCredit && author) {
         const prev = author.totalUp;
+        if (prev === 0) firstUpvote = true;
         author.totalUp += 1;
         const earned = creditsForUpvoteCount(prev, author.totalUp);
         if (earned > 0) {
@@ -497,6 +523,11 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
     if (author) {
       this.pushCredits();
       if (creditGranted) this.invokeEvent(PartyPixGameEvent.CreditGranted, author);
+      // The sweep is the louder news, so it wins if both land on the same vote.
+      if (swept) this.sendToPlayer(PartyPixNoticeEndpoint, author, { kind: "sweep" });
+      else if (firstUpvote) {
+        this.sendToPlayer(PartyPixNoticeEndpoint, author, { kind: "firstUpvote" });
+      }
     }
     if (photo === this.currentPhoto) this.pushSlide();
     this.saveCheckpoint();
@@ -537,6 +568,11 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
   }
 
   pullToFlagged = (photo: PartyPixPhoto) => {
+    // Tell the author. Their photo has just left the slideshow and, without this, the only
+    // evidence is that it stopped coming round - which reads as a bug, not as moderation.
+    const author = this.players.find((p) => p.playerId === photo.authorId);
+    if (author) this.sendToPlayer(PartyPixNoticeEndpoint, author, { kind: "flagged" });
+
     action(() => {
       this.spliceFromActive(photo);
       if (!this.flaggedPhotos.includes(photo)) this.flaggedPhotos.push(photo);
@@ -554,7 +590,7 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
       this.flaggedPhotos.remove(photo);
       if (!this.photos.includes(photo)) this.photos.push(photo);
       if (this.gameState === PresenterGameState.Gathering && this.photos.length > 0) {
-        this.gameState = PartyPixGameState.Slideshow;
+        if (this.folderDecided) this.gameState = PartyPixGameState.Slideshow;
       }
     })();
     this.pushSlide();

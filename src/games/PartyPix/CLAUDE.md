@@ -111,6 +111,50 @@ alongside `photos`.
 with mirrored `@observable` counts (`up`/`down`/`deleteCount`) updated via `syncCounts()` so the
 presenter's live tally re-renders. All model mutations run inside `action(() => …)()`.
 
+## The phone is ONE screen
+
+Taking part on top, what is on the big screen below. It used to be two tabs, and whichever
+one you were looking at hid the other — a player on Capture never saw the photo they were
+meant to be voting on, and a player on Vote had to go looking for the shutter.
+
+**Two file inputs, not one.** `capture` is not a flag you can flip at click time; the
+attribute has to be on the element when it is activated. One input with `capture="environment"`
+is what shipped, which on a phone forces the camera and offers no album at all — and on a
+desktop the attribute is ignored, which is why it looked fine in the Test Lobby. There are now
+two hidden inputs behind two buttons, **Take a Photo** and **Upload a photo**.
+
+**The phone re-syncs when it comes back to the foreground.** Taking a photo hands the whole
+screen to another app: the browser is suspended, sockets close, pushes are missed, and on a
+memory-tight device the page can be discarded. PartyPix is the game in the set that routinely
+sends a player away and expects them back, so its client listens for `visibilitychange` and
+re-onboards rather than trusting what it was holding when it went away.
+
+**One text size.** `--pp-text` on `.gameclient`, taken from the shutter button, which was the
+only thing on the phone already set large enough to read at arm's length. The wordmark is a
+quarter larger and the version a quarter smaller; nothing else sets a size of its own.
+
+**Flagging is two steps.** The flag sits in the photo's own upper-right corner, in red, where a
+thumb reaches it — which is exactly where a mis-tap lands too, and the first flag pulls a photo
+out of rotation for everybody. So the button only STAGES it: nothing reaches the presenter until
+the player confirms in the list at the bottom (**Yes, Flag** / **Whoops, No**). `pendingFlags`
+is local, never sent and never checkpointed.
+
+## Notices — moments, not numbers
+
+`PartyPixNoticeEndpoint` (presenter → one player, via `sendToPlayer`) covers three things that
+HAPPEN rather than three numbers that change: **your photo was flagged**, **your first upvote**,
+and **the whole room upvoted one of yours** (`up === players.length - 1`, since an author cannot
+vote on their own). Every one of them explains the credit economy, because "why can I not take
+another photo" is the question the game otherwise never answers out loud.
+
+## The photo folder is not optional any more
+
+The setup screen will not hand over to the slideshow until `folderDecided` — the host has
+picked a folder, or the browser has no File System Access API at all (`"unsupported"`, where
+there is nothing to pick and blocking would be careless rather than careful). Photos live in
+that folder: start without one and the party's pictures exist only in the presenter tab, and
+the first refresh takes them all.
+
 ## State machine
 
 - Presenter: `Gathering` (join screen / 0 photos) → `Slideshow` on first upload → back to

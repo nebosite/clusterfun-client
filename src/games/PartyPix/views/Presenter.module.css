@@ -129,7 +129,7 @@
   padding: 20px 60px 60px;
 }
 .joinWordmark {
-  font-size: 132px;
+  font-size: 264px;
   color: var(--cyan);
   text-shadow: 0 0 60px rgba(34, 224, 255, 0.45);
   line-height: 1;
@@ -153,23 +153,26 @@
   flex-direction: column;
   gap: 8px;
 }
+/* The join card carries the only two facts a room needs off this screen - where to go and the
+   code - so it is the loudest thing on it after the wordmark. The label stays quiet; the
+   ANSWERS got bigger. */
 .joinLabel {
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  font-size: 22px;
+  font-size: 30px;
   color: var(--faint);
 }
 .joinUrl {
   font-family: var(--ui);
-  font-weight: 600;
-  font-size: 48px;
+  font-weight: 700;
+  font-size: 84px;
   color: var(--text);
 }
 .joinCode {
   font-family: var(--mono);
   font-weight: 700;
-  font-size: 128px;
+  font-size: 190px;
   line-height: 1;
   letter-spacing: 0.18em;
   color: var(--cyan);
