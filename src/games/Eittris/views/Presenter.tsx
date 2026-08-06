@@ -456,6 +456,8 @@ interface PresenterState {
   // The manifest lands after the first render, and the audio bar has to notice - otherwise
   // it goes on claiming there is no music long after the songs have arrived.
   trackCount: number;
+  /** Why there is no music, when there is none - the three cases do not look alike. */
+  musicStatus: "loading" | "off" | "unavailable" | "ready";
 }
 
 @inject("appModel")
@@ -515,6 +517,7 @@ export default class Presenter extends React.Component<
       musicVolume: levels.music,
       trackTitle: null,
       trackCount: 0,
+      musicStatus: "loading",
     };
     this.media.setVolume(levels.effects);
 
@@ -525,7 +528,12 @@ export default class Presenter extends React.Component<
     // cached bytes for tracks that have since left the manifest.
     library.loadManifest().then((tracks) => {
       this.musicTracks = tracks;
-      this.setState({ trackCount: tracks.length });
+      // "No music installed" was the message for all three of these, which sent at least one
+      // person looking for missing files when the truth was that nothing was serving them.
+      this.setState({
+        trackCount: tracks.length,
+        musicStatus: !library.isEnabled ? "off" : tracks.length > 0 ? "ready" : "unavailable",
+      });
       if (tracks.length > 0) source.sweep(tracks);
     });
 
@@ -615,8 +623,16 @@ export default class Presenter extends React.Component<
   // A strip along the bottom of the shared screen.  It is deliberately always present -
   // the moment somebody says "turn it down" you do not want to be hunting for a menu.
   private renderAudioBar() {
-    const { effectsVolume, musicVolume, trackTitle, trackCount } = this.state;
+    const { effectsVolume, musicVolume, trackTitle, trackCount, musicStatus } = this.state;
     const haveMusic = trackCount > 0;
+    const noMusicReason =
+      musicStatus === "loading"
+        ? "Looking for music..."
+        : musicStatus === "off"
+          ? "Music is switched off"
+          : // Enabled, but the manifest did not come back. In the Test Lobby that used to mean
+            // the relay was not running; src/setupProxy.js now serves the same folder in dev.
+            "No music found - is the server running?";
     return (
       <div className={styles.audioBar}>
         <label className={styles.audioControl}>
@@ -658,7 +674,7 @@ export default class Presenter extends React.Component<
           Next song ⏭
         </button>
         <span className={styles.audioTrack}>
-          {haveMusic ? (trackTitle ?? "No song playing") : "No music installed"}
+          {haveMusic ? (trackTitle ?? "No song playing") : noMusicReason}
         </span>
       </div>
     );

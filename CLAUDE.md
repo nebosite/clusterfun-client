@@ -372,6 +372,31 @@ Env files (CRA `REACT_APP_*`):
   `src/secrets.ts.template`; git-ignored) — see Analytics below.
 - `proxy` in `package.json` points API/socket calls at `http://localhost:8080` (the relay).
 
+## Background music in the Test Lobby
+
+Music is served by the **relay server** in production, from
+`clusterfun-server/hosted_content/music`. The Test Lobby is deliberately serverless, so
+`npm start` on its own had nothing behind `/music` — the dev server proxied to `:8080`,
+got `ECONNREFUSED`, and every presenter reported "No music installed" while the tracks sat
+on disk one directory away.
+
+**`src/setupProxy.js`** fixes that. CRA loads it automatically and it mirrors what the server
+does with the same folder: a generated manifest at `/music/music.json` and the files
+underneath. Drop a track in and it appears on the next reload. `CLUSTERFUN_MUSIC_PATH`
+overrides the folder.
+
+- Its `MUSIC_SCHEMA_VERSION` must match `libs/Media/MusicLibrary.ts` and the server's copy —
+  the client drops a manifest whose schema it does not recognise.
+- It uses a cheap `(size, mtime)` cache token rather than a content hash. The server upgrades
+  to a real hash in the background; in dev the token only has to change when the file does.
+- `REACT_APP_MUSIC_BASE_URL` (set to `/music` in `.env.dev`) still decides whether music is on
+  at all. Unset means off, and that is not an error.
+
+**"No music" is three different situations** and Eittris' audio bar now says which: music
+switched off, a manifest that would not load, or a manifest with no tracks. It said
+"No music installed" for all three, which sends somebody looking for missing files when the
+truth is that nothing was serving them.
+
 ## Keyboard & controller input (`libs/Input/`)
 
 Any game can take keyboard and controller input by declaring a **binding table** and handing
