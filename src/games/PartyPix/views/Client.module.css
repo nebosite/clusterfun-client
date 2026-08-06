@@ -60,6 +60,9 @@
   --pp-text: 52px;
   --pp-logo: 65px; /* 52 x 1.25 */
   --pp-version: 39px; /* 52 x 0.75 */
+  /* The player's name is drawn by the SHARED header, so it needs a hook rather than a rule -
+     see libs/components/ClientHeader.module.css. */
+  --client-name-size: var(--pp-text);
 }
 
 .wordmark {
@@ -69,15 +72,6 @@
 }
 .wordmark .pix {
   color: var(--magenta);
-}
-.headerName {
-  margin-left: auto;
-  font-size: var(--pp-text);
-  color: var(--dim);
-  max-width: 360px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .quit {
   flex: 0 0 auto;
@@ -425,7 +419,10 @@
   flex: 0 0 auto;
 }
 .voteSection {
-  flex: 1 1 auto;
+  /* `0 0 auto`, not `1 1 auto`. Growing to fill pushed this section under the staged-flag
+     panel below it, and the vote buttons ended up behind it - you could not vote while a flag
+     was waiting to be confirmed. The body scrolls instead. */
+  flex: 0 0 auto;
   min-height: 0;
   margin-top: 28px;
   padding-top: 24px;

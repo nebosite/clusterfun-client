@@ -82,7 +82,9 @@
   /* The content box, not a hard 90: Lexible paints an 8px team border on the strip, which
      with box-sizing leaves 112 of content rather than 120, and a fixed child hung out of it. */
   height: 100%;
-  font-size: 46px;
+  /* A game may set --client-name-size to bring the player's name onto its own type scale;
+     PartyPix normalises every size on the phone and this was the one it could not reach. */
+  font-size: var(--client-name-size, 46px);
 }
 .middleSolo .avatarSlot {
   width: 80px;
