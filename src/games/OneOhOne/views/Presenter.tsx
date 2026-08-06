@@ -7,9 +7,9 @@ import classNames from "classnames";
 import { action, makeObservable, observable, reaction } from "mobx";
 import OneOhOneAssets from "../assets/Assets";
 import {
-  COLLISION_PAUSE_MS,
   ONE_OH_ONE_VERSION_HISTORY,
-  PIECE_GAP_MS,
+  PHASE_GAP_MS,
+  PICKS_HOLD_MS,
   STEP_ANIMATION_MS,
 } from "../models/GameSettings";
 import {
@@ -32,6 +32,7 @@ import { OneOhOneMoveSummary, OneOhOneRoundPhase } from "../models/oneOhOneEndpo
 import {
   animationPathForMove,
   BotAttitude,
+  endZoneStart,
   TARGET_OPTIONS,
   GamePiece,
   MAX_GUESS,
@@ -64,14 +65,30 @@ function rulesFor(winPosition: number, maxGuess: number): string[] {
   ];
 }
 
-// -------------------------------------------------------------------
-// RevealAnimator - view-layer controller that walks pieces to their new
-// positions one piece at a time, one step at a time, clicking as it goes.
-// The model's positions jump immediately; this animates a display copy.
-// -------------------------------------------------------------------
+// ==========================================================================================
+// RevealAnimator - walks the pieces to their new positions, in PHASES.
+//
+// It used to animate one piece at a time, start to finish, and with sixteen pieces that was a
+// minute of watching other people's turns. Worse, it hid the thing the round is actually
+// about: who picked the same number as whom. That is a fact about the WHOLE FIELD, and it is
+// only legible if the field is shown at once.
+//
+// So the reveal has three beats, and the order is the order the rules resolve in:
+//
+//   1. PICKS    every number on screen together, conflicts splashed red. Nobody moves.
+//   2. BACK     every colliding piece slides backwards, simultaneously.
+//   3. FORWARD  every clean pick advances, simultaneously. Pot payouts go last of all,
+//               because they are the round's final word.
+//
+// The model's positions jump the moment the round resolves; this animates a display copy.
+// ==========================================================================================
+
 class RevealAnimator {
   displayPositions = observable.map<string, number>();
-  @observable activePieceId: string | null = null;
+  /** Set while the picks are being shown, so the lanes can display them. */
+  @observable showingPicks = false;
+  /** Which phase is running, for the caption above the track. */
+  @observable phase: "picks" | "back" | "forward" | null = null;
 
   private cancelled = false;
 
@@ -86,7 +103,8 @@ class RevealAnimator {
   // Snap the display to the model's real positions (no animation)
   syncTo = action((pieces: GamePiece[]) => {
     this.cancelled = true;
-    this.activePieceId = null;
+    this.showingPicks = false;
+    this.phase = null;
     this.displayPositions.replace(new Map(pieces.map((p) => [p.pieceId, p.position])));
   });
 
@@ -94,55 +112,102 @@ class RevealAnimator {
     return this.displayPositions.get(piece.pieceId) ?? piece.position;
   }
 
-  // Animate the round's moves sequentially with step sounds
-  async play(moves: OneOhOneMoveSummary[]) {
+  /**
+   * Step a whole group of pieces together, one square per tick, until each has arrived.
+   * Sequential animation is what made a sixteen-piece round unwatchable; this takes as long
+   * as the LONGEST move rather than the sum of them.
+   */
+  private async stepTogether(
+    moves: OneOhOneMoveSummary[],
+    bustLimit: number,
+    sound: string,
+  ): Promise<boolean> {
+    const paths = moves
+      .map((move) => ({ move, path: animationPathForMove(move, bustLimit) }))
+      .filter((entry) => entry.path.length > 0);
+    // Returns whether anything actually moved, so the caller can skip the beat after a phase
+    // that had nothing to show - a field that all collided at zero, for instance.
+    if (paths.length === 0) return false;
+
+    const longest = Math.max(...paths.map((entry) => entry.path.length));
+    for (let step = 0; step < longest; step++) {
+      if (this.cancelled) return false;
+      action(() => {
+        for (const { move, path } of paths) {
+          // A piece that has arrived stays where it is while the others catch up.
+          if (step < path.length) this.displayPositions.set(move.pieceId, path[step]);
+        }
+      })();
+      this.media.playSound(sound, { volume: 0.7 });
+      await this.delay(STEP_ANIMATION_MS);
+    }
+    return true;
+  }
+
+  // -------------------------------------------------------------------
+  // play - the three beats.
+  // -------------------------------------------------------------------
+  async play(moves: OneOhOneMoveSummary[], bustLimit: number) {
     this.cancelled = false;
 
-    // Start everyone at their pre-move position
+    // Everyone starts where they were before the round resolved.
     action(() => {
       for (const move of moves) {
         const oldPosition = move.busted ? -move.delta : move.newPosition - move.delta;
         this.displayPositions.set(move.pieceId, oldPosition);
       }
+      this.showingPicks = true;
+      this.phase = "picks";
     })();
 
-    for (const move of moves) {
-      const path = animationPathForMove(move);
-      if (path.length === 0) continue;
-      if (this.cancelled) return;
-
-      action(() => (this.activePieceId = move.pieceId))();
-
-      // Collision! Crash first, then slide backward
-      if (move.collidedCount > 0) {
-        this.media.playSound(OneOhOneAssets.sounds.crash, { volume: 0.9 });
-        await this.delay(COLLISION_PAUSE_MS);
-        if (this.cancelled) return;
-      }
-
-      let previous = this.displayPositions.get(move.pieceId) ?? 0;
-      for (const position of path) {
-        if (this.cancelled) return;
-        const isBustSnap = move.busted && position === 0 && previous > 0;
-        action(() => this.displayPositions.set(move.pieceId, position))();
-        if (isBustSnap) {
-          this.media.playSound(OneOhOneAssets.sounds.ding, { volume: 0.9 });
-          await this.delay(PIECE_GAP_MS);
-        } else if (position > previous) {
-          this.media.playSound(OneOhOneAssets.sounds.stepforward, { volume: 0.7 });
-          await this.delay(STEP_ANIMATION_MS);
-        } else {
-          this.media.playSound(OneOhOneAssets.sounds.stepback, { volume: 0.8 });
-          await this.delay(STEP_ANIMATION_MS);
-        }
-        previous = position;
-      }
-      if (move.won) {
-        this.media.playSound(OneOhOneAssets.sounds.score, { volume: 1.0 });
-      }
-      await this.delay(PIECE_GAP_MS);
+    // Grouped by which WAY a piece moves, not by whether it collided. A collision that also
+    // collects the lone-last bonus can net POSITIVE, and grouping on `collidedCount` sent that
+    // piece sliding forwards during the backwards beat. A bust is forward too - it runs to the
+    // edge before it snaps to zero.
+    const slidingBack = moves.filter((m) => m.delta < 0 && !m.busted);
+    const collisions = moves.filter((m) => m.collidedCount > 0);
+    if (collisions.length > 0) {
+      // The crash lands with the numbers, not with the movement - it is the collision being
+      // announced, and a piece at zero has nowhere to slide but still collided.
+      this.media.playSound(OneOhOneAssets.sounds.crash, { volume: 0.9 });
     }
-    action(() => (this.activePieceId = null))();
+    await this.delay(PICKS_HOLD_MS);
+    if (this.cancelled) return;
+
+    // --- BACK, all together --------------------------------------------------------------
+    action(() => (this.phase = "back"))();
+    const movedBack = await this.stepTogether(
+      slidingBack,
+      bustLimit,
+      OneOhOneAssets.sounds.stepback,
+    );
+    if (this.cancelled) return;
+    if (movedBack) await this.delay(PHASE_GAP_MS);
+
+    // --- FORWARD, all together -----------------------------------------------------------
+    action(() => (this.phase = "forward"))();
+    // Everything not sliding back: a bust runs FORWARD to the edge before it snaps to zero.
+    const forward = moves.filter((m) => m.delta >= 0 || m.busted);
+    // The pot is the round's last word, so its recipients move after everybody else.
+    const potWinners = forward.filter((m) => m.potShare > 0);
+    const ordinary = forward.filter((m) => m.potShare === 0);
+    await this.stepTogether(ordinary, bustLimit, OneOhOneAssets.sounds.stepforward);
+    if (potWinners.length > 0) {
+      await this.delay(PHASE_GAP_MS);
+      await this.stepTogether(potWinners, bustLimit, OneOhOneAssets.sounds.stepforward);
+    }
+    if (this.cancelled) return;
+
+    if (moves.some((m) => m.busted)) {
+      this.media.playSound(OneOhOneAssets.sounds.ding, { volume: 0.9 });
+    }
+    if (moves.some((m) => m.won)) {
+      this.media.playSound(OneOhOneAssets.sounds.score, { volume: 1.0 });
+    }
+    action(() => {
+      this.showingPicks = false;
+      this.phase = null;
+    })();
   }
 }
 
@@ -227,6 +292,40 @@ class SetupBox extends React.Component<{ appModel?: OneOhOnePresenterModel }> {
                   {target}
                 </button>
               ))}
+            </div>
+
+            {/* The two catch-up rules and the guess history. 101 is a race in which a
+                piece that falls behind has no way to gain on the field faster than anybody
+                else, so a bad early round used to decide it before it got interesting. */}
+            <div className={styles.setupRow}>
+              <label className={styles.setupCheck}>
+                <input
+                  type="checkbox"
+                  checked={appModel.lastPlaceBonus}
+                  onChange={(e) => (appModel.lastPlaceBonus = e.target.checked)}
+                />
+                Lone last place gets +5
+              </label>
+            </div>
+            <div className={styles.setupRow}>
+              <label className={styles.setupCheck}>
+                <input
+                  type="checkbox"
+                  checked={appModel.potEnabled}
+                  onChange={(e) => (appModel.potEnabled = e.target.checked)}
+                />
+                Collision pot{appModel.pot > 0 ? ` (${appModel.pot} in the pot)` : ""}
+              </label>
+            </div>
+            <div className={styles.setupRow}>
+              <label className={styles.setupCheck}>
+                <input
+                  type="checkbox"
+                  checked={appModel.showGuessHistory}
+                  onChange={(e) => (appModel.showGuessHistory = e.target.checked)}
+                />
+                Show last 3 picks
+              </label>
             </div>
 
             <div className={styles.setupRow}>
@@ -357,7 +456,10 @@ class RaceTrack extends React.Component<{
         {appModel.pieces.map((piece) => (
           <div
             className={classNames(styles.lane, {
-              [styles.activeLane]: animator.activePieceId === piece.pieceId,
+              // Every colliding piece is lit at once - the collision is a fact about the
+              // whole field, and one lane at a time is what hid it.
+              [styles.activeLane]:
+                animator.showingPicks && (piece.lastMove?.collidedCount ?? 0) > 0,
               [styles.winnerLane]: isGameOver && piece.position === appModel.winPosition,
             })}
             key={piece.pieceId}
@@ -365,6 +467,17 @@ class RaceTrack extends React.Component<{
             <div className={styles.laneLabel}>
               <PlayerAvatar avatarId={piece.avatarId} colorIndex={piece.avatarColor} size={26} />{" "}
               {piece.name}
+              {/* The last few picks, so the room can see who keeps choosing the same number -
+                  the only read anybody has in a game where every choice is secret. */}
+              {appModel.showGuessHistory && piece.recentGuesses?.length ? (
+                <span className={styles.guessHistory}>
+                  {piece.recentGuesses.map((g, i) => (
+                    <span className={styles.guessChip} key={i}>
+                      {g}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
             </div>
             <div className={styles.laneTrack}>
               <div
@@ -372,6 +485,22 @@ class RaceTrack extends React.Component<{
                 style={{
                   left: pct(appModel.winPosition, appModel.bustLimit),
                   width: pct(appModel.bustLimit - appModel.winPosition, appModel.bustLimit),
+                }}
+              />
+              {/* The stretch from which the target is reachable in ONE move. "Am I close
+                  enough to win this round" is the only question that matters once the race is
+                  on, and counting squares from across a room is not a game mechanic. */}
+              <div
+                className={styles.endZone}
+                style={{
+                  left: pct(
+                    endZoneStart(appModel.winPosition, appModel.maxGuess),
+                    appModel.bustLimit,
+                  ),
+                  width: pct(
+                    appModel.winPosition - endZoneStart(appModel.winPosition, appModel.maxGuess),
+                    appModel.bustLimit,
+                  ),
                 }}
               />
               <div
@@ -387,6 +516,18 @@ class RaceTrack extends React.Component<{
             </div>
             <div className={styles.laneInfo}>
               <span className={styles.lanePosition}>{animator.positionFor(piece)}</span>
+              {/* The pick, held on screen before anything moves. A conflict gets the spiky
+                  red splash, and it is shown whether or not the piece can actually move
+                  back - a collision at zero still happened. */}
+              {animator.showingPicks && piece.lastMove ? (
+                <span
+                  className={classNames(styles.pickBadge, {
+                    [styles.pickConflict]: piece.lastMove.collidedCount > 0,
+                  })}
+                >
+                  {piece.lastMove.guess}
+                </span>
+              ) : null}
               {isReveal || isGameOver ? (
                 <span
                   className={classNames({
@@ -523,7 +664,7 @@ export default class Presenter extends React.Component<{
     );
     // The reveal animation (with its step sounds) runs off the RoundResolved event
     appModel?.subscribe(OneOhOneGameEvent.RoundResolved, "animate reveal", (moves) =>
-      this.animator.play(moves as OneOhOneMoveSummary[]),
+      this.animator.play(moves as OneOhOneMoveSummary[], appModel!.bustLimit),
     );
     appModel?.subscribe(OneOhOneGameEvent.WinnerAnnounced, "play winner sound", () =>
       this.media.playSound(OneOhOneAssets.sounds.winner, { volume: 1.0 }),

@@ -89,7 +89,16 @@ export interface GamePiece {
   guess: number | null;
   confirmed: boolean; // this round's pick is locked in
   lastMove: PieceMove | null;
+  /**
+   * The last few picks, newest first.  Shown beside the name on the shared screen, because
+   * "who keeps picking the same number" is the only read anybody has in a game where every
+   * choice is secret until it lands.
+   */
+  recentGuesses: number[];
 }
+
+/** How many past picks the presenter shows. Three fits beside a name without crowding it. */
+export const GUESS_HISTORY_LENGTH = 3;
 
 // One piece's submitted pick for a round
 export interface RoundEntry {
@@ -369,6 +378,47 @@ export function animationPathForMove(
 // Total reveal time needed to animate all moves sequentially.
 // collisionPauseMs covers the crash-sound beat played before each
 // backward slide.
+/**
+ * How long the PHASED reveal takes: the picks are held, then every colliding piece slides back
+ * together, then every clean pick advances together.
+ *
+ * Each phase costs the LONGEST single move in it, not the sum - which is the whole point of
+ * animating the field at once. The old sequential reveal charged for every piece in turn, and
+ * with sixteen of them a round was a minute of watching other people's turns.
+ */
+export function computePhasedRevealMs(
+  moves: PieceMove[],
+  stepMs: number,
+  picksHoldMs: number,
+  phaseGapMs: number,
+  bufferMs: number,
+  bustLimit: number = BUST_LIMIT_DEFAULT,
+): number {
+  const longest = (group: PieceMove[]) =>
+    group.reduce((most, m) => Math.max(most, animationPathForMove(m, bustLimit).length), 0);
+
+  // Grouped by DIRECTION, matching RevealAnimator: a collision that also collects the
+  // lone-last bonus can net positive, and it belongs in the forward beat. A bust counts as
+  // forward too - it runs to the edge before it snaps back.
+  const back = moves.filter((m) => m.delta < 0 && !m.busted);
+  const forward = moves.filter((m) => m.delta >= 0 || m.busted);
+  // Pot recipients move after everybody else, so they are their own beat.
+  const potWinners = forward.filter((m) => m.potShare > 0);
+  const ordinary = forward.filter((m) => m.potShare === 0);
+
+  // The gap is only charged when the phase actually MOVED something. A field that all
+  // collided at zero has real collisions and nothing to animate, and a beat between two
+  // phases that both did nothing is just a dead pause.
+  const backSteps = longest(back);
+  const potSteps = longest(potWinners);
+
+  let total = picksHoldMs + bufferMs;
+  if (backSteps > 0) total += backSteps * stepMs + phaseGapMs;
+  total += longest(ordinary) * stepMs;
+  if (potSteps > 0) total += phaseGapMs + potSteps * stepMs;
+  return total;
+}
+
 export function computeRevealDurationMs(
   moves: PieceMove[],
   stepMs: number,

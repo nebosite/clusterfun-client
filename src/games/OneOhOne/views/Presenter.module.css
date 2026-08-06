@@ -225,3 +225,100 @@
 .settingsHeader:hover {
   opacity: 1;
 }
+
+/* The stretch of track from which the target is reachable in a single move. Shaded because
+   "am I close enough to win this round" is the only question that matters once the race is
+   on, and counting squares from across a room is not a game mechanic. */
+.endZone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(120, 220, 140, 0.28),
+    rgba(120, 220, 140, 0.28) 10px,
+    rgba(120, 220, 140, 0.14) 10px,
+    rgba(120, 220, 140, 0.14) 20px
+  );
+  border-left: 2px dashed rgba(120, 220, 140, 0.8);
+  pointer-events: none;
+}
+
+/* The pick, held on screen at the start of the move phase before anything moves. */
+.pickBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6em;
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* A conflict: a spiky red splash, so a collision is unmistakable across a room. The spikes
+   are a clip-path star rather than an image - it scales with the number inside it. */
+.pickConflict {
+  position: relative;
+  color: #ffffff;
+  background: transparent;
+  z-index: 0;
+}
+.pickConflict::before {
+  content: "";
+  position: absolute;
+  inset: -60% -55%;
+  z-index: -1;
+  background: #e03131;
+  clip-path: polygon(
+    50% 0%,
+    61% 24%,
+    88% 12%,
+    79% 39%,
+    100% 50%,
+    79% 61%,
+    88% 88%,
+    61% 76%,
+    50% 100%,
+    39% 76%,
+    12% 88%,
+    21% 61%,
+    0% 50%,
+    21% 39%,
+    12% 12%,
+    39% 24%
+  );
+  animation: splashIn 220ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+@keyframes splashIn {
+  from {
+    transform: scale(0.3) rotate(-25deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* The last few picks, beside the name. Small and dim - it is reference, not news. */
+.guessHistory {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+.guessChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5em;
+  padding: 1px 5px;
+  border-radius: 6px;
+  font-size: 70%;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0.75;
+}

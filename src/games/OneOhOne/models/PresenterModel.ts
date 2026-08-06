@@ -1,7 +1,7 @@
-import { makeObservable, observable } from "mobx";
+import { action, makeObservable, observable } from "mobx";
 import {
-  COLLISION_PAUSE_MS,
-  PIECE_GAP_MS,
+  PHASE_GAP_MS,
+  PICKS_HOLD_MS,
   REVEAL_BUFFER_MS,
   ROUND_TIME_MS,
   STEP_ANIMATION_MS,
@@ -34,10 +34,13 @@ import {
 import {
   BotAttitude,
   botPickGuess,
-  computeRevealDurationMs,
+  computePhasedRevealMs,
   GamePiece,
+  GUESS_HISTORY_LENGTH,
   MAX_GUESS,
   maxGuessFor,
+  resolveRoundWithRules,
+  RoundRules,
   MAX_PIECES,
   maxPiecesPerHuman,
   MIN_GUESS,
@@ -150,6 +153,51 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
 
   get bustLimit() {
     return bustLimitFor(this._winPosition, this.maxGuess);
+  }
+
+  // The two catch-up rules and the guess history are the host's call, set before the game
+  // starts. 101 is a race in which a piece that falls behind has no way to gain on the field
+  // faster than anybody else, so a bad early round used to decide it before it got
+  // interesting - see oneOhOneLogic for what each rule does.
+  @observable private _lastPlaceBonus = true;
+  get lastPlaceBonus() {
+    return this._lastPlaceBonus;
+  }
+  set lastPlaceBonus(value: boolean) {
+    action(() => (this._lastPlaceBonus = value))();
+    this.saveCheckpoint();
+  }
+
+  @observable private _potEnabled = false;
+  get potEnabled() {
+    return this._potEnabled;
+  }
+  set potEnabled(value: boolean) {
+    action(() => (this._potEnabled = value))();
+    this.saveCheckpoint();
+  }
+
+  @observable private _showGuessHistory = true;
+  get showGuessHistory() {
+    return this._showGuessHistory;
+  }
+  set showGuessHistory(value: boolean) {
+    action(() => (this._showGuessHistory = value))();
+    this.saveCheckpoint();
+  }
+
+  /** The collision pot, and whether it has already been paid out. Paid once per game. */
+  @observable pot = 0;
+  @observable potSpent = false;
+
+  /** The rules the pure layer needs, assembled from the host's settings. */
+  get roundRules(): RoundRules {
+    return {
+      winPosition: this.winPosition,
+      maxGuess: this.maxGuess,
+      lastPlaceBonus: this._lastPlaceBonus,
+      potEnabled: this._potEnabled,
+    };
   }
 
   @observable private _piecesPerHuman = 1;
@@ -300,6 +348,7 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
           guess: null,
           confirmed: false,
           lastMove: null,
+          recentGuesses: [],
         });
       }
     });
@@ -316,6 +365,7 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
         guess: null,
         confirmed: false,
         lastMove: null,
+        recentGuesses: [],
       });
     });
 
@@ -393,10 +443,17 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
       }
     });
 
-    const moves = resolveRound(
+    const outcome = resolveRoundWithRules(
       this.pieces.map((p) => ({ pieceId: p.pieceId, position: p.position, guess: p.guess! })),
-      this.winPosition,
+      this.roundRules,
+      this.pot,
+      this.potSpent,
     );
+    const moves = outcome.moves;
+    action(() => {
+      this.pot = outcome.pot;
+      this.potSpent = outcome.potSpent;
+    })();
 
     const moveById = new Map<string, PieceMove>(moves.map((m) => [m.pieceId, m]));
     const summaries: OneOhOneMoveSummary[] = [];
@@ -404,6 +461,9 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
       const move = moveById.get(p.pieceId)!;
       p.position = move.newPosition;
       p.lastMove = move;
+      // Newest first, three deep. The presenter shows these beside the name so the room can
+      // see who keeps picking the same number - which is the whole read on a bluffing game.
+      p.recentGuesses = [move.guess, ...(p.recentGuesses ?? [])].slice(0, GUESS_HISTORY_LENGTH);
       summaries.push({ ...move, name: p.name, avatarId: p.avatarId, avatarColor: p.avatarColor });
     });
     this.lastResults = summaries;
@@ -413,12 +473,13 @@ export class OneOhOnePresenterModel extends ClusterfunPresenterModel<OneOhOnePla
     // The reveal lasts exactly as long as the one-piece-at-a-time animation needs
     this.timeOfStageEnd =
       this.gameTime_ms +
-      computeRevealDurationMs(
+      computePhasedRevealMs(
         moves,
         STEP_ANIMATION_MS,
-        PIECE_GAP_MS,
+        PICKS_HOLD_MS,
+        PHASE_GAP_MS,
         REVEAL_BUFFER_MS,
-        COLLISION_PAUSE_MS,
+        this.bustLimit,
       );
 
     this.sendToEveryone(OneOhOneRoundResultEndpoint, () => ({
