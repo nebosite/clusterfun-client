@@ -8,7 +8,7 @@
     "startlocal": "env-cmd -f .env.local react-scripts start",
     "build": "react-scripts build",
     "build:stats": "react-scripts build --stats",
-    "test": "react-scripts test --watchAll=false --passWithNoTests",
+    "test": "react-scripts test --watchAll=false --passWithNoTests --maxWorkers=2",
     "analyze": "npm run build:stats && webpack-bundle-analyzer build/bundle-stats.json",
     "eject": "react-scripts eject",
     "format": "prettier --write --cache .",

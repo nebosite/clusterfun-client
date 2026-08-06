@@ -534,6 +534,13 @@ to keep the presenter/client/serialization machinery from silently breaking as g
 
 - Runner is **Jest** via `react-scripts test` (works today on Node 26). `npm test` runs one
   pass; `npm test -- --watch` watches; `npm test -- --coverage` reports coverage.
+- **`--maxWorkers=2` is in the `test` script on purpose.** At the default worker count (one
+  per core) this suite exhausts the V8 heap on a many-core box and dies with
+  `FATAL ERROR: Zone Allocation failed - process out of memory`. The damage is not a clean
+  failure: dying workers report as **module-resolution errors** in whichever specs they were
+  holding — `Cannot find module 'dedent' from jest-circus`, `Cannot find module 'libs' from
+  <some>.spec.ts` — which read as a broken install rather than an OOM, and the same suite
+  passes on the next run. It failed two production deploys that way before the cap went in.
 - Test files live next to their source as `*.spec.ts` / `*.spec.tsx` (Jest also picks up
   `*.test.*` and `__tests__/`). `src/setupTests.ts` registers `@testing-library/jest-dom`.
 - **Logic** (highest value): pure units like `libs/comms/messageParsing`,
