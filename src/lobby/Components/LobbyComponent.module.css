@@ -116,29 +116,29 @@
   overflow: hidden; /* clips the decorative corner glows, not the in-flow content */
 }
 
-/* Full-viewport scroll container for the presenter (see ScaleToWidth). The
-   whole page scrolls here instead of an inner game-list box, with scrollbars
-   styled to match the Neon Arcade look. */
-.scaleScroll {
-  overflow-x: hidden;
-  overflow-y: auto;
+/* Client stage: full-viewport backdrop that sits BEHIND the scaled content.
+   Holds the bokeh glows so they fill the space the content doesn't (below a
+   short join card), instead of being clipped inside the content box. */
+.clientStage {
+  /* Glow colors: the stage is outside .root, so re-declare the vars the glow
+     children resolve (--cyan / --magenta live on .root). */
+  --cyan: #22e0ff;
+  --magenta: #ff3ea5;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
   background: #08080d;
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: rgba(34, 224, 255, 0.35) transparent;
+  /* Own stacking context so the glows (z-index 0) stay under the scroll layer. */
+  isolation: isolate;
 }
-.scaleScroll::-webkit-scrollbar {
-  width: 14px;
-}
-.scaleScroll::-webkit-scrollbar-track {
-  background: #08080d;
-}
-.scaleScroll::-webkit-scrollbar-thumb {
-  background: rgba(34, 224, 255, 0.22);
-  border-radius: 8px;
-  border: 4px solid #08080d;
-}
-.scaleScroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(34, 224, 255, 0.45);
+
+/* Client scroll layer (ScaleToWidth's container is transparent by default, so
+   the .clientStage glows show through the area below the content). Sits above
+   the glows so the content isn't painted under them. */
+.clientScroll {
+  position: relative;
+  z-index: 1;
 }
 
 .presenterTopBar {
@@ -434,14 +434,15 @@
 .client {
   position: relative;
   width: 100%;
-  height: 100%;
+  /* Height flows to content; ScaleToWidth owns scrolling and the backdrop stage
+     fills any space below a short card. No inner scroll (that was the stray
+     scrollbar) and no forced 100% height (which fought the flow layout). */
   background: var(--bg);
   padding: 52px 44px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 30px;
-  overflow-y: auto;
 }
 .client .logoRow {
   justify-content: center;

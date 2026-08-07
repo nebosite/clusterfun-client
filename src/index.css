@@ -1,5 +1,17 @@
-body {
+html,
+body,
+#root {
+  height: 100%;
   margin: 0;
+}
+
+body {
+  /* The app fills the viewport in fixed-size, overflow-hidden boxes, so the
+     page itself never needs to scroll — kill stray body scrollbars. The dark
+     backstop keeps letterbox margins from flashing white before/behind a
+     screen's own backdrop (see UINormalizer backdropClassName). */
+  overflow: hidden;
+  background: #08080d;
   font-size: 25px;
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell",

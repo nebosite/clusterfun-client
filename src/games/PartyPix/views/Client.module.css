@@ -21,7 +21,7 @@
   --mono: "Space Mono", ui-monospace, monospace;
 
   width: 100%;
-  height: 100%;
+  min-height: var(--sw-fill-height, 1920px);
   overflow: hidden;
   background: var(--bg);
   color: var(--text);

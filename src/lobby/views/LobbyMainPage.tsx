@@ -38,7 +38,9 @@ export class LobbyMainPage extends React.Component<
     super(props);
     if (!props.size) {
       this.getSize = () => {
-        return { width: window.innerWidth - 3, height: window.innerHeight - 3 };
+        // Full viewport — body is overflow:hidden (see index.css), so we no
+        // longer need to shave a few px to dodge scrollbars.
+        return { width: window.innerWidth, height: window.innerHeight };
       };
     } else {
       this.getSize = props.size;

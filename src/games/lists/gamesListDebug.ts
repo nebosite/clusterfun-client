@@ -1,5 +1,7 @@
 import StressatoAssets from "games/stressgame/assets/Assets";
 import TemplateAssets from "games/TemplateGame/assets/Assets";
+import CollageBoardAssets from "games/CollageBoard/assets/Assets";
+import FaceOffAssets from "games/FaceOff/assets/Assets";
 import { GameDescriptor } from "./GameDescriptor";
 import releaseGames from "./gamesListRelease";
 
@@ -9,6 +11,20 @@ import releaseGames from "./gamesListRelease";
 // manifest is what keeps them out of production.
 // -------------------------------------------------------------------
 const debugOnlyGames: GameDescriptor[] = [
+  {
+    name: "FaceOff",
+    displayName: "Face Off",
+    tags: ["debug"],
+    logoName: FaceOffAssets.images.logo,
+    importThunk: () => import("../FaceOff/views/GameComponent"),
+  },
+  {
+    name: "CollageBoard",
+    displayName: "Collage Board",
+    tags: ["debug"],
+    logoName: CollageBoardAssets.images.logo,
+    importThunk: () => import("../CollageBoard/views/GameComponent"),
+  },
   {
     name: "Stressato",
     displayName: "Stress Game",

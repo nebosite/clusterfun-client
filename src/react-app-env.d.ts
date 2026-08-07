@@ -9,3 +9,5 @@ declare module "*.png";
 // than parsed as source.  Webpack treats it as an asset and the import is its
 // content-hashed URL.
 declare module "*.gz";
+declare module '*.wav';
+declare module '*.ogg';
