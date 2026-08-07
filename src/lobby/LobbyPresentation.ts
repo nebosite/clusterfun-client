@@ -65,6 +65,27 @@ export interface GamePresentation {
 // Hand-authored presentation for the games we ship; anything else falls
 // back to derived defaults so the catalog can grow without edits here.
 const KNOWN: Record<string, Partial<GamePresentation>> = {
+  PassTheAux: {
+    category: "Music",
+    blurb: "Match the perfect song to the scenario, then rank the room's picks to crown a winner.",
+    players: "3–8",
+    playTime: "20m",
+    thumbKind: "bars",
+  },
+  FaceOff: {
+    category: "Party",
+    blurb: "Mimic a secret face on 3-2-1, then vote head-to-head on who nailed it best.",
+    players: "4–12",
+    playTime: "15m",
+    thumbKind: "photos",
+  },
+  CollageBoard: {
+    category: "Party",
+    blurb: "Outline a spot on a shared canvas, then fill it with your camera - collage together.",
+    players: "1–12",
+    playTime: "∞",
+    thumbKind: "photos",
+  },
   PartyPix: {
     category: "Party",
     blurb: "Snap guests around the party, upload your best, and vote them onto the big screen.",

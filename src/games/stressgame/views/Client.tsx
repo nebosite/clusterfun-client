@@ -136,10 +136,13 @@ export default class Client extends React.Component<{
     const { appModel } = this.props;
     return (
       <div>
-        <UINormalizer
-          uiProperties={this.props.uiProperties}
-          virtualHeight={1920}
+        <ScaleToWidth
           virtualWidth={1080}
+          virtualHeight={1920}
+          containerWidth={this.props.uiProperties.containerWidth}
+          containerHeight={this.props.uiProperties.containerHeight}
+          hoverScrollbar
+          fillHeight
         >
           <div className={styles.gameclient}>
             <ClientHeader
@@ -157,7 +160,7 @@ export default class Client extends React.Component<{
               </ErrorBoundary>
             </div>
           </div>
-        </UINormalizer>
+        </ScaleToWidth>
       </div>
     );
   }

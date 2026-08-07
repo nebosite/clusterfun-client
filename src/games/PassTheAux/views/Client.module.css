@@ -1,0 +1,671 @@
+/* PassTheAux — "BURNED CD-R" phone theme (design 2a), 1080x1920 portrait.
+   Same denim + gel + rhinestone kit as the presenter, sized for a thumb. */
+@import url("https://fonts.googleapis.com/css2?family=Anton&family=Permanent+Marker&family=Silkscreen:wght@400;700&display=swap");
+
+.gameclient {
+  position: relative;
+  width: 100%;
+  min-height: var(--sw-fill-height, 1920px);
+  overflow: hidden;
+  color: #0d1b33;
+  font-family: Verdana, Tahoma, "Segoe UI", sans-serif;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0 2px, rgba(0, 0, 0, 0.06) 2px 4px),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.035) 0 2px,
+      rgba(0, 0, 0, 0.05) 2px 4px
+    ),
+    linear-gradient(160deg, #4a72ad, #1c3153);
+}
+.noise {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.sparkles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.9) 0 2px, transparent 3px),
+    radial-gradient(circle at 76% 28%, rgba(255, 225, 77, 0.9) 0 2px, transparent 3px),
+    radial-gradient(circle at 34% 62%, rgba(255, 120, 190, 0.9) 0 2px, transparent 3px),
+    radial-gradient(circle at 84% 74%, rgba(255, 255, 255, 0.8) 0 2px, transparent 3px);
+  animation: sparkle 2.4s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.15;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes sparkle {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sparkles,
+  .plugDisc,
+  .caret {
+    animation: none !important;
+  }
+}
+
+/* ---------------------------------------------------------- status bar */
+.topbar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 96px;
+  box-sizing: border-box;
+  padding: 0 30px;
+  background: linear-gradient(#4f92f0, #2160c8 42%, #12408f);
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.35);
+}
+.gametitle {
+  font-family: Silkscreen, monospace;
+  font-size: 28px;
+  color: #dce9ff;
+  white-space: nowrap;
+}
+.me {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  font-size: 30px;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, 0.4);
+  min-width: 0;
+}
+.quitbutton {
+  flex: none;
+  font-size: 32px;
+  font-weight: 700;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: 3px solid #a8135f;
+  background: linear-gradient(#ffe9f6, #ff7dc0 55%, #e01f86);
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.8);
+  color: #54001f;
+}
+
+.body {
+  position: relative;
+  z-index: 1;
+  padding: 34px 36px 60px;
+  height: 1824px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* ---------------------------------------------------- shared type & bits */
+.pillRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: linear-gradient(#ffe9f6, #ff7dc0 55%, #e01f86);
+  border: 2px solid #a8135f;
+  padding: 8px 22px;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.85);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #54001f;
+  white-space: nowrap;
+}
+.pillBlue {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: linear-gradient(#eaf2ff, #b9cded 50%, #7f9ac2);
+  border: 2px solid #3a5c8c;
+  padding: 8px 22px;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.9);
+  font-size: 24px;
+  font-weight: 700;
+  color: #12335e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pillGreen {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: linear-gradient(#d5ffb5, #5fd52c 50%, #1f8f0c);
+  border: 2px solid #17700a;
+  padding: 8px 22px;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.8);
+  font-size: 24px;
+  font-weight: 700;
+  color: #0d3305;
+  white-space: nowrap;
+}
+
+/* The prompt / screen headline, in chrome lettering on the denim. */
+.prompt {
+  font-family: Anton, sans-serif;
+  font-size: 62px;
+  line-height: 1.08;
+  text-wrap: pretty;
+  margin: 0 0 22px;
+  background: linear-gradient(#ffffff, #f0f7ff 30%, #a9c9f2 48%, #6b9ce0 58%, #ffffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(6, 20, 48, 0.85));
+}
+.hint {
+  font-family: "Permanent Marker", cursive;
+  font-size: 30px;
+  color: #ffd0e8;
+  margin: 0 0 26px;
+}
+.wait_text {
+  font-family: Anton, sans-serif;
+  font-size: 54px;
+  line-height: 1.15;
+  text-align: center;
+  margin-top: 220px;
+  background: linear-gradient(#ffffff, #f0f7ff 30%, #a9c9f2 48%, #6b9ce0 58%, #ffffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(6, 20, 48, 0.85));
+}
+.providerTag {
+  font-family: Silkscreen, monospace;
+  font-size: 22px;
+  color: #cfe0f7;
+  margin-bottom: 18px;
+}
+.sectionLabel {
+  font-family: Silkscreen, monospace;
+  font-size: 24px;
+  color: #cfe0f7;
+  margin-bottom: 16px;
+}
+
+/* --------------------------------------------------------------- buttons */
+.btn {
+  position: relative;
+  font-size: 34px;
+  font-weight: 700;
+  padding: 22px 30px;
+  border-radius: 999px;
+  border: 3px solid #3a5c8c;
+  background: linear-gradient(#eaf2ff, #b9cded 50%, #7f9ac2);
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.95);
+  color: #12335e;
+}
+/* The green gel "do it" button. */
+.btnGo {
+  font-family: Anton, sans-serif;
+  font-size: 40px;
+  letter-spacing: 0.03em;
+  border-color: #146b06;
+  background: linear-gradient(#b8ff8a, #4fd222 48%, #1e8f0a);
+  color: #0b2f05;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 8px 0 #0f5a05,
+    0 16px 26px rgba(0, 0, 0, 0.35);
+}
+.btnGo::before {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: 8px;
+  height: 36%;
+  border-radius: 999px;
+  background: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+.btnGo:active {
+  transform: translateY(4px);
+  box-shadow: 0 4px 0 #0f5a05;
+}
+.btn:disabled {
+  background: linear-gradient(#cfd8e6, #8f9db2 50%, #697a92);
+  border-color: #55657c;
+  color: #e9eff8;
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.6);
+}
+.btnFull {
+  width: 100%;
+  margin-top: 24px;
+  padding: 30px;
+  text-align: center;
+}
+/* Faded submit button shown after a vote is in, prompting a change. */
+.btnSubmitted {
+  background: linear-gradient(#eaf2ff, #b9cded 50%, #7f9ac2);
+  border-color: #3a5c8c;
+  color: #12335e;
+  font-family: Verdana, Tahoma, sans-serif;
+  font-size: 32px;
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.95);
+}
+
+/* ---------------------------------------------------------------- search */
+.searchRow {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  align-items: center;
+}
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  font-size: 32px;
+  padding: 24px 30px;
+  border-radius: 56px;
+  border: 3px solid #17439a;
+  background: linear-gradient(#ffffff, #dfe8f7);
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.95);
+  color: #12335e;
+}
+.searchInput::placeholder {
+  color: #7f9ac2;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.result {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  border-radius: 16px;
+  background: linear-gradient(#f4f8ff, #d8e3f5);
+  border: 3px solid #17439a;
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.9);
+}
+/* The pick you already cued gets the gold "selected" treatment. */
+.result.picked {
+  background: linear-gradient(#fffbe8, #ffe9a8);
+  border-color: #d19a00;
+}
+.rthumb {
+  width: 170px;
+  height: 112px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex: none;
+  border: 2px solid #6d86a6;
+  background: repeating-linear-gradient(135deg, #b8c8e0 0 10px, #a2b4d0 10px 20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+}
+.rinfo {
+  min-width: 0;
+  flex: 1;
+}
+.rtitle {
+  font-size: 32px;
+  font-weight: 700;
+  color: #12335e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rartist {
+  font-size: 26px;
+  color: #4a6083;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.result.picked .rtitle {
+  color: #4a2600;
+}
+.result.picked .rartist {
+  color: #8a6200;
+}
+/* Green tick badge on the cued result. */
+.tick {
+  flex: none;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: linear-gradient(#b8ff8a, #4fd222 50%, #1e8f0a);
+  border: 3px solid #146b06;
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  color: #0b2f05;
+}
+
+/* ------------------------------------------------------- windows / cards */
+.win {
+  border-radius: 20px 20px 14px 14px;
+  background: linear-gradient(#f4f8ff, #d3e0f4);
+  border: 3px solid #17439a;
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 3px rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.winBar {
+  position: relative;
+  height: 62px;
+  box-sizing: border-box;
+  background: linear-gradient(#68a8f6, #2c72de 46%, #164ba6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 22px;
+}
+.winBar::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 5px;
+  height: 20px;
+  border-radius: 10px;
+  background: linear-gradient(rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+}
+.winTitle {
+  position: relative;
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.winMeter {
+  position: relative;
+  font-family: Silkscreen, monospace;
+  font-size: 28px;
+  color: #c6f0ff;
+  flex: none;
+}
+.winBody {
+  padding: 28px 26px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ------------------------------------------------------ cue / start time */
+.cueCard {
+  margin-bottom: 24px;
+}
+.cueLabel {
+  font-size: 26px;
+  color: #4a6083;
+}
+.startVal {
+  font-family: Silkscreen, monospace;
+  font-size: 34px;
+  color: #1e8f0a;
+}
+/* The LCD waveform strip: a fixed decorative wave with a live 30s selection window. */
+.wave {
+  position: relative;
+  height: 112px;
+  border-radius: 12px;
+  background: linear-gradient(#0d2b18, #061309);
+  border: 3px solid #cdd6e2;
+  overflow: hidden;
+}
+.waveBars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+}
+.waveBars > span {
+  flex: 1;
+  background: #2f7a24;
+}
+.waveWindow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(141, 255, 106, 0.22);
+  border-left: 5px solid #8dff6a;
+  border-right: 5px solid #8dff6a;
+  box-shadow: 0 0 24px rgba(141, 255, 106, 0.5);
+  transition: left 0.15s linear;
+}
+.waveScale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 22px;
+  color: #4a6083;
+}
+.waveScale b {
+  color: #12335e;
+}
+.range {
+  width: 100%;
+  height: 50px;
+  accent-color: #1e8f0a;
+}
+.cueHint {
+  font-size: 24px;
+  color: #4a6083;
+}
+/* Your locked-in pick, shown while browsing for a replacement. */
+.submittedCard {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  border-radius: 18px;
+  background: linear-gradient(#fffbe8, #ffe9a8);
+  border: 3px solid #d19a00;
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.9);
+  padding: 24px;
+  margin-bottom: 26px;
+}
+.submittedCard .rtitle {
+  white-space: normal;
+  color: #4a2600;
+}
+.submittedCard .rartist {
+  white-space: normal;
+  color: #8a6200;
+}
+
+/* ---------------------------------------------------------------- voting */
+.voteList {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+/* Ballot is locked after submitting until the player taps "Change your vote?". */
+.voteList.locked {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.voteItem {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 22px;
+  border-radius: 16px;
+  background: linear-gradient(#eef3fb, #c9d6e9);
+  border: 3px solid #5a749a;
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.9);
+}
+.voteItem.ranked {
+  background: linear-gradient(#f4f8ff, #d8e3f5);
+  border-color: #17439a;
+}
+/* Your own song: crossed out, dashed, un-tappable. */
+.voteItem.own {
+  background: linear-gradient(#dfe6f0, #b3c1d6);
+  border: 3px dashed #6d86a6;
+  opacity: 0.75;
+}
+.rankBadge {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Anton, sans-serif;
+  font-size: 40px;
+  background: linear-gradient(#ffffff, #cfd9e8);
+  border: 3px solid #8d9cb3;
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.9);
+  color: #4a6083;
+}
+/* Gold / blue / pink for first, second and third choice. */
+.rankBadge.on {
+  background: linear-gradient(#ffe07a, #e0a000);
+  border-color: #a86200;
+  color: #4a2600;
+}
+.rankBadge.on2 {
+  background: linear-gradient(#9fd0ff, #2f6ec4);
+  border-color: #17439a;
+  color: #ffffff;
+}
+.rankBadge.on3 {
+  background: linear-gradient(#ffb0dc, #e01f86);
+  border-color: #a8135f;
+  color: #ffffff;
+}
+.voteItem.own .rankBadge {
+  background: none;
+  border-style: dashed;
+  box-shadow: none;
+  font-family: Verdana, Tahoma, sans-serif;
+  font-size: 30px;
+}
+.ownTag {
+  font-family: "Permanent Marker", cursive;
+  font-size: 24px;
+  color: #4a6083;
+  flex: none;
+}
+.ballotStatus {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-family: Silkscreen, monospace;
+  font-size: 20px;
+  color: #dce9ff;
+  margin-top: 28px;
+}
+
+/* ------------------------------------------------- watching / plugged in */
+.watch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 34px;
+  margin-top: 90px;
+  text-align: center;
+}
+.watchTitle {
+  font-family: Anton, sans-serif;
+  font-size: 66px;
+  line-height: 1.1;
+  background: linear-gradient(#ffffff, #f0f7ff 30%, #a9c9f2 48%, #6b9ce0 58%, #ffffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(6, 20, 48, 0.85));
+}
+/* The bedazzled disc that says "your song is in the machine". */
+.plugDisc {
+  position: relative;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, #ffffff, #dfe6f2 45%, #a8b4c8);
+  box-shadow:
+    0 22px 44px rgba(0, 0, 0, 0.5),
+    inset 0 4px 0 rgba(255, 255, 255, 0.9);
+}
+.plugDisc::before {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  border-radius: 50%;
+  background-image: radial-gradient(
+    circle at 6px 6px,
+    rgba(255, 255, 255, 0.95) 0 2.6px,
+    rgba(255, 255, 255, 0) 3.4px
+  );
+  background-size: 16px 16px;
+  background-color: #ff58ab;
+  box-shadow: inset 0 0 26px rgba(120, 0, 60, 0.45);
+}
+.plugDisc::after {
+  content: "";
+  position: absolute;
+  inset: 92px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #123021, #061309 70%);
+  box-shadow:
+    inset 0 0 0 8px #d7dee9,
+    0 0 26px rgba(141, 255, 106, 0.6);
+}
+.plugCable {
+  width: 26px;
+  height: 150px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #2b3548, #0f1826 55%, #2b3548);
+  margin-top: -22px;
+}
+.watchNote {
+  font-family: "Permanent Marker", cursive;
+  font-size: 28px;
+  color: #ffd0e8;
+}

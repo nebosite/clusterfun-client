@@ -4,6 +4,7 @@ import RetroSpectroAssets from "games/RetroSpectro/assets/Assets";
 import PartyPixAssets from "games/PartyPix/assets/Assets";
 import EittrisAssets from "games/Eittris/assets/Assets";
 import OneOhOneAssets from "games/OneOhOne/assets/Assets";
+import PassTheAuxAssets from "games/PassTheAux/assets/Assets";
 
 // -------------------------------------------------------------------
 // Games the client knows how to build for production.  Appearing here
@@ -26,6 +27,11 @@ const releaseGames: GameDescriptor[] = [
     displayName: "101",
     logoName: OneOhOneAssets.images.logo,
     importThunk: () => import("../OneOhOne/views/GameComponent"),
+    name: "PassTheAux",
+    displayName: "Pass the AUX",
+    tags: [],
+    logoName: PassTheAuxAssets.images.logo,
+    importThunk: () => import("../PassTheAux/views/GameComponent"),
   },
   {
     name: "PartyPix",

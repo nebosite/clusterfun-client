@@ -1,0 +1,85 @@
+.gamepresenter {
+  width: 100%;
+  height: 100%;
+  background-color: #232a33;
+  color: #eef1f5;
+  overflow: hidden;
+  font-size: 40px;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.gamepresenter button {
+  font-size: 120%;
+  padding: 5px;
+}
+
+.gamepresenter .divRow {
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+.gamepresenter .nameBox {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gamepresenter .roomCode {
+  margin-right: 50px;
+}
+
+.gamepresenter .presenterButton {
+  font-size: 130%;
+  padding: 16px 40px;
+  margin-top: 20px;
+}
+
+.gamepresenter .colorChip {
+  display: inline-block;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 2px solid rgba(0, 0, 0, 0.4);
+  vertical-align: middle;
+  margin: 0 10px;
+}
+
+.gamepresenter .playRow {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.gamepresenter .gameCanvasFrame {
+  flex: 0 0 auto;
+}
+
+.gamepresenter .gameCanvas {
+  background-color: #14181d;
+  border: 2px solid #444d59;
+  border-radius: 6px;
+}
+
+.gamepresenter .playerStrip {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 30px;
+  max-width: 260px;
+}
+
+.gamepresenter .playerItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gamepresenter .joinHint {
+  margin-top: 30px;
+  font-size: 26px;
+  color: #9aa5b2;
+}
