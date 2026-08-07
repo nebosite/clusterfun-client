@@ -271,6 +271,45 @@
   cursor: not-allowed;
 }
 
+/* ---- The PC camera ----------------------------------------------------------------------
+   Same overlay treatment as the review: a live preview needs the screen, and it sits over all
+   three bands rather than inside the 400px one the shutter lives in. */
+.cameraOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px 32px;
+}
+.cameraPreview {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  border-radius: 20px;
+  background: #000;
+}
+.cameraActions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 18px;
+}
+.cameraError {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: var(--pp-min);
+  line-height: 1.35;
+  color: var(--yellow);
+  padding: 24px;
+}
+
 /* ---- The picture ------------------------------------------------------------------------
    width AND height at 100% under object-fit, not a pair of maximums: the phone only ever gets
    the ~256px thumbnail, and maximums alone would draw it at 256px in the middle of a

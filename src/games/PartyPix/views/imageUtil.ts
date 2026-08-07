@@ -110,7 +110,15 @@ export async function fileToUploadPair(
   file: File,
   opts: UploadImageOptions,
 ): Promise<{ full: string; thumb: string }> {
-  const dataUrl = await readFileAsDataUrl(file);
+  return dataUrlToUploadPair(await readFileAsDataUrl(file), opts);
+}
+
+// Same, for a frame grabbed straight off a camera preview - it arrives as a data
+// URL already, with no File in between.
+export async function dataUrlToUploadPair(
+  dataUrl: string,
+  opts: UploadImageOptions,
+): Promise<{ full: string; thumb: string }> {
   const img = await loadImage(dataUrl);
   return {
     full: scaleImageToJpegUnderSize(

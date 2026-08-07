@@ -148,6 +148,21 @@
   align-items: center;
   justify-content: space-between;
 }
+
+/* The platform version, part of the lockup rather than lost in the footer.
+   `baseline` so it sits on the wordmark's line instead of floating at its full height. */
+.logoWithVersion {
+  display: flex;
+  align-items: baseline;
+  gap: calc(10px * var(--fs));
+}
+.logoVersion {
+  font-family: var(--mono);
+  font-size: calc(20px * var(--fs));
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .presenter .wordmark {
   font-size: calc(40px * var(--fs));
 }
@@ -341,6 +356,18 @@
   font-weight: 600;
   font-size: calc(23px * var(--fs));
   line-height: 1.1;
+}
+
+/* The game's own version, beside its title. Faded and small enough to be available without
+   competing with the name - the same treatment GameVersionTag gives it in-game. */
+.cardVersion {
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 0.6em;
+  opacity: 0.55;
+  margin-left: 0.45em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .cardCategory {
   font-family: var(--mono);

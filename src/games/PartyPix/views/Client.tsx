@@ -12,7 +12,10 @@ import {
   ClientHeader,
 } from "libs";
 import { PartyPixClientModel, PartyPixClientState } from "../models/ClientModel";
-import { fileToUploadPair } from "./imageUtil";
+import { fileToUploadPair, dataUrlToUploadPair, UploadImageOptions } from "./imageUtil";
+import { CameraCapture } from "./CameraCapture";
+import { shouldUseInAppCamera } from "./cameraSupport";
+import { GLOBALS } from "../../../Globals";
 import {
   MAX_IMAGE_EDGE,
   THUMB_IMAGE_EDGE,
@@ -35,7 +38,22 @@ interface ClientState {
   review: { full: string; thumb: string } | null;
   busy: boolean;
   toast: { text: string; error: boolean } | null;
+  /** The in-app camera is open (PC only - a phone hands over to its camera app). */
+  camera: boolean;
 }
+
+/** One place for the downscale budget, shared by both ways a picture gets in. */
+const UPLOAD_OPTIONS: UploadImageOptions = {
+  fullEdge: MAX_IMAGE_EDGE,
+  thumbEdge: THUMB_IMAGE_EDGE,
+  targetBytes: TARGET_IMAGE_BYTES,
+  startQuality: JPEG_QUALITY_START,
+  minQuality: JPEG_QUALITY_MIN,
+  qualityStep: JPEG_QUALITY_STEP,
+  thumbQuality: THUMB_JPEG_QUALITY,
+};
+
+const hasGetUserMedia = () => typeof navigator?.mediaDevices?.getUserMedia === "function";
 
 // -------------------------------------------------------------------
 // Client Page
@@ -52,7 +70,7 @@ export default class Client extends React.Component<
 
   constructor(props: { appModel?: PartyPixClientModel; uiProperties: UIProperties }) {
     super(props);
-    this.state = { review: null, busy: false, toast: null };
+    this.state = { review: null, busy: false, toast: null, camera: false };
   }
 
   componentWillUnmount() {
@@ -65,24 +83,45 @@ export default class Client extends React.Component<
     this._toastTimer = setTimeout(() => this.setState({ toast: null }), 2600);
   }
 
-  private openCamera = () => this._cameraInput.current?.click();
+  // "Take a Photo" is two different things, because the platforms are.
+  //
+  // A phone gets the file input carrying capture="environment", which hands over to the real
+  // camera app. A PC gets an in-app preview: `capture` is IGNORED on desktop, so this button
+  // used to open a file browser and do exactly the same job as "Upload a photo" beside it.
+  private openCamera = () => {
+    if (shouldUseInAppCamera(GLOBALS.IsMobile, hasGetUserMedia())) {
+      this.setState({ camera: true });
+      return;
+    }
+    this._cameraInput.current?.click();
+  };
   private openAlbum = () => this._albumInput.current?.click();
+
+  private closeCamera = () => this.setState({ camera: false });
+
+  /** The camera could not open at all - drop the player on the file picker rather than a wall. */
+  private cameraFallback = () => {
+    this.setState({ camera: false });
+    this._albumInput.current?.click();
+  };
+
+  private onCameraShot = async (dataUrl: string) => {
+    this.setState({ camera: false, busy: true });
+    await this.toReview(() => dataUrlToUploadPair(dataUrl, UPLOAD_OPTIONS));
+  };
 
   private onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-picking the same file
     if (!file) return;
     this.setState({ busy: true });
+    await this.toReview(() => fileToUploadPair(file, UPLOAD_OPTIONS));
+  };
+
+  /** Both ways in end the same: downscale, then show the review. */
+  private toReview = async (make: () => Promise<{ full: string; thumb: string }>) => {
     try {
-      const pair = await fileToUploadPair(file, {
-        fullEdge: MAX_IMAGE_EDGE,
-        thumbEdge: THUMB_IMAGE_EDGE,
-        targetBytes: TARGET_IMAGE_BYTES,
-        startQuality: JPEG_QUALITY_START,
-        minQuality: JPEG_QUALITY_MIN,
-        qualityStep: JPEG_QUALITY_STEP,
-        thumbQuality: THUMB_JPEG_QUALITY,
-      });
+      const pair = await make();
       this.setState({ review: pair, busy: false });
     } catch (err) {
       this.setState({ busy: false });
@@ -289,6 +328,13 @@ export default class Client extends React.Component<
           <div className={styles.photoZone}>{this.renderPhotoZone()}</div>
           <div className={styles.bottomZone}>{this.renderBottomZone()}</div>
           {this.renderReview()}
+          {this.state.camera ? (
+            <CameraCapture
+              onCapture={this.onCameraShot}
+              onCancel={this.closeCamera}
+              onUseFilePicker={this.cameraFallback}
+            />
+          ) : null}
         </div>
         {this.renderNotice()}
       </>
