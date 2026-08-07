@@ -323,32 +323,33 @@ class SlideshowPage extends React.Component<
 
     return (
       <div className={styles.show}>
-        <Wordmark className={styles.showWordmark} />
-        <div className={styles.showTopRight}>
-          Join at {window.location.host} · <b>{appModel.roomId}</b>
-        </div>
+        {/* The wordmark and the join line live in the frame now - one row, one copy each. */}
         {appModel.folderStatus === "needsReconnect" ? (
           <button className={styles.reconnectChip} onClick={() => appModel.reconnectFolder()}>
             ⚠ Reconnect photo folder to keep saving
           </button>
         ) : null}
 
-        {/* Host controls */}
-        <div className={styles.showControls}>
-          <button
-            className={styles.controlButton}
-            onClick={() => this.setState({ mode: "thumbs" })}
-          >
-            ▦ Thumbnails: {appModel.photos.length}
-          </button>
-          <button
-            className={classNames(styles.controlButton, {
-              [styles.controlButtonAlert]: appModel.flaggedPhotos.length > 0,
-            })}
-            onClick={() => this.setState({ mode: "flagged" })}
-          >
-            ⚑ Flagged: {appModel.flaggedPhotos.length}
-          </button>
+        {/* The top reserve: the rest of the screen's first 250px once the frame has taken its
+            share. The host controls live in here, directly under the frame's join line, so
+            nothing overlaps the picture any more. */}
+        <div className={styles.showTopReserve}>
+          <div className={styles.showControls}>
+            <button
+              className={styles.controlButton}
+              onClick={() => this.setState({ mode: "thumbs" })}
+            >
+              ▦ Thumbnails: {appModel.photos.length}
+            </button>
+            <button
+              className={classNames(styles.controlButton, {
+                [styles.controlButtonAlert]: appModel.flaggedPhotos.length > 0,
+              })}
+              onClick={() => this.setState({ mode: "flagged" })}
+            >
+              ⚑ Flagged: {appModel.flaggedPhotos.length}
+            </button>
+          </div>
         </div>
 
         {this.state.mode === "flagged" ? this.renderFlaggedOverlay(appModel) : null}
@@ -453,19 +454,17 @@ export default class Presenter extends React.Component<{
         <button className={styles.hostButton} onClick={() => appModel.quitApp()}>
           Quit
         </button>
-        <button
-          className={styles.hostButton}
-          disabled={appModel.gameState === PresenterGameState.Gathering}
-          onClick={() => appModel.pauseGame()}
-        >
-          Pause
-        </button>
-        <div className={styles.frameSpacer} />
-        <div className={styles.frameRoom}>
-          Room <b>{appModel.roomId}</b>
-        </div>
+        {/* Logo and version share the Quit button's line and its type size, so the whole
+            strip reads as one row rather than three things at three scales. */}
+        <Wordmark className={styles.frameWordmark} />
         <div className={styles.frameVersion}>
-          <GameVersionTag title="PartyPix" history={PARTY_PIX_VERSION_HISTORY} showChanges />
+          <GameVersionTag history={PARTY_PIX_VERSION_HISTORY} showChanges />
+        </div>
+        <div className={styles.frameSpacer} />
+        {/* The join details, not "Room XXXX" - this is the one line on the big screen that
+            somebody across the room needs, and it was duplicated below on the slideshow. */}
+        <div className={styles.frameJoin}>
+          Join at <b>{window.location.host}</b> · <b>{appModel.roomId}</b>
         </div>
       </div>
     );

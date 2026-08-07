@@ -205,6 +205,50 @@ the window is left alone and the host starts clean. **Neither branch touches the
 Covered by `models/partyResume.spec.ts`, including the window edge, an empty folder, a
 never-used folder (`lastPartyAt === 0`), and a clock that has gone backwards.
 
+## The host screen's geometry is EXACT
+
+1920x1080, split by three CSS variables on `.gamepresenter` so nothing can drift:
+
+| Variable              | Value | What it is                                                 |
+| --------------------- | ----- | ---------------------------------------------------------- |
+| `--pp-frame-h`        | 78px  | The frame: Quit, wordmark, version, and the join line.     |
+| `--pp-reserve-top`    | 250px | Frame + `.showTopReserve` (which holds the host controls). |
+| `--pp-reserve-bottom` | 100px | `.photoBar` - author, tallies, counter.                    |
+
+The picture gets what is left — **730px** — and `.stagePhoto` is `width/height: 100%` with
+`object-fit: contain`, so a small photo is scaled UP to the stage as well as a large one being
+scaled down. Maximums alone would leave a 600px picture sitting at 600px in a 730px band.
+
+`.showTopReserve` is `calc(var(--pp-reserve-top) - var(--pp-frame-h))`, which is what keeps
+"250 from the top of the SCREEN" true rather than 250 from the top of the content box. Measured
+live: top 250, bottom 100, stage 730.
+
+The frame carries the wordmark and the version at the Quit button's own 18px, and the join
+details replaced "Room XXXX" — that line is the one thing somebody across the room needs, and
+it used to be duplicated on the slideshow underneath. There is no Pause button.
+
+## Crop and draw, before the photo is sent
+
+`views/PhotoEditor.tsx` IS the review step — crop and draw are not behind a further "Edit"
+button, because most photos would never get looked at twice.
+
+**Everything is stored in normalized ORIGINAL-image space (0..1), never screen pixels.** The
+crop is a 0..1 rect; every stroke point is a 0..1 position on the source photo. The phone
+preview and the full-resolution composite are then two renderings of the same numbers, which
+is what stops a stroke landing somewhere else in the picture that actually gets uploaded, and
+what lets the crop be adjusted afterwards without dragging the paint around with it. Strokes
+outside the crop are clipped by the canvas rather than dropped, so widening the crop brings
+them back. The geometry is pure and specced in `views/photoEditLogic.spec.ts`.
+
+One medium brush, eight colours, and the width is a FRACTION of the image
+(`BRUSH_FRACTION`) — a flat pixel width is a bold stroke on a 350px preview and a hairline on
+the 1600px composite.
+
+**The drawing is baked into the JPEG on the phone**, so the host and the wire format know
+nothing about any of it: `finish()` composites crop + strokes at full resolution, and
+`uploadEdited` runs the result back through `dataUrlToUploadPair` so the thumb matches what
+was actually made. The copy kept on the device is the edited picture too.
+
 ## Keeping a copy on the phone
 
 `saveToDevice` on the client model (serialized, off by default) copies each photo to the

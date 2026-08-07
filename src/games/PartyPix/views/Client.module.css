@@ -640,3 +640,91 @@
   background: var(--lime);
   cursor: pointer;
 }
+
+/* ---- Crop & draw, between taking a photo and sending it --------------------------------
+   Same overlay treatment as the old review it replaces: over all three bands, because
+   framing and drawing both need the picture as large as the phone can show it. */
+.editorOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 24px 24px;
+}
+.editorTabs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.editorTab,
+.editorTabOn {
+  font-family: var(--ui);
+  font-weight: 800;
+  font-size: var(--pp-min);
+  padding: 14px 26px;
+  border-radius: 16px;
+  cursor: pointer;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+.editorTabOn {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  color: #08080d;
+}
+.editorMinor {
+  margin-left: auto;
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: var(--pp-min);
+  padding: 14px 22px;
+  border-radius: 16px;
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+/* The canvas is sized in IMAGE pixels by the component and laid out by CSS - object-fit keeps
+   the aspect honest, and touch-action:none is what stops the browser scrolling the page
+   instead of letting a finger draw. */
+.editorCanvas {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  border-radius: 18px;
+  background: #000;
+  touch-action: none;
+}
+
+.palette {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+.swatch,
+.swatchOn {
+  flex: 1 1 0;
+  height: 84px;
+  min-width: 0;
+  border-radius: 16px;
+  cursor: pointer;
+  border: 3px solid rgba(255, 255, 255, 0.25);
+}
+.swatchOn {
+  border: 6px solid #ffffff;
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.55);
+}
+.editorHint {
+  flex: 0 0 auto;
+  text-align: center;
+  font-size: var(--pp-min);
+  color: var(--faint);
+}

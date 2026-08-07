@@ -10,6 +10,8 @@ export const PARTY_PIX_VERSION_HISTORY: GameVersionEntry[] = [
       "If a party from the last 24 hours is found, the setup screen offers to continue it; anything older is left alone and you start fresh.",
       "Phones can auto-save the photos they take to the device as well as sending them to the big screen.",
       "'Take a Photo' opens a real camera on a PC instead of a file browser.",
+      "Crop a photo and draw on it before you send it - one brush, eight colours - and the drawing shows up on the big screen.",
+      "The big screen gives the picture a fixed 730px band, with the host controls and the join code above it and the photo details below.",
       "The phone screen is three fixed bands - what you have on top, the picture as big as it will go in the middle, whose it is and how you vote at the bottom.",
       "Flagging a photo is confirmed in a dialog over the picture rather than a list at the bottom of the screen.",
     ],

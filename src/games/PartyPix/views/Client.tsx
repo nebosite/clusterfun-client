@@ -16,6 +16,7 @@ import { fileToUploadPair, dataUrlToUploadPair, UploadImageOptions } from "./ima
 import { CameraCapture } from "./CameraCapture";
 import { shouldUseInAppCamera } from "./cameraSupport";
 import { savePhotoToDevice, deviceFileName } from "./deviceSave";
+import { PhotoEditor } from "./PhotoEditor";
 import { GLOBALS } from "../../../Globals";
 import {
   MAX_IMAGE_EDGE,
@@ -130,20 +131,32 @@ export default class Client extends React.Component<
     }
   };
 
-  private doUpload = async () => {
+  /**
+   * The editor hands back a composited JPEG - cropped, with the drawing baked in. It goes
+   * through the same downscale as any other photo so the thumb matches what was actually made,
+   * and the copy kept on the device is the edited picture rather than the raw one.
+   */
+  private uploadEdited = async (edited: string) => {
     const { appModel } = this.props;
-    const { review } = this.state;
-    if (!appModel || !review) return;
+    if (!appModel) return;
 
     // Keep the copy FIRST, before anything is awaited. The OS share sheet - the only route
-    // that reaches the photo gallery - requires a user gesture, and awaiting the upload first
+    // that reaches the photo gallery - requires a user gesture, and awaiting anything first
     // would spend it. The upload does not depend on the result either way.
     const keeping = appModel.saveToDevice
-      ? savePhotoToDevice(review.full, deviceFileName(new Date()))
+      ? savePhotoToDevice(edited, deviceFileName(new Date()))
       : null;
 
     this.setState({ busy: true });
-    const res = await appModel.uploadPhoto(review.full, review.thumb);
+    let pair: { full: string; thumb: string };
+    try {
+      pair = await dataUrlToUploadPair(edited, UPLOAD_OPTIONS);
+    } catch {
+      this.setState({ busy: false });
+      this.showToast("Couldn't prepare that photo.", true);
+      return;
+    }
+    const res = await appModel.uploadPhoto(pair.full, pair.thumb);
     this.setState({ busy: false });
     if (res.success) {
       this.setState({ review: null });
@@ -384,18 +397,16 @@ export default class Client extends React.Component<
     if (!appModel || !review) return null;
     const canAfford = appModel.credits >= UPLOAD_COST;
 
+    // The review IS the editor: crop and draw, then send. Making it a separate step behind an
+    // "Edit" button would mean most photos never got looked at twice.
     return (
-      <div className={styles.reviewOverlay}>
-        <img className={styles.reviewImg} src={review.full} alt="your shot" />
-        <div className={styles.reviewActions}>
-          <button className={styles.retake} onClick={this.retake} disabled={busy}>
-            Retake
-          </button>
-          <button className={styles.upload} onClick={this.doUpload} disabled={busy || !canAfford}>
-            {busy ? "Sending…" : "Upload −1 credit"}
-          </button>
-        </div>
-      </div>
+      <PhotoEditor
+        source={review.full}
+        busy={busy || !canAfford}
+        doneLabel={busy ? "Sending…" : canAfford ? "Upload −1 credit" : "Out of credits"}
+        onCancel={this.retake}
+        onDone={this.uploadEdited}
+      />
     );
   }
 
