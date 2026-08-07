@@ -1,8 +1,11 @@
 // The built-in scenario prompt bank.
 //
-// Edit prompts as plain lines in the block below: ONE PROMPT PER LINE, no quotes and no
-// commas.  Blank lines and lines starting with "#" are ignored, so you can group or annotate.
-// (Apostrophes are fine as-is — the block is a backtick string, so nothing needs escaping.)
+// Edit prompts as plain lines in the block below: ONE PROMPT PER LINE, written as plain text
+// rather than as JS array source — so no wrapping a line in quotes just to quote it, and no
+// trailing commas.  Punctuation INSIDE a prompt is free: apostrophes, commas and quotation
+// marks all reach the game verbatim (the block is a backtick string, so nothing needs
+// escaping), and a prompt may itself be a quoted sentence.
+// Blank lines and lines starting with "#" are ignored, so you can group or annotate.
 //
 // A game shuffles a copy of the parsed list and draws from it without repeats until it is
 // exhausted (then reshuffles).  Host-typed custom prompts are a deferred feature (see
@@ -98,7 +101,13 @@ Staring contest
 How to hype up a crowd of toddlers
 `;
 
-// One prompt per non-blank, non-comment line.
-export const PASS_THE_AUX_PROMPTS: string[] = RAW_PROMPTS.split("\n")
-  .map((line) => line.trim())
-  .filter((line) => line.length > 0 && !line.startsWith("#"));
+// One prompt per non-blank, non-comment line.  Exported separately from the bank so the spec
+// can exercise these rules against a block that actually contains comments and padding - the
+// shipped bank happens to have neither, so testing the rules through it alone proves nothing.
+export const parsePromptBlock = (raw: string): string[] =>
+  raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"));
+
+export const PASS_THE_AUX_PROMPTS: string[] = parsePromptBlock(RAW_PROMPTS);

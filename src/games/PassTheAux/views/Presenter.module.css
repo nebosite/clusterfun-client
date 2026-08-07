@@ -1,238 +1,1047 @@
-/* PassTheAux — "Late-Night Jukebox" presenter theme (1920x1080). */
+/* PassTheAux — "BURNED CD-R" presenter theme (design 2a), 1920x1080.
+   2000s-core: denim desktop wallpaper, glossy XP-ish windows, gel bubble buttons,
+   bedazzled rhinestone devices, green LCD readouts and Sharpie scrawl. */
+@import url("https://fonts.googleapis.com/css2?family=Anton&family=Permanent+Marker&family=Silkscreen:wght@400;700&display=swap");
+
+/* ---------------------------------------------------------------- shell */
 .gamepresenter {
-  font-family:
-    "Segoe UI",
-    system-ui,
-    -apple-system,
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
-  color: #f3effa;
-  background:
-    radial-gradient(1200px 700px at 15% -10%, rgba(255, 62, 165, 0.18), transparent 60%),
-    radial-gradient(1100px 700px at 90% 10%, rgba(34, 224, 255, 0.16), transparent 55%), #0d0b14;
+  font-family: Verdana, Tahoma, "Segoe UI", sans-serif;
+  color: #0d1b33;
   width: 1920px;
   height: 1080px;
   overflow: hidden;
   position: relative;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0 2px, rgba(0, 0, 0, 0.06) 2px 4px),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.035) 0 2px,
+      rgba(0, 0, 0, 0.05) 2px 4px
+    ),
+    linear-gradient(160deg, #4a72ad, #1c3153);
+}
+/* The denim weave gets darker while a song is playing, so the room dims for the jukebox. */
+.gamepresenter.dim {
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.04) 0 2px, rgba(0, 0, 0, 0.07) 2px 4px),
+    linear-gradient(160deg, #2c4a7c, #0f1c33);
 }
 
-/* Lightly-animated background glow to keep the energy up between beats.  Two big colored
-   blobs drift + breathe slowly behind everything; disabled under reduced-motion. */
-.energy {
+/* Fabric grain over the whole desktop. */
+.noise {
   position: absolute;
-  inset: -20%;
+  inset: 0;
   z-index: 0;
   pointer-events: none;
-  background:
-    radial-gradient(600px 600px at 25% 30%, rgba(255, 62, 165, 0.16), transparent 60%),
-    radial-gradient(680px 680px at 78% 68%, rgba(34, 224, 255, 0.14), transparent 62%),
-    radial-gradient(520px 520px at 60% 15%, rgba(182, 255, 58, 0.1), transparent 60%);
-  animation: energyDrift 24s ease-in-out infinite alternate;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-@keyframes energyDrift {
-  0% {
-    transform: translate(0, 0) scale(1);
-    filter: hue-rotate(0deg);
+/* Rhinestone glints scattered across the wallpaper. */
+.sparkles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 10% 18%, rgba(255, 255, 255, 0.9) 0 2px, transparent 3px),
+    radial-gradient(circle at 74% 10%, rgba(255, 225, 77, 0.9) 0 2px, transparent 3px),
+    radial-gradient(circle at 88% 62%, rgba(255, 255, 255, 0.8) 0 2px, transparent 3px),
+    radial-gradient(circle at 22% 78%, rgba(255, 120, 190, 0.9) 0 2px, transparent 3px),
+    radial-gradient(circle at 55% 88%, rgba(255, 255, 255, 0.7) 0 2px, transparent 3px);
+  animation: sparkle 2.6s ease-in-out infinite;
+}
+
+@keyframes eq {
+  0%,
+  100% {
+    transform: scaleY(0.25);
   }
   50% {
-    transform: translate(3%, -2%) scale(1.08);
+    transform: scaleY(1);
+  }
+}
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.15;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes sparkle {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+@keyframes slide {
+  0% {
+    background-position: 0 0;
   }
   100% {
-    transform: translate(-3%, 2%) scale(1.04);
-    filter: hue-rotate(24deg);
+    background-position: 56px 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .energy {
-    animation: none;
+  .sparkles,
+  .eqBar,
+  .disc,
+  .recDot,
+  .barFill {
+    animation: none !important;
   }
 }
-.frame,
-.stage {
+
+/* --------------------------------------------------------- desktop frame */
+.frame {
   position: relative;
   z-index: 1;
-}
-
-.frame {
+  height: 118px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 18px 34px;
-  background: rgba(10, 8, 18, 0.55);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 20px;
+  padding: 0 72px;
+  border-bottom: 3px dashed rgba(255, 190, 90, 0.55);
 }
 .wordmark {
-  font-size: 34px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  background: linear-gradient(90deg, #ff3ea5, #ffd21a);
+  font-family: Anton, sans-serif;
+  font-size: 46px;
+  letter-spacing: 0.02em;
+  background: linear-gradient(#ffffff, #f0f7ff 30%, #a9c9f2 48%, #6b9ce0 58%, #ffffff);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(6, 20, 48, 0.85));
+}
+.sideTag {
+  font-family: "Permanent Marker", cursive;
+  font-size: 26px;
+  color: #ffd0e8;
+  transform: rotate(-6deg);
 }
 .spacer {
   flex: 1;
 }
-.roomCode {
-  font-size: 22px;
-  color: #cbd3e1;
+.version {
+  font-family: Silkscreen, monospace;
+  font-size: 16px;
+  color: #c6dcff;
+  opacity: 0.6;
 }
-.roomCode b {
-  color: #22e0ff;
-  letter-spacing: 3px;
+/* The "recording" tally light next to the room code. */
+.recDot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ff3f8e;
+  box-shadow: 0 0 12px #ff3f8e;
+  animation: blink 1.4s steps(1) infinite;
+  flex: none;
 }
-.button {
-  font-size: 20px;
-  padding: 10px 20px;
+
+/* ------------------------------------------------------------- LCD panels */
+.lcd,
+.lcdBig {
+  font-family: Silkscreen, monospace;
+  color: #8dff6a;
+  background: linear-gradient(#0d2b18, #061309);
+  border: 3px solid #cdd6e2;
+  border-radius: 10px;
+  box-shadow: inset 0 0 18px rgba(141, 255, 106, 0.35);
+  white-space: nowrap;
+}
+.lcd {
+  font-size: 26px;
+  padding: 8px 20px;
+}
+.lcdBig {
+  font-size: 44px;
+  padding: 8px 24px;
+  border-width: 4px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: #211a33;
-  color: #f3effa;
-  cursor: pointer;
 }
-.button:hover {
-  background: #2c2344;
+.lcdSub {
+  font-family: Silkscreen, monospace;
+  font-size: 22px;
+  color: #4fbf3a;
 }
-.button:disabled {
-  opacity: 0.4;
-  cursor: default;
+/* Big count with its caption inside one bezel (e.g. "4/6" over "PLUGGED IN"). */
+.lcdStack {
+  font-family: Silkscreen, monospace;
+  color: #8dff6a;
+  background: linear-gradient(#0d2b18, #061309);
+  border: 4px solid #cdd6e2;
+  border-radius: 14px;
+  box-shadow: inset 0 0 22px rgba(141, 255, 106, 0.35);
+  padding: 10px 26px;
+  text-align: right;
+  white-space: nowrap;
+}
+.lcdStackNum {
+  font-size: 62px;
+  line-height: 1;
+}
+.lcdStackLabel {
+  font-size: 20px;
+  color: #4fbf3a;
 }
 
-.stage {
-  padding: 30px 60px;
-  height: 940px;
+/* ------------------------------------------------------------ XP windows */
+.win {
+  border-radius: 14px 14px 8px 8px;
+  background: linear-gradient(#f4f8ff, #dbe7fa);
+  border: 2px solid #17439a;
+  box-shadow:
+    0 34px 70px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+}
+.winBar {
+  position: relative;
+  height: 66px;
   box-sizing: border-box;
+  background: linear-gradient(#68a8f6, #2c72de 46%, #164ba6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 20px;
+}
+/* The glass highlight running along the top of every title bar. */
+.winBar::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 5px;
+  height: 22px;
+  border-radius: 11px;
+  background: linear-gradient(rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+}
+.winTitle {
+  position: relative;
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.winMeter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: Silkscreen, monospace;
+  font-size: 22px;
+  color: #c6e2ff;
+  flex: none;
+}
+.winBody {
+  padding: 40px 50px 46px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
 }
 
-.cta {
-  font-size: 30px;
+/* Little dancing equalizer, reused in title bars and on devices. */
+.eqBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 22px;
+}
+.eqBar {
+  width: 5px;
+  height: 100%;
+  background: #c6f0ff;
+  transform-origin: bottom;
+  animation: eq 0.7s ease-in-out infinite;
+}
+.eqBar:nth-child(2) {
+  animation-duration: 0.55s;
+  animation-delay: 0.1s;
+}
+.eqBar:nth-child(3) {
+  animation-duration: 0.9s;
+  animation-delay: 0.2s;
+}
+.eqBar:nth-child(4) {
+  animation-duration: 0.62s;
+  animation-delay: 0.05s;
+}
+
+/* -------------------------------------------------------- pills & buttons */
+.pill {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(#ffe9f6, #ff7dc0 55%, #e01f86);
+  border: 2px solid #a8135f;
+  border-radius: 999px;
+  padding: 10px 26px;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.85);
+  font-size: 24px;
   font-weight: 700;
-  padding: 18px 40px;
-  border-radius: 16px;
-  border: none;
-  color: #0d0b14;
-  background: linear-gradient(90deg, #b6ff3a, #22e0ff);
+  letter-spacing: 0.2em;
+  color: #54001f;
+}
+.pillBlue {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(#eaf2ff, #b9cded 50%, #7f9ac2);
+  border: 2px solid #3a5c8c;
+  border-radius: 999px;
+  padding: 10px 24px;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.9);
+  font-size: 22px;
+  font-weight: 700;
+  color: #12335e;
+}
+.pillGreen {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: linear-gradient(#d5ffb5, #5fd52c 50%, #1f8f0c);
+  border: 2px solid #17700a;
+  padding: 8px 20px;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.8);
+  font-size: 22px;
+  font-weight: 700;
+  color: #0d3305;
+}
+.pillAmber {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: linear-gradient(#ffe3a8, #ffab21 50%, #c97900);
+  border: 2px solid #a86200;
+  padding: 8px 20px;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.8);
+  font-size: 22px;
+  font-weight: 700;
+  color: #4a2600;
+}
+
+/* The big green gel button - the primary host action on every screen. */
+.cta {
+  position: relative;
+  align-self: flex-start;
+  border-radius: 999px;
+  background: linear-gradient(#b8ff8a, #4fd222 48%, #1e8f0a);
+  border: 3px solid #146b06;
+  padding: 22px 50px;
+  font-family: Anton, sans-serif;
+  font-size: 34px;
+  letter-spacing: 0.04em;
+  color: #0b2f05;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
   cursor: pointer;
-  box-shadow: 0 10px 30px rgba(34, 224, 255, 0.25);
+  box-shadow:
+    0 8px 0 #0f5a05,
+    0 16px 26px rgba(0, 0, 0, 0.35);
+}
+/* The gloss cap on the top half of a gel button. */
+.cta::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 6px;
+  height: 38%;
+  border-radius: 999px;
+  background: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
+  pointer-events: none;
 }
 .cta:hover {
-  filter: brightness(1.08);
+  filter: brightness(1.06);
 }
-.cta.hot {
-  background: linear-gradient(90deg, #ff3ea5, #ffd21a);
-  box-shadow: 0 10px 30px rgba(255, 62, 165, 0.3);
+.cta:active {
+  transform: translateY(4px);
+  box-shadow: 0 4px 0 #0f5a05;
 }
 .cta:disabled {
+  background: linear-gradient(#cfd8e6, #8f9db2 50%, #697a92);
+  border-color: #55657c;
+  color: #e9eff8;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.7);
+  cursor: default;
+}
+/* "hot" = everyone is in, this is the button to press. */
+.cta.hot {
+  background: linear-gradient(#ffe9f6, #ff7dc0 55%, #e01f86);
+  border-color: #a8135f;
+  color: #54001f;
+  box-shadow:
+    0 8px 0 #8e0f50,
+    0 16px 26px rgba(0, 0, 0, 0.35);
+}
+.cta.hot:active {
+  box-shadow: 0 4px 0 #8e0f50;
+}
+
+/* Secondary chrome button (Quit / Pause / force-advance). */
+.button {
+  border-radius: 999px;
+  background: linear-gradient(#eaf2ff, #b9cded 50%, #7f9ac2);
+  border: 2px solid #3a5c8c;
+  padding: 12px 26px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #12335e;
+  cursor: pointer;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.9);
+}
+.button:hover {
+  filter: brightness(1.05);
+}
+.button:disabled {
   opacity: 0.45;
   cursor: default;
 }
 
+/* ----------------------------------------------------------- typography */
+/* Chrome lettering for headlines sitting on the denim. */
+.chrome {
+  font-family: Anton, sans-serif;
+  letter-spacing: -0.01em;
+  background: linear-gradient(#ffffff, #f0f7ff 30%, #a9c9f2 48%, #6b9ce0 58%, #ffffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(6, 20, 48, 0.85));
+}
+/* Darker chrome for headlines sitting inside a white window. */
+.chromeDark {
+  font-family: Anton, sans-serif;
+  letter-spacing: -0.01em;
+  background: linear-gradient(#7fb2ea, #1b4b96 28%, #04193c 52%, #2f6ec4 64%, #9fcaf7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(255, 255, 255, 0.95));
+}
+.sharpie {
+  font-family: "Permanent Marker", cursive;
+  color: #ffd0e8;
+}
+/* Yellow index-card sticker with a marker scrawl on it. */
+.sticker {
+  position: absolute;
+  transform: rotate(-4deg);
+  background: #ffe14d;
+  border: 3px solid #1b2a44;
+  padding: 14px 24px;
+  box-shadow: 6px 8px 0 rgba(0, 0, 0, 0.35);
+  font-family: "Permanent Marker", cursive;
+  font-size: 30px;
+  color: #1b2a44;
+}
+
 .title {
-  font-size: 40px;
-  font-weight: 800;
-  margin: 0 0 10px;
+  font-family: Anton, sans-serif;
+  font-size: 68px;
+  line-height: 1.05;
+  margin: 0;
+  background: linear-gradient(#ffffff, #f0f7ff 30%, #a9c9f2 48%, #6b9ce0 58%, #ffffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(6, 20, 48, 0.85));
 }
 .sub {
-  font-size: 24px;
-  color: #b9c2d4;
-  margin: 0 0 24px;
+  font-size: 28px;
+  line-height: 1.5;
+  color: #e2ecfb;
+  margin: 0;
+}
+.sub b {
+  color: #ffe14d;
+  letter-spacing: 2px;
 }
 
-/* Roster of joined players */
-.roster {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin: 20px 0;
+.stage {
+  position: relative;
+  z-index: 1;
+  height: 962px;
+  padding: 34px 72px;
+  box-sizing: border-box;
 }
-.nameBox {
+/* Every sub-screen fills the stage so the bottom task bar can sit at the floor. */
+.screen {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+/* The header strip common to most screens: headline left, LCD readouts right. */
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 40px;
+  flex: none;
+}
+.headLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.headRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  flex: none;
+}
+/* The desktop task bar pinned to the bottom of a screen. */
+.taskbar {
+  margin-top: auto;
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: #171326;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 10px 16px;
+  justify-content: space-between;
+  gap: 30px;
+  flex: none;
+}
+.taskNote {
   font-size: 24px;
+  color: #e6f0ff;
 }
-.nameBox.done {
-  border-color: rgba(182, 255, 58, 0.6);
-  box-shadow: 0 0 0 1px rgba(182, 255, 58, 0.25) inset;
-}
-.check {
-  color: #b6ff3a;
-  font-weight: 800;
-}
-.waitingDot {
-  color: #6b7488;
+.taskActions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }
 
-/* Prompt hero */
-.promptHero {
-  margin: 40px 0;
-  padding: 48px;
-  border-radius: 26px;
-  background: linear-gradient(160deg, #1c1630, #120d20);
-  border: 1px solid rgba(255, 62, 165, 0.25);
-  text-align: center;
+/* ------------------------------------------------------------- gathering */
+.gatherWin {
+  align-self: flex-start;
+  width: 1180px;
 }
-.promptKicker {
-  font-size: 22px;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  color: #ff3ea5;
-  margin-bottom: 18px;
-}
-.promptText {
-  font-size: 62px;
-  font-weight: 800;
-  line-height: 1.15;
-}
-
-/* Target-score stepper */
 .stepper {
   display: flex;
   align-items: center;
   gap: 18px;
-  font-size: 26px;
-  margin: 18px 0;
+  font-size: 28px;
+  color: #12335e;
 }
 .stepBtn {
-  width: 52px;
-  height: 52px;
+  width: 62px;
+  height: 62px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: #211a33;
-  color: #fff;
-  font-size: 28px;
+  border: 3px solid #3a5c8c;
+  background: linear-gradient(#eaf2ff, #b9cded 50%, #7f9ac2);
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.9);
+  color: #12335e;
+  font-size: 32px;
+  font-weight: 700;
   cursor: pointer;
 }
+.stepBtn:hover {
+  filter: brightness(1.06);
+}
 .stepVal {
-  font-size: 40px;
-  font-weight: 800;
-  color: #ffd21a;
-  min-width: 60px;
+  font-family: Silkscreen, monospace;
+  font-size: 44px;
+  color: #8dff6a;
+  background: linear-gradient(#0d2b18, #061309);
+  border: 3px solid #cdd6e2;
+  border-radius: 10px;
+  box-shadow: inset 0 0 18px rgba(141, 255, 106, 0.35);
+  padding: 4px 20px;
+  min-width: 70px;
   text-align: center;
 }
 
-/* Jukebox / playback */
+/* Roster of joined players — rhinestone name chips. */
+.roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.nameBox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 999px;
+  background: linear-gradient(#ffffff, #dfe8f7);
+  border: 3px solid #17439a;
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.95);
+  padding: 8px 22px 8px 8px;
+  font-size: 26px;
+  font-weight: 700;
+  color: #12335e;
+}
+.nameBox.done {
+  background: linear-gradient(#d5ffb5, #8fe86a);
+  border-color: #17700a;
+  color: #0d3305;
+}
+.check {
+  font-weight: 800;
+  color: #1e8f0a;
+}
+.waitingDot {
+  color: #7f9ac2;
+}
+
+/* --------------------------------------------------------- prompt reveal */
+.promptWin {
+  width: 1180px;
+  flex: none;
+}
+.promptText {
+  font-family: Anton, sans-serif;
+  font-size: 96px;
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+  background: linear-gradient(#7fb2ea, #1b4b96 28%, #04193c 52%, #2f6ec4 64%, #9fcaf7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(255, 255, 255, 0.95));
+}
+.promptSub {
+  font-size: 28px;
+  line-height: 1.5;
+  color: #28405f;
+  max-width: 820px;
+}
+.ctaRow {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.ctaHint {
+  font-size: 22px;
+  color: #3d5878;
+}
+
+/* The bedazzled MP3 player parked on the right of the prompt-reveal desktop. */
+.player {
+  position: absolute;
+  right: 0;
+  top: 200px;
+  width: 380px;
+  height: 580px;
+}
+/* The chrome plug on the player's top edge, where the cable terminates. */
+.playerPlug {
+  position: absolute;
+  left: 300px;
+  top: -26px;
+  width: 76px;
+  height: 34px;
+  border-radius: 6px;
+  background: linear-gradient(#ffffff, #b9c4d6 55%, #7c8899);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.5);
+}
+.playerShell {
+  position: absolute;
+  inset: 0;
+  border-radius: 44px;
+  background: linear-gradient(150deg, #ffffff, #dfe6f2 45%, #a8b4c8);
+  box-shadow:
+    0 30px 60px rgba(0, 0, 0, 0.55),
+    inset 0 3px 0 rgba(255, 255, 255, 0.9);
+}
+/* The rhinestone field: a grid of tiny white glints over hot pink. */
+.playerGems {
+  position: absolute;
+  inset: 10px;
+  border-radius: 36px;
+  background-image: radial-gradient(
+    circle at 6px 6px,
+    rgba(255, 255, 255, 0.95) 0 2.6px,
+    rgba(255, 255, 255, 0) 3.4px
+  );
+  background-size: 16px 16px;
+  background-color: #ff58ab;
+  box-shadow: inset 0 0 24px rgba(120, 0, 60, 0.45);
+}
+.playerScreen {
+  position: absolute;
+  left: 40px;
+  right: 40px;
+  top: 50px;
+  height: 216px;
+  border-radius: 14px;
+  background: linear-gradient(#123021, #061309);
+  border: 4px solid #d7dee9;
+  box-shadow: inset 0 0 26px rgba(141, 255, 106, 0.3);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  padding: 0 24px;
+  font-family: Silkscreen, monospace;
+  color: #8dff6a;
+}
+.playerScreenBig {
+  font-size: 40px;
+}
+.playerScreenLine {
+  font-size: 22px;
+  white-space: nowrap;
+}
+.playerEq {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 50px;
+}
+.playerEq .eqBar {
+  width: 16px;
+  background: #8dff6a;
+}
+.playerWheel {
+  position: absolute;
+  left: 90px;
+  bottom: 60px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 30%, #ffffff, #e2e8f4 55%, #9fadc4);
+  box-shadow:
+    inset 0 0 0 6px rgba(255, 255, 255, 0.85),
+    0 10px 22px rgba(0, 0, 0, 0.35);
+}
+.playerWheel::after {
+  content: "";
+  position: absolute;
+  left: 55px;
+  top: 55px;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: linear-gradient(#ffffff, #c9d4e6);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.9);
+}
+/* The aux cable looping in from the top-right corner of the desktop. */
+.cable {
+  position: absolute;
+  right: 40px;
+  top: -20px;
+  width: 420px;
+  height: 200px;
+  border: 18px solid transparent;
+  border-bottom-color: #0f1826;
+  border-left-color: #0f1826;
+  border-radius: 0 0 0 300px;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.5));
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------- selecting */
+.deviceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 26px;
+  align-content: start;
+  overflow: hidden;
+}
+/* Bigger rooms pack into four columns so the desk still fits on one screen. */
+.deviceGrid.cols4 {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+.deviceCard {
+  border-radius: 14px 14px 8px 8px;
+  background: linear-gradient(#f4f8ff, #dbe7fa);
+  border: 2px solid #17439a;
+  box-shadow:
+    0 18px 34px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+}
+/* Players who have not cued yet get the greyed-out "inactive window" treatment. */
+.deviceCard.idle {
+  background: linear-gradient(#eef2f9, #cfd9ea);
+  border-color: #59718f;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.35);
+  opacity: 0.9;
+}
+.deviceBar {
+  position: relative;
+  height: 56px;
+  box-sizing: border-box;
+  background: linear-gradient(#68a8f6, #2c72de 46%, #164ba6);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+}
+.deviceCard.idle .deviceBar {
+  background: linear-gradient(#a8bcd8, #6d86a6 46%, #4d6482);
+}
+.deviceBar::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 4px;
+  height: 18px;
+  border-radius: 9px;
+  background: linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0));
+}
+.deviceName {
+  position: relative;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.deviceAvatar {
+  position: relative;
+  display: flex;
+  flex: none;
+}
+.deviceBody {
+  padding: 20px;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+.deviceStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.deviceNote {
+  font-family: "Permanent Marker", cursive;
+  font-size: 24px;
+  color: #3d5878;
+}
+.deviceNotePlain {
+  font-size: 20px;
+  color: #4a6083;
+}
+
+/* Each player's gadget: four shapes, picked by avatar so a player keeps the same one. */
+.gadget {
+  position: relative;
+  flex: none;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
+}
+/* 0 — bedazzled candybar phone */
+.gadget0 {
+  width: 118px;
+  height: 180px;
+  border-radius: 22px;
+  background: linear-gradient(150deg, #ffffff, #dfe6f2 45%, #a8b4c8);
+}
+.gadget0::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 17px;
+  background-image: radial-gradient(
+    circle at 5px 5px,
+    rgba(255, 255, 255, 0.95) 0 2.2px,
+    rgba(255, 255, 255, 0) 3px
+  );
+  background-size: 13px 13px;
+  background-color: #ff58ab;
+}
+.gadget0::after {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: 22px;
+  height: 64px;
+  border-radius: 6px;
+  background: linear-gradient(#123021, #061309);
+  border: 2px solid #dfe5ee;
+}
+/* 1 — chunky MP3 brick with a spinning rainbow disc */
+.gadget1 {
+  width: 180px;
+  height: 164px;
+  border-radius: 20px;
+  background: linear-gradient(150deg, #eef3fb, #9fadc4);
+}
+.gadget1::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 14px;
+  background: linear-gradient(#2f6ec4, #123f86);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.5);
+}
+.gadget1::after {
+  content: "";
+  position: absolute;
+  left: 30px;
+  top: 24px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #c6f0ff, #ffd9f2, #d9ffd2, #fff2c2, #c6f0ff);
+  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.8);
+  animation: spin 6s linear infinite;
+}
+/* 2 — round disc player */
+.gadget2 {
+  width: 172px;
+  height: 172px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, #ffffff, #cfd8e8 50%, #8e9cb4);
+}
+.gadget2::before {
+  content: "";
+  position: absolute;
+  inset: 13px;
+  border-radius: 50%;
+  background-image: radial-gradient(
+    circle at 5px 5px,
+    rgba(255, 255, 255, 0.95) 0 2.2px,
+    rgba(255, 255, 255, 0) 3px
+  );
+  background-size: 14px 14px;
+  background-color: #8f5fe8;
+}
+.gadget2::after {
+  content: "";
+  position: absolute;
+  inset: 40px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #eaf6ff, #ffe6f7, #e6ffe9, #fff6d6, #eaf6ff);
+  animation: spin 7s linear infinite;
+}
+/* 3 — flip phone */
+.gadget3 {
+  width: 132px;
+  height: 188px;
+  border-radius: 26px;
+  background: linear-gradient(150deg, #ffffff, #e3e9f4 45%, #aab6c9);
+}
+.gadget3::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 10px;
+  height: 82px;
+  border-radius: 16px 16px 6px 6px;
+  background: linear-gradient(#3f8ae8, #134a9e);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.6);
+}
+.gadget3::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  height: 82px;
+  border-radius: 6px 6px 16px 16px;
+  background-image: radial-gradient(
+    circle at 5px 5px,
+    rgba(255, 255, 255, 0.95) 0 2.2px,
+    rgba(255, 255, 255, 0) 3px
+  );
+  background-size: 13px 13px;
+  background-color: #ffab21;
+}
+/* Still digging: a laptop with a blinking "SEARCHING…" screen. */
+.gadgetIdle {
+  width: 180px;
+  height: 130px;
+  border-radius: 16px;
+  background: linear-gradient(150deg, #e9eef7, #98a6bc);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.3);
+}
+.gadgetIdleScreen {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 20px;
+  height: 52px;
+  border-radius: 6px;
+  background: linear-gradient(#123021, #061309);
+  border: 2px solid #dfe5ee;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-family: Silkscreen, monospace;
+  font-size: 18px;
+  color: #8dff6a;
+}
+.gadgetIdleScreen > span {
+  animation: blink 1.1s steps(1) infinite;
+}
+.gadgetIdleKeys {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  gap: 8px;
+}
+.gadgetIdleKeys > span {
+  width: 24px;
+  height: 18px;
+  border-radius: 5px;
+  background: linear-gradient(#ffffff, #b9c6da);
+}
+.gadgetIdleKeys > span:last-child {
+  background: linear-gradient(#ffb0a4, #d92e1c);
+}
+
+/* --------------------------------------------------------------- playback */
 .juke {
   display: flex;
-  gap: 40px;
-  align-items: stretch;
+  flex-direction: column;
   height: 100%;
+  gap: 22px;
 }
+.jukeWin {
+  width: 1500px;
+  align-self: center;
+  flex: none;
+}
+.jukeBody {
+  padding: 30px 46px 34px;
+  display: flex;
+  gap: 44px;
+  align-items: center;
+}
+/* The art slot: holds the (audio-bearing) YouTube frame, masked by the mystery disc. */
 .tile {
   position: relative;
-  width: 760px;
-  height: 760px;
-  border-radius: 24px;
+  width: 400px;
+  height: 400px;
+  border-radius: 14px;
   overflow: hidden;
-  background: #100c1c;
-  border: 1px solid rgba(255, 255, 255, 0.08);
   flex: none;
+  background: repeating-linear-gradient(135deg, #b8c8e0 0 12px, #a2b4d0 12px 24px);
+  border: 3px solid #6d86a6;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
 }
 .tile iframe,
 .tile img {
@@ -242,60 +1051,76 @@
   object-fit: cover;
   display: block;
 }
+/* While the track is a mystery, a spinning burned CD-R covers the art. */
 .mystery {
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  background: radial-gradient(circle at 50% 40%, #2a1f45, #0f0b1c);
+  background: linear-gradient(#f4f8ff, #c9d9f2);
   transition: opacity 0.8s ease;
 }
 .mystery.hide {
   opacity: 0;
   pointer-events: none;
 }
-.mysteryMark {
-  font-size: 200px;
+.disc {
+  position: relative;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #dfe9f7, #ffd9f2, #d6f7ff, #fff3cf, #e2ffe4, #dfe9f7);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
+  animation: spin 8s linear infinite;
 }
-.mysteryText {
-  font-size: 30px;
-  color: #c9b8f0;
-  letter-spacing: 2px;
+.disc::before {
+  content: "";
+  position: absolute;
+  inset: 33%;
+  border-radius: 50%;
+  background: linear-gradient(#f6f9ff, #cbd7e9);
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.9);
+}
+.disc::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border-radius: 50%;
+  background: #1b2b47;
 }
 .jukeSide {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 22px;
+  gap: 20px;
 }
-.playbackPrompt {
-  padding: 20px 24px;
-  border-radius: 18px;
-  background: linear-gradient(160deg, #1c1630, #120d20);
-  border: 1px solid rgba(255, 62, 165, 0.25);
+.mysteryMark {
+  font-family: "Permanent Marker", cursive;
+  font-size: 88px;
+  line-height: 1;
+  color: #1b3a6b;
 }
-.playbackPromptKicker {
-  font-size: 16px;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  color: #ff3ea5;
-  margin-bottom: 8px;
-}
-.playbackPromptText {
-  font-size: 34px;
-  font-weight: 800;
-  line-height: 1.15;
-}
-.trackCounter {
+.mysteryText {
   font-size: 26px;
-  color: #9aa4b8;
-  letter-spacing: 3px;
-  text-transform: uppercase;
+  color: #33507d;
 }
+.metaTitle {
+  font-family: Anton, sans-serif;
+  font-size: 66px;
+  line-height: 1.05;
+  color: #12335e;
+}
+.metaArtist {
+  font-size: 30px;
+  color: #33507d;
+}
+/* Metadata cross-fades in once the mystery window is up (see METADATA_REVEAL_MS). */
 .meta {
   opacity: 0;
   transform: translateY(14px);
@@ -307,79 +1132,99 @@
   opacity: 1;
   transform: none;
 }
-.metaTitle {
-  font-size: 58px;
-  font-weight: 800;
-  line-height: 1.1;
+.chipRow {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
 }
-.metaArtist {
+/* XP progress trough with the classic marching hatched fill. */
+.progress {
+  height: 30px;
+  border-radius: 15px;
+  background: linear-gradient(#c4d2e8, #e9f0fb);
+  border: 2px solid #6d86a6;
+  overflow: hidden;
+}
+.barFill {
+  height: 100%;
+  background-image: repeating-linear-gradient(90deg, #6fd93a 0 18px, #4bb61f 18px 28px);
+  background-size: 56px 100%;
+  animation: slide 1s linear infinite;
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.6);
+  transition: width 0.4s linear;
+}
+.trackCounter {
+  font-family: Silkscreen, monospace;
   font-size: 34px;
-  color: #22e0ff;
-  margin-top: 10px;
+  color: #8dc4ff;
 }
 .secretTag {
-  font-size: 24px;
-  color: #6b7488;
-  margin-top: 24px;
-}
-.countdown {
-  font-size: 30px;
-  color: #ffd21a;
-  font-variant-numeric: tabular-nums;
+  font-family: "Permanent Marker", cursive;
+  font-size: 32px;
+  color: #ffd0e8;
+  text-align: center;
 }
 
-/* Voting list (no submitters shown) */
+/* ---------------------------------------------------------------- voting */
 .songGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
-  margin-top: 20px;
+  gap: 16px;
+  align-content: start;
+  overflow: hidden;
 }
 .songRow {
   display: flex;
   align-items: center;
   gap: 18px;
-  background: #171326;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 16px 20px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 3px solid #17439a;
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.9);
+  padding: 14px 18px;
 }
 .songNum {
-  font-size: 34px;
-  font-weight: 800;
-  color: #ff3ea5;
-  width: 44px;
+  font-family: Silkscreen, monospace;
+  font-size: 32px;
+  color: #e01f86;
+  width: 46px;
   text-align: center;
+  flex: none;
 }
 .songThumb {
-  width: 84px;
-  height: 84px;
-  border-radius: 10px;
+  width: 108px;
+  height: 74px;
+  border-radius: 8px;
   object-fit: cover;
-  background: linear-gradient(135deg, #2a1f45, #123);
+  border: 2px solid #6d86a6;
+  background: repeating-linear-gradient(135deg, #b8c8e0 0 10px, #a2b4d0 10px 20px);
   flex: none;
 }
 .songInfo {
   min-width: 0;
 }
 .songTitle {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
+  color: #12335e;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .songArtist {
-  font-size: 22px;
-  color: #22e0ff;
+  font-size: 20px;
+  color: #4a6083;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Tally — sliced bars.  Each lane is one song; each voter is a chip (slice) labelled with the
-   player's name.  Chips are absolutely positioned siblings keyed by voterId, so when a song is
-   eliminated a chip SLIDES to the bar of the voter's next choice instead of remounting. */
+/* ----------------------------------------------------------------- tally */
+/* Runoff bars drawn as XP loading bars.  Each lane is a song; each voter is one hatched
+   slice inside the trough.  Slices are absolutely-positioned siblings keyed by voterId,
+   so an eliminated song's slices SLIDE across to their next choice instead of remounting. */
 .tallyStage {
   position: relative;
-  margin-top: 20px;
 }
 .tallyLane {
   position: absolute;
@@ -388,44 +1233,62 @@
   height: 90px;
   display: flex;
   align-items: center;
-  border-radius: 14px;
-  background: rgba(23, 19, 38, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.06);
   transition:
     opacity 0.5s ease,
-    filter 0.5s ease,
-    box-shadow 0.5s ease;
+    filter 0.5s ease;
 }
 .tallyLane.eliminated {
-  opacity: 0.32;
+  opacity: 0.55;
   filter: grayscale(0.7);
-}
-.tallyLane.winner {
-  box-shadow:
-    0 0 0 2px rgba(255, 210, 26, 0.7) inset,
-    0 8px 30px rgba(255, 62, 165, 0.25);
 }
 .laneLabel {
   flex: none;
-  padding: 0 22px;
+  padding: 0 32px 0 0;
+  text-align: right;
   overflow: hidden;
+}
+.laneLabel .songTitle {
+  font-size: 30px;
+  color: #ffffff;
+}
+.laneLabel .songArtist {
+  font-size: 20px;
+  color: #bfd4f2;
+}
+.tallyLane.eliminated .songTitle {
+  color: #c9d7ea;
+  text-decoration: line-through;
+}
+.tallyLane.eliminated .songArtist {
+  color: #96abc9;
 }
 .laneBar {
   position: absolute;
-  top: 10px;
-  bottom: 10px;
-  right: 70px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  top: 6px;
+  bottom: 6px;
+  right: 80px;
+  border-radius: 39px;
+  background: linear-gradient(#c4d2e8, #eaf1fb);
+  border: 3px solid #17439a;
+  overflow: hidden;
+}
+.tallyLane.eliminated .laneBar {
+  background: linear-gradient(#b8c4d8, #dde5f1);
+  border-color: #5a749a;
+}
+.tallyLane.winner .laneBar {
+  border-color: #d19a00;
+  box-shadow: 0 0 0 3px rgba(255, 225, 77, 0.6);
 }
 .laneCount {
   position: absolute;
-  right: 22px;
-  font-size: 34px;
-  font-weight: 800;
-  color: #ffd21a;
+  right: 16px;
+  font-family: Silkscreen, monospace;
+  font-size: 40px;
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
 }
+/* One voter = one hatched segment of the loading bar. */
 .voteChip {
   position: absolute;
   top: 0;
@@ -433,89 +1296,251 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 12px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ff3ea5, #22e0ff);
-  color: #0d0b14;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  padding: 0 10px;
+  border-radius: 10px;
+  background-image: repeating-linear-gradient(90deg, #6fd93a 0 22px, #4bb61f 22px 34px);
+  box-shadow:
+    inset 0 8px 0 rgba(255, 255, 255, 0.55),
+    0 4px 10px rgba(0, 0, 0, 0.3);
+  color: #123f0b;
   transition:
     transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
     opacity 0.5s ease;
   overflow: hidden;
 }
 .chipName {
-  font-size: 24px;
-  font-weight: 800;
+  font-size: 22px;
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .submitterReveal {
+  font-family: "Permanent Marker", cursive;
   font-size: 22px;
-  color: #ffd21a;
-  margin-top: 4px;
+  color: #ffe14d;
+  margin-top: 2px;
 }
 
-/* Scoreboard */
+/* ------------------------------------------------------------ scoreboard */
 .scoreList {
-  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
 }
 .scoreItem {
   display: flex;
   align-items: center;
-  gap: 16px;
-  font-size: 32px;
-  padding: 14px 20px;
-  border-radius: 14px;
-  margin: 10px 0;
-  background: #171326;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 26px;
+  border-radius: 16px;
+  background: linear-gradient(#f4f8ff, #d3e0f4);
+  border: 3px solid #17439a;
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.9);
+  padding: 12px 26px;
 }
+/* The leader gets the gold "selected item" treatment. */
 .scoreItem.lead {
-  border-color: rgba(255, 210, 26, 0.6);
+  background: linear-gradient(#fffbe8, #ffe9a8);
+  border-color: #d19a00;
+  box-shadow:
+    inset 0 4px 0 rgba(255, 255, 255, 0.9),
+    0 10px 24px rgba(0, 0, 0, 0.3);
+}
+.scoreRank {
+  font-family: Silkscreen, monospace;
+  font-size: 44px;
+  color: #5a749a;
+  width: 54px;
+  flex: none;
+}
+.scoreItem.lead .scoreRank {
+  color: #a86200;
+}
+.scoreName {
+  font-family: Anton, sans-serif;
+  font-size: 42px;
+  flex: 1;
+  min-width: 0;
+  color: #12335e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scoreItem.lead .scoreName {
+  color: #4a2600;
+}
+.roundPoint {
+  font-size: 22px;
+  font-weight: 700;
+  color: #2fa316;
+  flex: none;
+}
+/* Progress pips: one per point needed to win. */
+.pips {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+.pip {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(#eef2f9, #c2ccdb);
+  border: 2px solid #8d9cb3;
+}
+.pip.on {
+  background: linear-gradient(#9fd0ff, #2f6ec4);
+  border-color: #17439a;
+}
+.scoreItem.lead .pip.on {
+  background: linear-gradient(#ffe07a, #e0a000);
+  border-color: #a86200;
 }
 .scoreVal {
-  margin-left: auto;
-  font-size: 40px;
-  font-weight: 800;
-  color: #ffd21a;
+  font-family: Silkscreen, monospace;
+  font-size: 48px;
+  color: #12335e;
+  width: 74px;
+  text-align: right;
+  flex: none;
 }
-.winnerBanner {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  font-size: 42px;
-  font-weight: 800;
-  margin: 20px 0;
+.scoreItem.lead .scoreVal {
+  color: #4a2600;
 }
 
-/* GameOver links */
+/* ------------------------------------------------------------- game over */
+.overWrap {
+  display: flex;
+  gap: 44px;
+  height: 100%;
+  align-items: flex-start;
+}
+.overLeft {
+  width: 700px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.winnerBanner {
+  font-family: Anton, sans-serif;
+  font-size: 116px;
+  line-height: 0.92;
+  letter-spacing: -0.01em;
+  background: linear-gradient(#ffffff, #f0f7ff 28%, #a9c9f2 46%, #6b9ce0 56%, #ffffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 4px 0 rgba(6, 20, 48, 0.85));
+}
+.winnerFaces {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.overButtons {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+/* The souvenir burned disc, with the winner's name inked around the rim. */
+.mixDisc {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  margin-top: 6px;
+}
+.mixDiscFace {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #dfe9f7, #ffd9f2, #d6f7ff, #fff3cf, #e2ffe4, #dfe9f7);
+  box-shadow: 0 24px 46px rgba(0, 0, 0, 0.55);
+  animation: spin 10s linear infinite;
+}
+.mixDiscFace svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.mixDiscLabel {
+  font-family: "Permanent Marker", cursive;
+  font-size: 34px;
+  fill: #1b2b47;
+}
+.mixDiscHub {
+  position: absolute;
+  inset: 33%;
+  border-radius: 50%;
+  background: linear-gradient(#f6f9ff, #cbd7e9);
+}
+.mixDiscHub::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  background: #1b2b47;
+}
+.tapeWin {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+.overScroll {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
 .linkRound {
-  background: #171326;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 18px 24px;
-  margin: 14px 0;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 2px solid #a8bcd8;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .linkPrompt {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 700;
-  margin-bottom: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #e01f86;
 }
 .linkSong {
   font-size: 22px;
-  color: #cbd3e1;
-  margin: 6px 0;
+  color: #4a6083;
 }
 .linkSong a {
-  color: #22e0ff;
+  color: #12335e;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(18, 51, 94, 0.35);
+}
+.linkSong a:hover {
+  color: #e01f86;
 }
 .linkWin {
-  color: #ffd21a;
+  font-size: 25px;
+  color: #12335e;
   font-weight: 700;
 }
-.overScroll {
-  height: 820px;
-  overflow-y: auto;
-  padding-right: 10px;
+.linkWin a {
+  color: #12335e;
+  border-bottom-color: rgba(47, 163, 22, 0.6);
+}
+.linkWinTag {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2fa316;
 }
