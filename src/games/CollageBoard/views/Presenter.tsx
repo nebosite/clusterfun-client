@@ -6,7 +6,7 @@ import { observer, inject } from "mobx-react";
 import styles from "./Presenter.module.css";
 import classNames from "classnames";
 import CollageBoardAssets from "../assets/Assets";
-import { CollageBoardVersion } from "../models/GameSettings";
+import { COLLAGE_BOARD_VERSION_HISTORY } from "../models/GameSettings";
 import {
   MediaHelper,
   UIProperties,
@@ -16,6 +16,7 @@ import {
   DevUI,
   UINormalizer,
   PlayerAvatar,
+  GameVersionTag,
 } from "libs";
 import {
   CollageBoardPresenterModel,
@@ -340,7 +341,13 @@ export default class Presenter extends React.Component<{
         </button>
         <div className={classNames(styles.roomCode)}>Room Code: {appModel.roomId}</div>
         <DevUI context={appModel} children={<div></div>} />
-        <div style={{ marginLeft: "50px" }}>v{CollageBoardVersion}</div>
+        <div style={{ marginLeft: "50px" }}>
+          <GameVersionTag
+            title="CollageBoard"
+            history={COLLAGE_BOARD_VERSION_HISTORY}
+            showChanges
+          />
+        </div>
       </div>
     );
   }

@@ -5,7 +5,7 @@ import { observer, inject } from "mobx-react";
 import { StressatoClientModel } from "../models/ClientModel";
 import styles from "./Client.module.css";
 import classNames from "classnames";
-import { UIProperties, UINormalizer, ErrorBoundary, Row, ClientHeader } from "libs";
+import { UIProperties, UINormalizer, ErrorBoundary, Row, ClientHeader, ScaleToWidth } from "libs";
 
 interface NumberAdjusterProps {
   value: number;

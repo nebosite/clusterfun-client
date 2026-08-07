@@ -1,7 +1,20 @@
 // Game-wide tuning constants. Keep every magic number here so the game can be
 // re-balanced without hunting through the logic files.
 
-export const FaceOffVersion = "0.1.0";
+import { GameVersionEntry, currentVersion } from "libs";
+
+// The version IS the newest entry here - see libs/config/GameVersion.ts.  Newest FIRST.
+export const FACE_OFF_VERSION_HISTORY: GameVersionEntry[] = [
+  {
+    version: "0.1.0",
+    changes: [
+      "First release: two players race a prompt on camera, the rest of the room judges.",
+      "Contestants are paired into matchups; players without a camera judge instead.",
+      "Submissions are tagged with the round id, so a late upload from a previous round is dropped rather than shown.",
+    ],
+  },
+];
+export const FaceOffVersion = currentVersion(FACE_OFF_VERSION_HISTORY);
 
 // ---- Flow / rounds ---------------------------------------------------------
 export const TOTAL_ROUNDS = 5;

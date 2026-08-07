@@ -15,7 +15,7 @@ import {
   GeneralClientGameState,
   ScaleToWidth,
   ErrorBoundary,
-  PlayerAvatar,
+  ClientHeader,
 } from "libs";
 import Logger from "js-logger";
 import {
@@ -42,6 +42,7 @@ import {
   CONTEXT_MIN_MARGIN,
   PREVIEW_WIDTH,
   PREVIEW_HEIGHT,
+  COLLAGE_BOARD_VERSION_HISTORY,
 } from "../models/GameSettings";
 import { startCamera, stopCamera, canvasToJpegUnderSize, loadImageFromFile } from "./cameraCapture";
 
@@ -863,18 +864,18 @@ export default class Client extends React.Component<{
           fillHeight
         >
           <div className={styles.gameclient}>
-            <div
-              className={classNames(styles.divRow, styles.topbar)}
+            {/* The bar keeps this player's own colour - it is how you tell your patches
+                from everybody else's on the shared board. */}
+            <ClientHeader
+              className={styles.topbar}
               style={{ backgroundColor: appModel?.myColor ?? "#ffffff" }}
-            >
-              <span className={classNames(styles.gametitle)}>CollageBoard</span>
-              <span>
-                <PlayerAvatar avatarId={appModel?.avatarId ?? 0} size={40} /> {appModel?.playerName}
-              </span>
-              <button className={classNames(styles.quitbutton)} onClick={() => appModel?.quitApp()}>
-                X
-              </button>
-            </div>
+              title="CollageBoard"
+              history={COLLAGE_BOARD_VERSION_HISTORY}
+              avatarId={appModel?.avatarId ?? 0}
+              avatarColor={appModel?.avatarColor}
+              playerName={appModel?.playerName}
+              onQuit={() => appModel?.quitApp()}
+            />
             <div className={styles.clientBody}>
               <ErrorBoundary>{this.renderSubScreen()}</ErrorBoundary>
             </div>

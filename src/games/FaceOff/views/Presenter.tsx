@@ -5,7 +5,7 @@ import { observer, inject } from "mobx-react";
 import styles from "./Presenter.module.css";
 import classNames from "classnames";
 import FaceOffAssets from "../assets/Assets";
-import { FaceOffVersion, POINTS_PER_VOTE, WIN_BONUS } from "../models/GameSettings";
+import { FACE_OFF_VERSION_HISTORY, POINTS_PER_VOTE, WIN_BONUS } from "../models/GameSettings";
 import {
   MediaHelper,
   UIProperties,
@@ -15,6 +15,7 @@ import {
   DevUI,
   UINormalizer,
   PlayerAvatar,
+  GameVersionTag,
 } from "libs";
 import {
   FaceOffPresenterModel,
@@ -405,7 +406,9 @@ export default class Presenter extends React.Component<{
         </button>
         <div className={styles.roomCode}>Room {appModel.roomId}</div>
         <DevUI context={appModel} children={<div></div>} />
-        <div className={styles.version}>v{FaceOffVersion}</div>
+        <div className={styles.version}>
+          <GameVersionTag title="Face Off" history={FACE_OFF_VERSION_HISTORY} showChanges />
+        </div>
       </div>
     );
   }

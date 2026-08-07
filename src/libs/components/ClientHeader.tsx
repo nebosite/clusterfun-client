@@ -48,8 +48,47 @@ export interface ClientHeaderProps {
 const AVATAR_SOLO = 80;
 const AVATAR_STACKED = 48;
 
+/** Matches .titleSlot's font-size, and the floor below which a name is not worth shrinking. */
+export const TITLE_BASE_PX = 52;
+export const TITLE_MIN_PX = 24;
+
+/**
+ * The font size a text title has to drop to so it fits its region, given what it measured at
+ * the base size. Pure so the arithmetic is testable without a browser.
+ *
+ * The stylesheet's 52px was chosen against ONE font - the comment there says as much - and
+ * the header does not set a font-family, so each game's own face applies. "PASS THE AUX" in
+ * that game's Verdana wanted 425px of a 350px slot and was cut mid-word.
+ */
+export function fitTitleFontSize(
+  base: number,
+  scrollWidth: number,
+  clientWidth: number,
+  min: number,
+): number {
+  if (clientWidth <= 0 || scrollWidth <= clientWidth) return base;
+  return Math.max(min, Math.floor((base * clientWidth) / scrollWidth));
+}
+
 export function ClientHeader(props: ClientHeaderProps) {
   const hasTeam = !!props.team;
+  const titleRef = React.useRef<HTMLSpanElement>(null);
+
+  // Only a STRING title is auto-fitted. An element title (a wordmark, an <img>) sizes itself -
+  // PartyPix's sets its own font-size in the game's own units - so shrinking this span's font
+  // would do nothing but loop.
+  const autoFit = typeof props.title === "string";
+  React.useLayoutEffect(() => {
+    const el = titleRef.current;
+    if (!el || !autoFit) return;
+    el.style.fontSize = `${TITLE_BASE_PX}px`;
+    el.style.fontSize = `${fitTitleFontSize(
+      TITLE_BASE_PX,
+      el.scrollWidth,
+      el.clientWidth,
+      TITLE_MIN_PX,
+    )}px`;
+  }, [props.title, autoFit]);
 
   const who = (
     <span className={styles.who}>
@@ -69,7 +108,9 @@ export function ClientHeader(props: ClientHeaderProps) {
   return (
     <div className={[styles.header, props.className].filter(Boolean).join(" ")} style={props.style}>
       <span className={styles.brand}>
-        <span className={styles.titleSlot}>{props.title}</span>
+        <span className={styles.titleSlot} ref={titleRef}>
+          {props.title}
+        </span>
       </span>
 
       <span

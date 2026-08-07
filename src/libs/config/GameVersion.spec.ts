@@ -6,6 +6,9 @@ import { PARTY_PIX_VERSION_HISTORY } from "../../games/PartyPix/models/GameSetti
 import { RETROSPECTRO_VERSION_HISTORY } from "../../games/RetroSpectro/models/GameSettings";
 import { TEMPLATE_VERSION_HISTORY } from "../../games/TemplateGame/models/GameSettings";
 import { STRESSATO_VERSION_HISTORY } from "../../games/stressgame/models/GameSettings";
+import { PASS_THE_AUX_VERSION_HISTORY } from "../../games/PassTheAux/models/GameSettings";
+import { FACE_OFF_VERSION_HISTORY } from "../../games/FaceOff/models/GameSettings";
+import { COLLAGE_BOARD_VERSION_HISTORY } from "../../games/CollageBoard/models/GameSettings";
 
 // ==========================================================================================
 // A game's version IS the newest entry of its change history, so the two cannot drift and a
@@ -19,6 +22,9 @@ const HISTORIES = {
   "101": ONE_OH_ONE_VERSION_HISTORY,
   PartyPix: PARTY_PIX_VERSION_HISTORY,
   RetroSpectro: RETROSPECTRO_VERSION_HISTORY,
+  PassTheAux: PASS_THE_AUX_VERSION_HISTORY,
+  FaceOff: FACE_OFF_VERSION_HISTORY,
+  CollageBoard: COLLAGE_BOARD_VERSION_HISTORY,
   Template: TEMPLATE_VERSION_HISTORY,
   Stressato: STRESSATO_VERSION_HISTORY,
 };

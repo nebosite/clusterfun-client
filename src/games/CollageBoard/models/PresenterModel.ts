@@ -9,6 +9,7 @@ import {
   ITypeHelper,
   PresenterGameState,
   GeneralGameState,
+  ReconnectInfo,
 } from "libs";
 import Logger from "js-logger";
 import { InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
@@ -178,6 +179,20 @@ export class CollageBoardPresenterModel extends ClusterfunPresenterModel<Collage
   private _previewTimer: ReturnType<typeof setTimeout> | null = null;
   private _previewRebuildQueued = false;
   private _lastPreviewPushTime = 0;
+
+  // -------------------------------------------------------------------
+  //  onPlayerReturned - their claim is still their claim.
+  //
+  //  `CollageZone.playerId` and `CollagePatch.authorId` are stable player ids, and every
+  //  lookup in here matches on `p.playerId === sender`, so a phone that drops mid-shot comes
+  //  back still owning the outline it was lining up. Their committed patches were never in
+  //  question - those are pixels on the board.
+  //
+  //  Known gap, left alone deliberately because it belongs to onPlayerDisconnected rather
+  //  than here: a zone claimed by somebody who never comes back stays claimed, and nothing
+  //  reaps it.
+  // -------------------------------------------------------------------
+  protected onPlayerReturned(_player: CollageBoardPlayer, _info: ReconnectInfo) {}
 
   // -------------------------------------------------------------------
   // ctor

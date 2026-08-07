@@ -9,6 +9,7 @@ import {
   ITypeHelper,
   PresenterGameState,
   GeneralGameState,
+  ReconnectInfo,
 } from "libs";
 import Logger from "js-logger";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
@@ -165,6 +166,19 @@ export class PassTheAuxPresenterModel extends ClusterfunPresenterModel<PassTheAu
 
   // The round's songs in playback == voting order (observable so the jukebox re-renders).
   roundSongs = observable<RoundSong>([]);
+
+  // -------------------------------------------------------------------
+  //  onPlayerReturned - nothing to migrate, and that is the answer.
+  //
+  //  Everything this game keeps about a player - `score`, this round's `submission`, and
+  //  their `ballot` - lives on the PassTheAuxPlayer object, which stays in `players` with
+  //  its state while they are gone and keeps its permanent `playerId`. So a phone coming
+  //  back is still the same player to every part of the game.
+  //
+  //  The phone pulls the round, the songs and its own ballot back through
+  //  PassTheAuxOnboardClientEndpoint on rejoin, so there is nothing to push at it here.
+  // -------------------------------------------------------------------
+  protected onPlayerReturned(_player: PassTheAuxPlayer, _info: ReconnectInfo) {}
 
   // -------------------------------------------------------------------
   // Derived views over the state.

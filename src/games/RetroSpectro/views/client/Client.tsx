@@ -13,6 +13,7 @@ import {
   GeneralGameState,
   GeneralClientGameState,
   ClientHeader,
+  ScaleToWidth,
 } from "libs";
 import styles from "./Client.module.css";
 import { ErrorBoundary } from "libs/components/ErrorBoundary";

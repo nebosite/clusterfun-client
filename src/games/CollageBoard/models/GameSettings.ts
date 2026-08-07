@@ -1,6 +1,19 @@
 // Game-wide tuning constants.  Keep every magic number here so a game designer can
 // re-balance the game without hunting through logic files.
-export const CollageBoardVersion = "0.1.0";
+import { GameVersionEntry, currentVersion } from "libs";
+
+// The version IS the newest entry here - see libs/config/GameVersion.ts.  Newest FIRST.
+export const COLLAGE_BOARD_VERSION_HISTORY: GameVersionEntry[] = [
+  {
+    version: "0.1.0",
+    changes: [
+      "First release: claim an outline on the shared board and fill it with a photo.",
+      "Photos are clipped to the outline's polygon and composited into one growing collage.",
+      "Framing editor on the phone with pan, zoom and tilt before the shot is committed.",
+    ],
+  },
+];
+export const CollageBoardVersion = currentVersion(COLLAGE_BOARD_VERSION_HISTORY);
 
 // The shared canvas is a 16:9 surface addressed in normalized 0..1 x 0..1 coordinates.
 export const CANVAS_ASPECT = 16 / 9;

@@ -1,6 +1,20 @@
 // Game-wide tuning constants.  Keep every magic number here so a game designer can
 // re-balance Pass the AUX without hunting through logic files.
-export const PassTheAuxVersion = "0.1.0";
+import { GameVersionEntry, currentVersion } from "libs";
+
+// The version IS the newest entry here - see libs/config/GameVersion.ts.  Newest FIRST.
+export const PASS_THE_AUX_VERSION_HISTORY: GameVersionEntry[] = [
+  {
+    version: "0.1.0",
+    changes: [
+      "First release: answer the prompt with a song, then rank everyone's picks.",
+      "Presenter jukebox plays a 30 second window of each track through the YouTube player.",
+      "Title and artist stay hidden for the first few seconds of playback, armed off the real playback-start event so a slow buffer does not shorten the mystery.",
+      "Winner decided by instant-runoff over the ranked ballots.",
+    ],
+  },
+];
+export const PassTheAuxVersion = currentVersion(PASS_THE_AUX_VERSION_HISTORY);
 
 // Scoring / win condition
 export const DEFAULT_TARGET_SCORE = 5;

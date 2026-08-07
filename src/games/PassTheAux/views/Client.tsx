@@ -14,10 +14,15 @@ import {
   SafeBrowser,
   ScaleToWidth,
   ErrorBoundary,
-  PlayerAvatar,
+  ClientHeader,
 } from "libs";
 import { PassTheAuxClientModel, PassTheAuxClientState } from "../models/ClientModel";
-import { MAX_BALLOT, CLIENT_PREVIEW_MS, SONG_PLAY_MS } from "../models/GameSettings";
+import {
+  MAX_BALLOT,
+  CLIENT_PREVIEW_MS,
+  SONG_PLAY_MS,
+  PASS_THE_AUX_VERSION_HISTORY,
+} from "../models/GameSettings";
 import { Track, isRealVideoId } from "../models/musicProvider";
 import { YouTubePlayer } from "./YouTubePlayer";
 
@@ -428,15 +433,15 @@ export default class Client extends React.Component<{
         <div className={styles.gameclient}>
           <div className={styles.noise} />
           <div className={styles.sparkles} />
-          <div className={styles.topbar}>
-            <span className={styles.gametitle}>PASS THE AUX</span>
-            <span className={styles.me}>
-              <PlayerAvatar avatarId={m?.avatarId ?? 0} size={44} /> {m?.playerName}
-            </span>
-            <button className={styles.quitbutton} onClick={() => m?.quitApp()}>
-              ✕
-            </button>
-          </div>
+          <ClientHeader
+            className={styles.header}
+            title="PASS THE AUX"
+            history={PASS_THE_AUX_VERSION_HISTORY}
+            avatarId={m?.avatarId ?? 0}
+            avatarColor={m?.avatarColor}
+            playerName={m?.playerName}
+            onQuit={() => m?.quitApp()}
+          />
           <div className={styles.body}>
             <ErrorBoundary>{this.renderSubScreen()}</ErrorBoundary>
           </div>

@@ -9,19 +9,22 @@ import releaseGames from "./gamesListRelease";
 // Games that only exist in a debug build.  Reaching them at all is
 // gated by REACT_APP_SHOW_DEBUG_GAMES (see GameChooser), and the server
 // manifest is what keeps them out of production.
+//
+// No `tags` here: a registry entry deliberately cannot carry them (see GameDescriptor).
+// Tags come from the SERVER manifest, which is the only thing that decides what production
+// shows and how it is badged - a debug tag set here would have been ignored in production
+// and, being outside the manifest, these are already invisible there.
 // -------------------------------------------------------------------
 const debugOnlyGames: GameDescriptor[] = [
   {
     name: "FaceOff",
     displayName: "Face Off",
-    tags: ["debug"],
     logoName: FaceOffAssets.images.logo,
     importThunk: () => import("../FaceOff/views/GameComponent"),
   },
   {
     name: "CollageBoard",
     displayName: "Collage Board",
-    tags: ["debug"],
     logoName: CollageBoardAssets.images.logo,
     importThunk: () => import("../CollageBoard/views/GameComponent"),
   },

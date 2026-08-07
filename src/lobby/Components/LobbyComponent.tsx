@@ -13,7 +13,7 @@ import {
   SafeBrowser,
   UIProperties,
   UINormalizer,
-  ScaleToWidth
+  ScaleToWidth,
 } from "libs";
 
 import Logger from "js-logger";

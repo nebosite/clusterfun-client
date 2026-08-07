@@ -17,10 +17,11 @@ import {
   DevUI,
   UINormalizer,
   PlayerAvatar,
+  GameVersionTag,
 } from "libs";
 import PassTheAuxAssets from "../assets/Assets";
 import {
-  PassTheAuxVersion,
+  PASS_THE_AUX_VERSION_HISTORY,
   METADATA_REVEAL_MS,
   METADATA_FADE_MS,
   AUDIO_FADE_MS,
@@ -1031,7 +1032,9 @@ export default class Presenter extends React.Component<{
         <span className={styles.lcd}>ROOM {m.roomId}</span>
         <span className={styles.recDot} />
         <DevUI context={m} children={<div></div>} />
-        <span className={styles.version}>v{PassTheAuxVersion}</span>
+        <span className={styles.version}>
+          <GameVersionTag title="Pass the AUX" history={PASS_THE_AUX_VERSION_HISTORY} showChanges />
+        </span>
       </div>
     );
   }

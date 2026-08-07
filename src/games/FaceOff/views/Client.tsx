@@ -11,6 +11,7 @@ import {
   ScaleToWidth,
   ErrorBoundary,
   PlayerAvatar,
+  ClientHeader,
 } from "libs";
 import { FaceOffClientModel, FaceOffClientState } from "../models/ClientModel";
 import { PromptInfo } from "../models/prompts";
@@ -23,6 +24,7 @@ import {
   JPEG_QUALITY_MIN,
   JPEG_QUALITY_STEP,
   THUMB_JPEG_QUALITY,
+  FACE_OFF_VERSION_HISTORY,
 } from "../models/GameSettings";
 
 const IMG_OPTS: UploadImageOptions = {
@@ -365,15 +367,15 @@ export default class Client extends React.Component<{
         fillHeight
       >
         <div className={styles.gameclient}>
-          <div className={styles.header}>
-            <Wordmark />
-            <span className={styles.headerName}>
-              <PlayerAvatar avatarId={appModel?.avatarId ?? 0} size={40} /> {appModel?.playerName}
-            </span>
-            <button className={styles.quit} onClick={() => appModel?.quitApp()}>
-              ✕
-            </button>
-          </div>
+          <ClientHeader
+            className={styles.header}
+            title={<Wordmark />}
+            history={FACE_OFF_VERSION_HISTORY}
+            avatarId={appModel?.avatarId ?? 0}
+            avatarColor={appModel?.avatarColor}
+            playerName={appModel?.playerName}
+            onQuit={() => appModel?.quitApp()}
+          />
           <ErrorBoundary>{this.renderSubScreen()}</ErrorBoundary>
         </div>
       </ScaleToWidth>

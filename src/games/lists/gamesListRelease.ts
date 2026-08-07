@@ -27,9 +27,10 @@ const releaseGames: GameDescriptor[] = [
     displayName: "101",
     logoName: OneOhOneAssets.images.logo,
     importThunk: () => import("../OneOhOne/views/GameComponent"),
+  },
+  {
     name: "PassTheAux",
     displayName: "Pass the AUX",
-    tags: [],
     logoName: PassTheAuxAssets.images.logo,
     importThunk: () => import("../PassTheAux/views/GameComponent"),
   },

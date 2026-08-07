@@ -9,6 +9,7 @@ import {
   ITypeHelper,
   PresenterGameState,
   GeneralGameState,
+  ReconnectInfo,
 } from "libs";
 import Logger from "js-logger";
 import { GameOverEndpoint, InvalidateStateEndpoint } from "libs/messaging/basicEndpoints";
@@ -183,6 +184,19 @@ export class FaceOffPresenterModel extends ClusterfunPresenterModel<FaceOffPlaye
   @observable needCamera = false; // fewer than 2 camera-capable players → can't form a matchup
   usedPromptIds: string[] = []; // prompt history this game (small, serialized)
   private _snapFired = false; // within Capturing: has the snap been taken yet
+
+  // -------------------------------------------------------------------
+  //  onPlayerReturned - their seat, score and role are still theirs.
+  //
+  //  `score`, `role`, `hasCamera` and `submitted` all live on the FaceOffPlayer object,
+  //  which keeps its permanent `playerId` and stays in `players` while the phone is away, so
+  //  a matchup built around them is still pointing at the right person.
+  //
+  //  `hasCamera` is deliberately NOT re-read here: the phone sends it on the
+  //  FaceOffOnboardEndpoint request it makes on rejoin, which is the same path a fresh join
+  //  takes, and that is the one place the answer is actually known.
+  // -------------------------------------------------------------------
+  protected onPlayerReturned(_player: FaceOffPlayer, _info: ReconnectInfo) {}
 
   get winners(): FaceOffPlayer[] {
     return findWinners(this.players.slice());
