@@ -25,6 +25,35 @@ state and react to its "invalidate" nudges.
 Both roles extend `BaseGameModel`, which provides the game clock/ticker, scheduled events,
 checkpoint save/restore, animation registration, and message-listener bookkeeping.
 
+## The fixed virtual canvas (read before you touch any view)
+
+**Every screen is authored on a fixed canvas and scaled to fit: presenters 1920×1080, clients
+1080×1920, both through `UINormalizer`.** It scales to fit BOTH dimensions and letterboxes the
+remainder, which is what makes one layout correct on a phone, a tablet, a laptop and a
+television with no media queries. Author in canvas pixels — a fixed 120px header really is
+120px of a 1920-tall phone screen everywhere.
+
+```tsx
+<UINormalizer uiProperties={this.props.uiProperties} virtualWidth={1080} virtualHeight={1920}>
+  <div className={styles.gameclient}>…</div>
+</UINormalizer>
+```
+
+- `.gameclient` is `width: 100%; height: 100%` — it fills the canvas, it does not size itself
+  from the device.
+- The letterbox bars are intentional. Colour them with the game's own background by passing
+  `className` / `backdropClassName` (both land on the full-viewport outer div, as Lexible's
+  presenter does); `src/index.css` provides a dark backstop underneath.
+- `onScaleCalc` reports the scale for games that map raw pointer coordinates into the canvas
+  (Lexible's client).
+- **`ScaleToWidth` is not a substitute** — it fits width only and scrolls. Only the lobby
+  presenter uses it, because its game gallery grows past 1080px as games are added.
+
+`libs/components/virtualCanvas.spec.ts` enforces all of this by reading the source, because
+swapping the canvas for a fit-width component breaks no behavioural test and no build — it
+just silently stops being the same UI on every device. The full story is in the
+[root CLAUDE.md](../CLAUDE.md#the-fixed-virtual-canvas--a-platform-requirement-not-a-styling-choice).
+
 ## Source layout
 
 ```

@@ -3,7 +3,7 @@
 /* Overall Formatting */
 .gameclient {
   width: 100%;
-  min-height: var(--sw-fill-height, 1920px);
+  height: 100%;
   background-color: rgb(227, 175, 238);
   background-size: 100%;
   background-repeat: no-repeat;

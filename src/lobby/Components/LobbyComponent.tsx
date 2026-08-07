@@ -667,23 +667,17 @@ export class LobbyComponent extends React.Component<LobbyComponentProps> {
         <PresenterComponent games={games} />
       </ScaleToWidth>
     ) : (
-      // Client: scale-to-fill-width (horizontal proportions preserved), height
-      // flows and scrolls if taller than the screen. Bokeh glows live on the
-      // backdrop stage BEHIND the (transparent) scroll so they fill the space
-      // below the content instead of being clipped inside the content box.
-      <div className={styles.clientStage}>
-        <div className={styles.glowCyan} />
-        <div className={styles.glowMagenta} />
-        <ScaleToWidth
-          virtualWidth={1080}
-          containerWidth={uiProperties.containerWidth}
-          containerHeight={uiProperties.containerHeight}
-          className={styles.clientScroll}
-          hoverScrollbar
-        >
-          <GameClientComponent />
-        </ScaleToWidth>
-      </div>
+      // Client: the 1080x1920 phone canvas, fit-both through UINormalizer like every other
+      // client in the app. `backdropClassName` paints the letterbox margin with the lobby's
+      // own dark stage so the bars read as part of the screen.
+      <UINormalizer
+        uiProperties={uiProperties}
+        virtualWidth={1080}
+        virtualHeight={1920}
+        backdropClassName={styles.clientStage}
+      >
+        <GameClientComponent />
+      </UINormalizer>
     );
   }
 }

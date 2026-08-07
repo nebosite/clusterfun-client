@@ -5,7 +5,7 @@
 .gameclient {
   position: relative;
   width: 100%;
-  min-height: var(--sw-fill-height, 1920px);
+  height: 100%;
   overflow: hidden;
   color: #0d1b33;
   font-family: Verdana, Tahoma, "Segoe UI", sans-serif;

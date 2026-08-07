@@ -5,7 +5,7 @@ import { observer, inject } from "mobx-react";
 import { StressatoClientModel } from "../models/ClientModel";
 import styles from "./Client.module.css";
 import classNames from "classnames";
-import { UIProperties, UINormalizer, ErrorBoundary, Row, ClientHeader, ScaleToWidth } from "libs";
+import { UIProperties, UINormalizer, ErrorBoundary, Row, ClientHeader } from "libs";
 
 interface NumberAdjusterProps {
   value: number;
@@ -136,13 +136,10 @@ export default class Client extends React.Component<{
     const { appModel } = this.props;
     return (
       <div>
-        <ScaleToWidth
-          virtualWidth={1080}
+        <UINormalizer
+          uiProperties={this.props.uiProperties}
           virtualHeight={1920}
-          containerWidth={this.props.uiProperties.containerWidth}
-          containerHeight={this.props.uiProperties.containerHeight}
-          hoverScrollbar
-          fillHeight
+          virtualWidth={1080}
         >
           <div className={styles.gameclient}>
             <ClientHeader
@@ -160,7 +157,7 @@ export default class Client extends React.Component<{
               </ErrorBoundary>
             </div>
           </div>
-        </ScaleToWidth>
+        </UINormalizer>
       </div>
     );
   }

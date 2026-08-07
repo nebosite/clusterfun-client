@@ -13,7 +13,6 @@ import {
   GeneralGameState,
   GeneralClientGameState,
   ClientHeader,
-  ScaleToWidth,
 } from "libs";
 import styles from "./Client.module.css";
 import { ErrorBoundary } from "libs/components/ErrorBoundary";
@@ -167,13 +166,10 @@ export default class Client extends React.Component<{
 
     return (
       <div>
-        <ScaleToWidth
-          virtualWidth={1080}
+        <UINormalizer
+          uiProperties={this.props.uiProperties}
           virtualHeight={1920}
-          containerWidth={this.props.uiProperties.containerWidth}
-          containerHeight={this.props.uiProperties.containerHeight}
-          hoverScrollbar
-          fillHeight
+          virtualWidth={1080}
         >
           <div className={styles.gameclient}>
             <ClientHeader
@@ -189,7 +185,7 @@ export default class Client extends React.Component<{
               <ErrorBoundary>{this.renderSubScreen()}</ErrorBoundary>
             </div>
           </div>
-        </ScaleToWidth>
+        </UINormalizer>
       </div>
     );
   }
