@@ -101,9 +101,14 @@ describe("every game's version history", () => {
     });
   }
 
-  it("starts every game at 0.1.0 on top of the platform's own version", () => {
+  it("gives every game a real released version, on top of the platform's own", () => {
+    // This used to assert every game was EXACTLY 0.1.0, which was true on the day the scheme
+    // landed and became a tripwire the moment a game shipped a change - PartyPix bumping to
+    // 0.2.0 failed it. The rule that actually matters is that a game has been released at
+    // all: 0.0.x means a version nobody has stood behind.
     for (const [game, history] of Object.entries(HISTORIES)) {
-      expect([game, currentVersion(history)]).toEqual([game, "0.1.0"]);
+      const version = currentVersion(history);
+      expect([game, compareVersions(version, "0.1.0") >= 0]).toEqual([game, true]);
     }
   });
 });

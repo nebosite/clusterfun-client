@@ -59,18 +59,19 @@ checkpoint:
     game falls back to in-memory elsewhere. Also generates phone thumbnails from loaded images
     (canvas, via `imageUtil.scaleImageToJpeg`).
 - Flow: `reconstitute()` calls `initPhotoStore()` → `PhotoStore.restore()` reads the remembered
-  handle and `queryPermission()` (no prompt). `granted` (same-session refresh) → load silently;
-  `prompt`/`denied` (new session after a browser restart) → `folderStatus = "needsReconnect"`, the
-  join screen shows a one-click **Reconnect** button (`requestPermission` needs a gesture); no handle
-  → the join screen shows **Choose a folder** + an "include existing photos?" checkbox
-  (`showDirectoryPicker`, also gesture). So a mid-session refresh never re-asks; a new session is one
-  click and never re-picks the folder.
+  handle and `queryPermission()` (no prompt). `granted` (same-session refresh) → the folder is
+  connected and `evaluateResumeOffer()` runs — **it does not load photos**, see "The presenter
+  ALWAYS starts on the setup screen" below; `prompt`/`denied` (new session after a browser restart)
+  → `folderStatus = "needsReconnect"`, the join screen shows a one-click **Reconnect** button
+  (`requestPermission` needs a gesture); no handle → the join screen shows **Choose a folder** + an
+  "include existing photos?" checkbox (`showDirectoryPicker`, also gesture). So a mid-session
+  refresh never re-asks; a new session is one click and never re-picks the folder.
 - **Folder preview:** after `chooseFolder` picks a folder it does NOT start the show — it sets
   `folderPreviewOpen` and loads `folderPreview` (thumbnails of up to 24 image files on disk, via
   `PhotoStore.listImageThumbs`, with the total count). The join card shows those thumbnails, a
   re-toggleable "include these" checkbox (`setIncludeExisting` re-persists), and a **Start slideshow**
-  button (`startFromFolder` → `loadPhotosFromDisk`). `reconnectFolder`/`restore` skip the preview and
-  resume directly. `folderPreview*` are excluded from serialization.
+  button (`startFromFolder` → `loadPhotosFromDisk`). `reconnectFolder`/`restore` skip the preview
+  and land on the resume offer instead. `folderPreview*` are excluded from serialization.
 - On upload, `handleUpload` writes the full JPEG to the folder off the response path and records the
   file name on the `PartyPixPhoto`. On load, `loadPhotosFromDisk` rebuilds `photos` from the folder
   (uploaded files keep their author from the index; pre-existing images appear only if "include
@@ -176,6 +177,49 @@ HAPPEN rather than three numbers that change: **your photo was flagged**, **your
 and **the whole room upvoted one of yours** (`up === players.length - 1`, since an author cannot
 vote on their own). Every one of them explains the credit economy, because "why can I not take
 another photo" is the question the game otherwise never answers out loud.
+
+## The presenter ALWAYS starts on the setup screen
+
+It used to reconnect a remembered folder during `initPhotoStore()` and call
+`loadPhotosFromDisk()`, which set `gameState = Slideshow` the moment it found any photos. In
+production that meant a fresh presenter skipped setup entirely and dropped into the _previous_
+party's slideshow — no room code, no join instructions, no way to start clean.
+
+`reconstitute()` now pins `gameState = Gathering` unconditionally, and startup never loads
+photos. `loadPhotosFromDisk()` is reached only from a host gesture: `startFromFolder`
+(after the folder preview) or `continueLastParty`.
+
+**Continuing an interrupted party** is a question the setup screen asks, not something startup
+decides. `evaluateResumeOffer()` counts the folder's images (`listImageThumbs(0)` — enumerates
+names, decodes no thumbnails) and applies `shouldOfferResume` from `partyPixLogic`:
+
+- photos in the folder, **and**
+- `lastPartyAt` inside `PARTY_RESUME_WINDOW_MS` (24 h).
+
+`lastPartyAt` is stamped on every upload and is **the one folder-related field that IS
+serialized** — it has to outlive the presenter being killed, which is the whole case this
+exists for. Photos in the folder are deliberately _not_ sufficient on their own: the ordinary
+case is a new party in a folder that already holds last week's pictures. Anything older than
+the window is left alone and the host starts clean. **Neither branch touches the files.**
+
+Covered by `models/partyResume.spec.ts`, including the window edge, an empty folder, a
+never-used folder (`lastPartyAt === 0`), and a clock that has gone backwards.
+
+## Keeping a copy on the phone
+
+`saveToDevice` on the client model (serialized, off by default) copies each photo to the
+device as it is uploaded. **A web page cannot write to the photo gallery** — there is no API
+for it. `views/deviceSave.ts` does the only two things that exist:
+
+1. `navigator.share({ files })` when `navigator.canShare` accepts an image — the OS share
+   sheet, whose "Save Image" does reach Photos. Needs a user gesture.
+2. Otherwise an object-URL download: Downloads on Android, Files on iOS, never Photos.
+
+So the toggle says **"Keep a copy on this device"**, not "save to your gallery", which would be
+a lie on desktop and on every browser without the share target. `doUpload` fires the save
+**before** awaiting the upload — an await first would spend the gesture and the share sheet
+would refuse. A dismissed sheet (`AbortError`) is `"cancelled"`, not a failure, and is silent;
+falling through to a download there would be doing it anyway behind the player's back.
 
 ## The photo folder is not optional any more
 

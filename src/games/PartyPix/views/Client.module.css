@@ -181,11 +181,34 @@
   font-size: 64px;
   line-height: 1;
 }
-.costNote {
+/* The cost note and the keep-a-copy toggle share one row, so the 400px top band still holds
+   exactly three children (credits, buttons, this) and nothing has to shrink. */
+.noteRow {
   flex: 0 0 auto;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.costNote {
+  text-align: left;
   font-size: var(--pp-min);
   color: var(--faint);
+}
+.saveToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--pp-min);
+  color: var(--dim);
+  cursor: pointer;
+}
+.saveToggle input {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  accent-color: var(--lime);
 }
 .hiddenInput {
   display: none;

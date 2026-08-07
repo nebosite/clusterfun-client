@@ -15,6 +15,7 @@ import { PartyPixClientModel, PartyPixClientState } from "../models/ClientModel"
 import { fileToUploadPair, dataUrlToUploadPair, UploadImageOptions } from "./imageUtil";
 import { CameraCapture } from "./CameraCapture";
 import { shouldUseInAppCamera } from "./cameraSupport";
+import { savePhotoToDevice, deviceFileName } from "./deviceSave";
 import { GLOBALS } from "../../../Globals";
 import {
   MAX_IMAGE_EDGE,
@@ -133,12 +134,28 @@ export default class Client extends React.Component<
     const { appModel } = this.props;
     const { review } = this.state;
     if (!appModel || !review) return;
+
+    // Keep the copy FIRST, before anything is awaited. The OS share sheet - the only route
+    // that reaches the photo gallery - requires a user gesture, and awaiting the upload first
+    // would spend it. The upload does not depend on the result either way.
+    const keeping = appModel.saveToDevice
+      ? savePhotoToDevice(review.full, deviceFileName(new Date()))
+      : null;
+
     this.setState({ busy: true });
     const res = await appModel.uploadPhoto(review.full, review.thumb);
     this.setState({ busy: false });
     if (res.success) {
       this.setState({ review: null });
-      this.showToast("Sent to the big screen!");
+      const kept = keeping ? await keeping : null;
+      this.showToast(
+        kept === "shared" || kept === "downloaded"
+          ? "Sent to the big screen — and kept a copy."
+          : "Sent to the big screen!",
+      );
+      // "cancelled" is the player dismissing the share sheet, which needs no comment. Only a
+      // real failure is worth a word, and never at the cost of the upload's own good news.
+      if (kept === "failed") this.showToast("Couldn't save a copy to this device.", true);
     } else {
       this.showToast(res.error ?? "Upload failed.", true);
     }
@@ -187,7 +204,22 @@ export default class Client extends React.Component<
                 {busy ? "Processing…" : "UPLOAD A PHOTO"}
               </button>
             </div>
-            <div className={styles.costNote}>Costs 1 credit to upload.</div>
+            {/* Shares the row with the cost note so the 400px band still holds three
+                children - see the band layout in Client.module.css. */}
+            <div className={styles.noteRow}>
+              <span className={styles.costNote}>Costs 1 credit to upload.</span>
+              <label className={styles.saveToggle}>
+                <input
+                  type="checkbox"
+                  checked={appModel.saveToDevice}
+                  onChange={(e) => appModel.setSaveToDevice(e.target.checked)}
+                />
+                {/* Deliberately not "save to my gallery": a web page cannot write there. On a
+                    phone this opens the share sheet, where Save Image does reach Photos; on a
+                    PC it is a download. See deviceSave.ts. */}
+                Keep a copy on this device
+              </label>
+            </div>
           </>
         ) : (
           <div className={styles.outOfCredits}>

@@ -663,3 +663,44 @@
     transition: none !important;
   }
 }
+
+/* ---- "Continue the last party" --------------------------------------------------------
+   The presenter always starts at setup now, so this is the only route back into a party that
+   was interrupted. It is deliberately a choice with two plain buttons rather than a countdown
+   or an auto-resume: the ordinary case is a NEW party in a folder that already has pictures. */
+.resumeOffer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 26px 32px;
+  border-radius: 22px;
+  background: rgba(34, 224, 255, 0.08);
+  border: 2px solid rgba(34, 224, 255, 0.45);
+}
+.resumeHead {
+  font-size: 28px;
+  text-align: center;
+  line-height: 1.35;
+}
+.resumeActions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.resumeSecondary {
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 26px;
+  color: var(--text);
+  background: transparent;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  padding: 12px 28px;
+  cursor: pointer;
+}
+.resumeSecondary:hover {
+  border-color: var(--dim);
+}

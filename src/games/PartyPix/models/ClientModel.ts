@@ -88,6 +88,20 @@ export class PartyPixClientModel extends ClusterfunClientModel {
   @observable currentSlide: PartyPixSlideInfo | null = null;
   @observable viewMode: ClientViewMode = "capture";
 
+  /**
+   * Keep a copy of every photo this phone takes, as well as sending it to the big screen.
+   *
+   * Serialized on purpose - it is a preference, so it should still be set after a refresh or
+   * after the camera app has pushed the browser out of memory. Off by default: a game that
+   * quietly writes files to somebody's phone is not a default anyone chose.
+   */
+  @observable saveToDevice = false;
+
+  setSaveToDevice(value: boolean) {
+    action(() => (this.saveToDevice = value))();
+    this.saveCheckpoint();
+  }
+
   // Which way this player voted each photo (to show active button state).
   myVotes = observable.map<string, "up" | "down">();
   myFlags = observable.set<string>();

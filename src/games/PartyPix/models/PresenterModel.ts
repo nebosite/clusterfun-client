@@ -20,7 +20,12 @@ import {
   PartyPixNoticeEndpoint,
   PartyPixSlideInfo,
 } from "./partyPixEndpoints";
-import { SLIDE_INTERVAL_MS, START_CREDITS, UPLOAD_COST } from "./GameSettings";
+import {
+  SLIDE_INTERVAL_MS,
+  START_CREDITS,
+  UPLOAD_COST,
+  PARTY_RESUME_WINDOW_MS,
+} from "./GameSettings";
 import {
   applyVote,
   applyDeleteRequest,
@@ -30,6 +35,7 @@ import {
   grantCredits,
   imageHash,
   nextSlideIndex,
+  shouldOfferResume,
   shouldPullFromRotation,
   upvotesUntilNextCredit,
 } from "./partyPixLogic";
@@ -173,7 +179,12 @@ export const getPartyPixPresenterTypeHelper = (
           "folderPreviewOpen",
           "folderPreview",
           "folderPreviewTotal",
+          // Re-derived from the folder on every start; never trusted from the checkpoint.
+          "resumeOffer",
         ];
+        // `lastPartyAt` is deliberately NOT skipped - it is the one thing that has to
+        // outlive the presenter being killed, since it is what decides whether the
+        // photos still in the folder belong to a party worth offering to continue.
         if (skip.indexOf(propertyName) !== -1) return false;
       }
       return true;
@@ -225,6 +236,19 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
   @observable folderPreview: { fileName: string; thumb: string; managed: boolean }[] = [];
   @observable folderPreviewTotal = 0;
 
+  /**
+   * When the last photo of the last party landed. Serialized, because it has to survive the
+   * presenter being killed - that is the whole case this exists for.
+   */
+  @observable lastPartyAt = 0;
+
+  /**
+   * A party from the last PARTY_RESUME_WINDOW_MS that is still sitting in the connected
+   * folder, offered on the setup screen as "Continue the last party". Null means start clean,
+   * which is also what a stale party gets.
+   */
+  @observable resumeOffer: { photoCount: number; lastPartyAt: number } | null = null;
+
   constructor(sessionHelper: ISessionHelper, logger: ITelemetryLogger, storage: IStorage) {
     super("PartyPix", sessionHelper, logger, storage);
     makeObservable(this);
@@ -236,10 +260,11 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
 
   reconstitute() {
     super.reconstitute();
-    // Photos live on disk (if a folder is connected) or in memory only. Start on
-    // the join screen; initPhotoStore() will reconnect a remembered folder and
-    // reload its photos, flipping to the slideshow if any exist.
-    if (this.photos.length === 0) this.gameState = PresenterGameState.Gathering;
+    // ALWAYS the setup screen. Photos are never serialized, so this model always comes back
+    // with none - but a remembered folder used to be reconnected and its photos loaded during
+    // startup, which flipped straight to the slideshow and skipped setup entirely. Starting a
+    // party is a decision the host makes; the folder no longer makes it for them.
+    this.gameState = PresenterGameState.Gathering;
     this.listenToEndpoint(PartyPixOnboardEndpoint, this.handleOnboard);
     this.listenToEndpoint(PartyPixUploadEndpoint, this.handleUpload);
     this.listenToEndpoint(PartyPixVoteEndpoint, this.handleVote);
@@ -264,7 +289,41 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
         this.folderName = this.photoStore.folderName;
       }
     })();
-    if (perm === "granted") await this.loadPhotosFromDisk();
+    // NOT loadPhotosFromDisk(). A remembered folder means the host may want to CONTINUE a
+    // party, which is a question, not an answer.
+    if (perm === "granted") await this.evaluateResumeOffer();
+  };
+
+  /**
+   * Decide whether the connected folder holds a party worth offering to continue.
+   *
+   * Three things have to be true: the folder is connected, it actually holds photos, and the
+   * last one landed inside PARTY_RESUME_WINDOW_MS. Older than that and the pictures are
+   * somebody's saved album rather than a party that got interrupted, so the offer is withheld
+   * and the host starts clean. Nothing on disk is touched either way.
+   */
+  private evaluateResumeOffer = async () => {
+    if (this.folderStatus !== "connected") {
+      action(() => (this.resumeOffer = null))();
+      return;
+    }
+    // limit 0: enumerates the folder for a count without decoding a single thumbnail.
+    const { total } = await this.photoStore.listImageThumbs(0);
+    const offer = shouldOfferResume(total, this.lastPartyAt, Date.now(), PARTY_RESUME_WINDOW_MS);
+    action(() => {
+      this.resumeOffer = offer ? { photoCount: total, lastPartyAt: this.lastPartyAt } : null;
+    })();
+  };
+
+  /** "Continue the last party" - load the folder back in and pick up where it left off. */
+  continueLastParty = async () => {
+    action(() => (this.resumeOffer = null))();
+    await this.loadPhotosFromDisk();
+  };
+
+  /** "Start a new party" - keep the folder, leave its files alone, begin with an empty show. */
+  dismissResumeOffer = () => {
+    action(() => (this.resumeOffer = null))();
   };
 
   setIncludeExistingChoice(value: boolean) {
@@ -310,7 +369,9 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
       this.folderStatus = "connected";
       this.folderName = this.photoStore.folderName;
     })();
-    await this.loadPhotosFromDisk();
+    // Reconnecting re-grants access to the folder; it does not decide what to do with what is
+    // in it. If a recent party is there, the setup screen now offers to continue it.
+    await this.evaluateResumeOffer();
   };
 
   private loadPhotosFromDisk = async () => {
@@ -450,6 +511,9 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
       this.photos.push(photo);
       this.currentIndex = this.photos.length - 1; // show the newcomer right away
       this._nextSlideAt = this.gameTime_ms + SLIDE_INTERVAL_MS;
+      // Stamps the party as live NOW. Checkpointed, so if this presenter is killed the next
+      // one can tell whether the folder holds tonight's party or last month's.
+      this.lastPartyAt = photo.createdAt;
       if (this.gameState === PresenterGameState.Gathering) {
         if (this.folderDecided) this.gameState = PartyPixGameState.Slideshow;
       }

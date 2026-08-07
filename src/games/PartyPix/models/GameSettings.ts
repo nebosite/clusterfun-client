@@ -4,6 +4,17 @@ import { GameVersionEntry, currentVersion } from "libs";
 // and no version can be bumped without saying what changed - see libs/config/GameVersion.ts.
 export const PARTY_PIX_VERSION_HISTORY: GameVersionEntry[] = [
   {
+    version: "0.2.0",
+    changes: [
+      "The presenter always starts on the setup screen now - it used to reconnect a remembered folder and jump straight into the previous party's slideshow.",
+      "If a party from the last 24 hours is found, the setup screen offers to continue it; anything older is left alone and you start fresh.",
+      "Phones can auto-save the photos they take to the device as well as sending them to the big screen.",
+      "'Take a Photo' opens a real camera on a PC instead of a file browser.",
+      "The phone screen is three fixed bands - what you have on top, the picture as big as it will go in the middle, whose it is and how you vote at the bottom.",
+      "Flagging a photo is confirmed in a dialog over the picture rather than a list at the bottom of the screen.",
+    ],
+  },
+  {
     version: "0.1.0",
     changes: [
       "First tracked version - the numbering starts over here, on top of ClusterFun 0.5.0.",
@@ -30,6 +41,17 @@ export const CREDIT_CAP = 9; // soft cap so credits can't be hoarded
 
 // --- Slideshow ---
 export const SLIDE_INTERVAL_MS = 6000; // dwell time per photo on the big screen
+
+/**
+ * How long a finished party stays offerable as "continue the last party".
+ *
+ * The presenter is started fresh for each party, so finding photos in the folder is not on its
+ * own a reason to resume - last month's pictures are not this evening's party. Within a day it
+ * almost certainly IS the same party (the host closed the tab, the browser crashed, the Pi
+ * restarted); past that, starting clean is the safer default. The files are never touched
+ * either way.
+ */
+export const PARTY_RESUME_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 // --- Moderation ---
 // A single flag pulls a photo out of rotation (into the presenter's flagged

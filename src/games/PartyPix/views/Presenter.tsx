@@ -13,6 +13,7 @@ import {
 } from "libs";
 import PartyPixAssets from "../assets/Assets";
 import { PARTY_PIX_VERSION_HISTORY } from "../models/GameSettings";
+import { describePartyAge } from "../models/partyPixLogic";
 import {
   PartyPixPresenterModel,
   PartyPixGameState,
@@ -33,6 +34,34 @@ const Wordmark: React.FC<{ className?: string }> = ({ className }) => (
 @observer
 class JoinPage extends React.Component<{ appModel?: PartyPixPresenterModel }> {
   private renderFolder(appModel: PartyPixPresenterModel) {
+    // A party from the last day is still in the folder. The presenter always starts here now,
+    // so this is the only way back into an interrupted party - and it stays a choice, because
+    // the common case is a NEW party in a folder that already has pictures in it.
+    if (appModel.resumeOffer) {
+      const { photoCount, lastPartyAt } = appModel.resumeOffer;
+      return (
+        <div className={styles.resumeOffer}>
+          <div className={styles.resumeHead}>
+            ↩ A party from {describePartyAge(lastPartyAt, Date.now())} is still in{" "}
+            <b>{appModel.folderName}</b> — {photoCount} {photoCount === 1 ? "photo" : "photos"}.
+          </div>
+          <div className={styles.resumeActions}>
+            <button className={styles.folderButton} onClick={() => appModel.continueLastParty()}>
+              Continue the last party
+            </button>
+            <button
+              className={styles.resumeSecondary}
+              onClick={() => appModel.dismissResumeOffer()}
+            >
+              Start a new party
+            </button>
+          </div>
+          <span className={styles.folderNote}>
+            Either way the photos already in the folder are left alone.
+          </span>
+        </div>
+      );
+    }
     // After picking a folder, preview the images on disk before starting.
     if (appModel.folderPreviewOpen) {
       const shown = appModel.folderPreview.length;

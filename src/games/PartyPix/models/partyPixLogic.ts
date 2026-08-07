@@ -150,3 +150,45 @@ export function clampIndex(index: number, count: number): number {
   if (index >= count) return count - 1;
   return index;
 }
+
+// -------------------------------------------------------------------
+// Continuing an interrupted party
+//
+// The presenter always starts on the setup screen, so photos sitting in the connected folder
+// are not on their own a reason to resume: the usual case is a NEW party in a folder that
+// already holds pictures from the last one. Only a party that was live recently is worth
+// offering to continue.
+// -------------------------------------------------------------------
+
+/**
+ * Should the setup screen offer "Continue the last party"?
+ *
+ * Needs photos in the folder AND a party stamped inside the window. `lastPartyAt` of 0 means
+ * no party has ever been recorded here, which is a fresh install, not a stale one.
+ */
+export function shouldOfferResume(
+  photoCount: number,
+  lastPartyAt: number,
+  now: number,
+  windowMs: number,
+): boolean {
+  if (photoCount <= 0) return false;
+  if (lastPartyAt <= 0) return false;
+  const age = now - lastPartyAt;
+  // A clock that has gone backwards (timezone change, NTP correction) reads as a negative
+  // age. Treat it as recent rather than hiding a party the host can see on their own screen.
+  if (age < 0) return true;
+  return age < windowMs;
+}
+
+/** Plain-language age for the resume offer: "20 minutes ago", "3 hours ago", "yesterday". */
+export function describePartyAge(lastPartyAt: number, now: number): string {
+  const ms = Math.max(0, now - lastPartyAt);
+  const minutes = Math.floor(ms / 60000);
+  if (minutes < 2) return "just now";
+  if (minutes < 60) return `${minutes} minutes ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours === 1) return "an hour ago";
+  if (hours < 20) return `${hours} hours ago`;
+  return "yesterday";
+}
