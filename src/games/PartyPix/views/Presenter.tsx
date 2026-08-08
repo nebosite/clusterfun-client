@@ -172,20 +172,11 @@ class JoinPage extends React.Component<{ appModel?: PartyPixPresenterModel }> {
           Everyone starts with <b>3 photo credits</b>. The slideshow begins with the first photo.
         </div>
 
+        {/* No roster here any more. It grew down the page and the resume offer, which appears
+            in the folder card above, ended up sitting on top of it. The count that mattered
+            now lives in the frame, where it is visible on every screen rather than only this
+            one. */}
         <div className={styles.folderCard}>{this.renderFolder(appModel)}</div>
-
-        <div className={styles.playerStrip}>
-          <span className={styles.playerCount}>{appModel.players.length} players in</span>
-          {appModel.players.length > 0 ? (
-            <div className={styles.playerChips}>
-              {appModel.players.map((p) => (
-                <span className={styles.chip} key={p.playerId}>
-                  {p.name}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </div>
       </div>
     );
   }
@@ -461,6 +452,10 @@ export default class Presenter extends React.Component<{
           <GameVersionTag history={PARTY_PIX_VERSION_HISTORY} showChanges />
         </div>
         <div className={styles.frameSpacer} />
+        {/* How many are in, without the roster that used to run down the setup screen. */}
+        <div className={styles.framePlayers}>
+          👥 <b>{appModel.players.length}</b> {appModel.players.length === 1 ? "player" : "players"}
+        </div>
         {/* The join details, not "Room XXXX" - this is the one line on the big screen that
             somebody across the room needs, and it was duplicated below on the slideshow. */}
         <div className={styles.frameJoin}>

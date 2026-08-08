@@ -118,6 +118,26 @@
   font-size: 18px;
   color: var(--faint);
 }
+.framePlayers {
+  font-family: var(--mono);
+  font-size: 18px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.framePlayers b {
+  color: var(--lime);
+  letter-spacing: 0.12em;
+}
+/* A divider, because "3 PLAYERS JOIN AT LOCALHOST" reads as one sentence saying something
+   else entirely when the two sit side by side with only the frame's gap between them. */
+.framePlayers::after {
+  content: "·";
+  margin-left: 16px;
+  color: var(--faint);
+}
+
 .frameJoin {
   font-family: var(--mono);
   font-size: 18px;
@@ -320,37 +340,6 @@
 .folderNote {
   font-size: 22px;
   color: var(--faint);
-}
-
-.playerStrip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-.playerCount {
-  font-family: var(--mono);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 22px;
-  color: var(--faint);
-}
-.playerChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: center;
-  max-width: 1400px;
-}
-.chip {
-  font-family: var(--ui);
-  font-weight: 600;
-  font-size: 24px;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 10px 22px;
 }
 
 /* ================================================================
