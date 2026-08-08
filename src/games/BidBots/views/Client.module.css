@@ -2,7 +2,7 @@
 
 .gameclient {
   width: 100%;
-  min-height: 100%;
+  height: 100%;
   background: radial-gradient(circle at 50% 0%, #16202b 0%, #090c11 70%);
   color: #e8eef5;
   font-family: "Space Grotesk", "Segoe UI", system-ui, sans-serif;

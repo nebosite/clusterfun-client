@@ -1,3 +1,4 @@
+import { BidBotsVersion } from "games/BidBots/models/GameSettings";
 import { CollageBoardVersion } from "games/CollageBoard/models/GameSettings";
 import { EittrisVersion } from "games/Eittris/models/GameSettings";
 import { FaceOffVersion } from "games/FaceOff/models/GameSettings";
@@ -33,6 +34,7 @@ const GAME_VERSIONS: Record<string, string> = {
   PassTheAux: PassTheAuxVersion,
   FaceOff: FaceOffVersion,
   CollageBoard: CollageBoardVersion,
+  BidBots: BidBotsVersion,
   Stressato: StressatoVersion,
   Template: TemplateVersion,
 };

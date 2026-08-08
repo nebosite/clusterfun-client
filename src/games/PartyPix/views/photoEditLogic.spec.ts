@@ -4,6 +4,7 @@ import {
   resizeCrop,
   toCropSpace,
   brushWidthFor,
+  containFraction,
   BRUSH_COLORS,
   FULL_CROP,
   MIN_CROP,
@@ -144,5 +145,70 @@ describe("the brush", () => {
 
   it("never goes below a visible width on a tiny image", () => {
     expect(brushWidthFor(20, 20)).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ==========================================================================================
+// THE BRUSH DID NOT FOLLOW THE CURSOR.
+//
+// The editor canvas is `object-fit: contain`, so the bitmap is letterboxed inside the element
+// box whenever the two aspect ratios differ - and they nearly always differ, because the
+// element is a flex child of a fixed-width column while the photo is whatever shape the camera
+// produced. `getBoundingClientRect()` gives the ELEMENT box, so dividing by its width and
+// height stretched the whole frame, letterbox bars and all, onto the picture. Paint landed
+// further from the cursor the further out it went.
+// ==========================================================================================
+describe("finding the point on the picture under the cursor", () => {
+  // A 400x300 (4:3) bitmap inside a 400x400 box: `contain` scales to 400x300 and centres it
+  // vertically, leaving 50px bars top and bottom.
+  const box = { left: 0, top: 0, width: 400, height: 400 };
+
+  it("puts the centre of the picture at the centre", () => {
+    expect(containFraction(200, 200, box, 400, 300)).toEqual({ x: 0.5, y: 0.5 });
+  });
+
+  it("maps the picture's own top edge to 0, not the element's", () => {
+    // The element's top is a letterbox bar. The picture starts 50px lower.
+    expect(containFraction(200, 50, box, 400, 300).y).toBeCloseTo(0, 6);
+    expect(containFraction(200, 350, box, 400, 300).y).toBeCloseTo(1, 6);
+  });
+
+  it("is the fix: the naive mapping was wrong by the letterbox", () => {
+    // Naive: (200-0)/400 = 0.5 vertically for a click at y=200 - correct only at the centre.
+    // A click at y=125 is a quarter down the PICTURE, but only 31% down the element.
+    const correct = containFraction(200, 125, box, 400, 300);
+    const naive = 125 / 400;
+    expect(correct.y).toBeCloseTo(0.25, 6);
+    expect(naive).toBeCloseTo(0.3125, 6);
+    expect(Math.abs(correct.y - naive)).toBeGreaterThan(0.05);
+  });
+
+  it("reports a point on a letterbox bar as outside the picture", () => {
+    // The caller can then ignore it rather than clamping a stroke onto the edge.
+    expect(containFraction(200, 10, box, 400, 300).y).toBeLessThan(0);
+    expect(containFraction(200, 390, box, 400, 300).y).toBeGreaterThan(1);
+  });
+
+  it("handles bars on the SIDES when the picture is the taller one", () => {
+    // 300x400 portrait in a 400x400 box: scaled to 300x400, 50px bars left and right.
+    const b = { left: 0, top: 0, width: 400, height: 400 };
+    expect(containFraction(50, 200, b, 300, 400).x).toBeCloseTo(0, 6);
+    expect(containFraction(350, 200, b, 300, 400).x).toBeCloseTo(1, 6);
+    expect(containFraction(200, 200, b, 300, 400)).toEqual({ x: 0.5, y: 0.5 });
+  });
+
+  it("accounts for the element's position on the page", () => {
+    // A scrolled page puts the box somewhere other than the origin.
+    const offset = { left: 120, top: 80, width: 400, height: 400 };
+    expect(containFraction(320, 280, offset, 400, 300)).toEqual({ x: 0.5, y: 0.5 });
+  });
+
+  it("returns the origin rather than NaN before layout has happened", () => {
+    // First paint can measure a zero-sized box, and NaN coordinates poison a whole stroke.
+    expect(containFraction(10, 10, { left: 0, top: 0, width: 0, height: 0 }, 400, 300)).toEqual({
+      x: 0,
+      y: 0,
+    });
+    expect(containFraction(10, 10, box, 0, 0)).toEqual({ x: 0, y: 0 });
   });
 });

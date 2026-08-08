@@ -9,6 +9,7 @@ import { STRESSATO_VERSION_HISTORY } from "../../games/stressgame/models/GameSet
 import { PASS_THE_AUX_VERSION_HISTORY } from "../../games/PassTheAux/models/GameSettings";
 import { FACE_OFF_VERSION_HISTORY } from "../../games/FaceOff/models/GameSettings";
 import { COLLAGE_BOARD_VERSION_HISTORY } from "../../games/CollageBoard/models/GameSettings";
+import { BIDBOTS_VERSION_HISTORY } from "../../games/BidBots/models/GameSettings";
 
 // ==========================================================================================
 // A game's version IS the newest entry of its change history, so the two cannot drift and a
@@ -25,6 +26,7 @@ const HISTORIES = {
   PassTheAux: PASS_THE_AUX_VERSION_HISTORY,
   FaceOff: FACE_OFF_VERSION_HISTORY,
   CollageBoard: COLLAGE_BOARD_VERSION_HISTORY,
+  BidBots: BIDBOTS_VERSION_HISTORY,
   Template: TEMPLATE_VERSION_HISTORY,
   Stressato: STRESSATO_VERSION_HISTORY,
 };

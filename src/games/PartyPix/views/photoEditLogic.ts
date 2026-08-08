@@ -120,3 +120,50 @@ export const BRUSH_FRACTION = 0.012;
 export function brushWidthFor(imageWidth: number, imageHeight: number): number {
   return Math.max(2, Math.round(Math.min(imageWidth, imageHeight) * BRUSH_FRACTION));
 }
+
+// -------------------------------------------------------------------
+// Where a pointer actually landed on the picture
+//
+// The editor canvas is laid out with `object-fit: contain`, so the BITMAP is letterboxed
+// inside the ELEMENT box whenever their aspect ratios differ - which is almost always, since
+// the element is a flex child of a fixed-width column and the photo is whatever shape the
+// camera produced.
+//
+// `getBoundingClientRect()` returns the ELEMENT box. Dividing by its width and height treats
+// the whole frame, letterbox bars included, as if it were the picture - so the brush and the
+// crop handles drift further from the cursor the further it gets from the centre. That was the
+// bug: "the mouse coordinates of the entire picture frame are squashed to fit the picture".
+// -------------------------------------------------------------------
+
+export interface ElementBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * A client-space point as a 0..1 fraction of the BITMAP drawn inside an `object-fit: contain`
+ * element. Values outside 0..1 mean the point is on a letterbox bar rather than the picture.
+ */
+export function containFraction(
+  clientX: number,
+  clientY: number,
+  box: ElementBox,
+  bitmapWidth: number,
+  bitmapHeight: number,
+): { x: number; y: number } {
+  if (box.width <= 0 || box.height <= 0 || bitmapWidth <= 0 || bitmapHeight <= 0) {
+    return { x: 0, y: 0 };
+  }
+  // `contain` picks the scale that makes the bitmap fit BOTH dimensions, then centres it.
+  const scale = Math.min(box.width / bitmapWidth, box.height / bitmapHeight);
+  const drawnWidth = bitmapWidth * scale;
+  const drawnHeight = bitmapHeight * scale;
+  const offsetX = (box.width - drawnWidth) / 2;
+  const offsetY = (box.height - drawnHeight) / 2;
+  return {
+    x: (clientX - box.left - offsetX) / drawnWidth,
+    y: (clientY - box.top - offsetY) / drawnHeight,
+  };
+}

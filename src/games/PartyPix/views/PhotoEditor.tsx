@@ -8,6 +8,7 @@ import {
   resizeCrop,
   toCropSpace,
   brushWidthFor,
+  containFraction,
   BRUSH_COLORS,
 } from "./photoEditLogic";
 
@@ -85,23 +86,31 @@ export class PhotoEditor extends React.Component<PhotoEditorProps, PhotoEditorSt
   }
 
   // ---- coordinates ---------------------------------------------------------
-  /** A pointer event as a 0..1 position on the ORIGINAL image. */
-  private toImageSpace(e: React.PointerEvent<HTMLCanvasElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const fx = (e.clientX - rect.left) / rect.width;
-    const fy = (e.clientY - rect.top) / rect.height;
-    const { crop } = this.state;
-    // The canvas shows the CROPPED region, so a tap maps back through the crop.
-    return { x: crop.x + fx * crop.width, y: crop.y + fy * crop.height };
+  /**
+   * Where the pointer is on the CANVAS BITMAP, 0..1.
+   *
+   * Must go through containFraction: the canvas is laid out `object-fit: contain`, so the
+   * bitmap is letterboxed inside the element box and getBoundingClientRect() describes the
+   * BOX. Dividing by the box stretched the whole frame onto the picture and the brush drifted
+   * further from the cursor the further out it went.
+   */
+  private toCanvasFraction(e: React.PointerEvent<HTMLCanvasElement>) {
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    return containFraction(e.clientX, e.clientY, rect, el.width, el.height);
   }
 
-  /** In crop mode the canvas shows the WHOLE image, so the mapping is direct. */
+  /** A pointer event as a 0..1 position on the ORIGINAL image. */
+  private toImageSpace(e: React.PointerEvent<HTMLCanvasElement>) {
+    const f = this.toCanvasFraction(e);
+    const { crop } = this.state;
+    // In draw mode the canvas holds the CROPPED region, so a tap maps back through the crop.
+    return { x: crop.x + f.x * crop.width, y: crop.y + f.y * crop.height };
+  }
+
+  /** In crop mode the canvas bitmap IS the whole image, so the fraction is already it. */
   private toWholeImageSpace(e: React.PointerEvent<HTMLCanvasElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    return {
-      x: (e.clientX - rect.left) / rect.width,
-      y: (e.clientY - rect.top) / rect.height,
-    };
+    return this.toCanvasFraction(e);
   }
 
   private cornerNear(x: number, y: number): CropCorner | null {

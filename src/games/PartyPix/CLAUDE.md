@@ -209,19 +209,24 @@ never-used folder (`lastPartyAt === 0`), and a clock that has gone backwards.
 
 1920x1080, split by three CSS variables on `.gamepresenter` so nothing can drift:
 
-| Variable              | Value | What it is                                                 |
-| --------------------- | ----- | ---------------------------------------------------------- |
-| `--pp-frame-h`        | 78px  | The frame: Quit, wordmark, version, and the join line.     |
-| `--pp-reserve-top`    | 250px | Frame + `.showTopReserve` (which holds the host controls). |
-| `--pp-reserve-bottom` | 100px | `.photoBar` - author, tallies, counter.                    |
+| Variable              | Value | What it is                                                   |
+| --------------------- | ----- | ------------------------------------------------------------ |
+| `--pp-frame-h`        | 78px  | The frame: Quit, wordmark, version, and the join line.       |
+| `--pp-reserve-top`    | 152px | Frame + controls + a 20px gap. **Composed, not hard-coded.** |
+| `--pp-reserve-bottom` | 100px | `.photoBar` - author, tallies, counter.                      |
 
-The picture gets what is left — **730px** — and `.stagePhoto` is `width/height: 100%` with
+`--pp-reserve-top` is `frame + controls-top + controls-height + 20px`, so the picture starts
+exactly 20px under the Thumbnails button and follows it if the controls ever move or resize.
+`.controlButton` therefore carries an explicit `height` — a height left to the font would let
+that gap drift with whatever face happened to load.
+
+The picture gets what is left — **828px** — and `.stagePhoto` is `width/height: 100%` with
 `object-fit: contain`, so a small photo is scaled UP to the stage as well as a large one being
-scaled down. Maximums alone would leave a 600px picture sitting at 600px in a 730px band.
+scaled down. Maximums alone would leave a 600px picture sitting at 600px in an 828px band.
 
 `.showTopReserve` is `calc(var(--pp-reserve-top) - var(--pp-frame-h))`, which is what keeps
 "250 from the top of the SCREEN" true rather than 250 from the top of the content box. Measured
-live: top 250, bottom 100, stage 730.
+live: top 152, bottom 100, stage 828, with a 20px gap under the button.
 
 The frame carries the wordmark and the version at the Quit button's own 18px, and the join
 details replaced "Room XXXX" — that line is the one thing somebody across the room needs, and
@@ -239,6 +244,13 @@ is what stops a stroke landing somewhere else in the picture that actually gets 
 what lets the crop be adjusted afterwards without dragging the paint around with it. Strokes
 outside the crop are clipped by the canvas rather than dropped, so widening the crop brings
 them back. The geometry is pure and specced in `views/photoEditLogic.spec.ts`.
+
+**Pointer coordinates go through `containFraction`, always.** The editor canvas is laid out
+`object-fit: contain`, so the bitmap is letterboxed inside the element box while
+`getBoundingClientRect()` describes the BOX. Dividing by the box stretches the whole frame,
+letterbox bars included, onto the picture: measured in the Test Lobby, a 374x532 element held a
+374x280 picture with 126px bars, so paint landed up to 69px from the cursor. Both mapping
+helpers go through the same function now, and it is specced.
 
 One medium brush, eight colours, and the width is a FRACTION of the image
 (`BRUSH_FRACTION`) — a flat pixel width is a bold stroke on a 350px preview and a hairline on

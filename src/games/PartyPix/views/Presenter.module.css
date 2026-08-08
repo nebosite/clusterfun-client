@@ -67,7 +67,15 @@
    ========================================================================================== */
 .gamepresenter {
   --pp-frame-h: 78px;
-  --pp-reserve-top: 250px;
+  /* The host controls, and the gap the ask names: the picture starts exactly 20px below the
+     Thumbnails button. Composed rather than hard-coded so moving or resizing the controls
+     moves the picture with them instead of silently overlapping or leaving a hole. */
+  --pp-controls-top: 8px;
+  --pp-controls-h: 46px;
+  --pp-controls-gap: 20px;
+  --pp-reserve-top: calc(
+    var(--pp-frame-h) + var(--pp-controls-top) + var(--pp-controls-h) + var(--pp-controls-gap)
+  );
   --pp-reserve-bottom: 100px;
 }
 
@@ -507,7 +515,7 @@
 /* ---- Host controls (thumbnails / flagged) ---- */
 .showControls {
   position: absolute;
-  top: 8px;
+  top: var(--pp-controls-top);
   right: 30px;
   z-index: 3;
   display: flex;
@@ -521,7 +529,13 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 10px 20px;
+  /* Fixed, because --pp-reserve-top is computed from it - a height left to the font would
+     make the gap under the button drift with whatever face happened to load. */
+  height: var(--pp-controls-h);
+  box-sizing: border-box;
+  padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
   cursor: pointer;
 }
 .controlButton:hover {
