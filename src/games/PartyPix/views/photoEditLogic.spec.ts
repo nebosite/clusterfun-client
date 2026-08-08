@@ -130,9 +130,16 @@ describe("placing a stroke relative to the crop", () => {
 });
 
 describe("the brush", () => {
-  it("offers exactly eight distinct colours", () => {
-    expect(BRUSH_COLORS).toHaveLength(8);
-    expect(new Set(BRUSH_COLORS).size).toBe(8);
+  it("offers ten distinct colours", () => {
+    expect(BRUSH_COLORS).toHaveLength(10);
+    expect(new Set(BRUSH_COLORS).size).toBe(10);
+  });
+
+  it("includes the two non-glowing colours you draw ON a face with", () => {
+    // Brown and black are the ones for a moustache or a pair of glasses; every other swatch
+    // is a highlighter and reads as annotation over the photo rather than part of it.
+    expect(BRUSH_COLORS).toContain("#8b5a2b");
+    expect(BRUSH_COLORS).toContain("#000000");
   });
 
   it("scales with the picture, so 'medium' means the same thickness at any size", () => {

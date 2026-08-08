@@ -98,7 +98,12 @@ export function toCropSpace(point: { x: number; y: number }, crop: CropRect) {
   };
 }
 
-/** The eight brush colours. Bright enough to read over a photograph, and visibly distinct. */
+/**
+ * The brush palette. Mostly bright, because these are drawn over a photograph and have to read
+ * against whatever is underneath; brown and black are the two that do not glow, and they are
+ * the ones you want for drawing ON something rather than annotating over it - a moustache, a
+ * pair of glasses, hair.
+ */
 export const BRUSH_COLORS = [
   "#ff3b30", // red
   "#ff9500", // orange
@@ -107,6 +112,8 @@ export const BRUSH_COLORS = [
   "#22e0ff", // cyan
   "#3a7bff", // blue
   "#ff3ea5", // magenta
+  "#8b5a2b", // brown
+  "#000000", // black
   "#ffffff", // white
 ] as const;
 

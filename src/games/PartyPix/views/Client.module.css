@@ -716,7 +716,9 @@
   min-width: 0;
   border-radius: 16px;
   cursor: pointer;
-  border: 3px solid rgba(255, 255, 255, 0.25);
+  /* Strong enough that the BLACK swatch still reads as a swatch against this near-black
+     background rather than as an empty slot in the row. */
+  border: 3px solid rgba(255, 255, 255, 0.5);
 }
 .swatchOn {
   border: 6px solid #ffffff;

@@ -252,7 +252,7 @@ letterbox bars included, onto the picture: measured in the Test Lobby, a 374x532
 374x280 picture with 126px bars, so paint landed up to 69px from the cursor. Both mapping
 helpers go through the same function now, and it is specced.
 
-One medium brush, eight colours, and the width is a FRACTION of the image
+One medium brush, ten colours (brown and black among them, for drawing ON a face rather than over it), and the width is a FRACTION of the image
 (`BRUSH_FRACTION`) — a flat pixel width is a bold stroke on a 350px preview and a hairline on
 the 1600px composite.
 
