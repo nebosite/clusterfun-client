@@ -178,6 +178,21 @@ and **the whole room upvoted one of yours** (`up === players.length - 1`, since 
 vote on their own). Every one of them explains the credit economy, because "why can I not take
 another photo" is the question the game otherwise never answers out loud.
 
+## A remembered folder is a suggestion, not a decision
+
+`evaluateResumeOffer` fetches `FOLDER_PREVIEW_COUNT` thumbnails as well as the count, so a
+connected folder shows **a row of what is actually in it** rather than a bare name — a name
+tells the host nothing about whether it is the folder they meant tonight. Every state that has
+a remembered folder also offers **"Choose a different folder…"**; before this, a remembered
+folder could not be changed short of clearing browser data.
+
+`needsReconnect` deliberately shows no thumbnails: without the permission re-grant the folder
+cannot be read at all, so there is nothing honest to show yet.
+
+**One row, never wrapping** (`.folderPreviewGrid` is `nowrap` + `overflow: hidden`). It used to
+fetch 24 and wrap, and the extra rows pushed everything under the card down into whatever was
+below it.
+
 ## The presenter ALWAYS starts on the setup screen
 
 It used to reconnect a remembered folder during `initPhotoStore()` and call

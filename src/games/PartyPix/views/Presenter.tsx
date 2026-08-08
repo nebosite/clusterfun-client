@@ -33,6 +33,36 @@ const Wordmark: React.FC<{ className?: string }> = ({ className }) => (
 @inject("appModel")
 @observer
 class JoinPage extends React.Component<{ appModel?: PartyPixPresenterModel }> {
+  /** One row of what is actually in the folder, so "this folder" means something. */
+  private renderThumbRow(appModel: PartyPixPresenterModel) {
+    if (appModel.folderPreview.length === 0) return null;
+    const extra = appModel.folderPreviewTotal - appModel.folderPreview.length;
+    return (
+      <div className={styles.folderPreviewGrid}>
+        {appModel.folderPreview.map((p) => (
+          <img
+            key={p.fileName}
+            className={styles.folderPreviewThumb}
+            src={p.thumb}
+            alt={p.fileName}
+            title={p.fileName}
+          />
+        ))}
+        {extra > 0 ? <div className={styles.folderPreviewMore}>+{extra}</div> : null}
+      </div>
+    );
+  }
+
+  /** Always offered once a folder is remembered - the remembered one may not be the one you
+      want tonight, and before this there was no way to say so without clearing browser data. */
+  private renderChangeFolder(appModel: PartyPixPresenterModel) {
+    return (
+      <button className={styles.folderChange} onClick={() => appModel.chooseFolder()}>
+        Choose a different folder…
+      </button>
+    );
+  }
+
   private renderFolder(appModel: PartyPixPresenterModel) {
     // A party from the last day is still in the folder. The presenter always starts here now,
     // so this is the only way back into an interrupted party - and it stays a choice, because
@@ -56,16 +86,17 @@ class JoinPage extends React.Component<{ appModel?: PartyPixPresenterModel }> {
               Start a new party
             </button>
           </div>
+          {this.renderThumbRow(appModel)}
           <span className={styles.folderNote}>
             Either way the photos already in the folder are left alone.
           </span>
+          {this.renderChangeFolder(appModel)}
         </div>
       );
     }
     // After picking a folder, preview the images on disk before starting.
     if (appModel.folderPreviewOpen) {
       const shown = appModel.folderPreview.length;
-      const extra = appModel.folderPreviewTotal - shown;
       return (
         <div className={styles.folderPreview}>
           <div className={styles.folderPreviewHead}>
@@ -73,18 +104,7 @@ class JoinPage extends React.Component<{ appModel?: PartyPixPresenterModel }> {
             {appModel.folderPreviewTotal === 1 ? "photo" : "photos"} on disk
           </div>
           {shown > 0 ? (
-            <div className={styles.folderPreviewGrid}>
-              {appModel.folderPreview.map((p) => (
-                <img
-                  key={p.fileName}
-                  className={styles.folderPreviewThumb}
-                  src={p.thumb}
-                  alt={p.fileName}
-                  title={p.fileName}
-                />
-              ))}
-              {extra > 0 ? <div className={styles.folderPreviewMore}>+{extra}</div> : null}
-            </div>
+            this.renderThumbRow(appModel)
           ) : (
             <div className={styles.folderNote}>No photos in this folder yet.</div>
           )}
@@ -107,15 +127,27 @@ class JoinPage extends React.Component<{ appModel?: PartyPixPresenterModel }> {
     switch (appModel.folderStatus) {
       case "connected":
         return (
-          <span className={styles.folderConnected}>
-            💾 Saving photos to <b>{appModel.folderName}</b>
-          </span>
+          <div className={styles.folderReady}>
+            <span className={styles.folderConnected}>
+              💾 Saving photos to <b>{appModel.folderName}</b>
+              {appModel.folderPreviewTotal > 0
+                ? ` · ${appModel.folderPreviewTotal} already there`
+                : " · empty"}
+            </span>
+            {this.renderThumbRow(appModel)}
+            {this.renderChangeFolder(appModel)}
+          </div>
         );
       case "needsReconnect":
         return (
-          <button className={styles.folderButton} onClick={() => appModel.reconnectFolder()}>
-            Reconnect photo folder{appModel.folderName ? ` · ${appModel.folderName}` : ""}
-          </button>
+          <div className={styles.folderReady}>
+            {/* No thumbnails here: without the permission re-grant the folder cannot be read
+                at all, so there is nothing honest to show yet. */}
+            <button className={styles.folderButton} onClick={() => appModel.reconnectFolder()}>
+              Reconnect photo folder{appModel.folderName ? ` · ${appModel.folderName}` : ""}
+            </button>
+            {this.renderChangeFolder(appModel)}
+          </div>
         );
       case "unsupported":
         return (

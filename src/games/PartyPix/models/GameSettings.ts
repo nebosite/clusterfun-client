@@ -8,6 +8,8 @@ export const PARTY_PIX_VERSION_HISTORY: GameVersionEntry[] = [
     changes: [
       "The presenter always starts on the setup screen now - it used to reconnect a remembered folder and jump straight into the previous party's slideshow.",
       "If a party from the last 24 hours is found, the setup screen offers to continue it; anything older is left alone and you start fresh.",
+      "A remembered folder now shows a row of what is in it, and can always be swapped for a different one.",
+      "Bigger host header, a room code sized to match the address beside it, and a roomier setup screen.",
       "Phones can auto-save the photos they take to the device as well as sending them to the big screen.",
       "'Take a Photo' opens a real camera on a PC instead of a file browser.",
       "Crop a photo and draw on it before you send it - one brush, ten colours - and the drawing shows up on the big screen.",
@@ -54,6 +56,15 @@ export const SLIDE_INTERVAL_MS = 6000; // dwell time per photo on the big screen
  * either way.
  */
 export const PARTY_RESUME_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Thumbnails shown for a folder on the setup screen.
+ *
+ * ONE ROW. It used to fetch 24 and let them wrap, which pushed the controls underneath far
+ * enough down the screen that they ran into everything below. A single row says "this is the
+ * folder you think it is" just as well as four do.
+ */
+export const FOLDER_PREVIEW_COUNT = 8;
 
 // --- Moderation ---
 // A single flag pulls a photo out of rotation (into the presenter's flagged

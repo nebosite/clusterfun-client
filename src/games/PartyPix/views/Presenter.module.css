@@ -66,7 +66,9 @@
    two cannot drift apart the way a `calc(100% - 78px)` and a hard-coded offset would.
    ========================================================================================== */
 .gamepresenter {
-  --pp-frame-h: 78px;
+  /* Doubling the frame's type doubles what it needs to hold it. This feeds --pp-reserve-top,
+     so the picture band below moves down by exactly the same amount, with no second edit. */
+  --pp-frame-h: 116px;
   /* The host controls, and the gap the ask names: the picture starts exactly 20px below the
      Thumbnails button. Composed rather than hard-coded so moving or resizing the controls
      moves the picture with them instead of silently overlapping or leaving a hole. */
@@ -95,7 +97,7 @@
 .hostButton {
   font-family: var(--ui);
   font-weight: 600;
-  font-size: 18px;
+  font-size: 36px;
   color: var(--dim);
   background: transparent;
   border: 1px solid var(--border);
@@ -107,20 +109,20 @@
   color: var(--text);
   background: var(--surface);
 }
-/* Same 18px as .hostButton - the ask was one line at one size. */
+/* Same size as .hostButton - the whole strip is one line at one size. */
 .frameWordmark {
-  font-size: 18px;
+  font-size: 36px;
   color: var(--text);
   line-height: 1;
 }
 .frameVersion {
   font-family: var(--mono);
-  font-size: 18px;
+  font-size: 36px;
   color: var(--faint);
 }
 .framePlayers {
   font-family: var(--mono);
-  font-size: 18px;
+  font-size: 36px;
   color: var(--dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -140,7 +142,7 @@
 
 .frameJoin {
   font-family: var(--mono);
-  font-size: 18px;
+  font-size: 36px;
   color: var(--dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -178,13 +180,15 @@
   padding: 20px 60px 60px;
 }
 .joinWordmark {
-  font-size: 264px;
+  /* 264 - 20% */
+  font-size: 211px;
   color: var(--cyan);
   text-shadow: 0 0 60px rgba(34, 224, 255, 0.45);
   line-height: 1;
 }
 .joinTagline {
-  font-size: 30px;
+  /* 30 + 50% */
+  font-size: 45px;
   color: var(--dim);
   margin-top: -14px;
 }
@@ -221,7 +225,9 @@
 .joinCode {
   font-family: var(--mono);
   font-weight: 700;
-  font-size: 190px;
+  /* Matched to .joinUrl - a room code three times the size of the address it goes with was
+     shouting one half of a two-part instruction. */
+  font-size: 84px;
   line-height: 1;
   letter-spacing: 0.18em;
   color: var(--cyan);
@@ -276,9 +282,32 @@
   accent-color: var(--cyan);
   cursor: pointer;
 }
+.folderReady {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
 .folderConnected {
   font-size: 24px;
   color: var(--dim);
+}
+/* Quieter than .folderButton: changing the folder is the road less taken, but it has to be
+   THERE - a remembered folder used to be unchangeable short of clearing browser data. */
+.folderChange {
+  font-family: var(--ui);
+  font-weight: 600;
+  font-size: 22px;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 22px;
+  cursor: pointer;
+}
+.folderChange:hover {
+  color: var(--text);
+  background: var(--surface);
 }
 
 /* Folder preview (images found on disk, before starting) */
@@ -300,11 +329,15 @@
 .folderPreviewHead b {
   color: var(--cyan);
 }
+/* ONE ROW, never wrapping. It used to wrap up to 24 thumbnails, and the extra rows pushed
+   everything under the card down the screen into whatever was below it. */
 .folderPreviewGrid {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   gap: 10px;
+  max-width: 100%;
+  overflow: hidden;
 }
 .folderPreviewThumb {
   width: 112px;

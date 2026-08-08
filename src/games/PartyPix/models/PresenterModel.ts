@@ -25,6 +25,7 @@ import {
   START_CREDITS,
   UPLOAD_COST,
   PARTY_RESUME_WINDOW_MS,
+  FOLDER_PREVIEW_COUNT,
 } from "./GameSettings";
 import {
   applyVote,
@@ -304,13 +305,20 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
    */
   private evaluateResumeOffer = async () => {
     if (this.folderStatus !== "connected") {
-      action(() => (this.resumeOffer = null))();
+      action(() => {
+        this.resumeOffer = null;
+        this.folderPreview = [];
+        this.folderPreviewTotal = 0;
+      })();
       return;
     }
-    // limit 0: enumerates the folder for a count without decoding a single thumbnail.
-    const { total } = await this.photoStore.listImageThumbs(0);
+    // One row of thumbnails as well as the count. A remembered folder used to be a bare name,
+    // which tells the host nothing about whether it is the folder they meant - the pictures do.
+    const { items, total } = await this.photoStore.listImageThumbs(FOLDER_PREVIEW_COUNT);
     const offer = shouldOfferResume(total, this.lastPartyAt, Date.now(), PARTY_RESUME_WINDOW_MS);
     action(() => {
+      this.folderPreview = items;
+      this.folderPreviewTotal = total;
       this.resumeOffer = offer ? { photoCount: total, lastPartyAt: this.lastPartyAt } : null;
     })();
   };
@@ -348,7 +356,7 @@ export class PartyPixPresenterModel extends ClusterfunPresenterModel<PartyPixPla
       this.folderPreview = [];
       this.folderPreviewTotal = 0;
     })();
-    const { items, total } = await this.photoStore.listImageThumbs(24);
+    const { items, total } = await this.photoStore.listImageThumbs(FOLDER_PREVIEW_COUNT);
     action(() => {
       this.folderPreview = items;
       this.folderPreviewTotal = total;
