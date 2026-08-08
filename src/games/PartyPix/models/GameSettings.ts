@@ -4,16 +4,21 @@ import { GameVersionEntry, currentVersion } from "libs";
 // and no version can be bumped without saying what changed - see libs/config/GameVersion.ts.
 export const PARTY_PIX_VERSION_HISTORY: GameVersionEntry[] = [
   {
+    version: "0.3.0",
+    changes: [
+      "Crop a photo and draw on it before you send it - one brush, ten colours - and the drawing shows up on the big screen.",
+      "A remembered folder now shows a row of what is in it, and can always be swapped for a different one.",
+      "The big screen gives the picture its own fixed band, starting just under the host controls, with the join code above and the photo details below.",
+      "Bigger host header, a room code sized to match the address beside it, and the joined-player count moved up there.",
+    ],
+  },
+  {
     version: "0.2.0",
     changes: [
       "The presenter always starts on the setup screen now - it used to reconnect a remembered folder and jump straight into the previous party's slideshow.",
       "If a party from the last 24 hours is found, the setup screen offers to continue it; anything older is left alone and you start fresh.",
-      "A remembered folder now shows a row of what is in it, and can always be swapped for a different one.",
-      "Bigger host header, a room code sized to match the address beside it, and a roomier setup screen.",
       "Phones can auto-save the photos they take to the device as well as sending them to the big screen.",
       "'Take a Photo' opens a real camera on a PC instead of a file browser.",
-      "Crop a photo and draw on it before you send it - one brush, ten colours - and the drawing shows up on the big screen.",
-      "The big screen gives the picture its own fixed band, starting just under the host controls, with the join code above and the photo details below.",
       "The phone screen is three fixed bands - what you have on top, the picture as big as it will go in the middle, whose it is and how you vote at the bottom.",
       "Flagging a photo is confirmed in a dialog over the picture rather than a list at the bottom of the screen.",
     ],
