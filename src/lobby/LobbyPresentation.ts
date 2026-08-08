@@ -65,6 +65,13 @@ export interface GamePresentation {
 // Hand-authored presentation for the games we ship; anything else falls
 // back to derived defaults so the catalog can grow without edits here.
 const KNOWN: Record<string, Partial<GamePresentation>> = {
+  BidBots: {
+    category: "Party",
+    blurb: "Snipe battle bots on a falling-price auction, then brawl your squad last-bot-standing.",
+    players: "2–8",
+    playTime: "15m",
+    thumbKind: "bars",
+  },
   PassTheAux: {
     category: "Music",
     blurb: "Match the perfect song to the scenario, then rank the room's picks to crown a winner.",

@@ -1,0 +1,226 @@
+/* BidBots phone controller. 1080x1920 virtual canvas. */
+
+.gameclient {
+  width: 100%;
+  min-height: 100%;
+  background: radial-gradient(circle at 50% 0%, #16202b 0%, #090c11 70%);
+  color: #e8eef5;
+  font-family: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --bb-text: 46px;
+}
+.topbar {
+  height: 120px;
+}
+.body {
+  padding: 40px;
+  font-size: var(--bb-text);
+}
+
+.waitText {
+  font-size: 52px;
+  text-align: center;
+  margin-top: 120px;
+  color: #9fb2c4;
+}
+
+.bankRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #10171f;
+  border: 3px solid #23303d;
+  border-radius: 18px;
+  padding: 20px 28px;
+  margin-bottom: 24px;
+}
+.bankLabel {
+  font-size: 34px;
+  color: #7f95a9;
+}
+.bankValue {
+  font-family: "Space Mono", monospace;
+  font-size: 64px;
+  font-weight: 700;
+  color: #35e0d0;
+}
+.winsPill {
+  font-size: 40px;
+  color: #ffd23f;
+  font-weight: 800;
+}
+
+.botBox {
+  background: linear-gradient(180deg, #1b2836, #121a24);
+  border: 4px solid #2f4356;
+  border-radius: 26px;
+  padding: 28px;
+  text-align: center;
+  margin-bottom: 28px;
+}
+.botEmoji {
+  font-size: 150px;
+  line-height: 1;
+}
+.botName {
+  font-size: 48px;
+  font-weight: 800;
+  margin: 6px 0 18px 0;
+}
+.statRow {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+.stat {
+  background: #0e1620;
+  border: 2px solid #29394a;
+  border-radius: 14px;
+  padding: 12px 8px;
+  flex: 1;
+}
+.statLabel {
+  font-size: 28px;
+  color: #7f95a9;
+}
+.statValue {
+  font-size: 52px;
+  font-weight: 800;
+}
+.statHp {
+  color: #59e07a;
+}
+.statStr {
+  color: #ff6b5b;
+}
+.statDef {
+  color: #59a7ff;
+}
+
+.priceBig {
+  font-family: "Space Mono", monospace;
+  font-size: 110px;
+  font-weight: 700;
+  text-align: center;
+  color: #ffd23f;
+  margin: 20px 0;
+}
+
+.buyButton {
+  width: 100%;
+  background: linear-gradient(180deg, #ffd23f, #ff9f1c);
+  color: #1a1205;
+  border: none;
+  border-radius: 24px;
+  padding: 40px;
+  font-size: 76px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  cursor: pointer;
+  box-shadow: 0 10px 34px rgba(255, 159, 28, 0.35);
+}
+.buyButton:disabled {
+  background: #24303e;
+  color: #5c6b7a;
+  box-shadow: none;
+  cursor: default;
+}
+.buyMessage {
+  text-align: center;
+  font-size: 44px;
+  color: #35e0d0;
+  margin-top: 24px;
+  min-height: 52px;
+}
+.spectateNote {
+  text-align: center;
+  font-size: 40px;
+  color: #9fb2c4;
+  margin-top: 24px;
+}
+.soldNote {
+  text-align: center;
+  font-size: 52px;
+  font-weight: 800;
+  margin-top: 20px;
+}
+.soldWin {
+  color: #59e07a;
+}
+.soldOther {
+  color: #9fb2c4;
+}
+
+/* Battle */
+.battleHead {
+  text-align: center;
+  font-size: 56px;
+  font-weight: 800;
+  color: #ff6b5b;
+  margin-bottom: 8px;
+}
+.battleSub {
+  text-align: center;
+  font-size: 36px;
+  color: #9fb2c4;
+  margin-bottom: 24px;
+}
+.myBotRow {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: #121b25;
+  border: 2px solid #2b3c4d;
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+.myBotEmoji {
+  font-size: 60px;
+}
+.myBotInfo {
+  flex: 1;
+}
+.myBotName {
+  font-size: 34px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hpTrack {
+  height: 26px;
+  background: #06222a;
+  border-radius: 13px;
+  overflow: hidden;
+  border: 1px solid #0d3b3c;
+  margin-top: 6px;
+}
+.hpFill {
+  height: 100%;
+  background: linear-gradient(90deg, #59e07a, #35e0d0);
+  transition: width 0.18s linear;
+}
+.hpLow {
+  background: linear-gradient(90deg, #ff6b5b, #ff3b3b);
+}
+.dead {
+  opacity: 0.4;
+}
+.koText {
+  color: #ff6b5b;
+  font-weight: 800;
+  font-size: 30px;
+}
+
+.resultBig {
+  text-align: center;
+  font-size: 60px;
+  font-weight: 800;
+  margin-top: 60px;
+}
+.resultWin {
+  color: #ffd23f;
+}
+.resultLose {
+  color: #9fb2c4;
+}

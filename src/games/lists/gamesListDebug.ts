@@ -2,6 +2,7 @@ import StressatoAssets from "games/stressgame/assets/Assets";
 import TemplateAssets from "games/TemplateGame/assets/Assets";
 import CollageBoardAssets from "games/CollageBoard/assets/Assets";
 import FaceOffAssets from "games/FaceOff/assets/Assets";
+import BidBotsAssets from "games/BidBots/assets/Assets";
 import { GameDescriptor } from "./GameDescriptor";
 import releaseGames from "./gamesListRelease";
 
@@ -16,6 +17,12 @@ import releaseGames from "./gamesListRelease";
 // and, being outside the manifest, these are already invisible there.
 // -------------------------------------------------------------------
 const debugOnlyGames: GameDescriptor[] = [
+  {
+    name: "BidBots",
+    displayName: "BidBots",
+    logoName: BidBotsAssets.images.logo,
+    importThunk: () => import("../BidBots/views/GameComponent"),
+  },
   {
     name: "FaceOff",
     displayName: "Face Off",

@@ -1,0 +1,371 @@
+/* BidBots presenter - dark industrial arena with neon accents. 1920x1080 virtual canvas. */
+
+.gamepresenter {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 50% 0%, #16202b 0%, #090c11 70%);
+  color: #e8eef5;
+  font-family: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.divRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+.button {
+  background: #24303e;
+  color: #e8eef5;
+  border: 2px solid #3a4a5c;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 22px;
+  cursor: pointer;
+}
+.button:hover {
+  background: #2f3f52;
+}
+.button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.roomCode {
+  font-family: "Space Mono", monospace;
+  font-size: 26px;
+  color: #35e0d0;
+  letter-spacing: 2px;
+}
+
+.title {
+  font-size: 72px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: #ffd23f;
+  text-shadow: 0 0 24px rgba(255, 210, 63, 0.4);
+  margin: 0;
+}
+.subtitle {
+  font-size: 30px;
+  color: #9fb2c4;
+  margin: 6px 0 24px 0;
+}
+
+/* ---------- Gathering ---------- */
+.joinBox {
+  text-align: center;
+  padding: 20px 40px;
+}
+.joinCode {
+  font-family: "Space Mono", monospace;
+  font-size: 48px;
+  color: #35e0d0;
+  letter-spacing: 4px;
+}
+.playerGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  margin: 24px 0;
+}
+.nameChip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #17222e;
+  border: 2px solid #2c3a49;
+  border-radius: 14px;
+  padding: 10px 18px;
+  font-size: 28px;
+}
+.startButton {
+  background: linear-gradient(180deg, #ffd23f, #ff9f1c);
+  color: #1a1205;
+  border: none;
+  border-radius: 16px;
+  padding: 18px 46px;
+  font-size: 36px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 30px rgba(255, 159, 28, 0.35);
+}
+
+/* ---------- Auction ---------- */
+.auctionWrap {
+  display: flex;
+  flex-direction: row;
+  gap: 30px;
+  height: 900px;
+}
+.auctionMain {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.auctionSide {
+  width: 480px;
+  background: #10171f;
+  border: 2px solid #23303d;
+  border-radius: 18px;
+  padding: 20px;
+  overflow: hidden;
+}
+.progressText {
+  font-size: 28px;
+  color: #9fb2c4;
+  margin-bottom: 10px;
+}
+.botCard {
+  background: linear-gradient(180deg, #1b2836, #121a24);
+  border: 3px solid #2f4356;
+  border-radius: 24px;
+  padding: 24px 40px;
+  text-align: center;
+  min-width: 720px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.botEmoji {
+  font-size: 150px;
+  line-height: 1;
+  filter: drop-shadow(0 0 24px rgba(53, 224, 208, 0.35));
+}
+.botName {
+  font-size: 46px;
+  font-weight: 800;
+  color: #e8eef5;
+  margin: 8px 0 18px 0;
+}
+.statRow {
+  display: flex;
+  justify-content: center;
+  gap: 26px;
+  margin-bottom: 8px;
+}
+.stat {
+  background: #0e1620;
+  border: 2px solid #29394a;
+  border-radius: 14px;
+  padding: 12px 22px;
+  min-width: 150px;
+}
+.statLabel {
+  font-size: 22px;
+  color: #7f95a9;
+  letter-spacing: 1px;
+}
+.statValue {
+  font-size: 44px;
+  font-weight: 800;
+}
+.statHp {
+  color: #59e07a;
+}
+.statStr {
+  color: #ff6b5b;
+}
+.statDef {
+  color: #59a7ff;
+}
+
+.priceReadout {
+  margin-top: 26px;
+  font-family: "Space Mono", monospace;
+  font-size: 128px;
+  font-weight: 700;
+  line-height: 1;
+  color: #ffd23f;
+  text-shadow: 0 0 30px rgba(255, 210, 63, 0.45);
+}
+.priceFrozen {
+  color: #35e0d0;
+  text-shadow: 0 0 30px rgba(53, 224, 208, 0.5);
+  animation: pulse 0.6s ease-in-out infinite alternate;
+}
+@keyframes pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06);
+  }
+}
+.suspense {
+  font-size: 54px;
+  font-weight: 800;
+  color: #35e0d0;
+  margin-top: 12px;
+  letter-spacing: 2px;
+}
+.soldBanner {
+  font-size: 60px;
+  font-weight: 800;
+  color: #59e07a;
+  margin-top: 14px;
+}
+.scrapBanner {
+  font-size: 60px;
+  font-weight: 800;
+  color: #ff6b5b;
+  margin-top: 14px;
+}
+
+/* ---------- Scoreboard ---------- */
+.scoreTitle {
+  font-size: 30px;
+  font-weight: 800;
+  color: #ffd23f;
+  margin-bottom: 14px;
+  letter-spacing: 1px;
+}
+.scoreRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  border-bottom: 1px solid #1e2a36;
+  font-size: 28px;
+}
+.scoreRowDim {
+  opacity: 0.4;
+}
+.scoreName {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scoreBank {
+  font-family: "Space Mono", monospace;
+  color: #35e0d0;
+  min-width: 120px;
+  text-align: right;
+}
+.scoreWins {
+  color: #ffd23f;
+  min-width: 70px;
+  text-align: right;
+  font-weight: 800;
+}
+
+/* ---------- Battle ---------- */
+.battleWrap {
+  text-align: center;
+}
+.battleTitle {
+  font-size: 64px;
+  font-weight: 800;
+  color: #ff6b5b;
+  letter-spacing: 6px;
+  text-shadow: 0 0 24px rgba(255, 107, 91, 0.4);
+}
+.arena {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  justify-content: center;
+  align-content: flex-start;
+  margin-top: 20px;
+  max-height: 760px;
+  overflow: hidden;
+}
+.fighterCard {
+  width: 220px;
+  background: #121b25;
+  border: 3px solid #2b3c4d;
+  border-radius: 16px;
+  padding: 14px;
+  transition:
+    transform 0.15s ease,
+    opacity 0.4s ease;
+}
+.fighterAlive {
+  animation: bob 1.2s ease-in-out infinite alternate;
+}
+@keyframes bob {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-8px);
+  }
+}
+.fighterDead {
+  opacity: 0.35;
+  filter: grayscale(1);
+  transform: rotate(6deg);
+}
+.fighterEmoji {
+  font-size: 78px;
+  line-height: 1;
+}
+.fighterName {
+  font-size: 20px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fighterOwner {
+  font-size: 18px;
+  color: #9fb2c4;
+  margin-bottom: 6px;
+}
+.hpTrack {
+  height: 18px;
+  background: #06222a;
+  border-radius: 9px;
+  overflow: hidden;
+  border: 1px solid #0d3b3c;
+}
+.hpFill {
+  height: 100%;
+  background: linear-gradient(90deg, #59e07a, #35e0d0);
+  transition: width 0.18s linear;
+}
+.hpLow {
+  background: linear-gradient(90deg, #ff6b5b, #ff3b3b);
+}
+.koTag {
+  color: #ff6b5b;
+  font-weight: 800;
+  font-size: 22px;
+}
+.shake {
+  animation: shake 0.25s;
+}
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-8px);
+  }
+  75% {
+    transform: translateX(8px);
+  }
+}
+
+/* ---------- Result / Champion ---------- */
+.winnerBanner {
+  font-size: 68px;
+  font-weight: 800;
+  color: #ffd23f;
+  margin: 20px 0;
+  text-shadow: 0 0 30px rgba(255, 210, 63, 0.4);
+}
+.championWrap {
+  text-align: center;
+}
+.championEmoji {
+  font-size: 160px;
+}
+.gameCanvasFrame {
+  margin-top: 10px;
+}

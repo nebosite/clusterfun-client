@@ -12,6 +12,10 @@ import {
 import { instantiateGame } from "libs/GameModel/BaseGameModel";
 
 import {
+  BidBotsPresenterModel,
+  getBidBotsPresenterTypeHelper,
+} from "games/BidBots/models/PresenterModel";
+import {
   EittrisPresenterModel,
   getEittrisPresenterTypeHelper,
 } from "games/Eittris/models/PresenterModel";
@@ -73,6 +77,11 @@ interface GameUnderTest {
 }
 
 const GAMES: GameUnderTest[] = [
+  {
+    name: "BidBots",
+    Model: BidBotsPresenterModel as any,
+    typeHelper: getBidBotsPresenterTypeHelper,
+  },
   {
     name: "Eittris",
     Model: EittrisPresenterModel as any,
